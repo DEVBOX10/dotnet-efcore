@@ -22,7 +22,7 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Query.Internal
     /// </summary>
     public class SqlServerTimeSpanMemberTranslator : IMemberTranslator
     {
-        private static readonly Dictionary<string, string> _datePartMappings = new Dictionary<string, string>
+        private static readonly Dictionary<string, string> _datePartMappings = new()
         {
             { nameof(TimeSpan.Hours), "hour" },
             { nameof(TimeSpan.Minutes), "minute" },
@@ -59,7 +59,7 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Query.Internal
             Check.NotNull(returnType, nameof(returnType));
             Check.NotNull(logger, nameof(logger));
 
-            if (member.DeclaringType == typeof(TimeSpan) && _datePartMappings.TryGetValue(member.Name, out string value))
+            if (member.DeclaringType == typeof(TimeSpan) && _datePartMappings.TryGetValue(member.Name, out var value))
             {
                 return _sqlExpressionFactory.Function(
                     "DATEPART", new[] { _sqlExpressionFactory.Fragment(value), instance! },

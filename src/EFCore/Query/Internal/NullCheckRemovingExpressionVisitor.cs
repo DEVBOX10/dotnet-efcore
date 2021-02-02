@@ -19,7 +19,7 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
     public class NullCheckRemovingExpressionVisitor : ExpressionVisitor
     {
         private readonly NullSafeAccessVerifyingExpressionVisitor _nullSafeAccessVerifyingExpressionVisitor
-            = new NullSafeAccessVerifyingExpressionVisitor();
+            = new();
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -140,7 +140,8 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
                 Check.NotNull(memberExpression, nameof(memberExpression));
 
                 var innerExpression = Visit(memberExpression.Expression);
-                if (_nullSafeAccesses.Contains(innerExpression))
+                if (innerExpression != null
+                    && _nullSafeAccesses.Contains(innerExpression))
                 {
                     _nullSafeAccesses.Add(memberExpression);
                 }

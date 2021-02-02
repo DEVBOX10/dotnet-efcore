@@ -22,13 +22,13 @@ namespace Microsoft.EntityFrameworkCore.Cosmos.Query.Internal
     public class StringMethodTranslator : IMethodCallTranslator
     {
         private static readonly MethodInfo _containsMethodInfo
-            = typeof(string).GetRuntimeMethod(nameof(string.Contains), new[] { typeof(string) });
+            = typeof(string).GetRequiredRuntimeMethod(nameof(string.Contains), new[] { typeof(string) });
 
         private static readonly MethodInfo _startsWithMethodInfo
-            = typeof(string).GetRuntimeMethod(nameof(string.StartsWith), new[] { typeof(string) });
+            = typeof(string).GetRequiredRuntimeMethod(nameof(string.StartsWith), new[] { typeof(string) });
 
         private static readonly MethodInfo _endsWithMethodInfo
-            = typeof(string).GetRuntimeMethod(nameof(string.EndsWith), new[] { typeof(string) });
+            = typeof(string).GetRequiredRuntimeMethod(nameof(string.EndsWith), new[] { typeof(string) });
 
         private static readonly MethodInfo _firstOrDefaultMethodInfoWithoutArgs
             = typeof(Enumerable).GetRuntimeMethods().Single(
@@ -39,6 +39,18 @@ namespace Microsoft.EntityFrameworkCore.Cosmos.Query.Internal
             = typeof(Enumerable).GetRuntimeMethods().Single(
                 m => m.Name == nameof(Enumerable.LastOrDefault)
                     && m.GetParameters().Length == 1).MakeGenericMethod(typeof(char));
+
+        private static readonly MethodInfo _stringConcatWithTwoArguments =
+            typeof(String).GetRequiredRuntimeMethod(nameof(string.Concat),
+                new[] { typeof(string), typeof(string) });
+
+        private static readonly MethodInfo _stringConcatWithThreeArguments =
+            typeof(String).GetRequiredRuntimeMethod(nameof(string.Concat),
+                new[] { typeof(string), typeof(string), typeof(string) });
+
+        private static readonly MethodInfo _stringConcatWithFourArguments =
+            typeof(String).GetRequiredRuntimeMethod(nameof(string.Concat),
+                new[] { typeof(string), typeof(string), typeof(string), typeof(string) });
 
         private readonly ISqlExpressionFactory _sqlExpressionFactory;
 
@@ -95,6 +107,33 @@ namespace Microsoft.EntityFrameworkCore.Cosmos.Query.Internal
             if (_lastOrDefaultMethodInfoWithoutArgs.Equals(method))
             {
                 return TranslateSystemFunction("RIGHT", arguments[0], _sqlExpressionFactory.Constant(1), typeof(char));
+            }
+
+            if(_stringConcatWithTwoArguments.Equals(method))
+            {
+                return _sqlExpressionFactory.Add(
+                    arguments[0],
+                    arguments[1]);
+            }
+
+            if(_stringConcatWithThreeArguments.Equals(method))
+            {
+                return _sqlExpressionFactory.Add(
+                    arguments[0],
+                    _sqlExpressionFactory.Add(
+                        arguments[1],
+                        arguments[2]));
+            }
+
+            if (_stringConcatWithFourArguments.Equals(method))
+            {
+                return _sqlExpressionFactory.Add(
+                    arguments[0],
+                    _sqlExpressionFactory.Add(
+                        arguments[1],
+                        _sqlExpressionFactory.Add(
+                            arguments[2],
+                            arguments[3])));
             }
 
             return null;

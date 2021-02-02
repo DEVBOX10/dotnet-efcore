@@ -148,7 +148,7 @@ DROP SEQUENCE [NumericSequence];");
         {
             Test(
                 @"
-CREATE SEQUENCE [dbo].[HighDecimalSequence] 
+CREATE SEQUENCE [dbo].[HighDecimalSequence]
  AS [numeric](38, 0)
  START WITH -99999999999999999999999999999999999999
  INCREMENT BY 1
@@ -1556,6 +1556,28 @@ CREATE TABLE ColumnsWithCollation (
         }
 
         [ConditionalFact]
+        public void Column_sparseness_is_set()
+        {
+            Test(
+                @"
+CREATE TABLE ColumnsWithSparseness (
+    Id int,
+    Sparse nvarchar(max) SPARSE NULL,
+    NonSparse nvarchar(max) NULL
+);",
+                Enumerable.Empty<string>(),
+                Enumerable.Empty<string>(),
+                dbModel =>
+                {
+                    var columns = dbModel.Tables.Single().Columns;
+
+                    Assert.True((bool)columns.Single(c => c.Name == "Sparse")[SqlServerAnnotationNames.Sparse]);
+                    Assert.Null(columns.Single(c => c.Name == "NonSparse")[SqlServerAnnotationNames.Sparse]);
+                },
+                "DROP TABLE ColumnsWithSparseness;");
+        }
+
+        [ConditionalFact]
         [SqlServerCondition(SqlServerCondition.SupportsHiddenColumns)]
         public void Hidden_columns_are_not_created()
         {
@@ -1941,6 +1963,26 @@ CREATE INDEX ixHypo ON HypotheticalIndexTable ( Id1 ) WITH STATISTICS_ONLY = -1;
                     Assert.Empty(dbModel.Tables.Single().Indexes);
                 },
                 "DROP TABLE HypotheticalIndexTable;");
+        }
+
+        [ConditionalFact]
+        public void Ignore_columnstore_index()
+        {
+            Test(
+                @"
+CREATE TABLE ColumnStoreIndexTable (
+    Id1 int,
+    Id2 int NULL,
+);
+
+CREATE NONCLUSTERED COLUMNSTORE INDEX ixColumnStore ON ColumnStoreIndexTable ( Id1, Id2 )",
+                Enumerable.Empty<string>(),
+                Enumerable.Empty<string>(),
+                dbModel =>
+                {
+                    Assert.Empty(dbModel.Tables.Single().Indexes);
+                },
+                "DROP TABLE ColumnStoreIndexTable;");
         }
 
         [ConditionalFact]

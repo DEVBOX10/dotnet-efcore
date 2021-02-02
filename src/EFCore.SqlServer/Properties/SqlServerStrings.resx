@@ -138,6 +138,9 @@
   <data name="DuplicateColumnSequenceMismatch" xml:space="preserve">
     <value>'{entityType1}.{property1}' and '{entityType2}.{property2}' are both mapped to column '{columnName}' in '{table}', but are configured with different hi-lo sequences.</value>
   </data>
+  <data name="DuplicateColumnSparsenessMismatch" xml:space="preserve">
+    <value>'{entityType1}.{property1}' and '{entityType2}.{property2}' are both mapped to column '{columnName}' in '{table}', but are configured with different sparseness.</value>
+  </data>
   <data name="DuplicateIndexClusteredMismatch" xml:space="preserve">
     <value>The indexes {index1} on '{entityType1}' and {index2} on '{entityType2}' are both mapped to '{table}.{indexName}', but have different clustered configurations.</value>
   </data>
@@ -249,6 +252,10 @@
     <value>Skipping foreign key '{foreignKeyName}' on table '{tableName}' since all of its columns reference themselves.</value>
     <comment>Debug SqlServerEventId.ReflexiveConstraintIgnored string string</comment>
   </data>
+  <data name="LogSavepointsDisabledBecauseOfMARS" xml:space="preserve">
+    <value>Savepoints are disabled because Multiple Active Result Sets (MARS) is enabled. If 'SaveChanges' fails, then the transaction cannot be automatically rolled back to a known clean state. Instead, the transaction should be rolled back by the application before retrying 'SaveChanges'. See https://go.microsoft.com/fwlink/?linkid=2149338 for more information. To identify the code which triggers this warning, call 'ConfigureWarnings(w =&gt; w.Throw(RelationalEventId.SavepointsDisabledBecauseOfMARS))'.</value>
+    <comment>Warning SqlServerEventId.SavepointsDisabledBecauseOfMARS</comment>
+  </data>
   <data name="MultipleIdentityColumns" xml:space="preserve">
     <value>The properties {properties} are configured to use 'Identity' value generation and are mapped to the same table '{table}', but only one column per table can be configured as 'Identity'. Call 'ValueGeneratedNever' in 'OnModelCreating' for properties that should not use 'Identity'.</value>
   </data>
@@ -257,6 +264,9 @@
   </data>
   <data name="NonKeyValueGeneration" xml:space="preserve">
     <value>The property '{property}' on entity type '{entityType}' is configured to use 'SequenceHiLo' value generator, which is only intended for keys. If this was intentional, configure an alternate key on the property, otherwise call 'ValueGeneratedNever' or configure store generation for this property.</value>
+  </data>
+  <data name="NoSavepointRelease" xml:space="preserve">
+    <value>SQL Server does not support releasing a savepoint.</value>
   </data>
   <data name="SequenceBadType" xml:space="preserve">
     <value>SQL Server sequences cannot be used to generate values for the property '{property}' on entity type '{entityType}' because the property type is '{propertyType}'. Sequences can only be used with integer properties.</value>

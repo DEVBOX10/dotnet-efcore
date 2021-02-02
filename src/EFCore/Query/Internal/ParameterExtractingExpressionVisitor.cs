@@ -34,8 +34,7 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
         private readonly EvaluatableExpressionFindingExpressionVisitor _evaluatableExpressionFindingExpressionVisitor;
         private readonly ContextParameterReplacingExpressionVisitor _contextParameterReplacingExpressionVisitor;
 
-        private readonly Dictionary<Expression, Expression> _evaluatedValues
-            = new Dictionary<Expression, Expression>(ExpressionEqualityComparer.Instance);
+        private readonly Dictionary<Expression, Expression> _evaluatedValues = new(ExpressionEqualityComparer.Instance);
 
         private IDictionary<Expression, bool> _evaluatableExpressions;
         private IQueryProvider? _currentQueryProvider;
@@ -270,7 +269,7 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
             return base.VisitExtension(extensionExpression);
         }
 
-        private static Expression GenerateConstantExpression(object value, Type returnType)
+        private static Expression GenerateConstantExpression(object? value, Type returnType)
         {
             var constantExpression = Expression.Constant(value, value?.GetType() ?? returnType);
 
@@ -355,7 +354,8 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
 
             public ParameterExpression ContextParameterExpression { get; }
 
-            public override Expression Visit(Expression expression)
+            [return: CA.NotNullIfNotNull("expression")]
+            public override Expression? Visit(Expression? expression)
                 => expression?.Type != typeof(object)
                     && expression?.Type.IsAssignableFrom(_contextType) == true
                         ? ContextParameterExpression
@@ -374,7 +374,6 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
             return expression;
         }
 
-        [return: CA.NotNullIfNotNull("expression")]
         private object? GetValue(Expression? expression, out string? parameterName)
         {
             parameterName = null;
@@ -498,7 +497,8 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
                 return _evaluatableExpressions;
             }
 
-            public override Expression Visit(Expression expression)
+            [return: CA.NotNullIfNotNull("expression")]
+            public override Expression? Visit(Expression? expression)
             {
                 if (expression == null)
                 {

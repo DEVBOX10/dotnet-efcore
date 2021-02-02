@@ -574,8 +574,8 @@ namespace Microsoft.EntityFrameworkCore.Query
                         Id = i + 1,
                         Posts = new List<Post5456>
                         {
-                            new Post5456 { Comments = new List<Comment5456> { new Comment5456(), new Comment5456() } },
-                            new Post5456()
+                            new() { Comments = new List<Comment5456> { new(), new() } },
+                            new()
                         },
                         Author = new Author5456()
                     });
@@ -933,7 +933,7 @@ namespace Microsoft.EntityFrameworkCore.Query
 
         private class AppEntity21803
         {
-            private readonly List<OtherEntity21803> _otherEntities = new List<OtherEntity21803>();
+            private readonly List<OtherEntity21803> _otherEntities = new();
 
             public int Id { get; private set; }
 
@@ -1032,6 +1032,456 @@ namespace Microsoft.EntityFrameworkCore.Query
                 optionsBuilder
                     .UseInternalServiceProvider(InMemoryFixture.DefaultServiceProvider)
                     .UseInMemoryDatabase("20729");
+            }
+        }
+
+        #region Issue19253
+
+        [ConditionalFact]
+        public virtual void Concat_combines_nullability_of_entity_shapers()
+        {
+            using (CreateScratch<MyContext19253>(Seed19253, "19253"))
+            {
+                using var context = new MyContext19253();
+
+                Expression<Func<A19253, string>> leftKeySelector = x => x.forkey;
+                Expression<Func<B19253, string>> rightKeySelector = y => y.forkey;
+
+                var query = context.A.GroupJoin(
+                        context.B,
+                        leftKeySelector,
+                        rightKeySelector,
+                        (left, rightg) => new
+                        {
+                            left,
+                            rightg
+                        })
+                    .SelectMany(
+                        r => r.rightg.DefaultIfEmpty(),
+                        (x, y) => new JoinResult19253<A19253, B19253>
+                        {
+                            Left = x.left,
+                            Right = y
+                        })
+                    .Concat(
+                        context.B.GroupJoin(
+                                context.A,
+                                rightKeySelector,
+                                leftKeySelector,
+                                (right, leftg) => new { leftg, right })
+                            .SelectMany(l => l.leftg.DefaultIfEmpty(),
+                                (x, y) => new JoinResult19253<A19253, B19253>
+                                {
+                                    Left = y,
+                                    Right = x.right
+                                })
+                            .Where(z => z.Left.Equals(null)))
+                    .ToList();
+
+                Assert.Equal(3, query.Count);
+            }
+        }
+
+        [ConditionalFact]
+        public virtual void Union_combines_nullability_of_entity_shapers()
+        {
+            using (CreateScratch<MyContext19253>(Seed19253, "19253"))
+            {
+                using var context = new MyContext19253();
+
+                Expression<Func<A19253, string>> leftKeySelector = x => x.forkey;
+                Expression<Func<B19253, string>> rightKeySelector = y => y.forkey;
+
+                var query = context.A.GroupJoin(
+                        context.B,
+                        leftKeySelector,
+                        rightKeySelector,
+                        (left, rightg) => new
+                        {
+                            left,
+                            rightg
+                        })
+                    .SelectMany(
+                        r => r.rightg.DefaultIfEmpty(),
+                        (x, y) => new JoinResult19253<A19253, B19253>
+                        {
+                            Left = x.left,
+                            Right = y
+                        })
+                    .Union(
+                        context.B.GroupJoin(
+                                context.A,
+                                rightKeySelector,
+                                leftKeySelector,
+                                (right, leftg) => new { leftg, right })
+                            .SelectMany(l => l.leftg.DefaultIfEmpty(),
+                                (x, y) => new JoinResult19253<A19253, B19253>
+                                {
+                                    Left = y,
+                                    Right = x.right
+                                })
+                            .Where(z => z.Left.Equals(null)))
+                    .ToList();
+
+                Assert.Equal(3, query.Count);
+            }
+        }
+        [ConditionalFact]
+        public virtual void Except_combines_nullability_of_entity_shapers()
+        {
+            using (CreateScratch<MyContext19253>(Seed19253, "19253"))
+            {
+                using var context = new MyContext19253();
+
+                Expression<Func<A19253, string>> leftKeySelector = x => x.forkey;
+                Expression<Func<B19253, string>> rightKeySelector = y => y.forkey;
+
+                var query = context.A.GroupJoin(
+                        context.B,
+                        leftKeySelector,
+                        rightKeySelector,
+                        (left, rightg) => new
+                        {
+                            left,
+                            rightg
+                        })
+                    .SelectMany(
+                        r => r.rightg.DefaultIfEmpty(),
+                        (x, y) => new JoinResult19253<A19253, B19253>
+                        {
+                            Left = x.left,
+                            Right = y
+                        })
+                    .Except(
+                        context.B.GroupJoin(
+                                context.A,
+                                rightKeySelector,
+                                leftKeySelector,
+                                (right, leftg) => new { leftg, right })
+                            .SelectMany(l => l.leftg.DefaultIfEmpty(),
+                                (x, y) => new JoinResult19253<A19253, B19253>
+                                {
+                                    Left = y,
+                                    Right = x.right
+                                }))
+                    .ToList();
+
+                Assert.Single(query);
+            }
+        }
+        [ConditionalFact]
+        public virtual void Intersect_combines_nullability_of_entity_shapers()
+        {
+            using (CreateScratch<MyContext19253>(Seed19253, "19253"))
+            {
+                using var context = new MyContext19253();
+
+                Expression<Func<A19253, string>> leftKeySelector = x => x.forkey;
+                Expression<Func<B19253, string>> rightKeySelector = y => y.forkey;
+
+                var query = context.A.GroupJoin(
+                        context.B,
+                        leftKeySelector,
+                        rightKeySelector,
+                        (left, rightg) => new
+                        {
+                            left,
+                            rightg
+                        })
+                    .SelectMany(
+                        r => r.rightg.DefaultIfEmpty(),
+                        (x, y) => new JoinResult19253<A19253, B19253>
+                        {
+                            Left = x.left,
+                            Right = y
+                        })
+                    .Intersect(
+                        context.B.GroupJoin(
+                                context.A,
+                                rightKeySelector,
+                                leftKeySelector,
+                                (right, leftg) => new { leftg, right })
+                            .SelectMany(l => l.leftg.DefaultIfEmpty(),
+                                (x, y) => new JoinResult19253<A19253, B19253>
+                                {
+                                    Left = y,
+                                    Right = x.right
+                                }))
+                    .ToList();
+
+                Assert.Single(query);
+            }
+        }
+
+        public class MyContext19253 : DbContext
+        {
+            public DbSet<A19253> A { get; set; }
+            public DbSet<B19253> B { get; set; }
+
+            protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+            {
+                optionsBuilder
+                    .UseInternalServiceProvider(InMemoryFixture.DefaultServiceProvider)
+                    .UseInMemoryDatabase("19253");
+            }
+        }
+
+        public class JoinResult19253<TLeft, TRight>
+        {
+            public TLeft Left { get; set; }
+
+            public TRight Right { get; set; }
+        }
+
+        public class A19253
+        {
+            public int Id { get; set; }
+            public string a { get; set; }
+            public string a1 { get; set; }
+            public string forkey { get; set; }
+
+        }
+
+        public class B19253
+        {
+            public int Id { get; set; }
+            public string b { get; set; }
+            public string b1 { get; set; }
+            public string forkey { get; set; }
+        }
+
+        private static void Seed19253(MyContext19253 context)
+        {
+            var tmp_a = new A19253[]
+            {
+                new() {a = "a0", a1 = "a1", forkey = "a"},
+                new() {a = "a2", a1 = "a1", forkey = "d"},
+            };
+            var tmp_b = new B19253[]
+            {
+                new() {b = "b0", b1 = "b1", forkey = "a"},
+                new() {b = "b2", b1 = "b1", forkey = "c"},
+            };
+            context.A.AddRange(tmp_a);
+            context.B.AddRange(tmp_b);
+
+            context.SaveChanges();
+        }
+
+        #endregion
+
+        #endregion
+
+        #region Issue23285
+
+        [ConditionalFact]
+        public virtual void Owned_reference_on_base_with_hierarchy()
+        {
+            using (CreateScratch<MyContext23285>(Seed23285, "23285"))
+            {
+                using var context = new MyContext23285();
+
+                var query = context.Table.ToList();
+
+                var root = Assert.Single(query);
+                Assert.True(root is ChildA23285);
+            }
+        }
+
+        private static void Seed23285(MyContext23285 context)
+        {
+            context.Table.Add(new ChildA23285());
+
+            context.SaveChanges();
+        }
+
+        [Owned]
+        public class OwnedClass23285
+        {
+            public string A { get; set; }
+            public string B { get; set; }
+        }
+
+        public class Root23285
+        {
+            public int Id { get; set; }
+            public OwnedClass23285 OwnedProp { get; set; }
+        }
+
+        public class ChildA23285 : Root23285
+        {
+            public bool Prop { get; set; }
+        }
+
+        public class ChildB23285 : Root23285
+        {
+            public double Prop { get; set; }
+        }
+
+        private class MyContext23285 : DbContext
+        {
+            public DbSet<Root23285> Table { get; set; }
+
+            protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+            {
+                optionsBuilder
+                    .UseInternalServiceProvider(InMemoryFixture.DefaultServiceProvider)
+                    .UseInMemoryDatabase("23285");
+            }
+
+            protected override void OnModelCreating(ModelBuilder modelBuilder)
+            {
+                modelBuilder.Entity<ChildA23285>().HasBaseType<Root23285>();
+                modelBuilder.Entity<ChildB23285>().HasBaseType<Root23285>();
+            }
+        }
+
+        #endregion
+
+        #region Issue23687
+
+        [ConditionalFact]
+        public virtual void Owned_reference_with_composite_key()
+        {
+            using (CreateScratch<MyContext23687>(Seed23687, "23687"))
+            {
+                using var context = new MyContext23687();
+
+                var query = context.Table.ToList();
+
+                var root = Assert.Single(query);
+                Assert.Equal("A", root.OwnedProp.A);
+                Assert.Equal("B", root.OwnedProp.B);
+            }
+        }
+
+        private static void Seed23687(MyContext23687 context)
+        {
+            context.Table.Add(new Root23687 { Id1 = 1, Id2 = 11, OwnedProp = new OwnedClass23687 { A = "A", B = "B" } });
+
+            context.SaveChanges();
+        }
+
+        [Owned]
+        public class OwnedClass23687
+        {
+            public string A { get; set; }
+            public string B { get; set; }
+        }
+
+        public class Root23687
+        {
+            public int Id1 { get; set; }
+            public int Id2 { get; set; }
+            public OwnedClass23687 OwnedProp { get; set; }
+        }
+
+        private class MyContext23687 : DbContext
+        {
+            public DbSet<Root23687> Table { get; set; }
+
+            protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+            {
+                optionsBuilder
+                    .UseInternalServiceProvider(InMemoryFixture.DefaultServiceProvider)
+                    .UseInMemoryDatabase("23687");
+            }
+
+            protected override void OnModelCreating(ModelBuilder modelBuilder)
+            {
+                modelBuilder.Entity<Root23687>().HasKey(e => new { e.Id1, e.Id2 });
+            }
+        }
+
+        #endregion
+
+        #region Issue23593
+
+        [ConditionalFact]
+        public virtual void Join_with_enum_as_key_selector()
+        {
+            using (CreateScratch<MyContext23593>(Seed23593, "23593"))
+            {
+                using var context = new MyContext23593();
+
+                var query = from sm in context.StatusMaps
+                            join sme in context.StatusMapEvents on sm.Id equals sme.Id
+                            select sm;
+
+                var result = Assert.Single(query);
+                Assert.Equal(StatusMapCode23593.Two, result.Id);
+            }
+        }
+
+        [ConditionalFact]
+        public virtual void Join_with_enum_inside_anonymous_type_as_key_selector()
+        {
+            using (CreateScratch<MyContext23593>(Seed23593, "23593"))
+            {
+                using var context = new MyContext23593();
+
+                var query = from sm in context.StatusMaps
+                            join sme in context.StatusMapEvents on new { sm.Id } equals new { sme.Id }
+                            select sm;
+
+                var result = Assert.Single(query);
+                Assert.Equal(StatusMapCode23593.Two, result.Id);
+            }
+        }
+
+        [ConditionalFact]
+        public virtual void Join_with_enum_inside_anonymous_type_with_other_property_as_key_selector()
+        {
+            using (CreateScratch<MyContext23593>(Seed23593, "23593"))
+            {
+                using var context = new MyContext23593();
+
+                var query = from sm in context.StatusMaps
+                            join sme in context.StatusMapEvents on new { sm.Id, A = 1 } equals new { sme.Id, A = 1 }
+                            select sm;
+
+                var result = Assert.Single(query);
+                Assert.Equal(StatusMapCode23593.Two, result.Id);
+            }
+        }
+
+        private static void Seed23593(MyContext23593 context)
+        {
+            context.Add(new StatusMap23593 { Id = StatusMapCode23593.One });
+            context.Add(new StatusMap23593 { Id = StatusMapCode23593.Two });
+            context.Add(new StatusMapEvent23593 { Id = StatusMapCode23593.Two });
+
+            context.SaveChanges();
+        }
+
+        private enum StatusMapCode23593
+        {
+            One,
+            Two,
+            Three,
+            Four
+        }
+
+        private class StatusMap23593
+        {
+            public StatusMapCode23593 Id { get; set; }
+        }
+        private class StatusMapEvent23593
+        {
+            public StatusMapCode23593 Id { get; set; }
+        }
+
+
+        private class MyContext23593 : DbContext
+        {
+            public DbSet<StatusMap23593> StatusMaps { get; set; }
+            public DbSet<StatusMapEvent23593> StatusMapEvents { get; set; }
+
+            protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+            {
+                optionsBuilder
+                    .UseInternalServiceProvider(InMemoryFixture.DefaultServiceProvider)
+                    .UseInMemoryDatabase("23593");
             }
         }
 

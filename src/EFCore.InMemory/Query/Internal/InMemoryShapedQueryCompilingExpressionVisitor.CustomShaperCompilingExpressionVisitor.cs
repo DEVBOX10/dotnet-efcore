@@ -27,20 +27,16 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
             }
 
             private static readonly MethodInfo _includeReferenceMethodInfo
-                = typeof(CustomShaperCompilingExpressionVisitor).GetTypeInfo()
-                    .GetDeclaredMethod(nameof(IncludeReference));
+                = typeof(CustomShaperCompilingExpressionVisitor).GetRequiredDeclaredMethod(nameof(IncludeReference));
 
             private static readonly MethodInfo _includeCollectionMethodInfo
-                = typeof(CustomShaperCompilingExpressionVisitor).GetTypeInfo()
-                    .GetDeclaredMethod(nameof(IncludeCollection));
+                = typeof(CustomShaperCompilingExpressionVisitor).GetRequiredDeclaredMethod(nameof(IncludeCollection));
 
             private static readonly MethodInfo _materializeCollectionMethodInfo
-                = typeof(CustomShaperCompilingExpressionVisitor).GetTypeInfo()
-                    .GetDeclaredMethod(nameof(MaterializeCollection));
+                = typeof(CustomShaperCompilingExpressionVisitor).GetRequiredDeclaredMethod(nameof(MaterializeCollection));
 
             private static readonly MethodInfo _materializeSingleResultMethodInfo
-                = typeof(CustomShaperCompilingExpressionVisitor).GetTypeInfo()
-                    .GetDeclaredMethod(nameof(MaterializeSingleResult));
+                = typeof(CustomShaperCompilingExpressionVisitor).GetRequiredDeclaredMethod(nameof(MaterializeSingleResult));
 
             private static void IncludeReference<TEntity, TIncludingEntity, TIncludedEntity>(
                 QueryContext queryContext,
@@ -89,23 +85,27 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
                 INavigationBase navigation,
                 INavigationBase inverseNavigation,
                 Action<TIncludingEntity, TIncludedEntity> fixup,
-                bool trackingQuery)
+                bool trackingQuery,
+                bool setLoaded)
                 where TIncludingEntity : class, TEntity
                 where TEntity : class
                 where TIncludedEntity : class
             {
                 if (entity is TIncludingEntity includingEntity)
                 {
-                    var collectionAccessor = navigation.GetCollectionAccessor();
+                    var collectionAccessor = navigation.GetCollectionAccessor()!;
                     collectionAccessor.GetOrCreate(includingEntity, forMaterialization: true);
 
-                    if (trackingQuery)
+                    if (setLoaded)
                     {
-                        queryContext.SetNavigationIsLoaded(entity, navigation);
-                    }
-                    else
-                    {
-                        navigation.SetIsLoadedWhenNoTracking(entity);
+                        if (trackingQuery)
+                        {
+                            queryContext.SetNavigationIsLoaded(entity, navigation);
+                        }
+                        else
+                        {
+                            navigation.SetIsLoadedWhenNoTracking(entity);
+                        }
                     }
 
                     foreach (var valueBuffer in innerValueBuffers)
@@ -157,9 +157,9 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
                 if (extensionExpression is IncludeExpression includeExpression)
                 {
                     var entityClrType = includeExpression.EntityExpression.Type;
-                    var includingClrType = includeExpression.Navigation.DeclaringEntityType.ClrType!;
+                    var includingClrType = includeExpression.Navigation.DeclaringEntityType.ClrType;
                     var inverseNavigation = includeExpression.Navigation.Inverse;
-                    var relatedEntityClrType = includeExpression.Navigation.TargetEntityType.ClrType!;
+                    var relatedEntityClrType = includeExpression.Navigation.TargetEntityType.ClrType;
                     if (includingClrType != entityClrType
                         && includingClrType.IsAssignableFrom(entityClrType))
                     {
@@ -180,7 +180,10 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
                             Expression.Constant(
                                 GenerateFixup(
                                     includingClrType, relatedEntityClrType, includeExpression.Navigation, inverseNavigation).Compile()),
-                            Expression.Constant(_tracking));
+                            Expression.Constant(_tracking),
+#pragma warning disable EF1001 // Internal EF Core API usage.
+                            Expression.Constant(includeExpression.SetLoaded));
+#pragma warning restore EF1001 // Internal EF Core API usage.
                     }
 
                     return Expression.Call(
@@ -229,7 +232,7 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
                 Type entityType,
                 Type relatedEntityType,
                 INavigationBase navigation,
-                INavigationBase inverseNavigation)
+                INavigationBase? inverseNavigation)
             {
                 var entityParameter = Expression.Parameter(entityType);
                 var relatedEntityParameter = Expression.Parameter(relatedEntityType);
@@ -271,8 +274,7 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
                     Expression.Constant(true));
 
             private static readonly MethodInfo _collectionAccessorAddMethodInfo
-                = typeof(IClrCollectionAccessor).GetTypeInfo()
-                    .GetDeclaredMethod(nameof(IClrCollectionAccessor.Add));
+                = typeof(IClrCollectionAccessor).GetRequiredDeclaredMethod(nameof(IClrCollectionAccessor.Add));
         }
     }
 }

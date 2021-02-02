@@ -7,6 +7,8 @@ using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 
+#nullable enable
+
 namespace Microsoft.EntityFrameworkCore.Metadata
 {
     /// <summary>
@@ -62,7 +64,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
             return new DependencyInjectionParameterBinding(
                 _serviceType,
                 _serviceType,
-                entityType.GetServiceProperties().FirstOrDefault(p => p.ClrType == _serviceType));
+                (IPropertyBase?)entityType.GetServiceProperties().FirstOrDefault(p => p.ClrType == _serviceType));
         }
 
         /// <summary>
@@ -84,7 +86,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
             return new DependencyInjectionParameterBinding(
                 _serviceType,
                 _serviceType,
-                entityType.GetServiceProperties().FirstOrDefault(p => p.ClrType == _serviceType));
+                (IPropertyBase?)entityType.GetServiceProperties().FirstOrDefault(p => p.ClrType == _serviceType));
         }
     }
 }

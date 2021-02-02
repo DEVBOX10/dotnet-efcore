@@ -16,6 +16,8 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 
+#nullable enable
+
 namespace Microsoft.EntityFrameworkCore.Sqlite.Storage.Internal
 {
     /// <summary>
@@ -98,7 +100,7 @@ namespace Microsoft.EntityFrameworkCore.Sqlite.Storage.Internal
 
             var contextOptions = new DbContextOptionsBuilder().UseSqlite(connectionStringBuilder.ToString()).Options;
 
-            return new SqliteRelationalConnection(Dependencies.With(contextOptions), _rawSqlCommandBuilder, _logger);
+            return new SqliteRelationalConnection(Dependencies with { ContextOptions = contextOptions }, _rawSqlCommandBuilder, _logger);
         }
 
         private void InitializeDbConnection(DbConnection connection)
@@ -129,7 +131,7 @@ namespace Microsoft.EntityFrameworkCore.Sqlite.Storage.Internal
                     },
                     isDeterministic: true);
 
-                sqliteConnection.CreateFunction<object, object, object>(
+                sqliteConnection.CreateFunction<object, object, object?>(
                     "ef_mod",
                     (dividend, divisor) =>
                     {

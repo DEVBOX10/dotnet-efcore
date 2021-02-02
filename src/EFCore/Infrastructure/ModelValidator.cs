@@ -1,4 +1,4 @@
-// Copyright (c) .NET Foundation. All rights reserved.
+﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
@@ -51,13 +51,12 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// <inheritdoc />
         public virtual void Validate(IModel model, IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
         {
-            ((Model)model).IsValidated = true;
-
+#pragma warning disable CS0618 // Type or member is obsolete
             ValidateNoShadowEntities(model, logger);
+#pragma warning restore CS0618 // Type or member is obsolete
             ValidateIgnoredMembers(model, logger);
             ValidatePropertyMapping(model, logger);
             ValidateRelationships(model, logger);
-            ValidateDefiningNavigations(model, logger);
             ValidateOwnership(model, logger);
             ValidateNonNullPrimaryKeys(model, logger);
             ValidateNoShadowKeys(model, logger);
@@ -163,7 +162,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                             entityType.DisplayName(), unmappedProperty.Name, unmappedProperty.ClrType.ShortDisplayName()));
                 }
 
-                if (!entityType.HasClrType())
+                if (entityType.ClrType == Model.DefaultPropertyBagType)
                 {
                     continue;
                 }
@@ -199,37 +198,35 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                     var propertyType = actualProperty.PropertyType;
                     var targetSequenceType = propertyType.TryGetSequenceType();
 
-                    if (conventionModel.FindIgnoredConfigurationSource(propertyType.DisplayName()) != null
+                    if (conventionModel.FindIgnoredConfigurationSource(propertyType) != null
                         || targetSequenceType != null
-                        && conventionModel.FindIgnoredConfigurationSource(targetSequenceType.DisplayName()) != null)
+                        && conventionModel.FindIgnoredConfigurationSource(targetSequenceType) != null)
                     {
                         continue;
-                    }
-
-                    if (model.IsShared(propertyType)
-                        || (targetSequenceType != null && model.IsShared(targetSequenceType)))
-                    {
-                        throw new InvalidOperationException(
-                            CoreStrings.NonConfiguredNavigationToSharedType(actualProperty.Name, entityType.DisplayName()));
                     }
 
                     var targetType = FindCandidateNavigationPropertyType(actualProperty);
-
-                    if ((targetType == null // Not a navigation
-                            || targetSequenceType == null) // Not a collection navigation
-                        && actualProperty.FindSetterProperty() == null) // No setter property
+                    if (targetType == null
+                            || targetSequenceType == null)
                     {
-                        continue;
+                        if (actualProperty.FindSetterProperty() == null)
+                        {
+                            continue;
+                        }
+
+                        var sharedType = actualProperty.GetMemberType();
+                        if (conventionModel.IsShared(sharedType))
+                        {
+                            targetType = sharedType;
+                        }
                     }
 
-                    var isTargetWeakOrOwned
-                        = targetType != null
-                        && (conventionModel.HasEntityTypeWithDefiningNavigation(targetType)
+                    var isTargetSharedOrOwned = targetType != null
+                        && (conventionModel.IsShared(targetType)
                             || conventionModel.IsOwned(targetType));
 
                     if (targetType?.IsValidEntityType() == true
-                        && (isTargetWeakOrOwned
-                            || conventionModel.IsShared(targetType)
+                        && (isTargetSharedOrOwned
                             || conventionModel.FindEntityType(targetType) != null
                             || targetType.GetRuntimeProperties().Any(p => p.IsCandidateProperty())))
                     {
@@ -240,13 +237,10 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                             && entityType.GetDerivedTypes().All(
                                 dt => dt.GetDeclaredNavigations().FirstOrDefault(n => n.Name == actualProperty.GetSimpleMemberName())
                                     == null)
-                            && (!isTargetWeakOrOwned
+                            && (!isTargetSharedOrOwned
                                 || (!targetType.Equals(entityType.ClrType)
                                     && (!entityType.IsInOwnershipPath(targetType)
                                         || (entityType.FindOwnership().PrincipalEntityType.ClrType.Equals(targetType)
-                                            && targetSequenceType == null))
-                                    && (!entityType.IsInDefinitionPath(targetType)
-                                        || (entityType.DefiningEntityType.ClrType.Equals(targetType)
                                             && targetSequenceType == null)))))
                         {
                             if (conventionModel.IsOwned(entityType.ClrType)
@@ -257,10 +251,17 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                                         entityType.DisplayName() + "." + actualProperty.Name, targetType.ShortDisplayName()));
                             }
 
+                            if (model.IsShared(targetType))
+                            {
+                                throw new InvalidOperationException(
+                                    CoreStrings.NonConfiguredNavigationToSharedType(actualProperty.Name, entityType.DisplayName()));
+                            }
+
                             throw new InvalidOperationException(
                                 CoreStrings.NavigationNotAdded(
                                     entityType.DisplayName(), actualProperty.Name, propertyType.ShortDisplayName()));
                         }
+
                         // ReSharper restore CheckForReferenceEqualityInstead.3
                         // ReSharper restore CheckForReferenceEqualityInstead.1
                     }
@@ -369,18 +370,11 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// </summary>
         /// <param name="model"> The model to validate. </param>
         /// <param name="logger"> The logger to use. </param>
+        [Obsolete("Shadow entity types cannot be created anymore")]
         protected virtual void ValidateNoShadowEntities(
             [NotNull] IModel model,
             [NotNull] IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
         {
-            Check.NotNull(model, nameof(model));
-
-            var firstShadowEntity = model.GetEntityTypes().FirstOrDefault(entityType => !entityType.HasClrType());
-            if (firstShadowEntity != null)
-            {
-                throw new InvalidOperationException(
-                    CoreStrings.ShadowEntity(firstShadowEntity.DisplayName()));
-            }
         }
 
         /// <summary>
@@ -394,7 +388,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         {
             Check.NotNull(model, nameof(model));
 
-            foreach (IConventionEntityType entityType in model.GetEntityTypes().Where(t => t.ClrType != null))
+            foreach (IConventionEntityType entityType in model.GetEntityTypes())
             {
                 foreach (var key in entityType.GetDeclaredKeys())
                 {
@@ -459,52 +453,35 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         {
             Check.NotNull(model, nameof(model));
 
-            var typesToValidate = new Queue<IEntityType>();
-            var reachableTypes = new HashSet<IEntityType>();
-            var unvalidatedEntityTypes = new HashSet<IEntityType>(model.GetEntityTypes());
-            while (unvalidatedEntityTypes.Count > 0)
+            var graph = new Multigraph<IEntityType, IForeignKey>();
+            foreach (var entityType in model.GetEntityTypes())
             {
-                var rootEntityType = unvalidatedEntityTypes.First();
-                reachableTypes.Clear();
-                reachableTypes.Add(rootEntityType);
-                typesToValidate.Enqueue(rootEntityType);
-
-                while (typesToValidate.Count > 0)
+                var primaryKey = entityType.FindPrimaryKey();
+                if (primaryKey == null)
                 {
-                    var entityType = typesToValidate.Dequeue();
-                    var primaryKey = entityType.FindPrimaryKey();
-                    if (primaryKey == null)
+                    continue;
+                }
+
+                foreach (var foreignKey in entityType.GetForeignKeys())
+                {
+                    var principalType = foreignKey.PrincipalEntityType;
+                    if (!foreignKey.PrincipalKey.IsPrimaryKey()
+                        || !PropertyListComparer.Instance.Equals(foreignKey.Properties, primaryKey.Properties)
+                        || foreignKey.PrincipalEntityType.IsAssignableFrom(entityType))
                     {
                         continue;
                     }
 
-                    foreach (var foreignKey in entityType.GetForeignKeys())
-                    {
-                        var principalType = foreignKey.PrincipalEntityType;
-                        if (!foreignKey.PrincipalKey.IsPrimaryKey()
-                            || !unvalidatedEntityTypes.Contains(principalType)
-                            || foreignKey.PrincipalEntityType.IsAssignableFrom(entityType)
-                            || !PropertyListComparer.Instance.Equals(foreignKey.Properties, primaryKey.Properties))
-                        {
-                            continue;
-                        }
-
-                        if (!reachableTypes.Add(principalType))
-                        {
-                            throw new InvalidOperationException(CoreStrings.IdentifyingRelationshipCycle(
-                                rootEntityType.DisplayName(),
-                                primaryKey.Properties.Format()));
-                        }
-
-                        typesToValidate.Enqueue(principalType);
-                    }
-                }
-
-                foreach (var entityType in reachableTypes)
-                {
-                    unvalidatedEntityTypes.Remove(entityType);
+                    graph.AddVertex(entityType);
+                    graph.AddVertex(principalType);
+                    graph.AddEdge(entityType, principalType, foreignKey);
                 }
             }
+
+            graph.TopologicalSort(
+                tryBreakEdge: null,
+                formatCycle: c => c.Select(d => d.Item1.DisplayName()).Join(" -> "),
+                c => CoreStrings.IdentifyingRelationshipCycle(c));
         }
 
         /// <summary>
@@ -567,11 +544,10 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                 throw new InvalidOperationException(CoreStrings.SharedTypeDerivedType(entityType.DisplayName()));
             }
 
-            if (!entityType.HasDefiningNavigation()
-                && entityType.FindDeclaredOwnership() == null
+            if (entityType.FindDeclaredOwnership() == null
                 && entityType.BaseType != null)
             {
-                var baseClrType = entityType.ClrType?.BaseType;
+                var baseClrType = entityType.ClrType.BaseType;
                 while (baseClrType != null)
                 {
                     var baseEntityType = model.FindEntityType(baseClrType);
@@ -591,7 +567,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                 }
             }
 
-            if (entityType.ClrType?.IsInstantiable() == false
+            if (!entityType.ClrType.IsInstantiable()
                 && !entityType.GetDerivedTypes().Any())
             {
                 throw new InvalidOperationException(
@@ -654,7 +630,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
 
             foreach (var derivedType in derivedTypes)
             {
-                if (derivedType.ClrType?.IsInstantiable() != true)
+                if (!derivedType.ClrType.IsInstantiable())
                 {
                     continue;
                 }
@@ -762,8 +738,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                                 ownership.PrincipalEntityType.DisplayName()));
                     }
                 }
-                else if (entityType.HasClrType()
-                    && ((IMutableModel)model).IsOwned(entityType.ClrType))
+                else if (((IMutableModel)model).IsOwned(entityType.ClrType))
                 {
                     throw new InvalidOperationException(CoreStrings.OwnerlessOwnedType(entityType.DisplayName()));
                 }
@@ -828,8 +803,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
             }
 
             static bool ContainedInForeignKeyForAllConcreteTypes(IEntityType entityType, IProperty property)
-                => entityType.ClrType?.IsAbstract == true
-                    && entityType.GetDerivedTypes().Where(t => t.ClrType?.IsAbstract != true)
+                => entityType.ClrType.IsAbstract
+                    && entityType.GetDerivedTypes().Where(t => !t.ClrType.IsAbstract)
                         .All(d => d.GetForeignKeys()
                             .Any(fk => fk.Properties.Contains(property)));
         }
@@ -839,51 +814,11 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// </summary>
         /// <param name="model"> The model to validate. </param>
         /// <param name="logger"> The logger to use. </param>
+        [Obsolete]
         protected virtual void ValidateDefiningNavigations(
             [NotNull] IModel model,
             [NotNull] IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
         {
-            Check.NotNull(model, nameof(model));
-
-            foreach (var entityType in model.GetEntityTypes())
-            {
-                if (entityType.DefiningEntityType != null)
-                {
-                    if (entityType.FindDefiningNavigation() == null
-                        || (entityType.DefiningEntityType as EntityType)?.Builder == null)
-                    {
-                        throw new InvalidOperationException(
-                            CoreStrings.NoDefiningNavigation(
-                                entityType.DefiningNavigationName, entityType.DisplayName(), entityType.DefiningEntityType.DisplayName()));
-                    }
-
-                    var ownership = entityType.GetForeignKeys().SingleOrDefault(fk => fk.IsOwnership);
-                    if (ownership != null)
-                    {
-                        if (ownership.PrincipalToDependent?.Name != entityType.DefiningNavigationName)
-                        {
-                            var ownershipNavigation = ownership.PrincipalToDependent == null
-                                ? ""
-                                : "." + ownership.PrincipalToDependent.Name;
-                            throw new InvalidOperationException(
-                                CoreStrings.NonDefiningOwnership(
-                                    ownership.PrincipalEntityType.DisplayName() + ownershipNavigation,
-                                    entityType.DefiningNavigationName,
-                                    entityType.DisplayName()));
-                        }
-
-                        foreach (var otherEntityType in model.GetEntityTypes()
-                            .Where(et => et.ClrType == entityType.ClrType && et != entityType))
-                        {
-                            if (!otherEntityType.GetForeignKeys().Any(fk => fk.IsOwnership))
-                            {
-                                throw new InvalidOperationException(
-                                    CoreStrings.InconsistentOwnership(entityType.DisplayName(), otherEntityType.DisplayName()));
-                            }
-                        }
-                    }
-                }
-            }
         }
 
         /// <summary>
@@ -981,7 +916,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                         || property.IsForeignKey()
                         || property.IsUniqueIndex())
                     {
-                        var _ = property.GetCurrentValueComparer(); // Will throw if there is no way to compare
+                        _ = property.GetCurrentValueComparer(); // Will throw if there is no way to compare
                     }
                 }
             }
@@ -1051,6 +986,10 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                 var key = entityType.FindPrimaryKey();
                 if (key == null)
                 {
+                    if (entityType.GetSeedData().Any())
+                    {
+                        throw new InvalidOperationException(CoreStrings.SeedKeylessEntity(entityType.DisplayName()));
+                    }
                     continue;
                 }
 
@@ -1160,8 +1099,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                                 entityType.DisplayName(), key.Properties.Format()));
                     }
 
-                    entry = new InternalShadowEntityEntry(null, entityType);
-
+                    entry = new InternalClrEntityEntry(null, entityType, seedDatum);
                     identityMap.Add(keyValues, entry);
                 }
             }
@@ -1180,16 +1118,11 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
 
             foreach (IConventionEntityType entityType in model.GetEntityTypes())
             {
-                if (entityType.ClrType == null)
-                {
-                    continue;
-                }
-
                 foreach (var property in entityType.GetDeclaredProperties())
                 {
                     if (property.IsImplicitlyCreated())
                     {
-                        logger.ShadowPropertyCreated(property);
+                        logger.ShadowPropertyCreated((IProperty)property);
                     }
                 }
             }

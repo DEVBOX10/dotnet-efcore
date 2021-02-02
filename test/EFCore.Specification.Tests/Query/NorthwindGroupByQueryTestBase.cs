@@ -2356,6 +2356,20 @@ namespace Microsoft.EntityFrameworkCore.Query
                 elementSorter: o => o.Key);
         }
 
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task GroupBy_aggregate_followed_another_GroupBy_aggregate(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => ss.Set<Order>()
+                    .GroupBy(o => new { o.CustomerID, o.OrderDate.Value.Year })
+                    .Select(g => new { g.Key.CustomerID, g.Key.Year })
+                    .GroupBy(e => e.CustomerID)
+                    .Select(g => new { g.Key, Count = g.Count() }),
+                elementSorter: o => o.Key);
+        }
+
         #endregion
 
         #region GroupByAggregateChainComposition
@@ -2993,6 +3007,33 @@ namespace Microsoft.EntityFrameworkCore.Query
                             .GroupBy(o => o.CustomerID)
                             .Select(g => new { CustomerID = g.Key, Sequence = 1 })),
                 elementSorter: e => (e.CustomerID, e.Sequence));
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task AsEnumerable_in_subquery_for_GroupBy(bool async)
+        {
+            return AssertTranslationFailed(
+                () => AssertQuery(
+                    async,
+                    ss => ss.Set<Customer>()
+                        .Where(c => c.CustomerID.StartsWith("F"))
+                        .Select(c => new
+                        {
+                            Customer = c,
+                            Orders = ss.Set<Order>()
+                                .Where(o => o.CustomerID == c.CustomerID)
+                                .AsEnumerable()
+                                .GroupBy(o => o.CustomerID)
+                                .Select(g => g.OrderByDescending(e => e.OrderDate).FirstOrDefault())
+                                .ToList()
+                        }),
+                    elementSorter: e => e.Customer.CustomerID,
+                    elementAsserter: (e, a) =>
+                    {
+                        AssertEqual(e.Customer, a.Customer);
+                        AssertCollection(e.Orders, a.Orders);
+                    }));
         }
 
         #endregion

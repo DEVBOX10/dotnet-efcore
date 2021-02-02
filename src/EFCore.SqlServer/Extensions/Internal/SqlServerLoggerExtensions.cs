@@ -138,7 +138,7 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Extensions.Internal
             [NotNull] this IDiagnosticsLogger<DbLoggerCategory.Model.Validation> diagnostics,
             SqlServerValueGenerationStrategy sqlServerValueGenerationStrategy,
             [NotNull] string otherValueGenerationStrategy,
-            [NotNull] IProperty property)
+            [NotNull] IReadOnlyProperty property)
         {
             var definition = SqlServerResources.LogConflictingValueGenerationStrategies(diagnostics);
 
@@ -510,6 +510,30 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Extensions.Internal
             }
 
             // No DiagnosticsSource events because these are purely design-time messages
+        }
+
+        /// <summary>
+        ///     Logs for the <see cref="RelationalEventId.MultipleCollectionIncludeWarning" /> event.
+        /// </summary>
+        /// <param name="diagnostics"> The diagnostics logger to use. </param>
+        public static void SavepointsDisabledBecauseOfMARS(
+            [NotNull] this IDiagnosticsLogger<DbLoggerCategory.Database.Transaction> diagnostics)
+        {
+            var definition = SqlServerResources.LogSavepointsDisabledBecauseOfMARS(diagnostics);
+
+            if (diagnostics.ShouldLog(definition))
+            {
+                definition.Log(diagnostics);
+            }
+
+            if (diagnostics.NeedsEventData(definition, out var diagnosticSourceEnabled, out var simpleLogEnabled))
+            {
+                var eventData = new EventData(
+                    definition,
+                    (d, p) => ((EventDefinition)d).GenerateMessage());
+
+                diagnostics.DispatchEventData(definition, eventData, diagnosticSourceEnabled, simpleLogEnabled);
+            }
         }
     }
 }

@@ -75,8 +75,9 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         /// <param name="diagnostics"> The diagnostics logger to use. </param>
         /// <param name="context"> The context in use. </param>
         /// <param name="exception"> The exception that caused this event. </param>
-        /// <param name="cancellationToken"> The cancellation token. </param>
+        /// <param name="cancellationToken"> A <see cref="CancellationToken" /> to observe while waiting for the task to complete. </param>
         /// <returns> A <see cref="Task" /> for the async result. </returns>
+        /// <exception cref="OperationCanceledException"> If the <see cref="CancellationToken"/> is canceled. </exception>
         public static Task SaveChangesFailedAsync(
             [NotNull] this IDiagnosticsLogger<DbLoggerCategory.Update> diagnostics,
             [NotNull] DbContext context,
@@ -114,7 +115,7 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             DbContext context,
             Exception exception,
             EventDefinition<Type, string, Exception> definition)
-            => new DbContextErrorEventData(definition, SaveChangesFailed, context, exception);
+            => new(definition, SaveChangesFailed, context, exception);
 
         private static string SaveChangesFailed(EventDefinitionBase definition, EventData payload)
         {
@@ -159,8 +160,9 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         /// <param name="diagnostics"> The diagnostics logger to use. </param>
         /// <param name="context"> The context in use. </param>
         /// <param name="exception"> The exception that caused this event. </param>
-        /// <param name="cancellationToken"> The cancellation token. </param>
+        /// <param name="cancellationToken"> A <see cref="CancellationToken" /> to observe while waiting for the task to complete. </param>
         /// <returns> A <see cref="Task" /> for the async result. </returns>
+        /// <exception cref="OperationCanceledException"> If the <see cref="CancellationToken"/> is canceled. </exception>
         public static Task OptimisticConcurrencyExceptionAsync(
             [NotNull] this IDiagnosticsLogger<DbLoggerCategory.Update> diagnostics,
             [NotNull] DbContext context,
@@ -195,7 +197,7 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             DbContext context,
             Exception exception,
             EventDefinition<Exception> definition)
-            => new DbContextErrorEventData(
+            => new(
                 definition,
                 OptimisticConcurrencyException,
                 context,
@@ -1079,8 +1081,8 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         /// <param name="otherIndex"> The other index. </param>
         public static void RedundantIndexRemoved(
             [NotNull] this IDiagnosticsLogger<DbLoggerCategory.Model> diagnostics,
-            [NotNull] IReadOnlyList<IPropertyBase> redundantIndex,
-            [NotNull] IReadOnlyList<IPropertyBase> otherIndex)
+            [NotNull] IReadOnlyList<IReadOnlyPropertyBase> redundantIndex,
+            [NotNull] IReadOnlyList<IReadOnlyPropertyBase> otherIndex)
         {
             var definition = CoreResources.LogRedundantIndexRemoved(diagnostics);
 
@@ -1172,8 +1174,8 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             [NotNull] this IDiagnosticsLogger<DbLoggerCategory.Model> diagnostics,
             [NotNull] string dependentToPrincipalNavigationSpecification,
             [NotNull] string principalToDependentNavigationSpecification,
-            [NotNull] IReadOnlyList<IPropertyBase> foreignKeyProperties,
-            [NotNull] IReadOnlyList<IPropertyBase> principalKeyProperties)
+            [NotNull] IReadOnlyList<IReadOnlyPropertyBase> foreignKeyProperties,
+            [NotNull] IReadOnlyList<IReadOnlyPropertyBase> principalKeyProperties)
         {
             var definition = CoreResources.LogIncompatibleMatchingForeignKeyProperties(diagnostics);
 
@@ -1332,8 +1334,8 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         [Obsolete]
         public static void RequiredAttributeOnBothNavigations(
             [NotNull] this IDiagnosticsLogger<DbLoggerCategory.Model> diagnostics,
-            [NotNull] INavigation firstNavigation,
-            [NotNull] INavigation secondNavigation)
+            [NotNull] IReadOnlyNavigation firstNavigation,
+            [NotNull] IReadOnlyNavigation secondNavigation)
         {
             var definition = CoreResources.LogRequiredAttributeOnBothNavigations(diagnostics);
 
@@ -1382,8 +1384,8 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         [Obsolete]
         public static void NonNullableReferenceOnBothNavigations(
             [NotNull] this IDiagnosticsLogger<DbLoggerCategory.Model> diagnostics,
-            [NotNull] INavigation firstNavigation,
-            [NotNull] INavigation secondNavigation)
+            [NotNull] IReadOnlyNavigation firstNavigation,
+            [NotNull] IReadOnlyNavigation secondNavigation)
         {
             var definition = CoreResources.LogNonNullableReferenceOnBothNavigations(diagnostics);
 
@@ -1507,7 +1509,7 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         /// <param name="navigation"> The navigation property. </param>
         public static void RequiredAttributeOnCollection(
             [NotNull] this IDiagnosticsLogger<DbLoggerCategory.Model> diagnostics,
-            [NotNull] INavigation navigation)
+            [NotNull] IReadOnlyNavigation navigation)
         {
             var definition = CoreResources.LogRequiredAttributeOnCollection(diagnostics);
 
@@ -1541,7 +1543,7 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         /// <param name="navigation"> The navigation property. </param>
         public static void RequiredAttributeOnSkipNavigation(
             [NotNull] this IDiagnosticsLogger<DbLoggerCategory.Model> diagnostics,
-            [NotNull] ISkipNavigation navigation)
+            [NotNull] IReadOnlySkipNavigation navigation)
         {
             var definition = CoreResources.LogRequiredAttributeOnSkipNavigation(diagnostics);
 
@@ -1575,7 +1577,7 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         /// <param name="foreignKey"> The foreign key. </param>
         public static void ConflictingShadowForeignKeysWarning(
             [NotNull] this IDiagnosticsLogger<DbLoggerCategory.Model> diagnostics,
-            [NotNull] IForeignKey foreignKey)
+            [NotNull] IReadOnlyForeignKey foreignKey)
         {
             var definition = CoreResources.LogConflictingShadowForeignKeys(diagnostics);
 
@@ -1618,8 +1620,8 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         /// <param name="secondProperty"> The second property. </param>
         public static void MultiplePrimaryKeyCandidates(
             [NotNull] this IDiagnosticsLogger<DbLoggerCategory.Model> diagnostics,
-            [NotNull] IProperty firstProperty,
-            [NotNull] IProperty secondProperty)
+            [NotNull] IReadOnlyProperty firstProperty,
+            [NotNull] IReadOnlyProperty secondProperty)
         {
             var definition = CoreResources.LogMultiplePrimaryKeyCandidates(diagnostics);
 
@@ -1756,6 +1758,7 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         /// <param name="targetType"> The target type. </param>
         /// <param name="inverseNavigation"> The inverse navigation property. </param>
         /// <param name="definingNavigation"> The defining navigation property. </param>
+        [Obsolete]
         public static void NonDefiningInverseNavigationWarning(
             [NotNull] this IDiagnosticsLogger<DbLoggerCategory.Model> diagnostics,
             [NotNull] IEntityType declaringType,
@@ -1819,9 +1822,9 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         /// <param name="ownershipNavigation"> The ownership navigation property. </param>
         public static void NonOwnershipInverseNavigationWarning(
             [NotNull] this IDiagnosticsLogger<DbLoggerCategory.Model> diagnostics,
-            [NotNull] IEntityType declaringType,
+            [NotNull] IReadOnlyEntityType declaringType,
             [NotNull] MemberInfo navigation,
-            [NotNull] IEntityType targetType,
+            [NotNull] IReadOnlyEntityType targetType,
             [NotNull] MemberInfo inverseNavigation,
             [NotNull] MemberInfo ownershipNavigation)
         {
@@ -1879,8 +1882,8 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         /// <param name="secondProperty"> The second property. </param>
         public static void ForeignKeyAttributesOnBothPropertiesWarning(
             [NotNull] this IDiagnosticsLogger<DbLoggerCategory.Model> diagnostics,
-            [NotNull] INavigation firstNavigation,
-            [NotNull] INavigation secondNavigation,
+            [NotNull] IReadOnlyNavigation firstNavigation,
+            [NotNull] IReadOnlyNavigation secondNavigation,
             [NotNull] MemberInfo firstProperty,
             [NotNull] MemberInfo secondProperty)
         {
@@ -1945,8 +1948,8 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         /// <param name="secondNavigation"> The second navigation property. </param>
         public static void ForeignKeyAttributesOnBothNavigationsWarning(
             [NotNull] this IDiagnosticsLogger<DbLoggerCategory.Model> diagnostics,
-            [NotNull] INavigation firstNavigation,
-            [NotNull] INavigation secondNavigation)
+            [NotNull] IReadOnlyNavigation firstNavigation,
+            [NotNull] IReadOnlyNavigation secondNavigation)
         {
             var definition = CoreResources.LogForeignKeyAttributesOnBothNavigations(diagnostics);
 
@@ -1993,7 +1996,7 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         /// <param name="property"> The property. </param>
         public static void ConflictingForeignKeyAttributesOnNavigationAndPropertyWarning(
             [NotNull] this IDiagnosticsLogger<DbLoggerCategory.Model> diagnostics,
-            [NotNull] INavigation navigation,
+            [NotNull] IReadOnlyNavigation navigation,
             [NotNull] MemberInfo property)
         {
             var definition = CoreResources.LogConflictingForeignKeyAttributesOnNavigationAndProperty(diagnostics);
@@ -3128,8 +3131,9 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         /// </summary>
         /// <param name="diagnostics"> The diagnostics logger to use. </param>
         /// <param name="context"> The context being used. </param>
-        /// <param name="cancellationToken"> The cancellation token. </param>
+        /// <param name="cancellationToken"> A <see cref="CancellationToken" /> to observe while waiting for the task to complete. </param>
         /// <returns> The, possibly intercepted, result. </returns>
+        /// <exception cref="OperationCanceledException"> If the <see cref="CancellationToken"/> is canceled. </exception>
         public static ValueTask<InterceptionResult<int>> SaveChangesStartingAsync(
             [NotNull] this IDiagnosticsLogger<DbLoggerCategory.Update> diagnostics,
             [NotNull] DbContext context,
@@ -3160,7 +3164,7 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         }
 
         private static DbContextEventData CreateSaveChangesStartingEventData(DbContext context, EventDefinition<string> definition)
-            => new DbContextEventData(
+            => new(
                 definition,
                 SaveChangesStarting,
                 context);
@@ -3214,8 +3218,9 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         /// <param name="diagnostics"> The diagnostics logger to use. </param>
         /// <param name="context"> The context being used. </param>
         /// <param name="entitiesSavedCount"> The number of entities saved. </param>
-        /// <param name="cancellationToken"> The cancellation token. </param>
+        /// <param name="cancellationToken"> A <see cref="CancellationToken" /> to observe while waiting for the task to complete. </param>
         /// <returns> The, possibly intercepted, result. </returns>
+        /// <exception cref="OperationCanceledException"> If the <see cref="CancellationToken"/> is canceled. </exception>
         public static ValueTask<int> SaveChangesCompletedAsync(
             [NotNull] this IDiagnosticsLogger<DbLoggerCategory.Update> diagnostics,
             [NotNull] DbContext context,
@@ -3250,7 +3255,7 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             DbContext context,
             int entitiesSavedCount,
             EventDefinition<string, int> definition)
-            => new SaveChangesCompletedEventData(
+            => new(
                 definition,
                 SaveChangesCompleted,
                 context,
@@ -3306,7 +3311,7 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         /// <param name="property"> The property which is being defined as part of a key. </param>
         public static void ConflictingKeylessAndKeyAttributesWarning(
             [NotNull] this IDiagnosticsLogger<DbLoggerCategory.Model> diagnostics,
-            [NotNull] IProperty property)
+            [NotNull] IReadOnlyProperty property)
         {
             var definition = CoreResources.LogConflictingKeylessAndKeyAttributes(diagnostics);
 

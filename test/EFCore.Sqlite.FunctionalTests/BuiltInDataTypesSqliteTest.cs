@@ -71,7 +71,7 @@ namespace Microsoft.EntityFrameworkCore
         }
 
         private static MappedDataTypes CreateMappedDataTypes(int id)
-            => new MappedDataTypes
+            => new()
             {
                 Id = id,
                 Int = 77,
@@ -109,7 +109,7 @@ namespace Microsoft.EntityFrameworkCore
         }
 
         private static MappedNullableDataTypes CreateMappedNullableDataTypes(int id)
-            => new MappedNullableDataTypes
+            => new()
             {
                 Id = id,
                 Int = 77,
@@ -174,7 +174,7 @@ namespace Microsoft.EntityFrameworkCore
         }
 
         private static MappedSizedDataTypes CreateMappedSizedDataTypes(int id)
-            => new MappedSizedDataTypes
+            => new()
             {
                 Id = id,
                 Nvarchar = "Into",
@@ -233,7 +233,7 @@ namespace Microsoft.EntityFrameworkCore
         }
 
         private static MappedScaledDataTypes CreateMappedScaledDataTypes(int id)
-            => new MappedScaledDataTypes
+            => new()
             {
                 Id = id,
                 Float = 83.3f,
@@ -290,7 +290,7 @@ namespace Microsoft.EntityFrameworkCore
         }
 
         private static MappedDataTypesWithIdentity CreateMappedDataTypesWithIdentity(int id)
-            => new MappedDataTypesWithIdentity
+            => new()
             {
                 AltId = id,
                 Int = 77,
@@ -329,7 +329,7 @@ namespace Microsoft.EntityFrameworkCore
         }
 
         private static MappedNullableDataTypesWithIdentity CreateMappedNullableDataTypesWithIdentity(int id)
-            => new MappedNullableDataTypesWithIdentity
+            => new()
             {
                 AltId = id,
                 Int = 77,
@@ -395,7 +395,7 @@ namespace Microsoft.EntityFrameworkCore
         }
 
         private static MappedSizedDataTypesWithIdentity CreateMappedSizedDataTypesWithIdentity(int id)
-            => new MappedSizedDataTypesWithIdentity
+            => new()
             {
                 AltId = id,
                 Nvarchar = "Into",
@@ -454,7 +454,7 @@ namespace Microsoft.EntityFrameworkCore
         }
 
         private static MappedScaledDataTypesWithIdentity CreateMappedScaledDataTypesWithIdentity(int id)
-            => new MappedScaledDataTypesWithIdentity
+            => new()
             {
                 AltId = id,
                 Float = 83.3f,
@@ -1495,6 +1495,96 @@ namespace Microsoft.EntityFrameworkCore
             Assert.Equal(SqliteStrings.OrderByNotSupported("ulong"), ex.Message);
         }
 
+        [ConditionalFact]
+        public virtual void Can_query_using_char_ToLower()
+        {
+            using var context = CreateContext();
+
+            var results = context.Set<ObjectBackedDataTypes>()
+                .Select(e => char.ToLower(e.Character)).ToList();
+
+            AssertSql(
+                @"SELECT lower(""o"".""Character"")
+FROM ""ObjectBackedDataTypes"" AS ""o""");
+
+            var expectedResults = context.Set<ObjectBackedDataTypes>().AsEnumerable()
+                .Select(e => char.ToLower(e.Character)).ToList();
+
+            Assert.Equal(expectedResults, results);
+        }
+
+        [ConditionalFact]
+        public virtual void Can_query_using_char_ToUpper()
+        {
+            using var context = CreateContext();
+
+            var results = context.Set<ObjectBackedDataTypes>()
+                .Select(e => char.ToUpper(e.Character)).ToList();
+
+            AssertSql(
+                @"SELECT upper(""o"".""Character"")
+FROM ""ObjectBackedDataTypes"" AS ""o""");
+
+            var expectedResults = context.Set<ObjectBackedDataTypes>().AsEnumerable()
+                .Select(e => char.ToUpper(e.Character)).ToList();
+
+            Assert.Equal(expectedResults, results);
+        }
+
+        [ConditionalFact]
+        public virtual void Can_query_using_hex_function()
+        {
+            using var context = CreateContext();
+
+            var results = context.Set<ObjectBackedDataTypes>()
+                .Select(e => EF.Functions.Hex(e.Bytes)).ToList();
+
+            AssertSql(
+                @"SELECT hex(""o"".""Bytes"")
+FROM ""ObjectBackedDataTypes"" AS ""o""");
+
+            var expectedResults = context.Set<ObjectBackedDataTypes>().AsEnumerable()
+                .Select(e => string.Concat(e.Bytes.Select(b => b.ToString("X2")))).ToList();
+
+            Assert.Equal(expectedResults, results);
+        }
+
+        [ConditionalFact]
+        public virtual void Can_query_using_substr_function()
+        {
+            using var context = CreateContext();
+
+            var results = context.Set<ObjectBackedDataTypes>()
+                .Select(e => EF.Functions.Substr(e.Bytes, 2)).ToList();
+
+            AssertSql(
+                @"SELECT substr(""o"".""Bytes"", 2)
+FROM ""ObjectBackedDataTypes"" AS ""o""");
+
+            var expectedResults = context.Set<ObjectBackedDataTypes>().AsEnumerable()
+                .Select(e => e.Bytes.Skip(1).ToArray()).ToList();
+
+            Assert.Equal(expectedResults, results);
+        }
+
+        [ConditionalFact]
+        public virtual void Can_query_using_substr_function_with_length()
+        {
+            using var context = CreateContext();
+
+            var results = context.Set<ObjectBackedDataTypes>()
+                .Select(e => EF.Functions.Substr(e.Bytes, 1, 1)).ToList();
+
+            AssertSql(
+                @"SELECT substr(""o"".""Bytes"", 1, 1)
+FROM ""ObjectBackedDataTypes"" AS ""o""");
+
+            var expectedResults = context.Set<ObjectBackedDataTypes>().AsEnumerable()
+                .Select(e => e.Bytes.Take(1).ToArray()).ToList();
+
+            Assert.Equal(expectedResults, results);
+        }
+
         public override void Object_to_string_conversion()
         {
             base.Object_to_string_conversion();
@@ -1682,7 +1772,7 @@ ORDER BY ""b"".""Id"", ""b0"".""Id""");
                 => true;
 
             public override DateTime DefaultDateTime
-                => new DateTime();
+                => new();
         }
 
         protected class MappedDataTypes

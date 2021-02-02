@@ -31,8 +31,8 @@ namespace Microsoft.EntityFrameworkCore.Query
     /// </summary>
     public class RelationalMethodCallTranslatorProvider : IMethodCallTranslatorProvider
     {
-        private readonly List<IMethodCallTranslator> _plugins = new List<IMethodCallTranslator>();
-        private readonly List<IMethodCallTranslator> _translators = new List<IMethodCallTranslator>();
+        private readonly List<IMethodCallTranslator> _plugins = new();
+        private readonly List<IMethodCallTranslator> _translators = new();
         private readonly ISqlExpressionFactory _sqlExpressionFactory;
 
         /// <summary>
@@ -58,7 +58,8 @@ namespace Microsoft.EntityFrameworkCore.Query
                     new EnumHasFlagTranslator(sqlExpressionFactory),
                     new GetValueOrDefaultTranslator(sqlExpressionFactory),
                     new ComparisonTranslator(sqlExpressionFactory),
-                    new ByteArraySequenceEqualTranslator(sqlExpressionFactory)
+                    new ByteArraySequenceEqualTranslator(sqlExpressionFactory),
+                    new RandomTranslator(sqlExpressionFactory)
                 });
             _sqlExpressionFactory = sqlExpressionFactory;
         }
@@ -85,23 +86,22 @@ namespace Microsoft.EntityFrameworkCore.Query
                         arguments.Select(e => _sqlExpressionFactory.ApplyDefaultTypeMapping(e)).ToList());
                 }
 
-                if (dbFunction.IsBuiltIn)
-                {
-                    return _sqlExpressionFactory.Function(
+                var argumentsPropagateNullability = dbFunction.Parameters.Select(p => p.PropagatesNullability);
+
+                return dbFunction.IsBuiltIn
+                    ? _sqlExpressionFactory.Function(
                         dbFunction.Name,
                         arguments,
-                        nullable: dbFunction.IsNullable,
-                        argumentsPropagateNullability: dbFunction.Parameters.Select(p => p.PropagatesNullability),
+                        dbFunction.IsNullable,
+                        argumentsPropagateNullability,
+                        method.ReturnType.UnwrapNullableType())
+                    : _sqlExpressionFactory.Function(
+                        dbFunction.Schema,
+                        dbFunction.Name,
+                        arguments,
+                        dbFunction.IsNullable,
+                        argumentsPropagateNullability,
                         method.ReturnType.UnwrapNullableType());
-                }
-
-                return _sqlExpressionFactory.Function(
-                    dbFunction.Schema,
-                    dbFunction.Name,
-                    arguments,
-                    nullable: dbFunction.IsNullable,
-                    argumentsPropagateNullability: dbFunction.Parameters.Select(p => p.PropagatesNullability),
-                    method.ReturnType.UnwrapNullableType());
             }
 
             return _plugins.Concat(_translators)

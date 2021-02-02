@@ -31,7 +31,7 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
         private readonly bool _detailedErrorsEnabled;
 
         private DbDataReader? _underlyingReader;
-        private List<BufferedDataRecord> _bufferedDataRecords = new List<BufferedDataRecord>();
+        private List<BufferedDataRecord> _bufferedDataRecords = new();
         private BufferedDataRecord _currentResultSet;
         private int _currentResultSetNumber;
         private int _recordsAffected;
@@ -326,7 +326,7 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public override long GetBytes(int ordinal, long dataOffset, byte[] buffer, int bufferOffset, int length)
+        public override long GetBytes(int ordinal, long dataOffset, byte[]? buffer, int bufferOffset, int length)
         {
             throw new NotSupportedException();
         }
@@ -349,7 +349,7 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public override long GetChars(int ordinal, long dataOffset, char[] buffer, int bufferOffset, int length)
+        public override long GetChars(int ordinal, long dataOffset, char[]? buffer, int bufferOffset, int length)
         {
             throw new NotSupportedException();
         }
@@ -1270,7 +1270,7 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
                     for (var i = 0; i < _columns.Count; i++)
                     {
                         var column = _columns[i];
-                        if (!readerColumns.TryGetValue(column.Name, out var ordinal))
+                        if (!readerColumns.TryGetValue(column.Name!, out var ordinal))
                         {
                             throw new InvalidOperationException(RelationalStrings.FromSqlMissingColumn(column.Name));
                         }

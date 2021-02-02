@@ -91,7 +91,7 @@ namespace Microsoft.EntityFrameworkCore.Query
             return AssertQuery(
                 async,
                 ss => ss.Set<Branch>().AsTracking(),
-                entryCount: 14);
+                entryCount: 16);
         }
 
         [ConditionalTheory]
@@ -184,17 +184,6 @@ namespace Microsoft.EntityFrameworkCore.Query
 
             Assert.Equal(
                 CoreStrings.InvalidSetTypeOwned(nameof(Order), nameof(OwnedPerson)),
-                exception.Message);
-        }
-
-        [ConditionalTheory]
-        [MemberData(nameof(IsAsyncData))]
-        public virtual async Task Set_throws_for_owned_type_with_defining_navigation(bool async)
-        {
-            var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => AssertQuery(async, ss => ss.Set<OwnedAddress>()));
-
-            Assert.Equal(
-                CoreStrings.InvalidSetTypeWeak(nameof(OwnedAddress)),
                 exception.Message);
         }
 
@@ -436,7 +425,7 @@ namespace Microsoft.EntityFrameworkCore.Query
             return AssertQuery(
                 async,
                 ss => ss.Set<OwnedPerson>().Where(e => e.Id == 1).AsTracking().Select(e => new { e.ReadOnlyProperty }),
-                entryCount: 5);
+                entryCount: 7);
         }
 
         // Issue#18140
@@ -509,7 +498,8 @@ namespace Microsoft.EntityFrameworkCore.Query
                 async,
                 ss => ss.Set<OwnedPerson>()
                     .OrderBy(p => p.Id)
-                    .Select(p => p.Orders.ToList())
+                    .SelectMany(p => p.Orders)
+                    .Select(p => p.Details.ToList())
                     .Where(e => e.Count() == 0),
                 assertOrder: true,
                 elementAsserter: (e, a) => AssertCollection(e, a));
@@ -523,7 +513,8 @@ namespace Microsoft.EntityFrameworkCore.Query
                 async,
                 ss => ss.Set<OwnedPerson>()
                     .OrderBy(p => p.Id)
-                    .Select(p => p.Orders.ToArray())
+                    .SelectMany(p => p.Orders)
+                    .Select(p => p.Details.AsEnumerable().ToArray())
                     .Where(e => e.Count() == 0),
                 assertOrder: true,
                 elementAsserter: (e, a) => AssertCollection(e, a));
@@ -537,7 +528,8 @@ namespace Microsoft.EntityFrameworkCore.Query
                 async,
                 ss => ss.Set<OwnedPerson>()
                     .OrderBy(p => p.Id)
-                    .Select(p => p.Orders.AsEnumerable())
+                    .SelectMany(p => p.Orders)
+                    .Select(p => p.Details.AsEnumerable())
                     .Where(e => e.Count() == 0),
                 assertOrder: true,
                 elementAsserter: (e, a) => AssertCollection(e, a));
@@ -551,7 +543,8 @@ namespace Microsoft.EntityFrameworkCore.Query
                 async,
                 ss => ss.Set<OwnedPerson>()
                     .OrderBy(p => p.Id)
-                    .Select(p => p.Orders.ToList())
+                    .SelectMany(p => p.Orders)
+                    .Select(p => p.Details.ToList())
                     .Where(e => e.Count == 0),
                 assertOrder: true,
                 elementAsserter: (e, a) => AssertCollection(e, a));
@@ -565,7 +558,8 @@ namespace Microsoft.EntityFrameworkCore.Query
                 async,
                 ss => ss.Set<OwnedPerson>()
                     .OrderBy(p => p.Id)
-                    .Select(p => p.Orders.ToArray())
+                    .SelectMany(p => p.Orders)
+                    .Select(p => p.Details.AsEnumerable().ToArray())
                     .Where(e => e.Length == 0),
                 assertOrder: true,
                 elementAsserter: (e, a) => AssertCollection(e, a));
@@ -913,6 +907,18 @@ namespace Microsoft.EntityFrameworkCore.Query
                     Assert.Equal(element.e.Id, element.a.Id);
                     Assert.Equal(element.e["OrderDate"], element.a["OrderDate"]);
                     Assert.Equal(element.e.Client.Id, element.a.Client.Id);
+                    AssertOrderDetails(element.e.Details, element.a.Details);
+                }
+            }
+
+            private static void AssertOrderDetails(IList<OrderDetail> expectedOrderDetails, IList<OrderDetail> actualOrderDetails)
+            {
+                Assert.Equal(expectedOrderDetails.Count, actualOrderDetails.Count);
+                expectedOrderDetails = expectedOrderDetails.OrderBy(e => e.Detail).ToList();
+                actualOrderDetails = actualOrderDetails.OrderBy(e => e.Detail).ToList();
+                for (var i = 0; i < expectedOrderDetails.Count; i++)
+                {
+                    Assert.Equal(expectedOrderDetails[i].Detail, actualOrderDetails[i].Detail);
                 }
             }
 
@@ -937,6 +943,7 @@ namespace Microsoft.EntityFrameworkCore.Query
 
                     // owned entities - still need comparers in case they are projected directly
                     { typeof(Order), e => ((Order)e)?.Id },
+                    { typeof(OrderDetail), e => ((OrderDetail)e)?.Detail },
                     { typeof(OwnedAddress), e => ((OwnedAddress)e)?.Country.Name },
                     { typeof(OwnedCountry), e => ((OwnedCountry)e)?.Name },
                     { typeof(Element), e => ((Element)e)?.Id },
@@ -1119,6 +1126,16 @@ namespace Microsoft.EntityFrameworkCore.Query
                         }
                     },
                     {
+                        typeof(OrderDetail), (e, a) =>
+                        {
+                            Assert.Equal(e == null, a == null);
+                            if (a != null)
+                            {
+                                Assert.Equal(((OrderDetail)e).Detail, ((OrderDetail)a).Detail);
+                            }
+                        }
+                    },
+                    {
                         typeof(OwnedAddress), (e, a) =>
                         {
                             AssertAddress(((OwnedAddress)e), ((OwnedAddress)a));
@@ -1283,6 +1300,39 @@ namespace Microsoft.EntityFrameworkCore.Query
                                         OrderDate = Convert.ToDateTime("2016-04-25 19:23:56")
                                     }
                                 );
+
+                                ob.OwnsMany(e => e.Details, odb =>
+                                {
+                                    odb.HasData(
+                                        new
+                                        {
+                                            Id = -100,
+                                            OrderId = -10,
+                                            OrderClientId = 1,
+                                            Detail = "Discounted Order"
+                                        },
+                                        new
+                                        {
+                                            Id = -101,
+                                            OrderId = -10,
+                                            OrderClientId = 1,
+                                            Detail = "Full Price Order"
+                                        },
+                                        new
+                                        {
+                                            Id = -200,
+                                            OrderId = -20,
+                                            OrderClientId = 2,
+                                            Detail = "Internal Order"
+                                        },
+                                        new
+                                        {
+                                            Id = -300,
+                                            OrderId = -30,
+                                            OrderClientId = 3,
+                                            Detail = "Bulk Order"
+                                        });
+                                });
                             });
                     });
 
@@ -1536,24 +1586,24 @@ namespace Microsoft.EntityFrameworkCore.Query
             }
 
             private static IReadOnlyList<Planet> CreatePlanets()
-                => new List<Planet> { new Planet { Id = 1, StarId = 1 } };
+                => new List<Planet> { new() { Id = 1, StarId = 1 } };
 
             private static IReadOnlyList<Star> CreateStars()
                 => new List<Star>
                 {
-                    new Star
+                    new()
                     {
                         Id = 1,
                         Name = "Sol",
                         Composition = new List<Element>
                         {
-                            new Element
+                            new()
                             {
                                 Id = "H",
                                 Name = "Hydrogen",
                                 StarId = 1
                             },
-                            new Element
+                            new()
                             {
                                 Id = "He",
                                 Name = "Helium",
@@ -1566,7 +1616,7 @@ namespace Microsoft.EntityFrameworkCore.Query
             private static IReadOnlyList<Moon> CreateMoons()
                 => new List<Moon>
                 {
-                    new Moon
+                    new()
                     {
                         Id = 1,
                         PlanetId = 1,
@@ -1627,20 +1677,36 @@ namespace Microsoft.EntityFrameworkCore.Query
 
                 var order1 = new Order { Id = -10, Client = ownedPerson1 };
                 order1["OrderDate"] = Convert.ToDateTime("2018-07-11 10:01:41");
+                order1.Details = new List<OrderDetail>
+                {
+                    new() { Detail = "Discounted Order" },
+                    new() { Detail = "Full Price Order" }
+                };
+
                 var order2 = new Order { Id = -11, Client = ownedPerson1 };
                 order2["OrderDate"] = Convert.ToDateTime("2015-03-03 04:37:59");
+                order2.Details = new List<OrderDetail>();
                 ownedPerson1.Orders = new List<Order> { order1, order2 };
 
                 var order3 = new Order { Id = -20, Client = ownedPerson2 };
                 order3["OrderDate"] = Convert.ToDateTime("2015-05-25 20:35:48");
+                order3.Details = new List<OrderDetail>
+                {
+                    new() { Detail = "Internal Order" }
+                };
                 ownedPerson2.Orders = new List<Order> { order3 };
 
                 var order4 = new Order { Id = -30, Client = ownedPerson3 };
                 order4["OrderDate"] = Convert.ToDateTime("2014-11-10 04:32:42");
+                order4.Details = new List<OrderDetail>
+                {
+                    new() { Detail = "Bulk Order" }
+                };
                 ownedPerson3.Orders = new List<Order> { order4 };
 
                 var order5 = new Order { Id = -40, Client = ownedPerson4 };
                 order5["OrderDate"] = Convert.ToDateTime("2016-04-25 19:23:56");
+                order5.Details = new List<OrderDetail>();
                 ownedPerson4.Orders = new List<Order> { order5 };
 
                 return new List<OwnedPerson>
@@ -1653,18 +1719,18 @@ namespace Microsoft.EntityFrameworkCore.Query
             }
 
             private static IReadOnlyList<Fink> CreateFinks()
-                => new List<Fink> { new Fink { Id = 1 } };
+                => new List<Fink> { new() { Id = 1 } };
 
             private static IReadOnlyList<Barton> CreateBartons()
                 => new List<Barton>
                 {
-                    new Barton
+                    new()
                     {
                         Id = 1,
                         Simple = "Simple",
                         Throned = new Throned { Property = "Property", Value = 42 }
                     },
-                    new Barton
+                    new()
                     {
                         Id = 2, Simple = "Not",
                     }
@@ -1836,6 +1902,13 @@ namespace Microsoft.EntityFrameworkCore.Query
             }
 
             public OwnedPerson Client { get; set; }
+
+            public List<OrderDetail> Details { get; set; }
+        }
+
+        protected class OrderDetail
+        {
+            public string Detail { get; set; }
         }
 
         protected class Branch : OwnedPerson

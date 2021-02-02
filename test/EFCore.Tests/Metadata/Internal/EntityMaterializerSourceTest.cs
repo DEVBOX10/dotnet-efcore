@@ -22,7 +22,18 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
 {
     public class EntityMaterializerSourceTest
     {
-        private readonly DbContext _fakeContext = new DbContext(new DbContextOptions<DbContext>());
+        private readonly DbContext _fakeContext = new(new DbContextOptions<DbContext>());
+
+        [ConditionalFact]
+        public void Throws_for_abstract_types()
+        {
+            var entityType = ((IMutableModel)new Model()).AddEntityType(typeof(SomeAbstractEntity));
+            var source = new EntityMaterializerSource(new EntityMaterializerSourceDependencies());
+
+            Assert.Equal(
+                CoreStrings.CannotMaterializeAbstractType(nameof(SomeAbstractEntity)),
+                Assert.Throws<InvalidOperationException>(() => source.CreateMaterializeExpression((IEntityType)entityType, "", null!)).Message);
+        }
 
         [ConditionalFact]
         public void Can_create_materializer_for_entity_with_constructor_properties()
@@ -34,8 +45,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
                     typeof(SomeEntity).GetTypeInfo().DeclaredConstructors.Single(c => c.GetParameters().Length == 2),
                     new List<ParameterBinding>
                     {
-                        new PropertyParameterBinding(entityType.FindProperty(nameof(SomeEntity.Id))),
-                        new PropertyParameterBinding(entityType.FindProperty(nameof(SomeEntity.Goo)))
+                        new PropertyParameterBinding((IProperty)entityType.FindProperty(nameof(SomeEntity.Id))),
+                        new PropertyParameterBinding((IProperty)entityType.FindProperty(nameof(SomeEntity.Goo)))
                     }
                 );
             ((Model)entityType.Model).FinalizeModel();
@@ -70,8 +81,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
                     typeof(SomeEntity).GetTypeInfo().GetDeclaredMethod(nameof(SomeEntity.Factory)),
                     new List<ParameterBinding>
                     {
-                        new PropertyParameterBinding(entityType.FindProperty(nameof(SomeEntity.Id))),
-                        new PropertyParameterBinding(entityType.FindProperty(nameof(SomeEntity.Goo)))
+                        new PropertyParameterBinding((IProperty)entityType.FindProperty(nameof(SomeEntity.Id))),
+                        new PropertyParameterBinding((IProperty)entityType.FindProperty(nameof(SomeEntity.Goo)))
                     },
                     entityType.ClrType);
             ((Model)entityType.Model).FinalizeModel();
@@ -109,8 +120,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
                         new ObjectArrayParameterBinding(
                             new List<ParameterBinding>
                             {
-                                new PropertyParameterBinding(entityType.FindProperty(nameof(SomeEntity.Id))),
-                                new PropertyParameterBinding(entityType.FindProperty(nameof(SomeEntity.Goo)))
+                                new PropertyParameterBinding((IProperty)entityType.FindProperty(nameof(SomeEntity.Id))),
+                                new PropertyParameterBinding((IProperty)entityType.FindProperty(nameof(SomeEntity.Goo)))
                             })
                     },
                     entityType.ClrType);
@@ -171,7 +182,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
 
         private class TestProxyFactory
         {
-            public static readonly TestProxyFactory Instance = new TestProxyFactory();
+            public static readonly TestProxyFactory Instance = new();
 
             public object Create(IEntityType entityType)
                 => Activator.CreateInstance(entityType.ClrType);
@@ -296,11 +307,15 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         private static readonly ParameterExpression _contextParameter
             = Expression.Parameter(typeof(MaterializationContext), "materializationContext");
 
-        public virtual Func<MaterializationContext, object> GetMaterializer(IEntityMaterializerSource source, IEntityType entityType)
+        public virtual Func<MaterializationContext, object> GetMaterializer(IEntityMaterializerSource source, IReadOnlyEntityType entityType)
             => Expression.Lambda<Func<MaterializationContext, object>>(
-                    source.CreateMaterializeExpression(entityType, "instance", _contextParameter),
+                    source.CreateMaterializeExpression((IEntityType)entityType, "instance", _contextParameter),
                     _contextParameter)
                 .Compile();
+
+        private abstract class SomeAbstractEntity
+        {
+        }
 
         private class SomeEntity
         {
@@ -321,7 +336,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
             }
 
             public static SomeEntity Factory(int id, Guid? goo)
-                => new SomeEntity(id, goo) { FactoryUsed = true };
+                => new(id, goo) { FactoryUsed = true };
 
             public static SomeEntity GeneralFactory(object[] constructorArguments)
             {

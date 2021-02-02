@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Utilities;
+using CA = System.Diagnostics.CodeAnalysis;
 
 #nullable enable
 
@@ -33,7 +34,7 @@ namespace Microsoft.EntityFrameworkCore.Internal
         /// </summary>
         public static Expression MakeHasDefaultValue(
             [NotNull] this Expression currentValueExpression,
-            [CanBeNull] IPropertyBase? propertyBase)
+            [CanBeNull] IReadOnlyPropertyBase? propertyBase)
         {
             if (!currentValueExpression.Type.IsValueType)
             {
@@ -48,10 +49,10 @@ namespace Microsoft.EntityFrameworkCore.Internal
                 return Expression.Not(
                     Expression.Call(
                         currentValueExpression,
-                        currentValueExpression.Type.GetMethod("get_HasValue")));
+                        currentValueExpression.Type.GetRequiredMethod("get_HasValue")));
             }
 
-            var property = propertyBase as IProperty;
+            var property = propertyBase as IReadOnlyProperty;
             var clrType = propertyBase?.ClrType ?? currentValueExpression.Type;
             var comparer = property?.GetValueComparer()
                 ?? ValueComparer.CreateDefault(clrType, favorStructuralComparisons: false);
@@ -122,10 +123,10 @@ namespace Microsoft.EntityFrameworkCore.Internal
             var memberInfos = new List<TMemberInfo>();
 
             MemberExpression? memberExpression;
-
+            var unwrappedExpression = RemoveTypeAs(RemoveConvert(memberAccessExpression));
             do
             {
-                memberExpression = RemoveTypeAs(RemoveConvert(memberAccessExpression)) as MemberExpression;
+                memberExpression = unwrappedExpression as MemberExpression;
 
                 if (!(memberExpression?.Member is TMemberInfo memberInfo))
                 {
@@ -134,9 +135,9 @@ namespace Microsoft.EntityFrameworkCore.Internal
 
                 memberInfos.Insert(0, memberInfo);
 
-                memberAccessExpression = memberExpression.Expression;
+                unwrappedExpression = RemoveTypeAs(RemoveConvert(memberExpression.Expression));
             }
-            while (RemoveTypeAs(RemoveConvert(memberExpression.Expression)) != parameterExpression);
+            while (unwrappedExpression != parameterExpression);
 
             return memberInfos;
         }
@@ -195,7 +196,8 @@ namespace Microsoft.EntityFrameworkCore.Internal
                 && (sqlUnaryExpression.Type == typeof(bool)
                     || sqlUnaryExpression.Type == typeof(bool?));
 
-        private static Expression RemoveConvert(Expression expression)
+        [return: CA.NotNullIfNotNull("expression")]
+        private static Expression? RemoveConvert(Expression? expression)
         {
             if (expression is UnaryExpression unaryExpression
                 && (expression.NodeType == ExpressionType.Convert
@@ -208,7 +210,7 @@ namespace Microsoft.EntityFrameworkCore.Internal
         }
 
         private static readonly MethodInfo _objectEqualsMethodInfo
-            = typeof(object).GetRuntimeMethod(nameof(object.Equals), new[] { typeof(object), typeof(object) });
+            = typeof(object).GetRequiredRuntimeMethod(nameof(object.Equals), new[] { typeof(object), typeof(object) });
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -217,7 +219,7 @@ namespace Microsoft.EntityFrameworkCore.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public static Expression BuildPredicate(
-            [NotNull] IReadOnlyList<IProperty> keyProperties,
+            [NotNull] IReadOnlyList<IReadOnlyProperty> keyProperties,
             ValueBuffer keyValues,
             [NotNull] ParameterExpression entityParameter)
         {
@@ -235,7 +237,7 @@ namespace Microsoft.EntityFrameworkCore.Internal
             static Expression GenerateEqualExpression(
                 Expression entityParameterExpression,
                 Expression keyValuesConstantExpression,
-                IProperty property,
+                IReadOnlyProperty property,
                 int i)
                 => property.ClrType.IsValueType
                     && property.ClrType.UnwrapNullableType() is Type nonNullableType

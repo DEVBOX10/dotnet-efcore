@@ -5,6 +5,8 @@ using System;
 using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 
+#nullable enable
+
 namespace Microsoft.EntityFrameworkCore.Metadata.Internal
 {
     /// <summary>
@@ -41,7 +43,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public virtual ParameterBinding Bind(IMutableEntityType entityType, Type parameterType, string parameterName)
-            => new EntityTypeParameterBinding(entityType.GetServiceProperties().FirstOrDefault(p => p.ClrType == parameterType));
+            => new EntityTypeParameterBinding(
+                (IPropertyBase?)entityType.GetServiceProperties().FirstOrDefault(p => p.ClrType == parameterType));
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -53,6 +56,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
             IConventionEntityType entityType,
             Type parameterType,
             string parameterName)
-            => new EntityTypeParameterBinding(entityType.GetServiceProperties().FirstOrDefault(p => p.ClrType == parameterType));
+            => new EntityTypeParameterBinding(
+                (IPropertyBase?)entityType.GetServiceProperties().FirstOrDefault(p => p.ClrType == parameterType));
     }
 }

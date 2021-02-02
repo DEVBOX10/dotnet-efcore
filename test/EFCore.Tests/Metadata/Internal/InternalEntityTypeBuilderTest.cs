@@ -982,7 +982,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
 
             Test_removing_index_does_not_remove_contained_shadow_properties_if_referenced_elsewhere(
                 (entityBuilder, property) => entityBuilder.Property(
-                    property.ClrType, ((IProperty)property).Name, ConfigurationSource.Explicit));
+                    property.ClrType, ((IReadOnlyProperty)property).Name, ConfigurationSource.Explicit));
         }
 
         private void Test_removing_index_does_not_remove_contained_shadow_properties_if_referenced_elsewhere(
@@ -1048,7 +1048,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
             Assert.NotNull(
                 entityBuilder.PrimaryKey(new[] { Order.IdProperty, Order.CustomerUniqueProperty }, ConfigurationSource.DataAnnotation));
 
-            Assert.False(entityBuilder.Metadata.FindProperty(Order.CustomerUniqueProperty).IsNullable);
+            Assert.False(((IReadOnlyEntityType)entityBuilder.Metadata).FindProperty(Order.CustomerUniqueProperty).IsNullable);
 
             Assert.Null(
                 entityBuilder.Property(Order.CustomerUniqueProperty, ConfigurationSource.Convention)
@@ -1057,7 +1057,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
                 entityBuilder.Property(Order.CustomerUniqueProperty, ConfigurationSource.Convention)
                     .IsRequired(false, ConfigurationSource.DataAnnotation));
 
-            Assert.True(entityBuilder.Metadata.FindProperty(Order.CustomerUniqueProperty).IsNullable);
+            Assert.True(((IReadOnlyEntityType)entityBuilder.Metadata).FindProperty(Order.CustomerUniqueProperty).IsNullable);
             Assert.Null(entityBuilder.Metadata.FindPrimaryKey());
         }
 
@@ -1109,16 +1109,15 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         }
 
         [ConditionalFact]
-        public void Key_throws_for_property_names_for_shadow_entity_type_if_they_do_not_exist()
+        public void Key_throws_for_property_names_for_shared_entity_type_if_they_do_not_exist()
         {
             var modelBuilder = CreateModelBuilder();
             var entityBuilder = modelBuilder.Entity(typeof(Order).Name, ConfigurationSource.Explicit);
 
             Assert.Equal(
-                CoreStrings.NoPropertyType(Order.IdProperty.Name, nameof(Order)),
+                CoreStrings.NoPropertyType(Order.IdProperty.Name, nameof(Order) + " (Dictionary<string, object>)"),
                 Assert.Throws<InvalidOperationException>(
-                    () =>
-                        entityBuilder.HasKey(new[] { Order.IdProperty.Name }, ConfigurationSource.Convention)).Message);
+                    () => entityBuilder.HasKey(new[] { Order.IdProperty.Name }, ConfigurationSource.Convention)).Message);
         }
 
         [ConditionalFact]
@@ -1353,21 +1352,19 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
             Assert.Equal(
                 CoreStrings.NoPropertyType(Customer.UniqueProperty.Name, nameof(Order)),
                 Assert.Throws<InvalidOperationException>(
-                    () =>
-                        entityBuilder.PrimaryKey(new[] { Customer.UniqueProperty.Name }, ConfigurationSource.Convention)).Message);
+                    () => entityBuilder.PrimaryKey(new[] { Customer.UniqueProperty.Name }, ConfigurationSource.Convention)).Message);
         }
 
         [ConditionalFact]
-        public void PrimaryKey_throws_for_property_names_for_shadow_entity_type_if_they_do_not_exist()
+        public void PrimaryKey_throws_for_property_names_for_shared_entity_type_if_they_do_not_exist()
         {
             var modelBuilder = CreateModelBuilder();
             var entityBuilder = modelBuilder.Entity(typeof(Order).Name, ConfigurationSource.Explicit);
 
             Assert.Equal(
-                CoreStrings.NoPropertyType(Order.IdProperty.Name, nameof(Order)),
+                CoreStrings.NoPropertyType(Order.IdProperty.Name, nameof(Order) + " (Dictionary<string, object>)"),
                 Assert.Throws<InvalidOperationException>(
-                    () =>
-                        entityBuilder.PrimaryKey(new[] { Order.IdProperty.Name }, ConfigurationSource.Convention)).Message);
+                    () => entityBuilder.PrimaryKey(new[] { Order.IdProperty.Name }, ConfigurationSource.Convention)).Message);
         }
 
         [ConditionalFact]
@@ -3256,13 +3253,13 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
 
             var discriminatorBuilder = typeBuilder.HasDiscriminator();
             Assert.Equal(
-                CoreStrings.DiscriminatorEntityTypeNotDerived("Splow", "Splot"),
+                CoreStrings.DiscriminatorEntityTypeNotDerived("Splow (Dictionary<string, object>)", "Splot (Dictionary<string, object>)"),
                 Assert.Throws<InvalidOperationException>(
                     () => discriminatorBuilder.HasValue(nonDerivedTypeBuilder.Metadata, "1")).Message);
         }
 
         private InternalModelBuilder CreateModelBuilder()
-            => new InternalModelBuilder(new Model());
+            => new(new Model());
 
         private InternalModelBuilder CreateConventionalModelBuilder()
             => (InternalModelBuilder)InMemoryTestHelpers.Instance.CreateConventionBuilder().GetInfrastructure();

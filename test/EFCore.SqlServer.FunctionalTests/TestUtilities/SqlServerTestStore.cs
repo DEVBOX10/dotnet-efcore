@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 #pragma warning disable IDE0022 // Use block body for methods
 // ReSharper disable SuggestBaseTypeForParameter
@@ -28,16 +29,16 @@ namespace Microsoft.EntityFrameworkCore.TestUtilities
                 .GetOrCreate(SqlServerNorthwindTestStoreFactory.Name).Initialize(null, (Func<DbContext>)null);
 
         public static SqlServerTestStore GetOrCreate(string name)
-            => new SqlServerTestStore(name);
+            => new(name);
 
         public static SqlServerTestStore GetOrCreateInitialized(string name)
             => new SqlServerTestStore(name).InitializeSqlServer(null, (Func<DbContext>)null, null);
 
         public static SqlServerTestStore GetOrCreate(string name, string scriptPath, bool? multipleActiveResultSets = null)
-            => new SqlServerTestStore(name, scriptPath: scriptPath, multipleActiveResultSets: multipleActiveResultSets);
+            => new(name, scriptPath: scriptPath, multipleActiveResultSets: multipleActiveResultSets);
 
         public static SqlServerTestStore Create(string name, bool useFileName = false)
-            => new SqlServerTestStore(name, useFileName, shared: false);
+            => new(name, useFileName, shared: false);
 
         public static SqlServerTestStore CreateInitialized(string name, bool useFileName = false, bool? multipleActiveResultSets = null)
             => new SqlServerTestStore(name, useFileName, shared: false, multipleActiveResultSets: multipleActiveResultSets)
@@ -98,7 +99,9 @@ namespace Microsoft.EntityFrameworkCore.TestUtilities
         }
 
         public override DbContextOptionsBuilder AddProviderOptions(DbContextOptionsBuilder builder)
-            => builder.UseSqlServer(Connection, b => b.ApplyConfiguration());
+            => builder
+                .UseSqlServer(Connection, b => b.ApplyConfiguration())
+                .ConfigureWarnings(b => b.Ignore(SqlServerEventId.SavepointsDisabledBecauseOfMARS));
 
         private bool CreateDatabase(Action<DbContext> clean)
         {

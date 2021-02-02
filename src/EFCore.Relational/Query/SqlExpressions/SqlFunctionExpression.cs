@@ -9,6 +9,7 @@ using System.Linq.Expressions;
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Utilities;
+using CA = System.Diagnostics.CodeAnalysis;
 
 #nullable enable
 namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
@@ -22,7 +23,6 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
     ///         not used in application code.
     ///     </para>
     /// </summary>
-    // TODO - NULLABLE for C# 9 (MemberNotNullIf on IsNiladic)
     public class SqlFunctionExpression : SqlExpression
     {
         /// <summary>
@@ -231,6 +231,7 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
         /// <summary>
         ///     A bool value indicating if the function is niladic.
         /// </summary>
+        [CA.MemberNotNullWhen(false, nameof(Arguments), nameof(ArgumentsPropagateNullability))]
         public virtual bool IsNiladic { get; }
 
         /// <summary>
@@ -276,7 +277,7 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
             SqlExpression[]? arguments = default;
             if (!IsNiladic)
             {
-                arguments = new SqlExpression[Arguments!.Count];
+                arguments = new SqlExpression[Arguments.Count];
                 for (var i = 0; i < arguments.Length; i++)
                 {
                     arguments[i] = (SqlExpression)visitor.Visit(Arguments[i]);
@@ -306,7 +307,7 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
         /// <param name="typeMapping"> A relational type mapping to apply. </param>
         /// <returns> A new expression which has supplied type mapping. </returns>
         public virtual SqlFunctionExpression ApplyTypeMapping([CanBeNull] RelationalTypeMapping? typeMapping)
-            => new SqlFunctionExpression(
+            => new(
                 Instance,
                 Schema,
                 Name,
@@ -328,7 +329,7 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
         /// <returns> This expression if no children changed, or an expression with the updated children. </returns>
         public virtual SqlFunctionExpression Update([CanBeNull] SqlExpression? instance, [CanBeNull] IReadOnlyList<SqlExpression>? arguments)
         {
-            return instance != Instance || !arguments?.SequenceEqual(Arguments) == true
+            return instance != Instance || (arguments != null && Arguments != null && !arguments.SequenceEqual(Arguments))
                 ? new SqlFunctionExpression(
                     instance,
                     Schema,
@@ -367,7 +368,7 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
             if (!IsNiladic)
             {
                 expressionPrinter.Append("(");
-                expressionPrinter.VisitCollection(Arguments!);
+                expressionPrinter.VisitCollection(Arguments);
                 expressionPrinter.Append(")");
             }
         }
@@ -381,11 +382,14 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
 
         private bool Equals(SqlFunctionExpression sqlFunctionExpression)
             => base.Equals(sqlFunctionExpression)
+                && IsNiladic == sqlFunctionExpression.IsNiladic
                 && Name == sqlFunctionExpression.Name
                 && Schema == sqlFunctionExpression.Schema
                 && ((Instance == null && sqlFunctionExpression.Instance == null)
                     || (Instance != null && Instance.Equals(sqlFunctionExpression.Instance)))
-                && Arguments.SequenceEqual(sqlFunctionExpression.Arguments);
+                && ((Arguments == null && sqlFunctionExpression.Arguments == null)
+                    || (Arguments != null && sqlFunctionExpression.Arguments != null
+                        && Arguments.SequenceEqual(sqlFunctionExpression.Arguments)));
 
         /// <inheritdoc />
         public override int GetHashCode()
@@ -396,6 +400,7 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
             hash.Add(IsNiladic);
             hash.Add(Schema);
             hash.Add(Instance);
+
             if (Arguments != null)
             {
                 for (var i = 0; i < Arguments.Count; i++)
@@ -420,8 +425,8 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
         public static SqlFunctionExpression CreateNiladic(
             [NotNull] string name,
             [NotNull] Type type,
-            [CanBeNull] RelationalTypeMapping typeMapping)
-            => new SqlFunctionExpression(name, nullable: true, type, typeMapping);
+            [CanBeNull] RelationalTypeMapping? typeMapping)
+            => new(name, nullable: true, type, typeMapping);
 
         /// <summary>
         ///     Creates a new instance of the <see cref="SqlFunctionExpression" /> class.
@@ -436,8 +441,8 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
             [NotNull] string schema,
             [NotNull] string name,
             [NotNull] Type type,
-            [CanBeNull] RelationalTypeMapping typeMapping)
-            => new SqlFunctionExpression(schema, name, nullable: true, type, typeMapping);
+            [CanBeNull] RelationalTypeMapping? typeMapping)
+            => new(schema, name, nullable: true, type, typeMapping);
 
         /// <summary>
         ///     Creates a new instance of the <see cref="SqlFunctionExpression" /> class.
@@ -452,8 +457,8 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
             [NotNull] SqlExpression instance,
             [NotNull] string name,
             [NotNull] Type type,
-            [CanBeNull] RelationalTypeMapping typeMapping)
-            => new SqlFunctionExpression(instance, name, nullable: true, instancePropagatesNullability: false, type, typeMapping);
+            [CanBeNull] RelationalTypeMapping? typeMapping)
+            => new(instance, name, nullable: true, instancePropagatesNullability: false, type, typeMapping);
 
         /// <summary>
         ///     Creates a new instance of the <see cref="SqlFunctionExpression" /> class.
@@ -470,8 +475,8 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
             [NotNull] string name,
             [NotNull] IEnumerable<SqlExpression> arguments,
             [NotNull] Type type,
-            [CanBeNull] RelationalTypeMapping typeMapping)
-            => new SqlFunctionExpression(
+            [CanBeNull] RelationalTypeMapping? typeMapping)
+            => new(
                 instance,
                 name,
                 arguments,
@@ -494,9 +499,8 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
             [NotNull] string name,
             [NotNull] IEnumerable<SqlExpression> arguments,
             [NotNull] Type type,
-            [CanBeNull] RelationalTypeMapping typeMapping)
-            => new SqlFunctionExpression(
-                name, arguments, nullable: true, argumentsPropagateNullability: arguments.Select(a => false), type, typeMapping);
+            [CanBeNull] RelationalTypeMapping? typeMapping)
+            => new(name, arguments, nullable: true, argumentsPropagateNullability: arguments.Select(a => false), type, typeMapping);
 
         /// <summary>
         ///     Creates a new instance of the <see cref="SqlFunctionExpression" /> class.
@@ -513,9 +517,8 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
             [NotNull] string name,
             [NotNull] IEnumerable<SqlExpression> arguments,
             [NotNull] Type type,
-            [CanBeNull] RelationalTypeMapping typeMapping)
-            => new SqlFunctionExpression(
-                schema, name, arguments, nullable: true, argumentsPropagateNullability: arguments.Select(a => false), type, typeMapping);
+            [CanBeNull] RelationalTypeMapping? typeMapping)
+            => new(schema, name, arguments, nullable: true, argumentsPropagateNullability: arguments.Select(a => false), type, typeMapping);
 
         #endregion
     }

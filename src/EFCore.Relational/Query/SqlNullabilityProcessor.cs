@@ -4,7 +4,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Linq.Expressions;
 using JetBrains.Annotations;
@@ -59,7 +58,7 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <summary>
         ///     Dictionary of current parameter values in use.
         /// </summary>
-        protected virtual IReadOnlyDictionary<string, object> ParameterValues { get; private set; }
+        protected virtual IReadOnlyDictionary<string, object?> ParameterValues { get; private set; }
 
         /// <summary>
         ///     Processes a <see cref="SelectExpression" /> to apply null semantics and optimize it.
@@ -70,7 +69,7 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <returns> An optimized select expression. </returns>
         public virtual SelectExpression Process(
             [NotNull] SelectExpression selectExpression,
-            [NotNull] IReadOnlyDictionary<string, object> parameterValues,
+            [NotNull] IReadOnlyDictionary<string, object?> parameterValues,
             out bool canCache)
         {
             Check.NotNull(selectExpression, nameof(selectExpression));
@@ -560,9 +559,10 @@ namespace Microsoft.EntityFrameworkCore.Query
             nullable = false;
 
             // if subquery has predicate which evaluates to false, we can simply return false
+            // if the exisits is negated we need to return true instead
             return TryGetBoolConstantValue(subquery.Predicate) == false
-                ? subquery.Predicate!
-                : existsExpression.Update(subquery);
+                ? _sqlExpressionFactory.Constant(existsExpression.IsNegated, existsExpression.TypeMapping)
+                : (SqlExpression)existsExpression.Update(subquery);
         }
 
         /// <summary>
@@ -682,13 +682,13 @@ namespace Microsoft.EntityFrameworkCore.Query
                 if (valuesExpression is SqlConstantExpression sqlConstant)
                 {
                     typeMapping = sqlConstant.TypeMapping;
-                    values = (IEnumerable)sqlConstant.Value;
+                    values = (IEnumerable)sqlConstant.Value!;
                 }
                 else if (valuesExpression is SqlParameterExpression sqlParameter)
                 {
                     DoNotCache();
                     typeMapping = sqlParameter.TypeMapping;
-                    values = (IEnumerable)ParameterValues[sqlParameter.Name];
+                    values = (IEnumerable?)ParameterValues[sqlParameter.Name];
                     if (values == null)
                     {
                         throw new NullReferenceException();
@@ -1003,7 +1003,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                 return sqlFunctionExpression.Update(instance, sqlFunctionExpression.Arguments);
             }
 
-            var arguments = new SqlExpression[sqlFunctionExpression.Arguments!.Count];
+            var arguments = new SqlExpression[sqlFunctionExpression.Arguments.Count];
             for (var i = 0; i < arguments.Length; i++)
             {
                 arguments[i] = Visit(sqlFunctionExpression.Arguments[i], out _);
@@ -1195,7 +1195,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                 // true != a -> !a
                 // false != a -> a
                 return sqlBinaryExpression.OperatorType == ExpressionType.Equal ^ leftBoolValue
-                    ? _sqlExpressionFactory.Not(right)
+                    ? OptimizeNonNullableNotExpression(_sqlExpressionFactory.Not(right))
                     : right;
             }
 
@@ -1398,28 +1398,30 @@ namespace Microsoft.EntityFrameworkCore.Query
             // true || a -> true
             // false && a -> false
             // false || a -> a
-            if (sqlBinaryExpression.Left is SqlConstantExpression newLeftConstant)
+            if (sqlBinaryExpression.Left is SqlConstantExpression newLeftConstant
+                && newLeftConstant.Value is bool leftBoolValue)
             {
                 return sqlBinaryExpression.OperatorType == ExpressionType.AndAlso
-                    ? (bool)newLeftConstant.Value
+                    ? leftBoolValue
                         ? sqlBinaryExpression.Right
                         : newLeftConstant
-                    : (bool)newLeftConstant.Value
+                    : leftBoolValue
                         ? newLeftConstant
                         : sqlBinaryExpression.Right;
             }
 
-            if (sqlBinaryExpression.Right is SqlConstantExpression newRightConstant)
+            if (sqlBinaryExpression.Right is SqlConstantExpression newRightConstant
+                && newRightConstant.Value is bool rightBoolValue)
             {
                 // a && true -> a
                 // a || true -> true
                 // a && false -> false
                 // a || false -> a
                 return sqlBinaryExpression.OperatorType == ExpressionType.AndAlso
-                    ? (bool)newRightConstant.Value
+                    ? rightBoolValue
                         ? sqlBinaryExpression.Left
                         : newRightConstant
-                    : (bool)newRightConstant.Value
+                    : rightBoolValue
                         ? newRightConstant
                         : sqlBinaryExpression.Left;
             }
@@ -1487,6 +1489,34 @@ namespace Microsoft.EntityFrameworkCore.Query
                                 left,
                                 right,
                                 sqlBinaryOperand.TypeMapping)!);
+                    }
+
+                    // use equality where possible
+                    // !(a == true) -> a == false
+                    // !(a == false) -> a == true
+                    // !(true == a) -> false == a
+                    // !(false == a) -> true == a
+                    if (sqlBinaryOperand.OperatorType == ExpressionType.Equal)
+                    {
+                        if (sqlBinaryOperand.Left is SqlConstantExpression leftConstant
+                            && leftConstant.Type == typeof(bool))
+                        {
+                            return _sqlExpressionFactory.MakeBinary(
+                                ExpressionType.Equal,
+                                _sqlExpressionFactory.Constant(!(bool)leftConstant.Value!, leftConstant.TypeMapping),
+                                sqlBinaryOperand.Right,
+                                sqlBinaryOperand.TypeMapping)!;
+                        }
+
+                        if (sqlBinaryOperand.Right is SqlConstantExpression rightConstant
+                            && rightConstant.Type == typeof(bool))
+                        {
+                            return _sqlExpressionFactory.MakeBinary(
+                                ExpressionType.Equal,
+                                sqlBinaryOperand.Left,
+                                _sqlExpressionFactory.Constant(!(bool)rightConstant.Value!, rightConstant.TypeMapping),
+                                sqlBinaryOperand.TypeMapping)!;
+                        }
                     }
 
                     // !(a == b) -> a != b
@@ -1686,8 +1716,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                         nullabilityPropagationElements.Add(sqlFunctionExpression.Instance);
                     }
 
-                    if (sqlFunctionExpression.Arguments != null
-                        && sqlFunctionExpression.ArgumentsPropagateNullability != null)
+                    if (!sqlFunctionExpression.IsNiladic)
                     {
                         for (var i = 0; i < sqlFunctionExpression.Arguments.Count; i++)
                         {

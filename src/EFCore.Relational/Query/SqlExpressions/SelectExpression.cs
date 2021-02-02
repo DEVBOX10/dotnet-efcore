@@ -36,7 +36,7 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
     public sealed class SelectExpression : TableExpressionBase
     {
         private static readonly Dictionary<ExpressionType, ExpressionType> _mirroredOperationMap =
-            new Dictionary<ExpressionType, ExpressionType>
+            new()
             {
                 { ExpressionType.Equal, ExpressionType.Equal },
                 { ExpressionType.NotEqual, ExpressionType.NotEqual },
@@ -51,20 +51,20 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
         private readonly IDictionary<EntityProjectionExpression, IDictionary<IProperty, int>> _entityProjectionCache
             = new Dictionary<EntityProjectionExpression, IDictionary<IProperty, int>>();
 
-        private readonly List<ProjectionExpression> _projection = new List<ProjectionExpression>();
-        private readonly List<TableExpressionBase> _tables = new List<TableExpressionBase>();
-        private readonly List<SqlExpression> _groupBy = new List<SqlExpression>();
-        private readonly List<OrderingExpression> _orderings = new List<OrderingExpression>();
+        private readonly List<ProjectionExpression> _projection = new();
+        private readonly List<TableExpressionBase> _tables = new();
+        private readonly List<SqlExpression> _groupBy = new();
+        private readonly List<OrderingExpression> _orderings = new();
 
         private readonly List<(ColumnExpression Column, ValueComparer Comparer)> _identifier
-            = new List<(ColumnExpression Column, ValueComparer Comparer)>();
+            = new();
 
         private readonly List<(ColumnExpression Column, ValueComparer Comparer)> _childIdentifiers
-            = new List<(ColumnExpression Column, ValueComparer Comparer)>();
+            = new();
 
-        private readonly List<SelectExpression?> _pendingCollections = new List<SelectExpression?>();
+        private readonly List<SelectExpression?> _pendingCollections = new();
 
-        private List<int> _tptLeftJoinTables = new List<int>();
+        private List<int> _tptLeftJoinTables = new();
         private IDictionary<ProjectionMember, Expression> _projectionMapping = new Dictionary<ProjectionMember, Expression>();
 
         /// <summary>
@@ -317,7 +317,7 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
             ITableBase table,
             TableExpressionBase tableExpression,
             bool nullable)
-            => new ColumnExpression(property, table.FindColumn(property), tableExpression, nullable);
+            => new(property, table.FindColumn(property)!, tableExpression, nullable);
 
         /// <summary>
         ///     Checks whether this <see cref="SelectExpression" /> representes a <see cref="FromSqlExpression" /> which is not composed upon.
@@ -388,7 +388,7 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
 
         private static IEnumerable<IProperty> GetAllPropertiesInHierarchy(IEntityType entityType)
             => entityType.GetAllBaseTypes().Concat(entityType.GetDerivedTypesInclusive())
-                .SelectMany(EntityTypeExtensions.GetDeclaredProperties);
+                .SelectMany(t => t.GetDeclaredProperties());
 
         /// <summary>
         ///     Replaces current projection mapping with a new one to change what is being projected out from this <see cref="SelectExpression" />.
@@ -723,7 +723,7 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
 
             var dummySelectExpression = new SelectExpression(
                 alias: "empty",
-                new List<ProjectionExpression> { new ProjectionExpression(nullSqlExpression, "empty") },
+                new List<ProjectionExpression> { new(nullSqlExpression, "empty") },
                 new List<TableExpressionBase>(),
                 new List<SqlExpression>(),
                 new List<OrderingExpression>());
@@ -1210,7 +1210,7 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
                 // Also lift nested entity projections
                 foreach (var navigation in entityProjection.EntityType
                     .GetAllBaseTypes().Concat(entityProjection.EntityType.GetDerivedTypesInclusive())
-                    .SelectMany(EntityTypeExtensions.GetDeclaredNavigations))
+                    .SelectMany(t => t.GetDeclaredNavigations()))
                 {
                     var boundEntityShaperExpression = entityProjection.BindNavigation(navigation);
                     if (boundEntityShaperExpression != null)
@@ -1291,7 +1291,6 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
                 }
 
                 shaperExpression = remapper.RemapIndex(shaperExpression, indexMap, pendingCollectionOffset);
-                _projectionMapping.Clear();
             }
             else
             {
@@ -1394,7 +1393,7 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
                 var identifierFromParent = _identifier;
                 if (innerSelectExpression.Tables.LastOrDefault(e => e is InnerJoinExpression) is InnerJoinExpression
                         collectionInnerJoinExpression
-                    && collectionInnerJoinExpression.Table is SelectExpression collectionInnerSelectExpression)
+                    && collectionInnerJoinExpression.Table is TableExpressionBase collectionTableExpressionBase)
                 {
                     // This computes true parent identifier count for correlation.
                     // The last inner joined table in innerSelectExpression brings collection data.
@@ -1402,7 +1401,7 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
                     // So identifier not coming from there (which would be at the start only) are for correlation with parent.
                     // Parent can have additional identifier if a owned reference was expanded.
                     var actualParentIdentifierCount = innerSelectExpression._identifier
-                        .TakeWhile(e => !ReferenceEquals(e.Column.Table, collectionInnerSelectExpression))
+                        .TakeWhile(e => !ReferenceEquals(e.Column.Table, collectionTableExpressionBase))
                         .Count();
                     identifierFromParent = _identifier.Take(actualParentIdentifierCount).ToList();
                 }
@@ -1663,7 +1662,7 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
                 Check.NotNull(extensionExpression, nameof(extensionExpression));
 
                 return extensionExpression is EntityShaperExpression entityShaper
-                    ? entityShaper.MarkAsNullable()
+                    ? entityShaper.MakeNullable()
                     : base.VisitExtension(extensionExpression);
             }
         }
@@ -1928,8 +1927,8 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
             AddJoin(joinType, ref innerSelectExpression, joinPredicate);
 
             var transparentIdentifierType = TransparentIdentifierFactory.Create(outerShaper.Type, innerShaper.Type);
-            var outerMemberInfo = transparentIdentifierType.GetTypeInfo().GetDeclaredField("Outer");
-            var innerMemberInfo = transparentIdentifierType.GetTypeInfo().GetDeclaredField("Inner");
+            var outerMemberInfo = transparentIdentifierType.GetTypeInfo().GetRequiredDeclaredField("Outer");
+            var innerMemberInfo = transparentIdentifierType.GetTypeInfo().GetRequiredDeclaredField("Inner");
             var outerClientEval = Projection.Count > 0;
             var innerClientEval = innerSelectExpression.Projection.Count > 0;
             var remapper = new ProjectionBindingExpressionRemappingExpressionVisitor(this);
@@ -2114,7 +2113,7 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
             }
 
             private CollectionShaperExpression Remap(CollectionShaperExpression collectionShaperExpression)
-                => new CollectionShaperExpression(
+                => new(
                     new ProjectionBindingExpression(
                         _queryExpression,
                         ((ProjectionBindingExpression)collectionShaperExpression.Projection).Index!.Value + (int)_pendingCollectionOffset!,
@@ -2231,7 +2230,7 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
                                     limit = offset is SqlConstantExpression offsetConstant
                                         && limit is SqlConstantExpression limitConstant
                                             ? (SqlExpression)new SqlConstantExpression(
-                                                Constant((int)offsetConstant.Value + (int)limitConstant.Value),
+                                                Constant((int)offsetConstant.Value! + (int)limitConstant.Value!),
                                                 limit.TypeMapping)
                                             : new SqlBinaryExpression(ExpressionType.Add, offset, limit, limit.Type, limit.TypeMapping);
                                 }
@@ -2523,21 +2522,21 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
         private void AddJoin(
             JoinType joinType,
             SelectExpression innerSelectExpression,
-            Type transparentIdentifierType,
+            Type? transparentIdentifierType,
             SqlExpression? joinPredicate)
         {
             AddJoin(joinType, ref innerSelectExpression, joinPredicate);
 
             if (transparentIdentifierType != null)
             {
-                var outerMemberInfo = transparentIdentifierType.GetTypeInfo().GetDeclaredField("Outer");
+                var outerMemberInfo = transparentIdentifierType.GetTypeInfo().GetRequiredDeclaredField("Outer");
                 var projectionMapping = new Dictionary<ProjectionMember, Expression>();
                 foreach (var projection in _projectionMapping)
                 {
                     projectionMapping[projection.Key.Prepend(outerMemberInfo)] = projection.Value;
                 }
 
-                var innerMemberInfo = transparentIdentifierType.GetTypeInfo().GetDeclaredField("Inner");
+                var innerMemberInfo = transparentIdentifierType.GetTypeInfo().GetRequiredDeclaredField("Inner");
                 var innerNullable = joinType == JoinType.LeftJoin || joinType == JoinType.OuterApply;
                 foreach (var projection in innerSelectExpression._projectionMapping)
                 {
@@ -2571,7 +2570,7 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
         public void AddInnerJoin(
             [NotNull] SelectExpression innerSelectExpression,
             [NotNull] SqlExpression joinPredicate,
-            [CanBeNull] Type transparentIdentifierType)
+            [CanBeNull] Type? transparentIdentifierType)
         {
             Check.NotNull(innerSelectExpression, nameof(innerSelectExpression));
             Check.NotNull(joinPredicate, nameof(joinPredicate));
@@ -2589,7 +2588,7 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
         public void AddLeftJoin(
             [NotNull] SelectExpression innerSelectExpression,
             [NotNull] SqlExpression joinPredicate,
-            [CanBeNull] Type transparentIdentifierType)
+            [CanBeNull] Type? transparentIdentifierType)
         {
             Check.NotNull(innerSelectExpression, nameof(innerSelectExpression));
             Check.NotNull(joinPredicate, nameof(joinPredicate));
@@ -2603,7 +2602,7 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
         /// <param name="innerSelectExpression"> A <see cref="SelectExpression" /> to join with. </param>
         /// <param name="transparentIdentifierType"> The type of the result generated after performing the join. </param>
         [Obsolete("Use the other overloads.")]
-        public void AddCrossJoin([NotNull] SelectExpression innerSelectExpression, [CanBeNull] Type transparentIdentifierType)
+        public void AddCrossJoin([NotNull] SelectExpression innerSelectExpression, [CanBeNull] Type? transparentIdentifierType)
         {
             Check.NotNull(innerSelectExpression, nameof(innerSelectExpression));
 
@@ -2616,7 +2615,7 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
         /// <param name="innerSelectExpression"> A <see cref="SelectExpression" /> to join with. </param>
         /// <param name="transparentIdentifierType"> The type of the result generated after performing the join. </param>
         [Obsolete("Use the other overloads.")]
-        public void AddCrossApply([NotNull] SelectExpression innerSelectExpression, [CanBeNull] Type transparentIdentifierType)
+        public void AddCrossApply([NotNull] SelectExpression innerSelectExpression, [CanBeNull] Type? transparentIdentifierType)
         {
             Check.NotNull(innerSelectExpression, nameof(innerSelectExpression));
 
@@ -2629,7 +2628,7 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
         /// <param name="innerSelectExpression"> A <see cref="SelectExpression" /> to join with. </param>
         /// <param name="transparentIdentifierType"> The type of the result generated after performing the join. </param>
         [Obsolete("Use the other overloads.")]
-        public void AddOuterApply([NotNull] SelectExpression innerSelectExpression, [CanBeNull] Type transparentIdentifierType)
+        public void AddOuterApply([NotNull] SelectExpression innerSelectExpression, [CanBeNull] Type? transparentIdentifierType)
         {
             Check.NotNull(innerSelectExpression, nameof(innerSelectExpression));
 
@@ -2724,9 +2723,10 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
                 foreach (var keyValuePair in _columnsUsedInJoinCondition)
                 {
                     var tableAlias = keyValuePair.Key;
-                    if (_columnReferenced[tableAlias] != null)
+                    if (_columnReferenced[tableAlias] != null
+                        && _columnsUsedInJoinCondition[tableAlias] != null)
                     {
-                        _columnReferenced[tableAlias]!.UnionWith(_columnsUsedInJoinCondition[tableAlias]);
+                        _columnReferenced[tableAlias]!.UnionWith(_columnsUsedInJoinCondition[tableAlias]!);
                     }
                 }
 
@@ -2812,7 +2812,7 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
                 _tables.Clear();
                 _tables.AddRange(tables.Select(e => (TableExpressionBase)visitor.Visit(e)));
 
-                Predicate = (SqlExpression)visitor.Visit(Predicate);
+                Predicate = (SqlExpression?)visitor.Visit(Predicate);
 
                 var groupBy = _groupBy.ToList();
                 _groupBy.Clear();
@@ -2820,14 +2820,14 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
                     groupBy.Select(e => (SqlExpression)visitor.Visit(e))
                         .Where(e => !(e is SqlConstantExpression || e is SqlParameterExpression)));
 
-                Having = (SqlExpression)visitor.Visit(Having);
+                Having = (SqlExpression?)visitor.Visit(Having);
 
                 var orderings = _orderings.ToList();
                 _orderings.Clear();
                 _orderings.AddRange(orderings.Select(e => e.Update((SqlExpression)visitor.Visit(e.Expression))));
 
-                Offset = (SqlExpression)visitor.Visit(Offset);
-                Limit = (SqlExpression)visitor.Visit(Limit);
+                Offset = (SqlExpression?)visitor.Visit(Offset);
+                Limit = (SqlExpression?)visitor.Visit(Limit);
 
                 return this;
             }
@@ -2902,7 +2902,7 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
                 }
             }
 
-            var predicate = (SqlExpression)visitor.Visit(Predicate);
+            var predicate = (SqlExpression?)visitor.Visit(Predicate);
             changed |= predicate != Predicate;
 
             var newGroupBy = _groupBy;
@@ -2934,7 +2934,7 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
                 }
             }
 
-            var havingExpression = (SqlExpression)visitor.Visit(Having);
+            var havingExpression = (SqlExpression?)visitor.Visit(Having);
             changed |= havingExpression != Having;
 
             var newOrderings = _orderings;
@@ -2960,10 +2960,10 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
                 }
             }
 
-            var offset = (SqlExpression)visitor.Visit(Offset);
+            var offset = (SqlExpression?)visitor.Visit(Offset);
             changed |= offset != Offset;
 
-            var limit = (SqlExpression)visitor.Visit(Limit);
+            var limit = (SqlExpression?)visitor.Visit(Limit);
             changed |= limit != Limit;
 
             if (changed)
@@ -3107,14 +3107,14 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
         public SelectExpression Update(
             [NotNull] IReadOnlyList<ProjectionExpression> projections,
             [NotNull] IReadOnlyList<TableExpressionBase> tables,
-            [CanBeNull] SqlExpression predicate,
+            [CanBeNull] SqlExpression? predicate,
             [NotNull] IReadOnlyList<SqlExpression> groupBy,
-            [CanBeNull] SqlExpression having,
+            [CanBeNull] SqlExpression? having,
             [NotNull] IReadOnlyList<OrderingExpression> orderings,
-            [CanBeNull] SqlExpression limit,
-            [CanBeNull] SqlExpression offset,
+            [CanBeNull] SqlExpression? limit,
+            [CanBeNull] SqlExpression? offset,
             bool distinct,
-            [CanBeNull] string alias)
+            [CanBeNull] string? alias)
         {
             Check.NotNull(projections, nameof(projections));
             Check.NotNull(tables, nameof(tables));

@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
@@ -21,8 +22,7 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
     /// </summary>
     public class WarningsConfiguration
     {
-        private Dictionary<int, (WarningBehavior? Behavior, LogLevel? Level)> _explicitBehaviors
-            = new Dictionary<int, (WarningBehavior? Behavior, LogLevel? Level)>();
+        private Dictionary<int, (WarningBehavior? Behavior, LogLevel? Level)> _explicitBehaviors = new();
 
         private WarningBehavior _defaultBehavior = WarningBehavior.Log;
 
@@ -50,7 +50,7 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         /// </summary>
         /// <returns> A clone of this instance, which can be modified before being returned as immutable. </returns>
         protected virtual WarningsConfiguration Clone()
-            => new WarningsConfiguration(this);
+            => new(this);
 
         /// <summary>
         ///     The option set from the <see cref="DefaultBehavior" /> method.
@@ -172,7 +172,11 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
 
                 if (_explicitBehaviors != null)
                 {
-                    hashCode = _explicitBehaviors.Aggregate(
+                    IEnumerable<KeyValuePair<int, (WarningBehavior? Behavior, LogLevel? Level)>> explicitBehaviors = _explicitBehaviors;
+
+                    explicitBehaviors = _explicitBehaviors.OrderBy(b => b.Key);
+
+                    hashCode = explicitBehaviors.Aggregate(
                         hashCode,
                         (t, e) => (t * 397) ^ (((long)e.Value.GetHashCode() * 3163) ^ (long)e.Key.GetHashCode()));
                 }

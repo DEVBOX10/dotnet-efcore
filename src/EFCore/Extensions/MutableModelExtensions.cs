@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
@@ -26,7 +27,7 @@ namespace Microsoft.EntityFrameworkCore
         /// </summary>
         /// <param name="model"> The model to find the entity type in. </param>
         /// <param name="type"> The type to find the corresponding entity type for. </param>
-        /// <returns> The entity type, or <see langword="null" /> if none if found. </returns>
+        /// <returns> The entity type, or <see langword="null" /> if none is found. </returns>
         public static IMutableEntityType? FindEntityType([NotNull] this IMutableModel model, [NotNull] Type type)
             => ((Model)model).FindEntityType(type);
 
@@ -38,13 +39,13 @@ namespace Microsoft.EntityFrameworkCore
         /// <param name="type"> The type of the entity type to find. </param>
         /// <param name="definingNavigationName"> The defining navigation of the entity type to find. </param>
         /// <param name="definingEntityType"> The defining entity type of the entity type to find. </param>
-        /// <returns> The entity type, or <see langword="null" /> if none are found. </returns>
+        /// <returns> The entity type, or <see langword="null" /> if none is found. </returns>
         public static IMutableEntityType? FindEntityType(
             [NotNull] this IMutableModel model,
             [NotNull] Type type,
             [NotNull] string definingNavigationName,
             [NotNull] IMutableEntityType definingEntityType)
-            => (IMutableEntityType?)((IModel)model).FindEntityType(type, definingNavigationName, definingEntityType);
+            => (IMutableEntityType?)((IReadOnlyModel)model).FindEntityType(type, definingNavigationName, definingEntityType);
 
         /// <summary>
         ///     Gets the entity types matching the given type.
@@ -53,7 +54,7 @@ namespace Microsoft.EntityFrameworkCore
         /// <param name="type"> The type of the entity type to find. </param>
         /// <returns> The entity types found. </returns>
         [DebuggerStepThrough]
-        public static IReadOnlyCollection<IMutableEntityType> GetEntityTypes([NotNull] this IMutableModel model, [NotNull] Type type)
+        public static IEnumerable<IMutableEntityType> GetEntityTypes([NotNull] this IMutableModel model, [NotNull] Type type)
             => ((Model)model).GetEntityTypes(type);
 
         /// <summary>
@@ -63,6 +64,7 @@ namespace Microsoft.EntityFrameworkCore
         /// <param name="name"> The name of the entity type to find. </param>
         /// <returns> The entity types found. </returns>
         [DebuggerStepThrough]
+        [Obsolete("Use GetEntityTypes(Type) or FindEntityType(string)")]
         public static IReadOnlyCollection<IMutableEntityType> GetEntityTypes([NotNull] this IMutableModel model, [NotNull] string name)
             => ((Model)model).GetEntityTypes(name);
 
@@ -81,7 +83,8 @@ namespace Microsoft.EntityFrameworkCore
         }
 
         /// <summary>
-        ///     Removes an entity type with a defining navigation from the model.
+        ///     Removes an entity type with the given type, defining navigation name
+        ///     and the defining entity type
         /// </summary>
         /// <param name="model"> The model to remove the entity type from. </param>
         /// <param name="type"> The CLR class that is used to represent instances of this entity type. </param>
@@ -115,7 +118,8 @@ namespace Microsoft.EntityFrameworkCore
         }
 
         /// <summary>
-        ///     Removes an entity type with a defining navigation from the model.
+        ///     Removes an entity type with the given type, defining navigation name
+        ///     and the defining entity type
         /// </summary>
         /// <param name="model"> The model to remove the entity type from. </param>
         /// <param name="name"> The name of the entity type to be removed. </param>
@@ -133,7 +137,7 @@ namespace Microsoft.EntityFrameworkCore
             Check.NotEmpty(definingNavigationName, nameof(definingNavigationName));
             Check.NotNull(definingEntityType, nameof(definingEntityType));
 
-            return ((Model)model).RemoveEntityType(name);
+            return ((Model)model).RemoveEntityType(name, definingNavigationName, definingEntityType);
         }
 
         /// <summary>
@@ -143,12 +147,12 @@ namespace Microsoft.EntityFrameworkCore
         /// <param name="type"> The base type. </param>
         /// <param name="condition"> An optional condition for filtering entity types. </param>
         /// <returns> List of entity types corresponding to the least derived types from the given. </returns>
-        public static IReadOnlyList<IMutableEntityType> FindLeastDerivedEntityTypes(
+        public static IEnumerable<IMutableEntityType> FindLeastDerivedEntityTypes(
             [NotNull] this IMutableModel model,
             [NotNull] Type type,
             [CanBeNull] Func<IMutableEntityType, bool>? condition = null)
-            => Check.NotNull((Model)model, nameof(model))
-                .FindLeastDerivedEntityTypes(type, condition);
+            => ((IReadOnlyModel)model).FindLeastDerivedEntityTypes(type, condition == null ? null : t => condition((IMutableEntityType)t))
+                .Cast<IMutableEntityType>();
 
         /// <summary>
         ///     Removes the ignored entity type.
@@ -261,8 +265,8 @@ namespace Microsoft.EntityFrameworkCore
         ///     explicitly in cases where the automatic execution is not possible.
         /// </summary>
         /// <param name="model"> The model to finalize. </param>
-        /// <returns> The finalized <see cref="IModel" />. </returns>
+        /// <returns> The finalized model. </returns>
         public static IModel FinalizeModel([NotNull] this IMutableModel model)
-            => ((Model)model).FinalizeModel()!;
+            => ((Model)model).FinalizeModel();
     }
 }

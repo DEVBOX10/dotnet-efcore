@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
@@ -97,6 +98,7 @@ namespace Microsoft.EntityFrameworkCore
                 ChangeTracker.AutoDetectChangesEnabled = false;
                 ChangeTracker.LazyLoadingEnabled = false;
                 Database.AutoTransactionsEnabled = false;
+                Database.AutoSavepointsEnabled = false;
                 ChangeTracker.CascadeDeleteTiming = CascadeTiming.Never;
                 ChangeTracker.DeleteOrphansTiming = CascadeTiming.Never;
             }
@@ -227,6 +229,48 @@ namespace Microsoft.EntityFrameworkCore
                 Assert.Throws<ArgumentException>(
                     () => serviceCollection.AddPooledDbContextFactory<BadCtorContext>(
                         (_, __) => { })).Message);
+        }
+
+        [ConditionalFact]
+        public void Throws_when_pooled_context_constructor_has_more_than_one_parameter()
+        {
+            var serviceProvider
+                = new ServiceCollection().AddDbContextPool<TwoParameterConstructorContext>(_ => { }).BuildServiceProvider();
+
+            using var scope = serviceProvider.CreateScope();
+
+            Assert.Equal(
+                CoreStrings.PoolingContextCtorError(nameof(TwoParameterConstructorContext)),
+                Assert.Throws<InvalidOperationException>(() => scope.ServiceProvider.GetService<TwoParameterConstructorContext>()).Message);
+        }
+
+        private class TwoParameterConstructorContext : DbContext
+        {
+            public TwoParameterConstructorContext(DbContextOptions options, string x)
+                : base(options)
+            {
+            }
+        }
+
+        [ConditionalFact]
+        public void Throws_when_pooled_context_constructor_wrong_parameter()
+        {
+            var serviceProvider
+                = new ServiceCollection().AddDbContextPool<WrongParameterConstructorContext>(_ => { }).BuildServiceProvider();
+
+            using var scope = serviceProvider.CreateScope();
+
+            Assert.Equal(
+                CoreStrings.PoolingContextCtorError(nameof(WrongParameterConstructorContext)),
+                Assert.Throws<InvalidOperationException>(() => scope.ServiceProvider.GetService<WrongParameterConstructorContext>()).Message);
+        }
+
+        private class WrongParameterConstructorContext : DbContext
+        {
+            public WrongParameterConstructorContext(string x)
+                : base(new DbContextOptions<WrongParameterConstructorContext>())
+            {
+            }
         }
 
         [ConditionalTheory]
@@ -496,8 +540,20 @@ namespace Microsoft.EntityFrameworkCore
             context1.ChangeTracker.CascadeDeleteTiming = CascadeTiming.Immediate;
             context1.ChangeTracker.DeleteOrphansTiming = CascadeTiming.Immediate;
             context1.Database.AutoTransactionsEnabled = true;
+            context1.Database.AutoSavepointsEnabled = true;
+            context1.SavingChanges += (sender, args) => { };
+            context1.SavedChanges += (sender, args) => { };
+            context1.SaveChangesFailed += (sender, args) => { };
+
+            Assert.NotNull(GetContextEventField(context1, nameof(DbContext.SavingChanges)));
+            Assert.NotNull(GetContextEventField(context1, nameof(DbContext.SavedChanges)));
+            Assert.NotNull(GetContextEventField(context1, nameof(DbContext.SaveChangesFailed)));
 
             await Dispose(serviceScope, async);
+
+            Assert.Null(GetContextEventField(context1, nameof(DbContext.SavingChanges)));
+            Assert.Null(GetContextEventField(context1, nameof(DbContext.SavedChanges)));
+            Assert.Null(GetContextEventField(context1, nameof(DbContext.SaveChangesFailed)));
 
             serviceScope = serviceProvider.CreateScope();
             scopedProvider = serviceScope.ServiceProvider;
@@ -514,6 +570,7 @@ namespace Microsoft.EntityFrameworkCore
             Assert.Equal(CascadeTiming.Never, context2.ChangeTracker.CascadeDeleteTiming);
             Assert.Equal(CascadeTiming.Never, context2.ChangeTracker.DeleteOrphansTiming);
             Assert.False(context2.Database.AutoTransactionsEnabled);
+            Assert.False(context2.Database.AutoSavepointsEnabled);
         }
 
         [ConditionalTheory]
@@ -531,8 +588,20 @@ namespace Microsoft.EntityFrameworkCore
             context1.ChangeTracker.CascadeDeleteTiming = CascadeTiming.Immediate;
             context1.ChangeTracker.DeleteOrphansTiming = CascadeTiming.Immediate;
             context1.Database.AutoTransactionsEnabled = true;
+            context1.Database.AutoSavepointsEnabled = true;
+            context1.SavingChanges += (sender, args) => { };
+            context1.SavedChanges += (sender, args) => { };
+            context1.SaveChangesFailed += (sender, args) => { };
+
+            Assert.NotNull(GetContextEventField(context1, nameof(DbContext.SavingChanges)));
+            Assert.NotNull(GetContextEventField(context1, nameof(DbContext.SavedChanges)));
+            Assert.NotNull(GetContextEventField(context1, nameof(DbContext.SaveChangesFailed)));
 
             await Dispose(context1, async);
+
+            Assert.Null(GetContextEventField(context1, nameof(DbContext.SavingChanges)));
+            Assert.Null(GetContextEventField(context1, nameof(DbContext.SavedChanges)));
+            Assert.Null(GetContextEventField(context1, nameof(DbContext.SaveChangesFailed)));
 
             var context2 = factory.CreateDbContext();
 
@@ -544,6 +613,7 @@ namespace Microsoft.EntityFrameworkCore
             Assert.Equal(CascadeTiming.Never, context2.ChangeTracker.CascadeDeleteTiming);
             Assert.Equal(CascadeTiming.Never, context2.ChangeTracker.DeleteOrphansTiming);
             Assert.False(context2.Database.AutoTransactionsEnabled);
+            Assert.False(context2.Database.AutoSavepointsEnabled);
         }
 
         [ConditionalFact]
@@ -553,14 +623,22 @@ namespace Microsoft.EntityFrameworkCore
                 new DbContextOptionsBuilder().UseSqlServer(
                     SqlServerNorthwindTestStoreFactory.NorthwindConnectionString).Options);
 
+            Assert.Null(GetContextEventField(context, nameof(DbContext.SavingChanges)));
+            Assert.Null(GetContextEventField(context, nameof(DbContext.SavedChanges)));
+            Assert.Null(GetContextEventField(context, nameof(DbContext.SaveChangesFailed)));
+
             context.ChangeTracker.AutoDetectChangesEnabled = true;
             context.ChangeTracker.LazyLoadingEnabled = true;
             context.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             context.ChangeTracker.CascadeDeleteTiming = CascadeTiming.Immediate;
             context.ChangeTracker.DeleteOrphansTiming = CascadeTiming.Immediate;
             context.Database.AutoTransactionsEnabled = true;
+            context.Database.AutoSavepointsEnabled = true;
             context.ChangeTracker.Tracked += ChangeTracker_OnTracked;
             context.ChangeTracker.StateChanged += ChangeTracker_OnStateChanged;
+            context.SavingChanges += (sender, args) => { };
+            context.SavedChanges += (sender, args) => { };
+            context.SaveChangesFailed += (sender, args) => { };
 
             context.ChangeTracker.Clear();
 
@@ -570,6 +648,7 @@ namespace Microsoft.EntityFrameworkCore
             Assert.Equal(CascadeTiming.Immediate, context.ChangeTracker.CascadeDeleteTiming);
             Assert.Equal(CascadeTiming.Immediate, context.ChangeTracker.DeleteOrphansTiming);
             Assert.True(context.Database.AutoTransactionsEnabled);
+            Assert.True(context.Database.AutoSavepointsEnabled);
 
             Assert.False(_changeTracker_OnTracked);
             Assert.False(_changeTracker_OnStateChanged);
@@ -579,8 +658,16 @@ namespace Microsoft.EntityFrameworkCore
 
             Assert.True(_changeTracker_OnTracked);
             Assert.True(_changeTracker_OnStateChanged);
+
+            Assert.NotNull(GetContextEventField(context, nameof(DbContext.SavingChanges)));
+            Assert.NotNull(GetContextEventField(context, nameof(DbContext.SavedChanges)));
+            Assert.NotNull(GetContextEventField(context, nameof(DbContext.SaveChangesFailed)));
         }
 
+        private object GetContextEventField(DbContext context, string eventName)
+            => typeof(DbContext)
+                .GetField(eventName, BindingFlags.GetField | BindingFlags.NonPublic | BindingFlags.Instance)
+                .GetValue(context);
         private bool _changeTracker_OnTracked;
 
         private void ChangeTracker_OnTracked(object sender, EntityTrackedEventArgs e)
@@ -607,6 +694,7 @@ namespace Microsoft.EntityFrameworkCore
             context1.ChangeTracker.LazyLoadingEnabled = false;
             context1.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             context1.Database.AutoTransactionsEnabled = false;
+            context1.Database.AutoSavepointsEnabled = false;
             context1.ChangeTracker.CascadeDeleteTiming = CascadeTiming.Immediate;
             context1.ChangeTracker.DeleteOrphansTiming = CascadeTiming.Immediate;
 
@@ -625,6 +713,7 @@ namespace Microsoft.EntityFrameworkCore
             Assert.Equal(CascadeTiming.Immediate, context2.ChangeTracker.CascadeDeleteTiming);
             Assert.Equal(CascadeTiming.Immediate, context2.ChangeTracker.DeleteOrphansTiming);
             Assert.True(context2.Database.AutoTransactionsEnabled);
+            Assert.True(context2.Database.AutoSavepointsEnabled);
         }
 
         [ConditionalTheory]
@@ -641,6 +730,7 @@ namespace Microsoft.EntityFrameworkCore
             context1.ChangeTracker.LazyLoadingEnabled = false;
             context1.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             context1.Database.AutoTransactionsEnabled = false;
+            context1.Database.AutoSavepointsEnabled = false;
             context1.ChangeTracker.CascadeDeleteTiming = CascadeTiming.Immediate;
             context1.ChangeTracker.DeleteOrphansTiming = CascadeTiming.Immediate;
 
@@ -656,6 +746,7 @@ namespace Microsoft.EntityFrameworkCore
             Assert.Equal(CascadeTiming.Immediate, context2.ChangeTracker.CascadeDeleteTiming);
             Assert.Equal(CascadeTiming.Immediate, context2.ChangeTracker.DeleteOrphansTiming);
             Assert.True(context2.Database.AutoTransactionsEnabled);
+            Assert.True(context2.Database.AutoSavepointsEnabled);
         }
 
         [ConditionalTheory]
@@ -983,7 +1074,6 @@ namespace Microsoft.EntityFrameworkCore
         [ConditionalTheory]
         [InlineData(true)]
         [InlineData(false)]
-        [PlatformSkipCondition(TestPlatform.Linux, SkipReason = "Test is flaky on CI.")]
         public void Double_dispose_concurrency_test(bool useInterface)
         {
             var serviceProvider = useInterface
@@ -1011,7 +1101,6 @@ namespace Microsoft.EntityFrameworkCore
         [InlineData(true, false)]
         [InlineData(false, true)]
         [InlineData(true, true)]
-        [PlatformSkipCondition(TestPlatform.Linux, SkipReason = "Test is flaky on CI.")]
         public async Task Concurrency_test(bool useInterface, bool async)
         {
             PooledContext.InstanceCount = 0;
@@ -1058,7 +1147,7 @@ namespace Microsoft.EntityFrameworkCore
 
         private int _stopwatchStarted;
 
-        private readonly Stopwatch _stopwatch = new Stopwatch();
+        private readonly Stopwatch _stopwatch = new();
 
         private long _requests;
 

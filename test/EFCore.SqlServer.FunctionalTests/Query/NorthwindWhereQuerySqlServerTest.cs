@@ -1038,7 +1038,7 @@ WHERE [p].[Discontinued] = CAST(1 AS bit)");
             AssertSql(
                 @"SELECT [p].[ProductID], [p].[Discontinued], [p].[ProductName], [p].[SupplierID], [p].[UnitPrice], [p].[UnitsInStock]
 FROM [Products] AS [p]
-WHERE [p].[Discontinued] <> CAST(1 AS bit)");
+WHERE [p].[Discontinued] = CAST(0 AS bit)");
         }
 
         public override async Task Where_bool_member_negated_twice(bool async)
@@ -1068,7 +1068,7 @@ WHERE [p].[Discontinued] = CAST(1 AS bit)");
             AssertSql(
                 @"SELECT [p].[ProductID], [p].[Discontinued], [p].[ProductName], [p].[SupplierID], [p].[UnitPrice], [p].[UnitsInStock]
 FROM [Products] AS [p]
-WHERE [p].[Discontinued] <> CAST(1 AS bit)");
+WHERE [p].[Discontinued] = CAST(0 AS bit)");
         }
 
         public override async Task Where_bool_member_equals_constant(bool async)
@@ -1194,7 +1194,7 @@ END");
             AssertSql(
                 @"SELECT [p].[ProductID], [p].[Discontinued], [p].[ProductName], [p].[SupplierID], [p].[UnitPrice], [p].[UnitsInStock]
 FROM [Products] AS [p]
-WHERE ([p].[Discontinued] <> CAST(1 AS bit)) AND ([p].[ProductID] >= 20)");
+WHERE ([p].[Discontinued] = CAST(0 AS bit)) AND ([p].[ProductID] >= 20)");
         }
 
         public override async Task Where_de_morgan_and_optimized(bool async)
@@ -1204,7 +1204,7 @@ WHERE ([p].[Discontinued] <> CAST(1 AS bit)) AND ([p].[ProductID] >= 20)");
             AssertSql(
                 @"SELECT [p].[ProductID], [p].[Discontinued], [p].[ProductName], [p].[SupplierID], [p].[UnitPrice], [p].[UnitsInStock]
 FROM [Products] AS [p]
-WHERE ([p].[Discontinued] <> CAST(1 AS bit)) OR ([p].[ProductID] >= 20)");
+WHERE ([p].[Discontinued] = CAST(0 AS bit)) OR ([p].[ProductID] >= 20)");
         }
 
         public override async Task Where_complex_negated_expression_optimized(bool async)
@@ -1214,7 +1214,7 @@ WHERE ([p].[Discontinued] <> CAST(1 AS bit)) OR ([p].[ProductID] >= 20)");
             AssertSql(
                 @"SELECT [p].[ProductID], [p].[Discontinued], [p].[ProductName], [p].[SupplierID], [p].[UnitPrice], [p].[UnitsInStock]
 FROM [Products] AS [p]
-WHERE (([p].[Discontinued] <> CAST(1 AS bit)) AND ([p].[ProductID] < 60)) AND ([p].[ProductID] > 30)");
+WHERE (([p].[Discontinued] = CAST(0 AS bit)) AND ([p].[ProductID] < 60)) AND ([p].[ProductID] > 30)");
         }
 
         public override async Task Where_short_member_comparison(bool async)
@@ -1366,6 +1366,33 @@ WHERE (@__i_0 + [c].[CustomerID]) = [c].[CompanyName]");
 SELECT [c].[CustomerID]
 FROM [Customers] AS [c]
 WHERE (@__i_0 + [c].[CustomerID]) = [c].[CompanyName]");
+        }
+
+        public override async Task Where_string_concat_method_comparison_2(bool async)
+        {
+            await base.Where_string_concat_method_comparison_2(async);
+
+            AssertSql(
+                @"@__i_0='A' (Size = 5)
+@__j_1='B' (Size = 5)
+
+SELECT [c].[CustomerID]
+FROM [Customers] AS [c]
+WHERE (@__i_0 + (@__j_1 + [c].[CustomerID])) = [c].[CompanyName]");
+        }
+
+        public override async Task Where_string_concat_method_comparison_3(bool async)
+        {
+            await base.Where_string_concat_method_comparison_3(async);
+
+            AssertSql(
+                @"@__i_0='A' (Size = 5)
+@__j_1='B' (Size = 5)
+@__k_2='C' (Size = 5)
+
+SELECT [c].[CustomerID]
+FROM [Customers] AS [c]
+WHERE (@__i_0 + (@__j_1 + (@__k_2 + [c].[CustomerID]))) = [c].[CompanyName]");
         }
 
         public override async Task Where_ternary_boolean_condition_true(bool async)

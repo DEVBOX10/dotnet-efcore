@@ -37,6 +37,10 @@ namespace Microsoft.EntityFrameworkCore.Query
         {
         }
 
+        protected override Expression RewriteExpectedQueryExpression(Expression expectedQueryExpression)
+            => new ExpectedQueryRewritingVisitor(Fixture.GetShadowPropertyMappings())
+                .Visit(expectedQueryExpression);
+
         [ConditionalTheory]
         [MemberData(nameof(IsAsyncData))]
         public virtual Task Negate_on_binary_expression(bool async)
@@ -1253,12 +1257,11 @@ namespace Microsoft.EntityFrameworkCore.Query
         [MemberData(nameof(IsAsyncData))]
         public virtual Task Where_coalesce_with_anonymous_types(bool async)
         {
-            return AssertTranslationFailed(
-                () => AssertQuery(
-                    async,
-                    ss => from g in ss.Set<Gear>()
-                          where (new { Name = g.LeaderNickname } ?? new { Name = g.FullName }) != null
-                          select g.Nickname));
+            return AssertQuery(
+                async,
+                ss => from g in ss.Set<Gear>()
+                      where (new { Name = g.LeaderNickname } ?? new { Name = g.FullName }) != null
+                      select g.Nickname);
         }
 
         [ConditionalTheory(Skip = "issue #8421")]
@@ -2724,10 +2727,9 @@ namespace Microsoft.EntityFrameworkCore.Query
         {
             var prm = "Marcus' Tag";
 
-            return AssertTranslationFailed(
-                () => AssertQuery(
-                    async,
-                    ss => ss.Set<Gear>().Where(g => ClientEquals(g.Tag.Note, prm))));
+            return AssertQuery(
+                async,
+                ss => ss.Set<Gear>().Where(g => ClientEquals(g.Tag.Note, prm)));
         }
 
         private static bool ClientEquals(string first, string second)
@@ -3286,7 +3288,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                 async,
                 ss => from g1 in ss.Set<Gear>()
                       from g2 in ss.Set<Gear>()
-                      // ReSharper disable once PossibleUnintendedReferenceComparison
+                          // ReSharper disable once PossibleUnintendedReferenceComparison
                       where g1.Weapons == g2.Weapons
                       orderby g1.Nickname
                       select new { Nickname1 = g1.Nickname, Nickname2 = g2.Nickname },
@@ -5307,17 +5309,16 @@ namespace Microsoft.EntityFrameworkCore.Query
         [MemberData(nameof(IsAsyncData))]
         public virtual Task Correlated_collection_order_by_constant_null_of_non_mapped_type(bool async)
         {
-            return AssertTranslationFailed(
-                () => AssertQuery(
-                    async,
-                    ss => ss.Set<Gear>().OrderByDescending(s => (MyDTO)null).Select(
-                        g => new { g.Nickname, Weapons = g.Weapons.Select(w => w.Name).ToList() }),
-                    elementSorter: e => e.Nickname,
-                    elementAsserter: (e, a) =>
-                    {
-                        Assert.Equal(e.Nickname, a.Nickname);
-                        AssertCollection(e.Weapons, a.Weapons);
-                    }));
+            return AssertQuery(
+                async,
+                ss => ss.Set<Gear>().OrderByDescending(s => (MyDTO)null).Select(
+                    g => new { g.Nickname, Weapons = g.Weapons.Select(w => w.Name).ToList() }),
+                elementSorter: e => e.Nickname,
+                elementAsserter: (e, a) =>
+                {
+                    Assert.Equal(e.Nickname, a.Nickname);
+                    AssertCollection(e.Weapons, a.Weapons);
+                });
         }
 
         [ConditionalTheory]
@@ -6003,10 +6004,9 @@ namespace Microsoft.EntityFrameworkCore.Query
         {
             var defaultValue = default(DateTimeOffset);
 
-            return AssertTranslationFailed(
-                () => AssertQuery(
+            return AssertQuery(
                     async,
-                    ss => ss.Set<Mission>().Where(m => ((DateTimeOffset?)m.Timeline).GetValueOrDefault() == defaultValue)));
+                    ss => ss.Set<Mission>().Where(m => ((DateTimeOffset?)m.Timeline).GetValueOrDefault() == defaultValue));
         }
 
         [ConditionalTheory]
@@ -7562,27 +7562,23 @@ namespace Microsoft.EntityFrameworkCore.Query
 
         [ConditionalTheory]
         [MemberData(nameof(IsAsyncData))]
-        public virtual async Task Client_eval_followed_by_set_operation_throws_meaningful_exception(bool async)
+        public virtual async Task Client_eval_followed_by_aggregate_operation(bool async)
         {
-            await AssertTranslationFailed(
-                () => AssertSum(
-                    async,
-                    ss => ss.Set<Mission>().Select(m => m.Duration.Ticks)));
+            await AssertSum(
+                async,
+                ss => ss.Set<Mission>().Select(m => m.Duration.Ticks));
 
-            await AssertTranslationFailed(
-                () => AssertAverage(
-                    async,
-                    ss => ss.Set<Mission>().Select(m => m.Duration.Ticks)));
+            await AssertAverage(
+                async,
+                ss => ss.Set<Mission>().Select(m => m.Duration.Ticks));
 
-            await AssertTranslationFailed(
-                () => AssertMin(
-                    async,
-                    ss => ss.Set<Mission>().Select(m => m.Duration.Ticks)));
+            await AssertMin(
+                async,
+                ss => ss.Set<Mission>().Select(m => m.Duration.Ticks));
 
-            await AssertTranslationFailed(
-                () => AssertMax(
-                    async,
-                    ss => ss.Set<Mission>().Select(m => m.Duration.Ticks)));
+            await AssertMax(
+                async,
+                ss => ss.Set<Mission>().Select(m => m.Duration.Ticks));
         }
 
         [ConditionalTheory]
@@ -7657,13 +7653,9 @@ namespace Microsoft.EntityFrameworkCore.Query
         [MemberData(nameof(IsAsyncData))]
         public virtual Task Client_member_and_unsupported_string_Equals_in_the_same_query(bool async)
         {
-            return AssertTranslationFailedWithDetails(
-                () => AssertQuery(
-                    async,
-                    ss => ss.Set<Gear>().Where(g => g.FullName.Equals(g.Nickname, StringComparison.InvariantCulture) || g.IsMarcus)),
-                CoreStrings.QueryUnableToTranslateStringEqualsWithStringComparison
-                + Environment.NewLine
-                + CoreStrings.QueryUnableToTranslateMember(nameof(Gear.IsMarcus), nameof(Gear)));
+            return AssertQuery(
+                async,
+                ss => ss.Set<Gear>().Where(g => g.FullName.Equals(g.Nickname, StringComparison.InvariantCulture) || g.IsMarcus));
         }
 
         [ConditionalTheory]
@@ -7931,6 +7923,108 @@ namespace Microsoft.EntityFrameworkCore.Query
             return AssertSum(
                 async,
                 ss => ss.Set<Mission>().Where(m => m.CodeName == "Operation Foobar").Select(m => m.Rating));
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task FirstOrDefault_on_empty_collection_of_DateTime_in_subquery(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => from g in ss.Set<Gear>()
+                      let invalidTagIssueDate = (from t in ss.Set<CogTag>()
+                                                 where t.GearNickName == g.FullName
+                                                 orderby t.Id
+                                                 select t.IssueDate).FirstOrDefault()
+                      where g.Tag.IssueDate > invalidTagIssueDate
+                      select new { g.Nickname, invalidTagIssueDate });
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task First_on_byte_array(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => ss.Set<Squad>().Where(e => e.Banner.First() == 0x02));
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Array_access_on_byte_array(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => ss.Set<Squad>().Where(e => e.Banner5[2] == 0x06));
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Project_shadow_properties(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => from g in ss.Set<Gear>()
+                      select new
+                      {
+                          g.Nickname,
+                          AssignedCityName = EF.Property<string>(g, "AssignedCityName")
+                      },
+                elementSorter: e => e.Nickname);
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Composite_key_entity_equal(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => from g1 in ss.Set<Gear>()
+                      from g2 in ss.Set<Gear>()
+                      where g1 == g2
+                      select new { g1, g2 },
+                elementSorter: e => (e.g1.Nickname, e.g2.Nickname),
+                elementAsserter: (e, a) =>
+                {
+                    AssertEqual(e.g1, a.g1);
+                    AssertEqual(e.g2, a.g2);
+                });
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Composite_key_entity_not_equal(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => from g1 in ss.Set<Gear>()
+                      from g2 in ss.Set<Gear>()
+                      where g1 != g2
+                      select new { g1, g2 },
+                elementSorter: e => (e.g1.Nickname, e.g2.Nickname),
+                elementAsserter: (e, a) =>
+                {
+                    AssertEqual(e.g1, a.g1);
+                    AssertEqual(e.g2, a.g2);
+                });
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Composite_key_entity_equal_null(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => ss.Set<LocustLeader>().OfType<LocustCommander>().Where(lc => lc.DefeatedBy == null));
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Composite_key_entity_not_equal_null(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => ss.Set<LocustLeader>().OfType<LocustCommander>().Where(lc => lc.DefeatedBy != null));
         }
 
         protected GearsOfWarContext CreateContext()

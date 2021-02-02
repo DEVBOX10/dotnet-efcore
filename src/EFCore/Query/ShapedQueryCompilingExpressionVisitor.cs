@@ -41,9 +41,9 @@ namespace Microsoft.EntityFrameworkCore.Query
     public abstract class ShapedQueryCompilingExpressionVisitor : ExpressionVisitor
     {
         private static readonly PropertyInfo _cancellationTokenMemberInfo
-            = typeof(QueryContext).GetProperty(nameof(QueryContext.CancellationToken));
+            = typeof(QueryContext).GetRequiredProperty(nameof(QueryContext.CancellationToken));
 
-        private readonly Expression? _cancellationTokenParameter;
+        private readonly Expression _cancellationTokenParameter;
         private readonly EntityMaterializerInjectingExpressionVisitor _entityMaterializerInjectingExpressionVisitor;
         private readonly ConstantVerifyingExpressionVisitor _constantVerifyingExpressionVisitor;
 
@@ -75,6 +75,10 @@ namespace Microsoft.EntityFrameworkCore.Query
                     QueryCompilationContext.QueryContextParameter,
                     _cancellationTokenMemberInfo);
             }
+            else
+            {
+                _cancellationTokenParameter = null!;
+            }
         }
 
         /// <summary>
@@ -103,22 +107,22 @@ namespace Microsoft.EntityFrameworkCore.Query
                     case ResultCardinality.Single:
                         return QueryCompilationContext.IsAsync
                             ? Expression.Call(
-                                _singleAsyncMethodInfo.MakeGenericMethod(serverEnumerable.Type.TryGetSequenceType()),
+                                _singleAsyncMethodInfo.MakeGenericMethod(serverEnumerable.Type.GetSequenceType()),
                                 serverEnumerable,
                                 _cancellationTokenParameter)
                             : Expression.Call(
-                                EnumerableMethods.SingleWithoutPredicate.MakeGenericMethod(serverEnumerable.Type.TryGetSequenceType()),
+                                EnumerableMethods.SingleWithoutPredicate.MakeGenericMethod(serverEnumerable.Type.GetSequenceType()),
                                 serverEnumerable);
 
                     case ResultCardinality.SingleOrDefault:
                         return QueryCompilationContext.IsAsync
                             ? Expression.Call(
-                                _singleOrDefaultAsyncMethodInfo.MakeGenericMethod(serverEnumerable.Type.TryGetSequenceType()),
+                                _singleOrDefaultAsyncMethodInfo.MakeGenericMethod(serverEnumerable.Type.GetSequenceType()),
                                 serverEnumerable,
                                 _cancellationTokenParameter)
                             : Expression.Call(
                                 EnumerableMethods.SingleOrDefaultWithoutPredicate.MakeGenericMethod(
-                                    serverEnumerable.Type.TryGetSequenceType()),
+                                    serverEnumerable.Type.GetSequenceType()),
                                 serverEnumerable);
                 }
             }
@@ -301,20 +305,20 @@ namespace Microsoft.EntityFrameworkCore.Query
                 = typeof(ValueBuffer).GetTypeInfo().DeclaredConstructors.Single(ci => ci.GetParameters().Length == 1);
 
             private static readonly PropertyInfo _dbContextMemberInfo
-                = typeof(QueryContext).GetProperty(nameof(QueryContext.Context));
+                = typeof(QueryContext).GetRequiredProperty(nameof(QueryContext.Context));
 
             private static readonly PropertyInfo _entityMemberInfo
-                = typeof(InternalEntityEntry).GetProperty(nameof(InternalEntityEntry.Entity));
+                = typeof(InternalEntityEntry).GetRequiredProperty(nameof(InternalEntityEntry.Entity));
 
             private static readonly PropertyInfo _entityTypeMemberInfo
-                = typeof(InternalEntityEntry).GetProperty(nameof(InternalEntityEntry.EntityType));
+                = typeof(InternalEntityEntry).GetRequiredProperty(nameof(InternalEntityEntry.EntityType));
 
             private static readonly MethodInfo _tryGetEntryMethodInfo
                 = typeof(QueryContext).GetTypeInfo().GetDeclaredMethods(nameof(QueryContext.TryGetEntry))
                     .Single(mi => mi.GetParameters().Length == 4);
 
             private static readonly MethodInfo _startTrackingMethodInfo
-                = typeof(QueryContext).GetMethod(
+                = typeof(QueryContext).GetRequiredMethod(
                     nameof(QueryContext.StartTracking), new[] { typeof(IEntityType), typeof(object), typeof(ValueBuffer) });
 
             private readonly IEntityMaterializerSource _entityMaterializerSource;
@@ -496,8 +500,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                         shadowValuesVariable,
                         Expression.Constant(ValueBuffer.Empty)));
 
-                // No shadow entities at runtime
-                var returnType = entityType.ClrType!;
+                var returnType = entityType.ClrType;
                 Expression materializationExpression;
                 var valueBufferExpression = Expression.Call(materializationContextVariable, MaterializationContext.GetValueBufferMethod);
                 var expressionContext = (returnType, materializationContextVariable, concreteEntityTypeVariable, shadowValuesVariable);
@@ -536,7 +539,7 @@ namespace Microsoft.EntityFrameworkCore.Query
 
                     expressions.Add(
                         Expression.Assign(
-                            entryVariable,
+                            entryVariable!,
                             Expression.Condition(
                                 Expression.Equal(concreteEntityTypeVariable, Expression.Default(typeof(IEntityType))),
                                 Expression.Default(typeof(InternalEntityEntry)),

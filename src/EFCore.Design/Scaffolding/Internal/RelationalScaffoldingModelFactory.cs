@@ -36,10 +36,10 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
         private readonly ICandidateNamingService _candidateNamingService;
         private Dictionary<DatabaseTable, CSharpUniqueNamer<DatabaseColumn>> _columnNamers;
         private ModelReverseEngineerOptions _options;
-        private readonly DatabaseTable _nullTable = new DatabaseTable();
+        private readonly DatabaseTable _nullTable = new();
         private CSharpUniqueNamer<DatabaseTable> _tableNamer;
         private CSharpUniqueNamer<DatabaseTable> _dbSetNamer;
-        private readonly HashSet<DatabaseColumn> _unmappedColumns = new HashSet<DatabaseColumn>();
+        private readonly HashSet<DatabaseColumn> _unmappedColumns = new();
         private readonly IPluralizer _pluralizer;
         private readonly ICSharpUtilities _cSharpUtilities;
         private readonly IScaffoldingTypeMapper _scaffoldingTypeMapper;
@@ -108,7 +108,7 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
 
             VisitDatabaseModel(modelBuilder, databaseModel);
 
-            return modelBuilder.Model;
+            return modelBuilder.FinalizeModel();
         }
 
         /// <summary>
@@ -192,6 +192,11 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
             if (!string.IsNullOrEmpty(databaseModel.DatabaseName))
             {
                 modelBuilder.Model.SetDatabaseName(databaseModel.DatabaseName);
+            }
+
+            if (!string.IsNullOrEmpty(databaseModel.Collation))
+            {
+                modelBuilder.UseCollation(databaseModel.Collation);
             }
 
             VisitSequences(modelBuilder, databaseModel.Sequences);
@@ -354,7 +359,7 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
 
                     var model = modelBuilder.Model;
                     model.RemoveEntityType(entityTypeName);
-                    model.GetEntityTypeErrors().Add(entityTypeName, errorMessage);
+                    model.GetOrCreateEntityTypeErrors().Add(entityTypeName, errorMessage);
                     return null;
                 }
             }
@@ -497,7 +502,7 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
 
             if (column.Collation != null)
             {
-                property.HasComment(column.Collation);
+                property.UseCollation(column.Collation);
             }
 
             if (!(column.Table.PrimaryKey?.Columns.Contains(column) ?? false))
@@ -621,7 +626,10 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
             }
 
             var propertyNames = uniqueConstraint.Columns.Select(GetPropertyName).ToArray();
-            var indexBuilder = builder.HasIndex(propertyNames, uniqueConstraint.Name).IsUnique();
+            var indexBuilder = string.IsNullOrEmpty(uniqueConstraint.Name)
+                ? builder.HasIndex(propertyNames)
+                : builder.HasIndex(propertyNames, uniqueConstraint.Name);
+            indexBuilder = indexBuilder.IsUnique();
             indexBuilder.Metadata.AddAnnotations(uniqueConstraint.GetAnnotations());
 
             return indexBuilder;
@@ -671,11 +679,11 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
             }
 
             var propertyNames = index.Columns.Select(GetPropertyName).ToArray();
-            var indexBuilder =
-                index.Name == null
-                    ? builder.HasIndex(propertyNames)
-                    : builder.HasIndex(propertyNames, index.Name)
-                        .IsUnique(index.IsUnique);
+            var indexBuilder = string.IsNullOrEmpty(index.Name)
+                ? builder.HasIndex(propertyNames)
+                : builder.HasIndex(propertyNames, index.Name);
+
+            indexBuilder = indexBuilder.IsUnique(index.IsUnique);
 
             if (index.Filter != null)
             {
@@ -740,7 +748,6 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
             }
 
             var dependentEntityType = modelBuilder.Model.FindEntityType(GetEntityTypeName(foreignKey.Table));
-
             if (dependentEntityType == null)
             {
                 return null;
@@ -816,9 +823,7 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
                                 nullablePrincipalProperties.Select(tuple => tuple.column.DisplayName()).ToList()
                                     .Aggregate((a, b) => a + "," + b)));
 
-                        nullablePrincipalProperties
-                            .ToList()
-                            .ForEach(tuple => tuple.property.IsNullable = false);
+                        nullablePrincipalProperties.ForEach(tuple => tuple.property.IsNullable = false);
                     }
 
                     principalKey = principalEntityType.AddKey(principalProperties);
@@ -831,10 +836,19 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
                         DesignStrings.ForeignKeyScaffoldErrorPrincipalKeyNotFound(
                             foreignKey.DisplayName(),
                             string.Join(CultureInfo.CurrentCulture.TextInfo.ListSeparator, principalColumns),
-                            principalEntityType.DisplayName()));
+                            principalEntityType.Name));
 
                     return null;
                 }
+            }
+
+            var existingForeignKey = dependentEntityType.FindForeignKey(dependentProperties, principalKey, principalEntityType);
+            if (existingForeignKey is not null)
+            {
+                _reporter.WriteWarning(
+                    DesignStrings.ForeignKeyWithSameFacetsExists(foreignKey.DisplayName(), existingForeignKey.GetConstraintName()));
+
+                return null;
             }
 
             var newForeignKey = dependentEntityType.AddForeignKey(
@@ -914,8 +928,8 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
         }
 
         // Stores the names of the EntityType itself and its Properties, but does not include any Navigation Properties
-        private readonly Dictionary<IEntityType, List<string>> _entityTypeAndPropertyIdentifiers =
-            new Dictionary<IEntityType, List<string>>();
+        private readonly Dictionary<IReadOnlyEntityType, List<string>> _entityTypeAndPropertyIdentifiers =
+            new();
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -923,7 +937,7 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        protected virtual List<string> ExistingIdentifiers([NotNull] IEntityType entityType)
+        protected virtual List<string> ExistingIdentifiers([NotNull] IReadOnlyEntityType entityType)
         {
             Check.NotNull(entityType, nameof(entityType));
 

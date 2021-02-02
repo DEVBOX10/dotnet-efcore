@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 
 #nullable enable
 
@@ -22,12 +23,24 @@ namespace Microsoft.EntityFrameworkCore.Metadata
     ///         Once the model is built, <see cref="IModel" /> represents a read-only view of the same metadata.
     ///     </para>
     /// </summary>
-    public interface IConventionModel : IModel, IConventionAnnotatable
+    public interface IConventionModel : IReadOnlyModel, IConventionAnnotatable
     {
         /// <summary>
         ///     Gets the builder that can be used to configure this model.
         /// </summary>
-        new IConventionModelBuilder? Builder { get; }
+        new IConventionModelBuilder Builder { get; }
+
+        /// <summary>
+        ///     <para>
+        ///         Prevents conventions from being executed immediately when a metadata aspect is modified. All the delayed conventions
+        ///         will be executed after the returned object is disposed.
+        ///     </para>
+        ///     <para>
+        ///         This is useful when performing multiple operations that depend on each other.
+        ///     </para>
+        /// </summary>
+        /// <returns> An object that should be disposed to execute the delayed conventions. </returns>
+        IConventionBatch DelayConventions();
 
         /// <summary>
         ///     <para>
@@ -100,7 +113,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         ///     or the entity type has a defining navigation.
         /// </summary>
         /// <param name="name"> The name of the entity type to find. </param>
-        /// <returns> The entity type, or <see langword="null" /> if none are found. </returns>
+        /// <returns> The entity type, or <see langword="null" /> if none is found. </returns>
         new IConventionEntityType? FindEntityType([NotNull] string name);
 
         /// <summary>
@@ -110,7 +123,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         /// <param name="name"> The name of the entity type to find. </param>
         /// <param name="definingNavigationName"> The defining navigation of the entity type to find. </param>
         /// <param name="definingEntityType"> The defining entity type of the entity type to find. </param>
-        /// <returns> The entity type, or <see langword="null" /> if none are found. </returns>
+        /// <returns> The entity type, or <see langword="null" /> if none is found. </returns>
         IConventionEntityType? FindEntityType(
             [NotNull] string name,
             [NotNull] string definingNavigationName,

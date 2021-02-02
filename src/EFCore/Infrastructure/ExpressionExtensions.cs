@@ -79,14 +79,15 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                     BindingFlags.NonPublic | BindingFlags.Instance,
                     null,
                     new object[] { memberExpression, valueExpression },
-                    null);
+                    null)!;
             }
 
             return Expression.Assign(memberExpression, valueExpression);
         }
 
         private static readonly Type _assignBinaryExpressionType
-            = typeof(Expression).Assembly.GetType("System.Linq.Expressions.AssignBinaryExpression");
+            // TODO-Nullable: Somethings are unexplainable
+            = typeof(Expression).Assembly.GetType("System.Linq.Expressions.AssignBinaryExpression", throwOnError: true)!;
 
         /// <summary>
         ///     If the given a method-call expression represents a call to <see cref="EF.Property{TProperty}" />, then this
@@ -105,7 +106,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                 && methodCallExpression.Arguments[1] is ConstantExpression propertyNameExpression)
             {
                 entityExpression = methodCallExpression.Arguments[0];
-                propertyName = (string)propertyNameExpression.Value;
+                propertyName = (string)propertyNameExpression.Value!;
                 return true;
             }
 
@@ -131,8 +132,9 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
             if (model.IsIndexerMethod(methodCallExpression.Method)
                 && methodCallExpression.Arguments[0] is ConstantExpression propertyNameExpression)
             {
-                entityExpression = methodCallExpression.Object;
-                propertyName = (string)propertyNameExpression.Value;
+                entityExpression = methodCallExpression.Object!;
+                propertyName = (string)propertyNameExpression.Value!;
+
                 return true;
             }
 
@@ -150,7 +152,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// </summary>
         /// <param name="propertyAccessExpression"> The expression. </param>
         /// <returns> The <see cref="PropertyInfo" />. </returns>
-        public static PropertyInfo? GetPropertyAccess([NotNull] this LambdaExpression propertyAccessExpression)
+        public static PropertyInfo GetPropertyAccess([NotNull] this LambdaExpression propertyAccessExpression)
             => GetInternalMemberAccess<PropertyInfo>(propertyAccessExpression);
 
         /// <summary>
@@ -163,10 +165,10 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// </summary>
         /// <param name="memberAccessExpression"> The expression. </param>
         /// <returns> The <see cref="MemberInfo" />. </returns>
-        public static MemberInfo? GetMemberAccess([NotNull] this LambdaExpression memberAccessExpression)
+        public static MemberInfo GetMemberAccess([NotNull] this LambdaExpression memberAccessExpression)
             => GetInternalMemberAccess<MemberInfo>(memberAccessExpression);
 
-        private static TMemberInfo? GetInternalMemberAccess<TMemberInfo>([NotNull] this LambdaExpression memberAccessExpression)
+        private static TMemberInfo GetInternalMemberAccess<TMemberInfo>([NotNull] this LambdaExpression memberAccessExpression)
             where TMemberInfo : MemberInfo
         {
             Check.DebugAssert(
@@ -194,13 +196,13 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
             {
                 var propertyGetter = propertyInfo.GetMethod;
                 var interfaceMapping = parameterType.GetTypeInfo().GetRuntimeInterfaceMap(declaringType);
-                var index = Array.FindIndex(interfaceMapping.InterfaceMethods, p => propertyGetter.Equals(p));
+                var index = Array.FindIndex(interfaceMapping.InterfaceMethods, p => p.Equals(propertyGetter));
                 var targetMethod = interfaceMapping.TargetMethods[index];
                 foreach (var runtimeProperty in parameterType.GetRuntimeProperties())
                 {
                     if (targetMethod.Equals(runtimeProperty.GetMethod))
                     {
-                        return runtimeProperty as TMemberInfo;
+                        return (TMemberInfo)(object)runtimeProperty;
                     }
                 }
             }
@@ -315,8 +317,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         ///     </para>
         /// </summary>
         public static readonly MethodInfo ValueBufferTryReadValueMethod
-            = typeof(ExpressionExtensions).GetTypeInfo()
-                .GetDeclaredMethod(nameof(ValueBufferTryReadValue));
+            = typeof(ExpressionExtensions).GetRequiredDeclaredMethod(nameof(ValueBufferTryReadValue));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static TValue ValueBufferTryReadValue<TValue>(
@@ -325,7 +326,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
             int index,
             IPropertyBase property)
 #pragma warning restore IDE0060 // Remove unused parameter
-            => (TValue)valueBuffer[index];
+            => (TValue)valueBuffer[index]!;
 
         /// <summary>
         ///     <para>
@@ -369,7 +370,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
             [NotNull] IPropertyBase property,
             bool makeNullable = true)
             // No shadow entities in runtime
-            => CreateEFPropertyExpression(target, property.DeclaringType.ClrType!, property.ClrType, property.Name, makeNullable);
+            => CreateEFPropertyExpression(target, property.DeclaringType.ClrType, property.ClrType, property.Name, makeNullable);
 
         private static Expression CreateEFPropertyExpression(
             Expression target,

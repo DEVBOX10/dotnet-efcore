@@ -1,6 +1,7 @@
 // Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System;
 using System.Diagnostics;
 using System.Reflection;
 using JetBrains.Annotations;
@@ -19,12 +20,13 @@ namespace Microsoft.EntityFrameworkCore.Metadata
     ///         Once the model is built, <see cref="INavigation" /> represents a read-only view of the same metadata.
     ///     </para>
     /// </summary>
-    public interface IConventionNavigation : INavigation, IConventionNavigationBase
+    public interface IConventionNavigation : IReadOnlyNavigation, IConventionNavigationBase
     {
         /// <summary>
         ///     Gets the builder that can be used to configure this navigation.
         /// </summary>
-        new IConventionNavigationBuilder? Builder { get; }
+        /// <exception cref="InvalidOperationException"> If the property has been removed from the model. </exception>
+        new IConventionNavigationBuilder Builder { get; }
 
         /// <summary>
         ///     Gets the type that this navigation property belongs to.
@@ -32,7 +34,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         new IConventionEntityType DeclaringEntityType
         {
             [DebuggerStepThrough]
-            get => (IConventionEntityType)((INavigationBase)this).DeclaringEntityType;
+            get => (IConventionEntityType)((IReadOnlyNavigationBase)this).DeclaringEntityType;
         }
 
         /// <summary>
@@ -41,7 +43,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         new IConventionEntityType TargetEntityType
         {
             [DebuggerStepThrough]
-            get => (IConventionEntityType)((INavigationBase)this).TargetEntityType;
+            get => (IConventionEntityType)((IReadOnlyNavigationBase)this).TargetEntityType;
         }
 
         /// <summary>
@@ -59,16 +61,16 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         new IConventionForeignKey ForeignKey
         {
             [DebuggerStepThrough]
-            get => (IConventionForeignKey)((INavigation)this).ForeignKey;
+            get => (IConventionForeignKey)((IReadOnlyNavigation)this).ForeignKey;
         }
 
         /// <summary>
         ///     Gets the inverse navigation.
         /// </summary>
-        new IConventionNavigation Inverse
+        new IConventionNavigation? Inverse
         {
             [DebuggerStepThrough]
-            get => (IConventionNavigation)((INavigation)this).Inverse;
+            get => (IConventionNavigation?)((IReadOnlyNavigation)this).Inverse;
         }
 
         /// <summary>
