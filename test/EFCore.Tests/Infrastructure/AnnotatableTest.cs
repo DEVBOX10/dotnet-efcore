@@ -4,6 +4,7 @@
 using System;
 using System.Linq;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Xunit;
 
@@ -36,6 +37,22 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         }
 
         [ConditionalFact]
+        public void Added_annotation_type_is_consistent()
+        {
+            var annotatable = new Annotatable();
+
+            annotatable.AddAnnotations(new[] { new ConventionAnnotation("Foo", "Bar", ConfigurationSource.Convention) });
+
+            Assert.Equal(typeof(Annotation), annotatable.FindAnnotation("Foo").GetType());
+
+            var conventionAnnotatable = new Model();
+
+            conventionAnnotatable.AddAnnotations(new[] { new Annotation("Foo", "Bar") });
+
+            Assert.Equal(typeof(ConventionAnnotation), conventionAnnotatable.FindAnnotation("Foo").GetType());
+        }
+
+        [ConditionalFact]
         public void Adding_duplicate_annotation_throws()
         {
             var annotatable = new Annotatable();
@@ -50,7 +67,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         [ConditionalFact]
         public void Can_get_and_set_model_annotations()
         {
-            var annotatable = new Annotatable();
+            IMutableAnnotatable annotatable = new Annotatable();
             Assert.Empty(annotatable.GetAnnotations());
             var annotation = annotatable.AddAnnotation("Foo", "Bar");
 

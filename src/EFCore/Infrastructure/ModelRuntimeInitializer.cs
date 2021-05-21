@@ -1,13 +1,11 @@
 // Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Utilities;
 using Microsoft.Extensions.DependencyInjection;
-
-#nullable enable
 
 namespace Microsoft.EntityFrameworkCore.Infrastructure
 {
@@ -31,7 +29,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         ///     Creates a new <see cref="ModelRuntimeInitializer" /> instance.
         /// </summary>
         /// <param name="dependencies"> The dependencies to use. </param>
-        public ModelRuntimeInitializer([NotNull] ModelRuntimeInitializerDependencies dependencies)
+        public ModelRuntimeInitializer(ModelRuntimeInitializerDependencies dependencies)
         {
             Check.NotNull(dependencies, nameof(dependencies));
 
@@ -47,21 +45,69 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         ///     Validates and initializes the given model with runtime dependencies.
         /// </summary>
         /// <param name="model"> The model to initialize. </param>
+        /// <param name="designTime"> Whether the model should contain design-time configuration.</param>
         /// <param name="validationLogger"> The validation logger. </param>
         /// <returns> The initialized model. </returns>
         public virtual IModel Initialize(
             IModel model,
-            IDiagnosticsLogger<DbLoggerCategory.Model.Validation>? validationLogger)
+            bool designTime = true,
+            IDiagnosticsLogger<DbLoggerCategory.Model.Validation>? validationLogger = null)
         {
-            if (model.SetModelDependencies(Dependencies.ModelDependencies))
+            if (model is Model mutableModel
+                && !mutableModel.IsReadOnly)
             {
-                InitializeModel(model, preValidation: true);
-                if (validationLogger != null
-                    && model is IMutableModel)
+                model = mutableModel.FinalizeModel();
+            }
+
+            if (model.ModelDependencies == null)
+            {
+                model = model.GetOrAddRuntimeAnnotationValue(
+                    CoreAnnotationNames.ReadOnlyModel,
+                    static args =>
+                    {
+                        var (initializer, model, designTime, validationLogger) = args;
+
+                        model.ModelDependencies = initializer.Dependencies.ModelDependencies;
+
+                        initializer.InitializeModel(model, designTime, preValidation: true);
+
+                        if (validationLogger != null
+                            && model is IConventionModel)
+                        {
+                            initializer.Dependencies.ModelValidator.Validate(model, validationLogger);
+                        }
+
+                        initializer.InitializeModel(model, designTime, preValidation: false);
+
+                        if (!designTime
+                            && model is Model mutableModel)
+                        {
+                            model = mutableModel.OnModelFinalized();
+                        }
+
+                        return model;
+                    },
+                    (this, model, designTime, validationLogger));
+
+                if (designTime)
                 {
-                    Dependencies.ModelValidator.Validate(model, validationLogger);
+                    model.RemoveRuntimeAnnotation(CoreAnnotationNames.ReadOnlyModel);
                 }
-                InitializeModel(model, preValidation: false);
+            }
+            else if (!designTime)
+            {
+                model = model.GetOrAddRuntimeAnnotationValue(
+                    CoreAnnotationNames.ReadOnlyModel,
+                    static model =>
+                    {
+                        if (model is Model mutableModel)
+                        {
+                            model = mutableModel.OnModelFinalized();
+                        }
+
+                        return model!;
+                    },
+                    model);
             }
 
             return model;
@@ -71,11 +117,12 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         ///     Initializes the given model with runtime dependencies.
         /// </summary>
         /// <param name="model"> The model to initialize. </param>
+        /// <param name="designTime"> Whether the model should contain design-time configuration. </param>
         /// <param name="preValidation">
         ///     <see langword="true"/> indicates that only pre-validation initialization should be performed;
         ///     <see langword="false"/> indicates that only post-validation initialization should be performed.
         /// </param>
-        protected virtual void InitializeModel([NotNull] IModel model, bool preValidation)
+        protected virtual void InitializeModel(IModel model, bool designTime, bool preValidation)
         {
         }
     }

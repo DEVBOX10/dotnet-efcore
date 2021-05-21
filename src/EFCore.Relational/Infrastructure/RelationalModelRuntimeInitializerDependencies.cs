@@ -1,12 +1,9 @@
 // Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Utilities;
 using Microsoft.Extensions.DependencyInjection;
-
-#nullable enable
 
 namespace Microsoft.EntityFrameworkCore.Infrastructure
 {
@@ -56,24 +53,24 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// </summary>
         [EntityFrameworkInternal]
         public RelationalModelRuntimeInitializerDependencies(
-            [NotNull] RelationalModelDependencies singletonModelDependencies,
-            [NotNull] IRelationalAnnotationProvider relationalAnnotationProvider)
+            RelationalModelDependencies relationalModelDependencies,
+            IRelationalAnnotationProvider relationalAnnotationProvider)
         {
-            Check.NotNull(singletonModelDependencies, nameof(singletonModelDependencies));
+            Check.NotNull(relationalModelDependencies, nameof(relationalModelDependencies));
             Check.NotNull(relationalAnnotationProvider, nameof(relationalAnnotationProvider));
 
-            RelationalModelDependencies = singletonModelDependencies;
+            RelationalModelDependencies = relationalModelDependencies;
             RelationalAnnotationProvider = relationalAnnotationProvider;
         }
 
         /// <summary>
         ///     The relational model dependencies.
         /// </summary>
-        public RelationalModelDependencies RelationalModelDependencies { get; [param: NotNull] init; }
+        public RelationalModelDependencies RelationalModelDependencies { get; init; }
 
         /// <summary>
         ///     The relational annotation provider.
         /// </summary>
-        public IRelationalAnnotationProvider RelationalAnnotationProvider { get; [param: NotNull] init; }
+        public IRelationalAnnotationProvider RelationalAnnotationProvider { get; init; }
     }
 }

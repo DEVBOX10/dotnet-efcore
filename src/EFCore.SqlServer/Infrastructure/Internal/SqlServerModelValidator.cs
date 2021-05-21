@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -39,8 +38,8 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Infrastructure.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public SqlServerModelValidator(
-            [NotNull] ModelValidatorDependencies dependencies,
-            [NotNull] RelationalModelValidatorDependencies relationalDependencies)
+            ModelValidatorDependencies dependencies,
+            RelationalModelValidatorDependencies relationalDependencies)
             : base(dependencies, relationalDependencies)
         {
         }
@@ -69,8 +68,8 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Infrastructure.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         protected virtual void ValidateDecimalColumns(
-            [NotNull] IModel model,
-            [NotNull] IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
+            IModel model,
+            IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
         {
             foreach (IConventionProperty property in model.GetEntityTypes()
                 .SelectMany(t => t.GetDeclaredProperties())
@@ -110,8 +109,8 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Infrastructure.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         protected virtual void ValidateByteIdentityMapping(
-            [NotNull] IModel model,
-            [NotNull] IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
+            IModel model,
+            IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
         {
             foreach (var entityType in model.GetEntityTypes())
             {
@@ -133,8 +132,8 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Infrastructure.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         protected virtual void ValidateNonKeyValueGeneration(
-            [NotNull] IModel model,
-            [NotNull] IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
+            IModel model,
+            IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
         {
             foreach (var entityType in model.GetEntityTypes())
             {
@@ -160,8 +159,8 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Infrastructure.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         protected virtual void ValidateIndexIncludeProperties(
-            [NotNull] IModel model,
-            [NotNull] IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
+            IModel model,
+            IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
         {
             foreach (var index in model.GetEntityTypes().SelectMany(t => t.GetDeclaredIndexes()))
             {
@@ -219,7 +218,7 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Infrastructure.Internal
         protected override void ValidateSharedTableCompatibility(
             IReadOnlyList<IEntityType> mappedTypes,
             string tableName,
-            string schema,
+            string? schema,
             IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
         {
             var firstMappedType = mappedTypes[0];
@@ -364,7 +363,7 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Infrastructure.Internal
                 }
             }
 
-            if (property.IsSparse() != duplicateProperty.IsSparse())
+            if (property.IsSparse(storeObject) != duplicateProperty.IsSparse(storeObject))
             {
                 throw new InvalidOperationException(
                     SqlServerStrings.DuplicateColumnSparsenessMismatch(

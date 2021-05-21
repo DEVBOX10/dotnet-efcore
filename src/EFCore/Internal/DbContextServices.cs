@@ -29,10 +29,11 @@ namespace Microsoft.EntityFrameworkCore.Internal
     /// </summary>
     public class DbContextServices : IDbContextServices
     {
-        private IServiceProvider _scopedProvider;
-        private IDbContextOptions _contextOptions;
-        private ICurrentDbContext _currentContext;
-        private IModel _model;
+        private IServiceProvider? _scopedProvider;
+        private DbContextOptions? _contextOptions;
+        private ICurrentDbContext? _currentContext;
+        private IModel? _model;
+        private IModel? _designTimeModel;
         private bool _inOnModelCreating;
 
         /// <summary>
@@ -43,7 +44,7 @@ namespace Microsoft.EntityFrameworkCore.Internal
         /// </summary>
         public virtual IDbContextServices Initialize(
             IServiceProvider scopedProvider,
-            IDbContextOptions contextOptions,
+            DbContextOptions contextOptions,
             DbContext context)
         {
             _scopedProvider = scopedProvider;
@@ -55,11 +56,11 @@ namespace Microsoft.EntityFrameworkCore.Internal
 
             if (providerCount > 1)
             {
-                throw new InvalidOperationException(CoreStrings.MultipleProvidersConfigured(BuildDatabaseNamesString(providers)));
+                throw new InvalidOperationException(CoreStrings.MultipleProvidersConfigured(BuildDatabaseNamesString(providers!)));
             }
 
             if (providerCount == 0
-                || !providers[0].IsConfigured(contextOptions))
+                || !providers![0].IsConfigured(contextOptions))
             {
                 throw new InvalidOperationException(CoreStrings.NoProviderConfigured);
             }
@@ -70,27 +71,38 @@ namespace Microsoft.EntityFrameworkCore.Internal
         private static string BuildDatabaseNamesString(IEnumerable<IDatabaseProvider> available)
             => string.Join(", ", available.Select(e => "'" + e.Name + "'"));
 
-        private IModel CreateModel(IModel modelFromOptions)
+        private IModel CreateModel(bool designTime)
         {
             if (_inOnModelCreating)
             {
                 throw new InvalidOperationException(CoreStrings.RecursiveOnModelCreating);
             }
 
-            if (modelFromOptions != null
-                && modelFromOptions.ModelDependencies != null)
-            {
-                return modelFromOptions;
-            }
-
             try
             {
                 _inOnModelCreating = true;
 
-                var dependencies = _scopedProvider.GetService<IModelCreationDependencies>();
+                var dependencies = _scopedProvider!.GetRequiredService<ModelCreationDependencies>();
+                var modelFromOptions = CoreOptions?.Model;
+
+                var modelVersion = modelFromOptions?.GetProductVersion();
+                if (modelVersion != null)
+                {
+                    var modelMinorVersion = modelVersion[..modelVersion.LastIndexOf('.')];
+                    var productVersion = ProductInfo.GetVersion();
+                    var productMinorVersion = productVersion[..productVersion.LastIndexOf('.')];
+
+                    if (modelMinorVersion != productMinorVersion)
+                    {
+                        var logger = _scopedProvider!.GetRequiredService<IDiagnosticsLogger<DbLoggerCategory.Infrastructure>>();
+                        logger.OldModelVersionWarning(_currentContext!.Context, _contextOptions!);
+                    }
+                }
+
                 return modelFromOptions == null
-                    ? dependencies.ModelSource.GetModel(_currentContext.Context, dependencies)
-                    : dependencies.ModelRuntimeInitializer.Initialize(modelFromOptions, dependencies.ValidationLogger);
+                    || (designTime && modelFromOptions is not Metadata.Internal.Model)
+                    ? dependencies.ModelSource.GetModel(_currentContext!.Context, dependencies, designTime)
+                    : dependencies.ModelRuntimeInitializer.Initialize(modelFromOptions, designTime, dependencies.ValidationLogger);
             }
             finally
             {
@@ -105,7 +117,7 @@ namespace Microsoft.EntityFrameworkCore.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public virtual ICurrentDbContext CurrentContext
-            => _currentContext;
+            => _currentContext!;
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -114,9 +126,18 @@ namespace Microsoft.EntityFrameworkCore.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public virtual IModel Model
-            => _model ??= CreateModel(CoreOptions?.Model);
+            => _model ??= CreateModel(designTime: false);
 
-        private CoreOptionsExtension CoreOptions
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
+        public virtual IModel DesignTimeModel
+            => _designTimeModel ??= CreateModel(designTime: true);
+
+        private CoreOptionsExtension? CoreOptions
             => _contextOptions?.FindExtension<CoreOptionsExtension>();
 
         /// <summary>
@@ -125,8 +146,8 @@ namespace Microsoft.EntityFrameworkCore.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public virtual IDbContextOptions ContextOptions
-            => _contextOptions;
+        public virtual DbContextOptions ContextOptions
+            => _contextOptions!;
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -135,6 +156,6 @@ namespace Microsoft.EntityFrameworkCore.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public virtual IServiceProvider InternalServiceProvider
-            => _scopedProvider;
+            => _scopedProvider!;
     }
 }

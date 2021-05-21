@@ -6,14 +6,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
-using JetBrains.Annotations;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Utilities;
-
-#nullable enable
 
 namespace Microsoft.EntityFrameworkCore.Metadata.Internal
 {
@@ -23,7 +21,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    public class ForeignKey : ConventionAnnotatable, IMutableForeignKey, IConventionForeignKey, IForeignKey
+    public class ForeignKey : ConventionAnnotatable, IMutableForeignKey, IConventionForeignKey, IRuntimeForeignKey
     {
         private DeleteBehavior? _deleteBehavior;
         private bool? _isUnique;
@@ -53,10 +51,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public ForeignKey(
-            [NotNull] IReadOnlyList<Property> dependentProperties,
-            [NotNull] Key principalKey,
-            [NotNull] EntityType dependentEntityType,
-            [NotNull] EntityType principalEntityType,
+            IReadOnlyList<Property> dependentProperties,
+            Key principalKey,
+            EntityType dependentEntityType,
+            EntityType principalEntityType,
             ConfigurationSource configurationSource)
         {
             Check.NotEmpty(dependentProperties, nameof(dependentProperties));
@@ -159,7 +157,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public virtual SortedSet<SkipNavigation>? ReferencingSkipNavigations { get; [param: CanBeNull] set; }
+        public virtual ISet<SkipNavigation>? ReferencingSkipNavigations { get; set; }
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -214,8 +212,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public virtual IReadOnlyList<Property> SetProperties(
-            [NotNull] IReadOnlyList<Property> properties,
-            [NotNull] Key principalKey,
+            IReadOnlyList<Property> properties,
+            Key principalKey,
             ConfigurationSource? configurationSource)
         {
             EnsureMutable();
@@ -332,7 +330,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public virtual Navigation? SetDependentToPrincipal(
-            [CanBeNull] string? name,
+            string? name,
             ConfigurationSource configurationSource)
             => Navigation(MemberIdentity.Create(name), configurationSource, pointsToPrincipal: true);
 
@@ -343,7 +341,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public virtual Navigation? SetDependentToPrincipal(
-            [CanBeNull] MemberInfo? property,
+            MemberInfo? property,
             ConfigurationSource configurationSource)
             => Navigation(MemberIdentity.Create(property), configurationSource, pointsToPrincipal: true);
 
@@ -380,9 +378,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public virtual Navigation? HasPrincipalToDependent(
-            [CanBeNull] string? name,
-            ConfigurationSource configurationSource)
+        public virtual Navigation? SetPrincipalToDependent(string? name, ConfigurationSource configurationSource)
             => Navigation(MemberIdentity.Create(name), configurationSource, pointsToPrincipal: false);
 
         /// <summary>
@@ -391,9 +387,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public virtual Navigation? HasPrincipalToDependent(
-            [CanBeNull] MemberInfo? property,
-            ConfigurationSource configurationSource)
+        public virtual Navigation? SetPrincipalToDependent(MemberInfo? property, ConfigurationSource configurationSource)
             => Navigation(MemberIdentity.Create(property), configurationSource, pointsToPrincipal: false);
 
         /// <summary>
@@ -502,9 +496,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
             {
                 Check.DebugAssert(oldNavigation.Name != null, "oldNavigation.Name is null");
 
+                string? removedNavigationName = null;
                 if (pointsToPrincipal)
                 {
-                    DeclaringEntityType.Model.ConventionDispatcher.OnNavigationRemoved(
+                    removedNavigationName = DeclaringEntityType.Model.ConventionDispatcher.OnNavigationRemoved(
                         DeclaringEntityType.Builder,
                         PrincipalEntityType.Builder,
                         oldNavigation.Name,
@@ -512,11 +507,16 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
                 }
                 else
                 {
-                    DeclaringEntityType.Model.ConventionDispatcher.OnNavigationRemoved(
+                    removedNavigationName = DeclaringEntityType.Model.ConventionDispatcher.OnNavigationRemoved(
                         PrincipalEntityType.Builder,
                         DeclaringEntityType.Builder,
                         oldNavigation.Name,
                         oldNavigation.GetIdentifyingMemberInfo());
+                }
+
+                if (navigation == null)
+                {
+                    return oldNavigation.Name == removedNavigationName ? oldNavigation : null;
                 }
             }
 
@@ -525,7 +525,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
                 navigation = (Navigation?)DeclaringEntityType.Model.ConventionDispatcher.OnNavigationAdded(navigation.Builder)?.Metadata;
             }
 
-            return navigation ?? oldNavigation;
+            return navigation;
         }
 
         /// <summary>
@@ -590,8 +590,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
                 : oldUnique;
         }
 
-        private static bool DefaultIsUnique
-            => false;
+        private const bool DefaultIsUnique = false;
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -700,8 +699,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
                 : oldRequired;
         }
 
-        private bool DefaultIsRequiredDependent
-            => false;
+        private const bool DefaultIsRequiredDependent = false;
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -758,8 +756,14 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
             return DeleteBehavior;
         }
 
-        private static DeleteBehavior DefaultDeleteBehavior
-            => DeleteBehavior.ClientSetNull;
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
+        public const DeleteBehavior DefaultDeleteBehavior
+            = DeleteBehavior.ClientSetNull;
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -819,8 +823,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
                 : oldIsOwnership;
         }
 
-        private static bool DefaultIsOwnership
-            => false;
+        private const bool DefaultIsOwnership = false;
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -847,7 +850,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public virtual IEnumerable<Navigation> FindNavigationsFromInHierarchy([NotNull] EntityType entityType)
+        public virtual IEnumerable<Navigation> FindNavigationsFromInHierarchy(EntityType entityType)
             => ((IReadOnlyForeignKey)this).FindNavigationsFromInHierarchy(entityType).Cast<Navigation>();
 
         /// <summary>
@@ -856,7 +859,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public virtual IEnumerable<Navigation> FindNavigationsTo([NotNull] EntityType entityType)
+        public virtual IEnumerable<Navigation> FindNavigationsTo(EntityType entityType)
             => ((IReadOnlyForeignKey)this).FindNavigationsTo(entityType).Cast<Navigation>();
 
         /// <summary>
@@ -865,7 +868,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public virtual EntityType ResolveOtherEntityType([NotNull] EntityType entityType)
+        public virtual EntityType ResolveOtherEntityType(EntityType entityType)
             => (EntityType)((IReadOnlyForeignKey)this).GetRelatedEntityType(entityType);
 
         // Note: This is set and used only by IdentityMapFactoryFactory, which ensures thread-safety
@@ -887,7 +890,6 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
                 return _dependentKeyValueFactory!;
             }
 
-            [param: NotNull]
             set
             {
                 EnsureReadOnly();
@@ -915,7 +917,6 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
                 return _dependentsMapFactory!;
             }
 
-            [param: NotNull]
             set
             {
                 EnsureReadOnly();
@@ -923,6 +924,199 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
                 _dependentsMapFactory = value;
             }
         }
+
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
+        public virtual DebugView DebugView
+            => new(
+                () => ((IReadOnlyForeignKey)this).ToDebugString(MetadataDebugStringOptions.ShortDefault),
+                () => ((IReadOnlyForeignKey)this).ToDebugString(MetadataDebugStringOptions.LongDefault));
+
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
+        public override string ToString()
+            => ((IReadOnlyForeignKey)this).ToDebugString(MetadataDebugStringOptions.SingleLineDefault);
+
+        private void Validate(
+            IReadOnlyList<Property> properties,
+            Key principalKey,
+            EntityType declaringEntityType,
+            EntityType principalEntityType)
+        {
+            for (var i = 0; i < properties.Count; i++)
+            {
+                var property = properties[i];
+                for (var j = i + 1; j < properties.Count; j++)
+                {
+                    if (property == properties[j])
+                    {
+                        throw new InvalidOperationException(CoreStrings.DuplicatePropertyInForeignKey(properties.Format(), property.Name));
+                    }
+                }
+
+                var actualProperty = declaringEntityType.FindProperty(property.Name);
+                if (actualProperty?.DeclaringEntityType.IsAssignableFrom(property.DeclaringEntityType) != true
+                    || !property.IsInModel)
+                {
+                    throw new InvalidOperationException(
+                        CoreStrings.ForeignKeyPropertiesWrongEntity(
+                            properties.Format(), declaringEntityType.DisplayName()));
+                }
+            }
+
+            AreCompatible(
+                principalEntityType,
+                dependentEntityType: declaringEntityType,
+                navigationToPrincipal: null,
+                navigationToDependent: null,
+                dependentProperties: properties,
+                principalProperties: principalKey.Properties,
+                unique: null,
+                shouldThrow: true);
+
+            var duplicateForeignKey = declaringEntityType.FindForeignKeysInHierarchy(
+                properties, principalKey, principalEntityType).FirstOrDefault();
+            if (duplicateForeignKey != null)
+            {
+                throw new InvalidOperationException(
+                    CoreStrings.DuplicateForeignKey(
+                        properties.Format(),
+                        declaringEntityType.DisplayName(),
+                        duplicateForeignKey.DeclaringEntityType.DisplayName(),
+                        principalKey.Properties.Format(),
+                        principalEntityType.DisplayName()));
+            }
+
+            if (principalEntityType.Model != declaringEntityType.Model)
+            {
+                throw new InvalidOperationException(
+                    CoreStrings.EntityTypeModelMismatch(
+                        declaringEntityType.DisplayName(), principalEntityType.DisplayName()));
+            }
+        }
+
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
+        public static bool AreCompatible(
+            EntityType principalEntityType,
+            EntityType dependentEntityType,
+            MemberInfo? navigationToPrincipal,
+            MemberInfo? navigationToDependent,
+            IReadOnlyList<IReadOnlyProperty>? dependentProperties,
+            IReadOnlyList<IReadOnlyProperty>? principalProperties,
+            bool? unique,
+            bool shouldThrow)
+        {
+            Check.NotNull(principalEntityType, nameof(principalEntityType));
+            Check.NotNull(dependentEntityType, nameof(dependentEntityType));
+
+            if (navigationToPrincipal != null
+                && !Internal.Navigation.IsCompatible(
+                    navigationToPrincipal.Name,
+                    navigationToPrincipal,
+                    dependentEntityType,
+                    principalEntityType,
+                    shouldBeCollection: false,
+                    shouldThrow: shouldThrow))
+            {
+                return false;
+            }
+
+            if (navigationToDependent != null
+                && !Internal.Navigation.IsCompatible(
+                    navigationToDependent.Name,
+                    navigationToDependent,
+                    principalEntityType,
+                    dependentEntityType,
+                    shouldBeCollection: !unique,
+                    shouldThrow: shouldThrow))
+            {
+                return false;
+            }
+
+            return principalProperties == null
+                || dependentProperties == null
+                || AreCompatible(
+                    principalProperties,
+                    dependentProperties,
+                    principalEntityType,
+                    dependentEntityType,
+                    shouldThrow);
+        }
+
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
+        public static bool AreCompatible(
+            IReadOnlyList<IReadOnlyProperty> principalProperties,
+            IReadOnlyList<IReadOnlyProperty> dependentProperties,
+            IReadOnlyEntityType principalEntityType,
+            IReadOnlyEntityType dependentEntityType,
+            bool shouldThrow)
+        {
+            Check.NotNull(principalProperties, nameof(principalProperties));
+            Check.NotNull(dependentProperties, nameof(dependentProperties));
+            Check.NotNull(principalEntityType, nameof(principalEntityType));
+            Check.NotNull(dependentEntityType, nameof(dependentEntityType));
+
+            if (!ArePropertyCountsEqual(principalProperties, dependentProperties))
+            {
+                if (shouldThrow)
+                {
+                    throw new InvalidOperationException(
+                        CoreStrings.ForeignKeyCountMismatch(
+                            dependentProperties.Format(),
+                            dependentEntityType.DisplayName(),
+                            principalProperties.Format(),
+                            principalEntityType.DisplayName()));
+                }
+
+                return false;
+            }
+
+            if (!ArePropertyTypesCompatible(principalProperties, dependentProperties))
+            {
+                if (shouldThrow)
+                {
+                    throw new InvalidOperationException(
+                        CoreStrings.ForeignKeyTypeMismatch(
+                            dependentProperties.Format(includeTypes: true),
+                            dependentEntityType.DisplayName(),
+                            principalProperties.Format(includeTypes: true),
+                            principalEntityType.DisplayName()));
+                }
+
+                return false;
+            }
+
+            return true;
+        }
+
+        private static bool ArePropertyCountsEqual(
+            IReadOnlyList<IReadOnlyProperty> principalProperties,
+            IReadOnlyList<IReadOnlyProperty> dependentProperties)
+            => principalProperties.Count == dependentProperties.Count;
+
+        private static bool ArePropertyTypesCompatible(
+            IReadOnlyList<IReadOnlyProperty> principalProperties,
+            IReadOnlyList<IReadOnlyProperty> dependentProperties)
+            => principalProperties.Select(p => p.ClrType.UnwrapNullableType()).SequenceEqual(
+                dependentProperties.Select(p => p.ClrType.UnwrapNullableType()));
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -1087,7 +1281,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        IMutableNavigation? IMutableForeignKey.SetDependentToPrincipal(string name)
+        IMutableNavigation? IMutableForeignKey.SetDependentToPrincipal(string? name)
             => SetDependentToPrincipal(name, ConfigurationSource.Explicit);
 
         /// <summary>
@@ -1097,7 +1291,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         [DebuggerStepThrough]
-        IMutableNavigation? IMutableForeignKey.SetDependentToPrincipal(MemberInfo property)
+        IMutableNavigation? IMutableForeignKey.SetDependentToPrincipal(MemberInfo? property)
             => SetDependentToPrincipal(property, ConfigurationSource.Explicit);
 
         /// <summary>
@@ -1107,8 +1301,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         [DebuggerStepThrough]
-        IMutableNavigation? IMutableForeignKey.SetPrincipalToDependent(string name)
-            => HasPrincipalToDependent(name, ConfigurationSource.Explicit);
+        IMutableNavigation? IMutableForeignKey.SetPrincipalToDependent(string? name)
+            => SetPrincipalToDependent(name, ConfigurationSource.Explicit);
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -1117,8 +1311,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         [DebuggerStepThrough]
-        IMutableNavigation? IMutableForeignKey.SetPrincipalToDependent(MemberInfo property)
-            => HasPrincipalToDependent(property, ConfigurationSource.Explicit);
+        IMutableNavigation? IMutableForeignKey.SetPrincipalToDependent(MemberInfo? property)
+            => SetPrincipalToDependent(property, ConfigurationSource.Explicit);
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -1311,12 +1505,12 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         /// <inheritdoc />
         [DebuggerStepThrough]
         IConventionNavigation? IConventionForeignKey.SetPrincipalToDependent(string? name, bool fromDataAnnotation)
-            => HasPrincipalToDependent(name, fromDataAnnotation ? ConfigurationSource.DataAnnotation : ConfigurationSource.Convention);
+            => SetPrincipalToDependent(name, fromDataAnnotation ? ConfigurationSource.DataAnnotation : ConfigurationSource.Convention);
 
         /// <inheritdoc />
         [DebuggerStepThrough]
         IConventionNavigation? IConventionForeignKey.SetPrincipalToDependent(MemberInfo? property, bool fromDataAnnotation)
-            => HasPrincipalToDependent(property, fromDataAnnotation ? ConfigurationSource.DataAnnotation : ConfigurationSource.Convention);
+            => SetPrincipalToDependent(property, fromDataAnnotation ? ConfigurationSource.DataAnnotation : ConfigurationSource.Convention);
 
         /// <inheritdoc />
         [DebuggerStepThrough]
@@ -1348,197 +1542,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         DeleteBehavior? IConventionForeignKey.SetDeleteBehavior(DeleteBehavior? deleteBehavior, bool fromDataAnnotation)
             => SetDeleteBehavior(deleteBehavior, fromDataAnnotation ? ConfigurationSource.DataAnnotation : ConfigurationSource.Convention);
 
-        /// <summary>
-        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
-        ///     any release. You should only use it directly in your code with extreme caution and knowing that
-        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
-        /// </summary>
-        public virtual DebugView DebugView
-            => new(
-                () => this.ToDebugString(MetadataDebugStringOptions.ShortDefault),
-                () => this.ToDebugString(MetadataDebugStringOptions.LongDefault));
-
-        /// <summary>
-        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
-        ///     any release. You should only use it directly in your code with extreme caution and knowing that
-        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
-        /// </summary>
-        public override string ToString()
-            => this.ToDebugString(MetadataDebugStringOptions.SingleLineDefault);
-
-        private void Validate(
-            IReadOnlyList<Property> properties,
-            Key principalKey,
-            EntityType declaringEntityType,
-            EntityType principalEntityType)
-        {
-            for (var i = 0; i < properties.Count; i++)
-            {
-                var property = properties[i];
-                for (var j = i + 1; j < properties.Count; j++)
-                {
-                    if (property == properties[j])
-                    {
-                        throw new InvalidOperationException(CoreStrings.DuplicatePropertyInForeignKey(properties.Format(), property.Name));
-                    }
-                }
-
-                var actualProperty = declaringEntityType.FindProperty(property.Name);
-                if (actualProperty?.DeclaringEntityType.IsAssignableFrom(property.DeclaringEntityType) != true
-                    || !property.IsInModel)
-                {
-                    throw new InvalidOperationException(
-                        CoreStrings.ForeignKeyPropertiesWrongEntity(
-                            properties.Format(), declaringEntityType.DisplayName()));
-                }
-            }
-
-            AreCompatible(
-                principalEntityType,
-                dependentEntityType: declaringEntityType,
-                navigationToPrincipal: null,
-                navigationToDependent: null,
-                dependentProperties: properties,
-                principalProperties: principalKey.Properties,
-                unique: null,
-                shouldThrow: true);
-
-            var duplicateForeignKey = declaringEntityType.FindForeignKeysInHierarchy(
-                properties, principalKey, principalEntityType).FirstOrDefault();
-            if (duplicateForeignKey != null)
-            {
-                throw new InvalidOperationException(
-                    CoreStrings.DuplicateForeignKey(
-                        properties.Format(),
-                        declaringEntityType.DisplayName(),
-                        duplicateForeignKey.DeclaringEntityType.DisplayName(),
-                        principalKey.Properties.Format(),
-                        principalEntityType.DisplayName()));
-            }
-
-            if (principalEntityType.Model != declaringEntityType.Model)
-            {
-                throw new InvalidOperationException(
-                    CoreStrings.EntityTypeModelMismatch(
-                        declaringEntityType.DisplayName(), principalEntityType.DisplayName()));
-            }
-        }
-
-        /// <summary>
-        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
-        ///     any release. You should only use it directly in your code with extreme caution and knowing that
-        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
-        /// </summary>
-        public static bool AreCompatible(
-            [NotNull] EntityType principalEntityType,
-            [NotNull] EntityType dependentEntityType,
-            [CanBeNull] MemberInfo? navigationToPrincipal,
-            [CanBeNull] MemberInfo? navigationToDependent,
-            [CanBeNull] IReadOnlyList<IReadOnlyProperty>? dependentProperties,
-            [CanBeNull] IReadOnlyList<IReadOnlyProperty>? principalProperties,
-            bool? unique,
-            bool shouldThrow)
-        {
-            Check.NotNull(principalEntityType, nameof(principalEntityType));
-            Check.NotNull(dependentEntityType, nameof(dependentEntityType));
-
-            if (navigationToPrincipal != null
-                && !Internal.Navigation.IsCompatible(
-                    navigationToPrincipal.Name,
-                    navigationToPrincipal,
-                    dependentEntityType,
-                    principalEntityType,
-                    shouldBeCollection: false,
-                    shouldThrow: shouldThrow))
-            {
-                return false;
-            }
-
-            if (navigationToDependent != null
-                && !Internal.Navigation.IsCompatible(
-                    navigationToDependent.Name,
-                    navigationToDependent,
-                    principalEntityType,
-                    dependentEntityType,
-                    shouldBeCollection: !unique,
-                    shouldThrow: shouldThrow))
-            {
-                return false;
-            }
-
-            return principalProperties == null
-                || dependentProperties == null
-                || AreCompatible(
-                    principalProperties,
-                    dependentProperties,
-                    principalEntityType,
-                    dependentEntityType,
-                    shouldThrow);
-        }
-
-        /// <summary>
-        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
-        ///     any release. You should only use it directly in your code with extreme caution and knowing that
-        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
-        /// </summary>
-        public static bool AreCompatible(
-            [NotNull] IReadOnlyList<IReadOnlyProperty> principalProperties,
-            [NotNull] IReadOnlyList<IReadOnlyProperty> dependentProperties,
-            [NotNull] IReadOnlyEntityType principalEntityType,
-            [NotNull] IReadOnlyEntityType dependentEntityType,
-            bool shouldThrow)
-        {
-            Check.NotNull(principalProperties, nameof(principalProperties));
-            Check.NotNull(dependentProperties, nameof(dependentProperties));
-            Check.NotNull(principalEntityType, nameof(principalEntityType));
-            Check.NotNull(dependentEntityType, nameof(dependentEntityType));
-
-            if (!ArePropertyCountsEqual(principalProperties, dependentProperties))
-            {
-                if (shouldThrow)
-                {
-                    throw new InvalidOperationException(
-                        CoreStrings.ForeignKeyCountMismatch(
-                            dependentProperties.Format(),
-                            dependentEntityType.DisplayName(),
-                            principalProperties.Format(),
-                            principalEntityType.DisplayName()));
-                }
-
-                return false;
-            }
-
-            if (!ArePropertyTypesCompatible(principalProperties, dependentProperties))
-            {
-                if (shouldThrow)
-                {
-                    throw new InvalidOperationException(
-                        CoreStrings.ForeignKeyTypeMismatch(
-                            dependentProperties.Format(includeTypes: true),
-                            dependentEntityType.DisplayName(),
-                            principalProperties.Format(includeTypes: true),
-                            principalEntityType.DisplayName()));
-                }
-
-                return false;
-            }
-
-            return true;
-        }
-
-        private static bool ArePropertyCountsEqual(
-            IReadOnlyList<IReadOnlyProperty> principalProperties,
-            IReadOnlyList<IReadOnlyProperty> dependentProperties)
-            => principalProperties.Count == dependentProperties.Count;
-
-        private static bool ArePropertyTypesCompatible(
-            IReadOnlyList<IReadOnlyProperty> principalProperties,
-            IReadOnlyList<IReadOnlyProperty> dependentProperties)
-            => principalProperties.Select(p => p.ClrType.UnwrapNullableType()).SequenceEqual(
-                dependentProperties.Select(p => p.ClrType.UnwrapNullableType()));
+        /// <inheritdoc />
+        [DebuggerStepThrough]
+        IDependentKeyValueFactory<TKey>? IForeignKey.GetDependentKeyValueFactory<TKey>()
+            => (IDependentKeyValueFactory<TKey>?)DependentKeyValueFactory;
     }
 }

@@ -14,8 +14,6 @@ using NetTopologySuite;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.IO;
 
-#nullable enable
-
 namespace Microsoft.EntityFrameworkCore.Sqlite.Storage.Internal
 {
     /// <summary>
@@ -38,7 +36,7 @@ namespace Microsoft.EntityFrameworkCore.Sqlite.Storage.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         [UsedImplicitly]
-        public SqliteGeometryTypeMapping([NotNull] NtsGeometryServices geometryServices, [NotNull] string storeType)
+        public SqliteGeometryTypeMapping(NtsGeometryServices geometryServices, string storeType)
             : base(new GeometryValueConverter<TGeometry>(CreateReader(geometryServices), CreateWriter(storeType)), storeType)
         {
         }
@@ -51,7 +49,7 @@ namespace Microsoft.EntityFrameworkCore.Sqlite.Storage.Internal
         /// </summary>
         protected SqliteGeometryTypeMapping(
             RelationalTypeMappingParameters parameters,
-            [CanBeNull] ValueConverter<TGeometry, byte[]>? converter)
+            ValueConverter<TGeometry, byte[]>? converter)
             : base(parameters, converter)
         {
         }
@@ -79,7 +77,7 @@ namespace Microsoft.EntityFrameworkCore.Sqlite.Storage.Internal
             builder
                 .Append("GeomFromText('")
                 .Append(geometry.AsText())
-                .Append("'");
+                .Append('\'');
 
             if (geometry.SRID != 0)
             {
@@ -88,7 +86,7 @@ namespace Microsoft.EntityFrameworkCore.Sqlite.Storage.Internal
                     .Append(geometry.SRID);
             }
 
-            builder.Append(")");
+            builder.Append(')');
 
             return builder.ToString();
         }

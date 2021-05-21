@@ -3,12 +3,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
-using JetBrains.Annotations;
-using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
+using System.Linq;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-
-#nullable enable
 
 namespace Microsoft.EntityFrameworkCore.Metadata.Internal
 {
@@ -26,7 +22,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public static bool IsSelfReferencing([NotNull] this IReadOnlyForeignKey foreignKey)
+        public static bool IsSelfReferencing(this IReadOnlyForeignKey foreignKey)
             => foreignKey.DeclaringEntityType == foreignKey.PrincipalEntityType;
 
         /// <summary>
@@ -35,7 +31,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public static IEnumerable<IReadOnlyNavigation> GetNavigations([NotNull] this IReadOnlyForeignKey foreignKey)
+        public static IEnumerable<IReadOnlyNavigation> GetNavigations(this IReadOnlyForeignKey foreignKey)
         {
             if (foreignKey.PrincipalToDependent != null)
             {
@@ -55,8 +51,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public static IEnumerable<IReadOnlyNavigation> FindNavigationsFrom(
-            [NotNull] this IReadOnlyForeignKey foreignKey,
-            [NotNull] IReadOnlyEntityType entityType)
+            this IReadOnlyForeignKey foreignKey,
+            IReadOnlyEntityType entityType)
         {
             if (foreignKey.DeclaringEntityType != entityType
                 && foreignKey.PrincipalEntityType != entityType)
@@ -80,8 +76,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public static IEnumerable<IReadOnlyNavigation> FindNavigationsFromInHierarchy(
-            [NotNull] this IReadOnlyForeignKey foreignKey,
-            [NotNull] IReadOnlyEntityType entityType)
+            this IReadOnlyForeignKey foreignKey,
+            IReadOnlyEntityType entityType)
         {
             if (!foreignKey.DeclaringEntityType.IsAssignableFrom(entityType)
                 && !foreignKey.PrincipalEntityType.IsAssignableFrom(entityType))
@@ -106,7 +102,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public static IEnumerable<IReadOnlyNavigation> FindNavigationsTo(
-            [NotNull] this IReadOnlyForeignKey foreignKey, [NotNull] IReadOnlyEntityType entityType)
+            this IReadOnlyForeignKey foreignKey, IReadOnlyEntityType entityType)
         {
             if (foreignKey.DeclaringEntityType != entityType
                 && foreignKey.PrincipalEntityType != entityType)
@@ -130,8 +126,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public static IEnumerable<IReadOnlyNavigation> FindNavigationsToInHierarchy(
-            [NotNull] this IReadOnlyForeignKey foreignKey,
-            [NotNull] IReadOnlyEntityType entityType)
+            this IReadOnlyForeignKey foreignKey,
+            IReadOnlyEntityType entityType)
         {
             if (!foreignKey.DeclaringEntityType.IsAssignableFrom(entityType)
                 && !foreignKey.PrincipalEntityType.IsAssignableFrom(entityType))
@@ -176,8 +172,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         /// </summary>
         [Obsolete]
         public static IReadOnlyEntityType ResolveOtherEntityTypeInHierarchy(
-            [NotNull] this IReadOnlyForeignKey foreignKey,
-            [NotNull] IReadOnlyEntityType entityType)
+            this IReadOnlyForeignKey foreignKey,
+            IReadOnlyEntityType entityType)
         {
             if (!foreignKey.DeclaringEntityType.IsAssignableFrom(entityType)
                 && !foreignKey.PrincipalEntityType.IsAssignableFrom(entityType))
@@ -212,7 +208,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         [Obsolete]
-        public static IReadOnlyEntityType ResolveEntityTypeInHierarchy([NotNull] this IReadOnlyForeignKey foreignKey, [NotNull] IReadOnlyEntityType entityType)
+        public static IReadOnlyEntityType ResolveEntityTypeInHierarchy(
+            this IReadOnlyForeignKey foreignKey, IReadOnlyEntityType entityType)
         {
             if (!foreignKey.DeclaringEntityType.IsAssignableFrom(entityType)
                 && !foreignKey.PrincipalEntityType.IsAssignableFrom(entityType))
@@ -245,16 +242,46 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public static IDependentsMap CreateDependentsMapFactory([NotNull] this IReadOnlyForeignKey foreignKey)
-            => foreignKey.AsForeignKey().DependentsMapFactory();
+        public static void GetPropertiesWithMinimalOverlapIfPossible(
+            this IForeignKey foreignKey,
+            out IReadOnlyList<IProperty> foreignKeyProperties,
+            out IReadOnlyList<IProperty> principalKeyProperties)
+        {
+            // Finds the foreign key properties (and their associated principal key properties) of this foreign key where those
+            // properties are not overlapping with any other foreign key, or all properties of the foreign key if there is not
+            // a smaller set of non-overlapping properties.
 
-        /// <summary>
-        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
-        ///     any release. You should only use it directly in your code with extreme caution and knowing that
-        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
-        /// </summary>
-        public static ForeignKey AsForeignKey([NotNull] this IReadOnlyForeignKey foreignKey, [NotNull] [CallerMemberName] string methodName = "")
-            => MetadataExtensions.AsConcreteMetadataType<IReadOnlyForeignKey, ForeignKey>(foreignKey, methodName);
+            foreignKeyProperties = foreignKey.Properties;
+            principalKeyProperties = foreignKey.PrincipalKey.Properties;
+
+            var count = foreignKeyProperties.Count;
+            if (count == 1)
+            {
+                return;
+            }
+
+            for (var i = 0; i < count; i++)
+            {
+                var dependentProperty = foreignKey.Properties[i];
+
+                if (dependentProperty.GetContainingForeignKeys().Count() > 1)
+                {
+                    if (ReferenceEquals(foreignKeyProperties, foreignKey.Properties))
+                    {
+                        foreignKeyProperties = foreignKey.Properties.ToList();
+                        principalKeyProperties = foreignKey.PrincipalKey.Properties.ToList();
+                    }
+
+                    ((List<IProperty>)foreignKeyProperties).Remove(dependentProperty);
+                    ((List<IProperty>)principalKeyProperties).Remove(foreignKey.PrincipalKey.Properties[i]);
+                }
+            }
+
+            if (!foreignKeyProperties.Any())
+            {
+                foreignKeyProperties = foreignKey.Properties;
+                principalKeyProperties = foreignKey.PrincipalKey.Properties;
+            }
+        }
     }
 }

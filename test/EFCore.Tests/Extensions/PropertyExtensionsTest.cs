@@ -25,7 +25,7 @@ namespace Microsoft.EntityFrameworkCore
             var property = entityType.AddProperty("Property", typeof(int));
 
             Assert.Equal(
-                CoreStrings.ModelNotFinalized(nameof(PropertyExtensions.GetTypeMapping)),
+                CoreStrings.ModelNotFinalized(nameof(IReadOnlyProperty.GetTypeMapping)),
                 Assert.Throws<InvalidOperationException>(
                     () => property.GetTypeMapping()).Message);
         }
@@ -61,7 +61,7 @@ namespace Microsoft.EntityFrameworkCore
             property.SetValueConverter(converter);
             Assert.Same(converter, property.GetValueConverter());
 
-            property.SetValueConverter(null);
+            property.SetValueConverter((ValueConverter)null);
             Assert.Null(property.GetValueConverter());
         }
 

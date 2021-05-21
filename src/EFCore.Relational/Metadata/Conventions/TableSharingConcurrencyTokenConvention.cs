@@ -3,12 +3,9 @@
 
 using System.Collections.Generic;
 using System.Linq;
-using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure;
-
-#nullable enable
 
 namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
 {
@@ -29,8 +26,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <param name="dependencies"> Parameter object containing dependencies for this convention. </param>
         /// <param name="relationalDependencies"> Parameter object containing relational dependencies for this convention. </param>
         public TableSharingConcurrencyTokenConvention(
-            [NotNull] ProviderConventionSetBuilderDependencies dependencies,
-            [NotNull] RelationalConventionSetBuilderDependencies relationalDependencies)
+            ProviderConventionSetBuilderDependencies dependencies,
+            RelationalConventionSetBuilderDependencies relationalDependencies)
         {
             Dependencies = dependencies;
         }
@@ -135,7 +132,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         [EntityFrameworkInternal]
         public static Dictionary<string, List<IReadOnlyProperty>>? GetConcurrencyTokensMap(
             in StoreObjectIdentifier storeObject,
-            [NotNull] IReadOnlyList<IReadOnlyEntityType> mappedTypes)
+            IReadOnlyList<IReadOnlyEntityType> mappedTypes)
         {
             if (mappedTypes.Count < 2)
             {
@@ -192,9 +189,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// </summary>
         [EntityFrameworkInternal]
         public static bool IsConcurrencyTokenMissing(
-            [NotNull] List<IReadOnlyProperty> propertiesMappedToConcurrencyColumn,
-            [NotNull] IReadOnlyEntityType entityType,
-            [NotNull] IReadOnlyList<IReadOnlyEntityType> mappedTypes)
+            List<IReadOnlyProperty> propertiesMappedToConcurrencyColumn,
+            IReadOnlyEntityType entityType,
+            IReadOnlyList<IReadOnlyEntityType> mappedTypes)
         {
             if (entityType.FindPrimaryKey() == null)
             {
@@ -237,30 +234,23 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
 
         private static void RemoveDerivedEntityTypes<T>(Dictionary<IConventionEntityType, T> entityTypeDictionary)
         {
-            var toRemove = new HashSet<KeyValuePair<IConventionEntityType, T>>();
             var entityTypesWithDerivedTypes =
-                entityTypeDictionary.Where(e => e.Key.GetDirectlyDerivedTypes().Any()).ToList();
+                entityTypeDictionary.Where(e => e.Key.GetDirectlyDerivedTypes().Any());
             foreach (var entityType in entityTypeDictionary.Where(e => e.Key.BaseType != null))
             {
                 foreach (var otherEntityType in entityTypesWithDerivedTypes)
                 {
-                    if (toRemove.Contains(otherEntityType)
-                        || otherEntityType.Equals(entityType))
+                    if (otherEntityType.Equals(entityType))
                     {
                         continue;
                     }
 
                     if (otherEntityType.Key.IsAssignableFrom(entityType.Key))
                     {
-                        toRemove.Add(entityType);
+                        entityTypeDictionary.Remove(entityType.Key);
                         break;
                     }
                 }
-            }
-
-            foreach (var entityType in toRemove)
-            {
-                entityTypeDictionary.Remove(entityType.Key);
             }
         }
     }

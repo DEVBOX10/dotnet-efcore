@@ -1724,7 +1724,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
 
                     b.HasDiscriminator<long>(""Day"");
                 });"),
-                model => Assert.Equal(typeof(long), model.GetEntityTypes().First().GetDiscriminatorProperty().ClrType));
+                model => Assert.Equal(typeof(long), model.GetEntityTypes().First().FindDiscriminatorProperty().ClrType));
         }
 
         [ConditionalFact]
@@ -1759,7 +1759,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                 });"),
                 model =>
                 {
-                    var discriminatorProperty = model.GetEntityTypes().First().GetDiscriminatorProperty();
+                    var discriminatorProperty = model.GetEntityTypes().First().FindDiscriminatorProperty();
                     Assert.Equal(typeof(string), discriminatorProperty.ClrType);
                     Assert.False(discriminatorProperty.IsNullable);
                 });
@@ -5386,7 +5386,7 @@ namespace RootNamespace
                 new ServiceCollection()
                     .AddEntityFrameworkSqlServerNetTopologySuite());
 
-            serviceProvider.GetService<IModelRuntimeInitializer>().Initialize(model, validationLogger: null);
+            serviceProvider.GetService<IModelRuntimeInitializer>().Initialize(model, designTime: true, validationLogger: null);
 
             var generator = CreateMigrationsGenerator();
             var code = generator.GenerateSnapshot("RootNamespace", typeof(DbContext), "Snapshot", model);
@@ -5398,7 +5398,7 @@ namespace RootNamespace
 
         protected IModel BuildModelFromSnapshotSource(string code)
         {
-            var build = new BuildSource { Sources = { code } };
+            var build = new BuildSource { Sources = { { "Snapshot.cs", code } } };
 
             foreach (var buildReference in GetReferences())
             {

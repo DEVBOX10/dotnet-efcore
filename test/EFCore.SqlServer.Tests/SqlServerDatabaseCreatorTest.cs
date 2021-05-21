@@ -292,6 +292,9 @@ namespace Microsoft.EntityFrameworkCore
                 RelationalCommandParameterObject parameterObject,
                 CancellationToken cancellationToken = default)
                 => throw new NotImplementedException();
+
+            public void PopulateFrom(IRelationalCommand command)
+                => throw new NotImplementedException();
         }
     }
 }

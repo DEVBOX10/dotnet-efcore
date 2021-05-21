@@ -4,11 +4,8 @@
 using System;
 using System.IO;
 using System.Text;
-using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Utilities;
 using Microsoft.Extensions.DependencyInjection;
-
-#nullable enable
 
 namespace Microsoft.EntityFrameworkCore.Storage
 {
@@ -32,7 +29,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
         ///     Initializes a new instance of the this class.
         /// </summary>
         /// <param name="dependencies"> Parameter object containing dependencies for this service. </param>
-        public RelationalSqlGenerationHelper([NotNull] RelationalSqlGenerationHelperDependencies dependencies)
+        public RelationalSqlGenerationHelper(RelationalSqlGenerationHelperDependencies dependencies)
         {
             Check.NotNull(dependencies, nameof(dependencies));
         }
@@ -81,7 +78,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// <param name="builder">The <see cref="StringBuilder" /> to write generated string to.</param>
         /// <param name="name">The candidate name for the parameter.</param>
         public virtual void GenerateParameterName(StringBuilder builder, string name)
-            => builder.Append("@").Append(name);
+            => builder.Append('@').Append(name);
 
         /// <summary>
         ///     Generates a valid parameter placeholder name for the given candidate name.
@@ -108,7 +105,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// <returns>
         ///     The generated string.
         /// </returns>
-        public virtual string EscapeIdentifier([NotNull] string identifier)
+        public virtual string EscapeIdentifier(string identifier)
             => Check.NotEmpty(identifier, nameof(identifier)).Replace("\"", "\"\"");
 
         /// <summary>
@@ -116,7 +113,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// </summary>
         /// <param name="builder">The <see cref="StringBuilder" /> to write generated string to.</param>
         /// <param name="identifier">The identifier to be escaped.</param>
-        public virtual void EscapeIdentifier([NotNull] StringBuilder builder, [NotNull] string identifier)
+        public virtual void EscapeIdentifier(StringBuilder builder, string identifier)
         {
             Check.NotEmpty(identifier, nameof(identifier));
 
@@ -174,7 +171,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
             if (!string.IsNullOrEmpty(schema))
             {
                 DelimitIdentifier(builder, schema);
-                builder.Append(".");
+                builder.Append('.');
             }
 
             DelimitIdentifier(builder, name);
@@ -195,7 +192,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
                 string? line;
                 while ((line = reader.ReadLine()) != null)
                 {
-                    builder.Append(SingleLineCommentToken).Append(" ").AppendLine(line);
+                    builder.Append(SingleLineCommentToken).Append(' ').AppendLine(line);
                 }
             }
 
@@ -211,7 +208,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
             => "SAVEPOINT " + DelimitIdentifier(name) + StatementTerminator;
 
         /// <summary>
-        ///     Generates an SQL statement which which rolls back to a savepoint with the given name.
+        ///     Generates an SQL statement which rolls back to a savepoint with the given name.
         /// </summary>
         /// <param name="name"> The name of the savepoint to be rolled back to. </param>
         /// <returns> An SQL string to roll back the savepoint. </returns>
@@ -219,7 +216,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
             => "ROLLBACK TO " + DelimitIdentifier(name) + StatementTerminator;
 
         /// <summary>
-        ///     Generates an SQL statement which which releases a savepoint with the given name.
+        ///     Generates an SQL statement which releases a savepoint with the given name.
         /// </summary>
         /// <param name="name"> The name of the savepoint to be released. </param>
         /// <returns> An SQL string to release the savepoint. </returns>

@@ -2,11 +2,8 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
-using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure;
-
-#nullable enable
 
 // ReSharper disable once CheckNamespace
 namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
@@ -23,8 +20,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <param name="dependencies"> Parameter object containing dependencies for this convention. </param>
         /// <param name="relationalDependencies">  Parameter object containing relational dependencies for this convention. </param>
         public SqlServerValueGenerationStrategyConvention(
-            [NotNull] ProviderConventionSetBuilderDependencies dependencies,
-            [NotNull] RelationalConventionSetBuilderDependencies relationalDependencies)
+            ProviderConventionSetBuilderDependencies dependencies,
+            RelationalConventionSetBuilderDependencies relationalDependencies)
         {
             Dependencies = dependencies;
         }
@@ -90,14 +87,14 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
             bool IsStrategyNoneNeeded(IReadOnlyProperty property, StoreObjectIdentifier storeObject)
             {
                 if (property.ValueGenerated == ValueGenerated.OnAdd
-                    && property.GetDefaultValue(storeObject) == null
+                    && !property.TryGetDefaultValue(storeObject, out _)
                     && property.GetDefaultValueSql(storeObject) == null
                     && property.GetComputedColumnSql(storeObject) == null
                     && property.DeclaringEntityType.Model.GetValueGenerationStrategy() == SqlServerValueGenerationStrategy.IdentityColumn)
                 {
                     var providerClrType = (property.GetValueConverter()
-                        ?? (property.FindRelationalTypeMapping(storeObject)
-                            ?? Dependencies.TypeMappingSource.FindMapping((IProperty)property))?.Converter)
+                            ?? (property.FindRelationalTypeMapping(storeObject)
+                                ?? Dependencies.TypeMappingSource.FindMapping((IProperty)property))?.Converter)
                         ?.ProviderClrType.UnwrapNullableType();
 
                     return providerClrType != null

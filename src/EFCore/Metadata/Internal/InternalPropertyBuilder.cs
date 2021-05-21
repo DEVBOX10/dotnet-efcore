@@ -5,7 +5,6 @@ using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
-using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -14,8 +13,6 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Microsoft.EntityFrameworkCore.Utilities;
 using Microsoft.EntityFrameworkCore.ValueGeneration;
-
-#nullable enable
 
 namespace Microsoft.EntityFrameworkCore.Metadata.Internal
 {
@@ -33,7 +30,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public InternalPropertyBuilder([NotNull] Property property, [NotNull] InternalModelBuilder modelBuilder)
+        public InternalPropertyBuilder(Property property, InternalModelBuilder modelBuilder)
             : base(property, modelBuilder)
         {
         }
@@ -155,7 +152,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public new virtual InternalPropertyBuilder? HasField([CanBeNull] string? fieldName, ConfigurationSource configurationSource)
+        public new virtual InternalPropertyBuilder? HasField(string? fieldName, ConfigurationSource configurationSource)
             => (InternalPropertyBuilder?)base.HasField(fieldName, configurationSource);
 
         /// <summary>
@@ -164,7 +161,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public new virtual InternalPropertyBuilder? HasField([CanBeNull] FieldInfo? fieldInfo, ConfigurationSource configurationSource)
+        public new virtual InternalPropertyBuilder? HasField(FieldInfo? fieldInfo, ConfigurationSource configurationSource)
             => (InternalPropertyBuilder?)base.HasField(fieldInfo, configurationSource);
 
         /// <summary>
@@ -355,7 +352,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public virtual InternalPropertyBuilder? HasValueGenerator(
-            [CanBeNull] Type? valueGeneratorType,
+            Type? valueGeneratorType,
             ConfigurationSource configurationSource)
         {
             if (valueGeneratorType == null)
@@ -380,7 +377,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
                     catch (Exception e)
                     {
                         throw new InvalidOperationException(
-                            CoreStrings.CannotCreateValueGenerator(valueGeneratorType.ShortDisplayName()), e);
+                            CoreStrings.CannotCreateValueGenerator(
+                                valueGeneratorType.ShortDisplayName(), nameof(PropertyBuilder.HasValueGenerator)), e);
                     }
                 }, configurationSource);
         }
@@ -392,7 +390,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public virtual InternalPropertyBuilder? HasValueGenerator(
-            [CanBeNull] Func<IProperty, IEntityType, ValueGenerator>? factory,
+            Func<IProperty, IEntityType, ValueGenerator>? factory,
             ConfigurationSource configurationSource)
         {
             if (CanSetValueGenerator(factory, configurationSource))
@@ -411,11 +409,19 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public virtual bool CanSetValueGenerator(
-            [CanBeNull] Func<IProperty, IEntityType, ValueGenerator>? factory,
-            ConfigurationSource? configurationSource)
-            => configurationSource.Overrides(Metadata.GetValueGeneratorFactoryConfigurationSource())
-                || Metadata.GetValueGeneratorFactory() == factory;
+        public virtual InternalPropertyBuilder? HasValueGeneratorFactory(
+            Type? factory,
+            ConfigurationSource configurationSource)
+        {
+            if (CanSetValueGeneratorFactory(factory, configurationSource))
+            {
+                Metadata.SetValueGeneratorFactory(factory, configurationSource);
+
+                return this;
+            }
+
+            return null;
+        }
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -423,7 +429,33 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public virtual InternalPropertyBuilder? HasConversion([CanBeNull] ValueConverter? converter, ConfigurationSource configurationSource)
+        public virtual bool CanSetValueGenerator(
+            Func<IProperty, IEntityType, ValueGenerator>? factory,
+            ConfigurationSource? configurationSource)
+            => configurationSource.Overrides(Metadata.GetValueGeneratorFactoryConfigurationSource())
+                || (Metadata[CoreAnnotationNames.ValueGeneratorFactoryType] == null
+                    && (Func<IProperty, IEntityType, ValueGenerator>?)Metadata[CoreAnnotationNames.ValueGeneratorFactory] == factory);
+
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
+        public virtual bool CanSetValueGeneratorFactory(
+            Type? factory,
+            ConfigurationSource? configurationSource)
+            => configurationSource.Overrides(Metadata.GetValueGeneratorFactoryConfigurationSource())
+                || (Metadata[CoreAnnotationNames.ValueGeneratorFactory] == null
+                    && (Type?)Metadata[CoreAnnotationNames.ValueGeneratorFactoryType] == factory);
+
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
+        public virtual InternalPropertyBuilder? HasConversion(ValueConverter? converter, ConfigurationSource configurationSource)
         {
             if (CanSetConversion(converter, configurationSource))
             {
@@ -442,12 +474,13 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public virtual bool CanSetConversion(
-            [CanBeNull] ValueConverter? converter,
+            ValueConverter? converter,
             ConfigurationSource? configurationSource)
             => configurationSource == ConfigurationSource.Explicit
                 || (configurationSource.Overrides(Metadata.GetValueConverterConfigurationSource())
                     && Metadata.CheckValueConverter(converter) == null)
-                || Metadata.GetValueConverter() == converter;
+                || (Metadata[CoreAnnotationNames.ValueConverterType] == null
+                    && (ValueConverter?)Metadata[CoreAnnotationNames.ValueConverter] == converter);
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -455,7 +488,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public virtual InternalPropertyBuilder? HasConversion([CanBeNull] Type? providerClrType, ConfigurationSource configurationSource)
+        public virtual InternalPropertyBuilder? HasConversion(Type? providerClrType, ConfigurationSource configurationSource)
         {
             if (CanSetConversion(providerClrType, configurationSource))
             {
@@ -473,7 +506,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public virtual bool CanSetConversion([CanBeNull] Type? providerClrType, ConfigurationSource? configurationSource)
+        public virtual bool CanSetConversion(Type? providerClrType, ConfigurationSource? configurationSource)
             => configurationSource.Overrides(Metadata.GetProviderClrTypeConfigurationSource())
                 || Metadata.GetProviderClrType() == providerClrType;
 
@@ -483,8 +516,37 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
+        public virtual InternalPropertyBuilder? HasConverter(Type? converterType, ConfigurationSource configurationSource)
+        {
+            if (CanSetConverter(converterType, configurationSource))
+            {
+                Metadata.SetValueConverter(converterType, configurationSource);
+
+                return this;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
+        public virtual bool CanSetConverter(Type? converterType, ConfigurationSource? configurationSource)
+            => configurationSource.Overrides(Metadata.GetValueConverterConfigurationSource())
+                || (Metadata[CoreAnnotationNames.ValueConverter] == null
+                    && (Type?)Metadata[CoreAnnotationNames.ValueConverterType] == converterType);
+
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
         public virtual InternalPropertyBuilder? HasTypeMapping(
-            [CanBeNull] CoreTypeMapping? typeMapping,
+            CoreTypeMapping? typeMapping,
             ConfigurationSource configurationSource)
         {
             if (CanSetTypeMapping(typeMapping, configurationSource))
@@ -503,7 +565,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public virtual bool CanSetTypeMapping([CanBeNull] CoreTypeMapping? typeMapping, ConfigurationSource? configurationSource)
+        public virtual bool CanSetTypeMapping(CoreTypeMapping? typeMapping, ConfigurationSource? configurationSource)
             => configurationSource.Overrides(Metadata.GetTypeMappingConfigurationSource())
                 || Metadata.TypeMapping == typeMapping;
 
@@ -514,7 +576,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public virtual InternalPropertyBuilder? HasValueComparer(
-            [CanBeNull] ValueComparer? comparer,
+            ValueComparer? comparer,
             ConfigurationSource configurationSource)
         {
             if (CanSetValueComparer(comparer, configurationSource))
@@ -533,7 +595,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public virtual bool CanSetValueComparer([CanBeNull] ValueComparer? comparer, ConfigurationSource? configurationSource)
+        public virtual bool CanSetValueComparer(ValueComparer? comparer, ConfigurationSource? configurationSource)
         {
             if (configurationSource.Overrides(Metadata.GetValueComparerConfigurationSource()))
             {
@@ -551,7 +613,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
                 return true;
             }
 
-            return Metadata[CoreAnnotationNames.ValueComparer] == comparer;
+            return Metadata[CoreAnnotationNames.ValueComparerType] == null
+                && Metadata[CoreAnnotationNames.ValueComparer] == comparer;
         }
 
         /// <summary>
@@ -560,8 +623,39 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
+        public virtual InternalPropertyBuilder? HasValueComparer(
+            Type? comparerType,
+            ConfigurationSource configurationSource)
+        {
+            if (CanSetValueComparer(comparerType, configurationSource))
+            {
+                Metadata.SetValueComparer(comparerType, configurationSource);
+
+                return this;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
+        public virtual bool CanSetValueComparer(Type? comparerType, ConfigurationSource? configurationSource)
+            => configurationSource.Overrides(Metadata.GetValueComparerConfigurationSource())
+            || (Metadata[CoreAnnotationNames.ValueComparer] == null
+                && (Type?)Metadata[CoreAnnotationNames.ValueComparerType] == comparerType);
+
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
         public virtual InternalPropertyBuilder? HasKeyValueComparer(
-            [CanBeNull] ValueComparer? comparer,
+            ValueComparer? comparer,
             ConfigurationSource configurationSource)
             => HasValueComparer(comparer, configurationSource);
 
@@ -571,7 +665,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public virtual bool CanSetKeyValueComparer([CanBeNull] ValueComparer? comparer, ConfigurationSource? configurationSource)
+        public virtual bool CanSetKeyValueComparer(ValueComparer? comparer, ConfigurationSource? configurationSource)
             => CanSetValueComparer(comparer, configurationSource);
 
         /// <summary>
@@ -580,7 +674,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public virtual InternalPropertyBuilder? Attach([NotNull] InternalEntityTypeBuilder entityTypeBuilder)
+        public virtual InternalPropertyBuilder? Attach(InternalEntityTypeBuilder entityTypeBuilder)
         {
             var newProperty = entityTypeBuilder.Metadata.FindProperty(Metadata.Name);
             InternalPropertyBuilder? newPropertyBuilder;
@@ -671,6 +765,13 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
                 && newPropertyBuilder.CanSetField(Metadata.FieldInfo, oldFieldInfoConfigurationSource))
             {
                 newPropertyBuilder.HasField(Metadata.FieldInfo, oldFieldInfoConfigurationSource.Value);
+            }
+
+            var oldTypeMappingConfigurationSource = Metadata.GetTypeMappingConfigurationSource();
+            if (oldTypeMappingConfigurationSource.HasValue
+                && newPropertyBuilder.CanSetTypeMapping(Metadata.TypeMapping, oldTypeMappingConfigurationSource))
+            {
+                newPropertyBuilder.HasTypeMapping(Metadata.TypeMapping, oldTypeMappingConfigurationSource.Value);
             }
 
             return newPropertyBuilder;
@@ -989,6 +1090,26 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
+        IConventionPropertyBuilder? IConventionPropertyBuilder.HasValueGeneratorFactory(Type? valueGeneratorFactoryType, bool fromDataAnnotation)
+            => HasValueGeneratorFactory(valueGeneratorFactoryType,
+                fromDataAnnotation ? ConfigurationSource.DataAnnotation : ConfigurationSource.Convention);
+
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
+        bool IConventionPropertyBuilder.CanSetValueGeneratorFactory(Type? valueGeneratorFactoryType, bool fromDataAnnotation)
+            => CanSetValueGeneratorFactory(valueGeneratorFactoryType,
+                fromDataAnnotation ? ConfigurationSource.DataAnnotation : ConfigurationSource.Convention);
+
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
         IConventionPropertyBuilder? IConventionPropertyBuilder.HasConversion(ValueConverter? converter, bool fromDataAnnotation)
             => HasConversion(converter, fromDataAnnotation ? ConfigurationSource.DataAnnotation : ConfigurationSource.Convention);
 
@@ -1000,6 +1121,24 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         /// </summary>
         bool IConventionPropertyBuilder.CanSetConversion(ValueConverter? converter, bool fromDataAnnotation)
             => CanSetConversion(converter, fromDataAnnotation ? ConfigurationSource.DataAnnotation : ConfigurationSource.Convention);
+
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
+        IConventionPropertyBuilder? IConventionPropertyBuilder.HasConverter(Type? converterType, bool fromDataAnnotation)
+            => HasConverter(converterType, fromDataAnnotation ? ConfigurationSource.DataAnnotation : ConfigurationSource.Convention);
+
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
+        bool IConventionPropertyBuilder.CanSetConverter(Type? converterType, bool fromDataAnnotation)
+            => CanSetConverter(converterType, fromDataAnnotation ? ConfigurationSource.DataAnnotation : ConfigurationSource.Convention);
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -1044,6 +1183,24 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         /// </summary>
         bool IConventionPropertyBuilder.CanSetValueComparer(ValueComparer? comparer, bool fromDataAnnotation)
             => CanSetValueComparer(comparer, fromDataAnnotation ? ConfigurationSource.DataAnnotation : ConfigurationSource.Convention);
+
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
+        IConventionPropertyBuilder? IConventionPropertyBuilder.HasValueComparer(Type? comparerType, bool fromDataAnnotation)
+            => HasValueComparer(comparerType, fromDataAnnotation ? ConfigurationSource.DataAnnotation : ConfigurationSource.Convention);
+
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
+        bool IConventionPropertyBuilder.CanSetValueComparer(Type? comparerType, bool fromDataAnnotation)
+            => CanSetValueComparer(comparerType, fromDataAnnotation ? ConfigurationSource.DataAnnotation : ConfigurationSource.Convention);
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to

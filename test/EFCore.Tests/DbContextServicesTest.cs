@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Diagnostics.Internal;
@@ -379,13 +378,6 @@ namespace Microsoft.EntityFrameworkCore
         }
 
         [ConditionalFact]
-        public void Default_context_scoped_services_are_registered_when_parameterless_constructor_used()
-        {
-            using var context = new EarlyLearningCenter();
-            Assert.IsType<InternalEntityEntryFactory>(context.GetService<IInternalEntityEntryFactory>());
-        }
-
-        [ConditionalFact]
         public void Can_get_singleton_service_from_scoped_configuration()
         {
             using var context = new EarlyLearningCenter();
@@ -413,6 +405,18 @@ namespace Microsoft.EntityFrameworkCore
 
             public void StateChanged(InternalEntityEntry entry, EntityState oldState, bool fromQuery)
                 => throw new NotImplementedException();
+
+            public void BeginAttachGraph()
+            {
+            }
+
+            public void CompleteAttachGraph()
+            {
+            }
+
+            public void AbortAttachGraph()
+            {
+            }
 
             public void NavigationReferenceChanged(
                 InternalEntityEntry entry,
@@ -662,7 +666,8 @@ namespace Microsoft.EntityFrameworkCore
 
             public IModel GetModel(
                 DbContext context,
-                IModelCreationDependencies modelCreationDependencies)
+                ModelCreationDependencies modelCreationDependencies,
+                bool designTime)
                 => new Model();
         }
 
@@ -2709,6 +2714,9 @@ namespace Microsoft.EntityFrameworkCore
 
             public ParameterBinding Bind(IConventionEntityType entityType, Type parameterType, string parameterName)
                 => throw new NotImplementedException();
+
+            public ParameterBinding Bind(IReadOnlyEntityType entityType, Type parameterType, string parameterName)
+                => throw new NotImplementedException();
         }
 
         private class CustomParameterBindingFactory2 : IParameterBindingFactory
@@ -2720,6 +2728,9 @@ namespace Microsoft.EntityFrameworkCore
                 => throw new NotImplementedException();
 
             public ParameterBinding Bind(IConventionEntityType entityType, Type parameterType, string parameterName)
+                => throw new NotImplementedException();
+
+            public ParameterBinding Bind(IReadOnlyEntityType entityType, Type parameterType, string parameterName)
                 => throw new NotImplementedException();
         }
 

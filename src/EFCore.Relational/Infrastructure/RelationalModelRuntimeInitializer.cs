@@ -1,13 +1,10 @@
 // Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Utilities;
 using Microsoft.Extensions.DependencyInjection;
-
-#nullable enable
 
 namespace Microsoft.EntityFrameworkCore.Infrastructure
 {
@@ -33,8 +30,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// <param name="dependencies"> The dependencies to use. </param>
         /// <param name="relationalDependencies"> The relational dependencies to use. </param>
         public RelationalModelRuntimeInitializer(
-            [NotNull] ModelRuntimeInitializerDependencies dependencies,
-            [NotNull] RelationalModelRuntimeInitializerDependencies relationalDependencies)
+            ModelRuntimeInitializerDependencies dependencies,
+            RelationalModelRuntimeInitializerDependencies relationalDependencies)
             : base(dependencies)
         {
             Check.NotNull(relationalDependencies, nameof(relationalDependencies));
@@ -51,19 +48,20 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         ///     Initializes the given model with runtime dependencies.
         /// </summary>
         /// <param name="model"> The model to initialize. </param>
+        /// <param name="designTime"> Whether the model should contain design-time configuration. </param>
         /// <param name="preValidation">
         ///     <see langword="true"/> indicates that only pre-validation initialization should be performed;
         ///     <see langword="false"/> indicates that only post-validation initialization should be performed.
         /// </param>
-        protected override void InitializeModel(IModel model, bool preValidation)
+        protected override void InitializeModel(IModel model, bool designTime, bool preValidation)
         {
             if (preValidation)
             {
-                model.AddRuntimeAnnotation(RelationalAnnotationNames.ModelDependencies, RelationalDependencies);
+                model.AddRuntimeAnnotation(RelationalAnnotationNames.ModelDependencies, RelationalDependencies.RelationalModelDependencies);
             }
             else
             {
-                RelationalModel.Add(model, RelationalDependencies.RelationalAnnotationProvider);
+                RelationalModel.Add(model, RelationalDependencies.RelationalAnnotationProvider, designTime);
             }
         }
     }

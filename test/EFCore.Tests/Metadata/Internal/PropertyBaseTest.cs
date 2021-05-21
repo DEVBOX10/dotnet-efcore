@@ -866,11 +866,12 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
 
             try
             {
-                var model = ((Model)propertyBase.DeclaringType.Model).FinalizeModel();
+                var model = propertyBase.DeclaringType.Model;
                 var contextServices = InMemoryTestHelpers.Instance.CreateContextServices();
                 var modelRuntimeInitializer = contextServices.GetRequiredService<IModelRuntimeInitializer>();
 
-                model = modelRuntimeInitializer.Initialize(model, new TestLogger<DbLoggerCategory.Model.Validation, TestLoggingDefinitions>());
+                model = modelRuntimeInitializer.Initialize(
+                    model, designTime: false, new TestLogger<DbLoggerCategory.Model.Validation, TestLoggingDefinitions>());
 
                 Assert.Null(failMessage);
             }

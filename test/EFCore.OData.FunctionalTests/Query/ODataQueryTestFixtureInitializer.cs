@@ -1,6 +1,7 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -20,6 +21,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.OData.Edm;
+using Microsoft.AspNet.OData;
 
 namespace Microsoft.EntityFrameworkCore.Query
 {
@@ -58,7 +60,14 @@ namespace Microsoft.EntityFrameworkCore.Query
                                 }
                             }
 
-                            endpoints.MaxTop(2).Expand().Select().OrderBy().Filter();
+                            IPerRouteContainer perRouteContainer = endpoints.ServiceProvider.GetRequiredService<IPerRouteContainer>();
+                            if (perRouteContainer == null)
+                            {
+                                throw new InvalidOperationException($"Could not resolve {nameof(IPerRouteContainer)}.");
+                            }
+                            perRouteContainer.BuilderFactory = () => new WorkaroundContainerBuilder();
+
+                            endpoints.MaxTop(null).Expand().Select().OrderBy().Filter().Count();
                             endpoints.MapODataRoute("odata", "odata",
                                 edmModel,
                                 new DefaultODataPathHandler(),

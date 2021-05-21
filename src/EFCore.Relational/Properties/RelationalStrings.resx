@@ -130,6 +130,15 @@
   <data name="ClientGroupByNotSupported" xml:space="preserve">
     <value>Unable to translate the given 'GroupBy' pattern. Call 'AsEnumerable' before 'GroupBy' to evaluate it client-side.</value>
   </data>
+  <data name="CompiledModelFunctionParameterTypeMapping" xml:space="preserve">
+    <value>The function parameter '{function}({parameter})' has a custom type mapping configured. Configure it in '{customize}' in a partial '{className}' class instead.</value>
+  </data>
+  <data name="CompiledModelFunctionTranslation" xml:space="preserve">
+    <value>The function '{function}' has a custom translation. Compiled model can't be generated, because custom function translations are not supported.</value>
+  </data>
+  <data name="CompiledModelFunctionTypeMapping" xml:space="preserve">
+    <value>The function '{function}' has a custom type mapping configured. Configure it in '{customize}' in a partial '{className}' class instead.</value>
+  </data>
   <data name="ComputedColumnSqlUnspecified" xml:space="preserve">
     <value>The computed column SQL has not been specified for the column '{table}.{column}'. Specify the SQL before using Entity Framework to create the database schema.</value>
   </data>
@@ -218,6 +227,9 @@
   <data name="DerivedTypeTable" xml:space="preserve">
     <value>The entity type '{entityType}' cannot be mapped to a table because it is derived from '{baseType}'. Only base entity types can be mapped to a table.</value>
     <comment>Obsolete</comment>
+  </data>
+  <data name="DistinctOnCollectionNotSupported" xml:space="preserve">
+    <value>Using 'Distinct' operation on a projection containing a collection is not supported.</value>
   </data>
   <data name="DuplicateCheckConstraint" xml:space="preserve">
     <value>The check constraint '{checkConstraint}' cannot be added to the entity type '{entityType}' because another check constraint with the same name already exists.</value>
@@ -521,11 +533,11 @@
   </data>
   <data name="LogNamedIndexAllPropertiesNotToMappedToAnyTable" xml:space="preserve">
     <value>The index named '{indexName}' on the entity type '{entityType}' specifies properties {indexProperties}, but none of these properties are mapped to a column in any table. This index will not be created in the database.</value>
-    <comment>Information RelationalEventId.AllIndexPropertiesNotToMappedToAnyTable string string string</comment>
+    <comment>Information RelationalEventId.AllIndexPropertiesNotToMappedToAnyTable string? string string</comment>
   </data>
   <data name="LogNamedIndexPropertiesBothMappedAndNotMappedToTable" xml:space="preserve">
     <value>The index named '{indexName}' on the entity type '{entityType}' specifies properties {indexProperties}. Some properties are mapped to a column in a table, but the property '{propertyName}' is not. All of the properties must be mapped for the index to be created in the database.</value>
-    <comment>Error RelationalEventId.IndexPropertiesBothMappedAndNotMappedToTable string string string string</comment>
+    <comment>Error RelationalEventId.IndexPropertiesBothMappedAndNotMappedToTable string? string string string</comment>
   </data>
   <data name="LogNamedIndexPropertiesMappedToNonOverlappingTables" xml:space="preserve">
     <value>The index named '{indexName}' on the entity type '{entityType}' specifies properties {indexProperties}. The property '{propertyName1}' is mapped to table(s) {tables1}, whereas the property '{propertyName2}' is mapped to table(s) {tables2}. All index properties must map to at least one common table.</value>
@@ -546,6 +558,10 @@
   <data name="LogOpeningConnection" xml:space="preserve">
     <value>Opening connection to database '{database}' on server '{server}'.</value>
     <comment>Debug RelationalEventId.ConnectionOpening string string</comment>
+  </data>
+  <data name="LogOptionalDependentWithoutIdentifyingProperty" xml:space="preserve">
+    <value>The entity type '{entityType}' is an optional dependent using table sharing without any required non shared property that could be used to identify whether the entity exists. If all nullable properties contain a null value in database then an object instance won't be created in the query. Add a required property to create instances with null values for other properties or mark the incoming navigation as required to always create an instance.</value>
+    <comment>Warning RelationalEventId.OptionalDependentWithoutIdentifyingPropertyWarning string</comment>
   </data>
   <data name="LogPossibleUnintendedUseOfEquals" xml:space="preserve">
     <value>Possible unintended use of method 'Equals' for arguments '{left}' and '{right}' of different types in a query. This comparison will always return false.</value>
@@ -621,9 +637,6 @@
   <data name="MissingConcurrencyColumn" xml:space="preserve">
     <value>Entity type '{entityType}' doesn't contain a property mapped to the store-generated concurrency token column '{missingColumn}' which is used by another entity type sharing the table '{table}'. Add a store-generated property to '{entityType}' which is mapped to the same column; it may be in shadow state.</value>
   </data>
-  <data name="MissingIdentifyingProjectionInDistinctGroupBySubquery" xml:space="preserve">
-    <value>Unable to translate a collection subquery in a projection since it uses 'Distinct' or 'Group By' operations and doesn't project key columns of all tables required to generate results on the client side. Missing column: {column}. Either add column(s) to the projection or rewrite the query to not use the 'GroupBy'/'Distinct' operation.</value>
-  </data>
   <data name="MissingOrderingInSelectExpression" xml:space="preserve">
     <value>'Reverse' could not be translated to the server because there is no ordering on the server side.</value>
   </data>
@@ -674,6 +687,9 @@
   </data>
   <data name="NullTypeMappingInSqlTree" xml:space="preserve">
     <value>Expression '{sqlExpression}' in the SQL tree does not have a type mapping assigned.</value>
+  </data>
+  <data name="OptionalDependentWithDependentWithoutIdentifyingProperty" xml:space="preserve">
+    <value>Entity type '{entityType}' is an optional dependent using table sharing and containing other dependents without any required non shared property to identify whether the entity exists. If all nullable properties contain a null value in database then an object instance won't be created in the query causing nested dependent's values to be lost. Add a required property to create instances with null values for other properties or mark the incoming navigation as required to always create an instance.</value>
   </data>
   <data name="ParameterNotObjectArray" xml:space="preserve">
     <value>Cannot use the value provided for parameter '{parameter}' because it isn't assignable to type object[].</value>
@@ -740,9 +756,6 @@
   </data>
   <data name="UnableToBindMemberToEntityProjection" xml:space="preserve">
     <value>Unable to bind '{memberType}.{member}' to an entity projection of '{entityType}'.</value>
-  </data>
-  <data name="UnableToSplitCollectionProjectionInSplitQuery" xml:space="preserve">
-    <value>The query has been configured to use '{splitQueryEnumValue}', but contains a collection in the 'Select' call which could not be split into a separate query. Remove '{splitQueryMethodName}' if applied, or add '{singleQueryMethodName}' to the query.</value>
   </data>
   <data name="UnhandledExpressionInVisitor" xml:space="preserve">
     <value>Unhandled expression '{expression}' of type '{expressionType}' encountered in '{visitor}'.</value>

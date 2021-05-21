@@ -560,7 +560,7 @@ namespace Microsoft.EntityFrameworkCore.Update
                     TestServiceFactory.Instance.Create<TypeMappingSourceDependencies>(),
                     TestServiceFactory.Instance.Create<RelationalTypeMappingSourceDependencies>());
 
-                var logger = new FakeDiagnosticsLogger<DbLoggerCategory.Database.Command>();
+                var logger = new FakeRelationalCommandDiagnosticsLogger();
 
                 return new ModificationCommandBatchFactoryDependencies(
                     new RelationalCommandBuilderFactory(
@@ -594,10 +594,7 @@ namespace Microsoft.EntityFrameworkCore.Update
                 => ShouldValidateSql;
 
             protected override void UpdateCachedCommandText(int commandIndex)
-            {
-                CachedCommandText ??= new StringBuilder();
-                CachedCommandText.Append(".");
-            }
+                => CachedCommandText.Append(".");
 
             public void UpdateCachedCommandTextBase(int commandIndex)
                 => base.UpdateCachedCommandText(commandIndex);

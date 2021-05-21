@@ -207,7 +207,10 @@ namespace Microsoft.EntityFrameworkCore.TestUtilities
             }
 
             public DbCommand CreateDbCommand(RelationalCommandParameterObject parameterObject, Guid commandId, DbCommandMethod commandMethod)
-                => throw new NotImplementedException();
+                => throw new NotSupportedException();
+
+            public void PopulateFrom(IRelationalCommand command)
+                => _realRelationalCommand.PopulateFrom(command);
 
             private int? PreExecution(IRelationalConnection connection)
             {

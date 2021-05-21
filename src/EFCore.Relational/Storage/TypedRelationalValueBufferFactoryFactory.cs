@@ -9,15 +9,12 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Storage.Internal;
 using Microsoft.EntityFrameworkCore.Utilities;
 using Microsoft.Extensions.DependencyInjection;
-
-#nullable enable
 
 namespace Microsoft.EntityFrameworkCore.Storage
 {
@@ -62,7 +59,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
         ///     Initializes a new instance of the <see cref="TypedRelationalValueBufferFactoryFactory" /> class.
         /// </summary>
         /// <param name="dependencies"> Parameter object containing dependencies for this service. </param>
-        public TypedRelationalValueBufferFactoryFactory([NotNull] RelationalValueBufferFactoryDependencies dependencies)
+        public TypedRelationalValueBufferFactoryFactory(RelationalValueBufferFactoryDependencies dependencies)
         {
             Check.NotNull(dependencies, nameof(dependencies));
 
@@ -124,7 +121,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// <param name="types"> Types and mapping for the values to be read. </param>
         /// <returns> The value buffer assignment expressions. </returns>
         [Obsolete]
-        public virtual IReadOnlyList<Expression> CreateAssignmentExpressions([NotNull] IReadOnlyList<TypeMaterializationInfo> types)
+        public virtual IReadOnlyList<Expression> CreateAssignmentExpressions(IReadOnlyList<TypeMaterializationInfo> types)
             => Check.NotNull(types, nameof(types))
                 .Select(
                     (mi, i) =>
@@ -266,10 +263,29 @@ namespace Microsoft.EntityFrameworkCore.Storage
                 || materializationInfo.IsFromLeftOuterJoin != false)
             {
 #pragma warning restore CS0612 // Type or member is obsolete
+
+                Expression replaceExpression;
+                if (converter?.ConvertsNulls == true)
+                {
+                    replaceExpression = ReplacingExpressionVisitor.Replace(
+                        converter.ConvertFromProviderExpression.Parameters.Single(),
+                        Expression.Default(converter.ProviderClrType),
+                        converter.ConvertFromProviderExpression.Body);
+
+                    if (replaceExpression.Type != valueExpression.Type)
+                    {
+                        replaceExpression = Expression.Convert(replaceExpression, valueExpression.Type);
+                    }
+                }
+                else
+                {
+                    replaceExpression = Expression.Default(valueExpression.Type);
+                }
+
                 valueExpression
                     = Expression.Condition(
                         Expression.Call(dataReaderExpression, _isDbNullMethod, indexExpression),
-                        Expression.Default(valueExpression.Type),
+                        replaceExpression,
                         valueExpression);
             }
 

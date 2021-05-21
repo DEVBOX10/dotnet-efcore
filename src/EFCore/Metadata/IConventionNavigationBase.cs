@@ -3,8 +3,6 @@
 
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
-#nullable enable
-
 namespace Microsoft.EntityFrameworkCore.Metadata
 {
     /// <summary>
@@ -26,7 +24,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         /// <returns> The configured value. </returns>
         bool? SetIsEagerLoaded(bool? eagerLoaded, bool fromDataAnnotation = false)
         {
-            this.SetOrRemoveAnnotation(CoreAnnotationNames.EagerLoaded, eagerLoaded, fromDataAnnotation);
+            SetOrRemoveAnnotation(CoreAnnotationNames.EagerLoaded, eagerLoaded, fromDataAnnotation);
             return eagerLoaded;
         }
 

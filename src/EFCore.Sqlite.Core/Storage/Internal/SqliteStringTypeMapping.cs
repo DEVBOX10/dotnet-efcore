@@ -5,10 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Text;
-using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Storage;
-
-#nullable enable
 
 namespace Microsoft.EntityFrameworkCore.Sqlite.Storage.Internal
 {
@@ -28,7 +25,7 @@ namespace Microsoft.EntityFrameworkCore.Sqlite.Storage.Internal
         /// <param name="unicode"> A value indicating whether the type should handle Unicode data or not. </param>
         /// <param name="size"> The size of data the property is configured to store, or null if no size is configured. </param>
         public SqliteStringTypeMapping(
-            [NotNull] string storeType,
+            string storeType,
             DbType? dbType = null,
             bool unicode = false,
             int? size = null)
@@ -125,7 +122,7 @@ namespace Microsoft.EntityFrameworkCore.Sqlite.Storage.Internal
                                 startIndexes.Add(builder.Length);
                             }
 
-                            builder.Append("'");
+                            builder.Append('\'');
                             openApostrophe = true;
                         }
 
@@ -190,11 +187,11 @@ namespace Microsoft.EntityFrameworkCore.Sqlite.Storage.Internal
                 }
 
                 var mid = start + count / 2;
-                newBuilder.Append("(");
+                newBuilder.Append('(');
                 GenerateBalancedTree(start, mid);
                 newBuilder.Append(" || ");
                 GenerateBalancedTree(mid, end);
-                newBuilder.Append(")");
+                newBuilder.Append(')');
             }
         }
     }

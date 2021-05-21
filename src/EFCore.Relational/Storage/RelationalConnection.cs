@@ -6,19 +6,16 @@ using System.Collections.Concurrent;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Transactions;
-using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using IsolationLevel = System.Data.IsolationLevel;
-using CA = System.Diagnostics.CodeAnalysis;
-
-#nullable enable
 
 namespace Microsoft.EntityFrameworkCore.Storage
 {
@@ -43,25 +40,29 @@ namespace Microsoft.EntityFrameworkCore.Storage
         private bool _connectionOwned;
         private int _openedCount;
         private bool _openedInternally;
-        private int? _commandTimeout;
-        private readonly ConcurrentStack<Transaction> _ambientTransactions;
+        private int? _commandTimeout, _defaultCommandTimeout;
+        private readonly ConcurrentStack<Transaction> _ambientTransactions = new();
         private DbConnection? _connection;
+        private readonly IRelationalCommandBuilder _relationalCommandBuilder;
+        private IRelationalCommand? _cachedRelationalCommand;
+        private readonly Stopwatch _stopwatch = new();
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="RelationalConnection" /> class.
         /// </summary>
         /// <param name="dependencies"> Parameter object containing dependencies for this service. </param>
-        protected RelationalConnection([NotNull] RelationalConnectionDependencies dependencies)
+        protected RelationalConnection(RelationalConnectionDependencies dependencies)
         {
             Check.NotNull(dependencies, nameof(dependencies));
 
             Context = dependencies.CurrentContext.Context;
+            _relationalCommandBuilder = dependencies.RelationalCommandBuilderFactory.Create();
 
             Dependencies = dependencies;
 
             var relationalOptions = RelationalOptionsExtension.Extract(dependencies.ContextOptions);
 
-            _commandTimeout = relationalOptions.CommandTimeout;
+            _defaultCommandTimeout = _commandTimeout = relationalOptions.CommandTimeout;
 
             _connectionString = string.IsNullOrWhiteSpace(relationalOptions.ConnectionString)
                 ? null
@@ -81,8 +82,6 @@ namespace Microsoft.EntityFrameworkCore.Storage
             {
                 _connectionOwned = true;
             }
-
-            _ambientTransactions = new ConcurrentStack<Transaction>();
         }
 
         /// <summary>
@@ -151,7 +150,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
         ///         Note that a connection set must be disposed by application code since it was not created by Entity Framework.
         ///     </para>
         /// </summary>
-        [CA.AllowNull]
+        [AllowNull]
         public virtual DbConnection DbConnection
         {
             get
@@ -183,9 +182,14 @@ namespace Microsoft.EntityFrameworkCore.Storage
         }
 
         /// <summary>
+        ///     The current ambient transaction. Defaults to <see cref="Transaction.Current" />.
+        /// </summary>
+        public virtual Transaction? CurrentAmbientTransaction => Transaction.Current;
+
+        /// <summary>
         ///     Gets the current transaction.
         /// </summary>
-        public virtual IDbContextTransaction? CurrentTransaction { get; [param: CanBeNull] protected set; }
+        public virtual IDbContextTransaction? CurrentTransaction { get; protected set; }
 
         /// <summary>
         ///     The currently enlisted transaction.
@@ -211,7 +215,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
 
                 return _enlistedTransaction;
             }
-            [param: CanBeNull] protected set => _enlistedTransaction = value;
+            protected set => _enlistedTransaction = value;
         }
 
         /// <summary>
@@ -237,11 +241,11 @@ namespace Microsoft.EntityFrameworkCore.Storage
         }
 
         /// <summary>
-        ///     Template method that by default calls <see cref="DbConnection.EnlistTransaction" /> but can be overriden
+        ///     Template method that by default calls <see cref="System.Data.Common.DbConnection.EnlistTransaction" /> but can be overriden
         ///     by providers to make a different call instead.
         /// </summary>
         /// <param name="transaction"> The transaction to be used. </param>
-        protected virtual void ConnectionEnlistTransaction([CanBeNull] Transaction? transaction)
+        protected virtual void ConnectionEnlistTransaction(Transaction? transaction)
              => DbConnection.EnlistTransaction(transaction);
 
         /// <summary>
@@ -267,6 +271,29 @@ namespace Microsoft.EntityFrameworkCore.Storage
                 _commandTimeout = value;
             }
         }
+
+        /// <summary>
+        ///     Rents a relational command that can be executed with this connection.
+        /// </summary>
+        /// <returns> A relational command that can be executed with this connection. </returns>
+        public virtual IRelationalCommand RentCommand()
+        {
+            var command = _cachedRelationalCommand;
+
+            if (command is null)
+            {
+                return _relationalCommandBuilder.Build();
+            }
+
+            _cachedRelationalCommand = null;
+            return command;
+        }
+
+        /// <summary>
+        ///     Returns a relational command to this connection, so that it can be reused in the future.
+        /// </summary>
+        public virtual void ReturnCommand(IRelationalCommand command)
+            => _cachedRelationalCommand ??= command;
 
         /// <summary>
         ///     Begins a new transaction.
@@ -300,7 +327,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
 
             var transactionId = Guid.NewGuid();
             var startTime = DateTimeOffset.UtcNow;
-            var stopwatch = Stopwatch.StartNew();
+            _stopwatch.Restart();
 
             var interceptionResult = Dependencies.TransactionLogger.TransactionStarting(
                 this,
@@ -317,13 +344,13 @@ namespace Microsoft.EntityFrameworkCore.Storage
                 dbTransaction,
                 transactionId,
                 startTime,
-                stopwatch.Elapsed);
+                _stopwatch.Elapsed);
 
             return CreateRelationalTransaction(dbTransaction, transactionId, true);
         }
 
         /// <summary>
-        ///     Template method that by default calls <see cref="DbConnection.BeginDbTransaction" /> but can be overriden
+        ///     Template method that by default calls <see cref="System.Data.Common.DbConnection.BeginDbTransaction" /> but can be overriden
         ///     by providers to make a different call instead.
         /// </summary>
         /// <param name="isolationLevel"> The isolation level to use for the transaction. </param>
@@ -351,7 +378,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
 
             var transactionId = Guid.NewGuid();
             var startTime = DateTimeOffset.UtcNow;
-            var stopwatch = Stopwatch.StartNew();
+            _stopwatch.Restart();
 
             var interceptionResult = await Dependencies.TransactionLogger.TransactionStartingAsync(
                     this,
@@ -370,7 +397,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
                     dbTransaction,
                     transactionId,
                     startTime,
-                    stopwatch.Elapsed,
+                    _stopwatch.Elapsed,
                     cancellationToken)
                 .ConfigureAwait(false);
 
@@ -378,8 +405,8 @@ namespace Microsoft.EntityFrameworkCore.Storage
         }
 
         /// <summary>
-        ///     Template method that by default calls <see cref="DbConnection.BeginDbTransactionAsync" /> but can be overriden
-        ///     by providers to make a different call instead.
+        ///     Template method that by default calls <see cref="System.Data.Common.DbConnection.BeginDbTransactionAsync" /> but can be
+        ///     overriden by providers to make a different call instead.
         /// </summary>
         /// <param name="isolationLevel"> The isolation level to use for the transaction. </param>
         /// <param name="cancellationToken"> A <see cref="CancellationToken" /> to observe while waiting for the task to complete. </param>
@@ -397,7 +424,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
                 throw new InvalidOperationException(RelationalStrings.TransactionAlreadyStarted);
             }
 
-            if (Transaction.Current != null)
+            if (CurrentAmbientTransaction != null)
             {
                 throw new InvalidOperationException(RelationalStrings.ConflictingAmbientTransaction);
             }
@@ -434,7 +461,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
         ///     An instance of <see cref="IDbContextTransaction" /> that wraps the provided transaction, or <see langword="null" />
         ///     if <paramref name="transaction" /> is <see langword="null" />.
         /// </returns>
-        [return: CA.NotNullIfNotNull("transaction")]
+        [return: NotNullIfNotNull("transaction")]
         public virtual IDbContextTransaction? UseTransaction(DbTransaction? transaction, Guid transactionId)
         {
             if (ShouldUseTransaction(transaction))
@@ -443,7 +470,6 @@ namespace Microsoft.EntityFrameworkCore.Storage
 
                 transaction = Dependencies.TransactionLogger.TransactionUsed(
                     this,
-                    // ReSharper disable once AssignNullToNotNullAttribute
                     transaction,
                     transactionId,
                     DateTimeOffset.UtcNow);
@@ -485,7 +511,6 @@ namespace Microsoft.EntityFrameworkCore.Storage
 
                 transaction = await Dependencies.TransactionLogger.TransactionUsedAsync(
                         this,
-                        // ReSharper disable once AssignNullToNotNullAttribute
                         transaction,
                         transactionId,
                         DateTimeOffset.UtcNow,
@@ -498,7 +523,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
             return CurrentTransaction;
         }
 
-        private bool ShouldUseTransaction(DbTransaction? transaction)
+        private bool ShouldUseTransaction([NotNullWhen(true)] DbTransaction? transaction)
         {
             if (transaction == null)
             {
@@ -630,6 +655,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
 
                 ClearTransactions(clearAmbient: false);
                 await OpenInternalAsync(errorsExpected, cancellationToken).ConfigureAwait(false);
+
                 wasOpened = true;
             }
 
@@ -664,23 +690,32 @@ namespace Microsoft.EntityFrameworkCore.Storage
 
         private void OpenInternal(bool errorsExpected)
         {
+            var logger = Dependencies.ConnectionLogger;
             var startTime = DateTimeOffset.UtcNow;
-            var stopwatch = Stopwatch.StartNew();
-
-            var interceptionResult = Dependencies.ConnectionLogger.ConnectionOpening(this, startTime);
 
             try
             {
-                if (!interceptionResult.IsSuppressed)
+                if (logger.ShouldLogConnectionOpen(startTime))
+                {
+                    _stopwatch.Restart();
+
+                    var interceptionResult = logger.ConnectionOpening(this, startTime);
+
+                    if (!interceptionResult.IsSuppressed)
+                    {
+                        OpenDbConnection(errorsExpected);
+                    }
+
+                    logger.ConnectionOpened(this, startTime, _stopwatch.Elapsed);
+                }
+                else
                 {
                     OpenDbConnection(errorsExpected);
                 }
-
-                Dependencies.ConnectionLogger.ConnectionOpened(this, startTime, stopwatch.Elapsed);
             }
             catch (Exception e)
             {
-                Dependencies.ConnectionLogger.ConnectionError(this, e, startTime, stopwatch.Elapsed, errorsExpected);
+                logger.ConnectionError(this, e, startTime, _stopwatch.Elapsed, errorsExpected);
 
                 throw;
             }
@@ -692,7 +727,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
         }
 
         /// <summary>
-        ///     Template method that by default calls <see cref="DbConnection.Open" /> but can be overriden
+        ///     Template method that by default calls <see cref="System.Data.Common.DbConnection.Open" /> but can be overriden
         ///     by providers to make a different call instead.
         /// </summary>
         /// <param name="errorsExpected"> Indicates if the connection errors are expected and should be logged as debug message. </param>
@@ -701,30 +736,37 @@ namespace Microsoft.EntityFrameworkCore.Storage
 
         private async Task OpenInternalAsync(bool errorsExpected, CancellationToken cancellationToken)
         {
+            var logger = Dependencies.ConnectionLogger;
             var startTime = DateTimeOffset.UtcNow;
-            var stopwatch = Stopwatch.StartNew();
-
-            var interceptionResult
-                = await Dependencies.ConnectionLogger.ConnectionOpeningAsync(this, startTime, cancellationToken)
-                    .ConfigureAwait(false);
 
             try
             {
-                if (!interceptionResult.IsSuppressed)
+                if (logger.ShouldLogConnectionOpen(startTime))
+                {
+                    _stopwatch.Restart();
+
+                    var interceptionResult
+                        = await logger.ConnectionOpeningAsync(this, startTime, cancellationToken).ConfigureAwait(false);
+
+                    if (!interceptionResult.IsSuppressed)
+                    {
+                        await OpenDbConnectionAsync(errorsExpected, cancellationToken).ConfigureAwait(false);
+                    }
+
+                    await logger.ConnectionOpenedAsync(this, startTime, _stopwatch.Elapsed, cancellationToken).ConfigureAwait(false);
+                }
+                else
                 {
                     await OpenDbConnectionAsync(errorsExpected, cancellationToken).ConfigureAwait(false);
                 }
-
-                await Dependencies.ConnectionLogger.ConnectionOpenedAsync(this, startTime, stopwatch.Elapsed, cancellationToken)
-                    .ConfigureAwait(false);
             }
             catch (Exception e)
             {
-                await Dependencies.ConnectionLogger.ConnectionErrorAsync(
+                await logger.ConnectionErrorAsync(
                         this,
                         e,
                         startTime,
-                        stopwatch.Elapsed,
+                        DateTimeOffset.UtcNow - startTime,
                         errorsExpected,
                         cancellationToken)
                     .ConfigureAwait(false);
@@ -750,7 +792,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
 
         private void HandleAmbientTransactions()
         {
-            var current = Transaction.Current;
+            var current = CurrentAmbientTransaction;
 
             if (current == null)
             {
@@ -816,25 +858,34 @@ namespace Microsoft.EntityFrameworkCore.Storage
 
                 if (DbConnectionState != ConnectionState.Closed)
                 {
+                    var logger = Dependencies.ConnectionLogger;
                     var startTime = DateTimeOffset.UtcNow;
-                    var stopwatch = Stopwatch.StartNew();
-
-                    var interceptionResult = Dependencies.ConnectionLogger.ConnectionClosing(this, startTime);
 
                     try
                     {
-                        if (!interceptionResult.IsSuppressed)
+                        if (logger.ShouldLogConnectionClose(startTime))
                         {
-                            CloseDbConnection();
+                            _stopwatch.Restart();
+
+                            var interceptionResult = Dependencies.ConnectionLogger.ConnectionClosing(this, startTime);
+
+                            if (!interceptionResult.IsSuppressed)
+                            {
+                                CloseDbConnection();
+                            }
+
+                            Dependencies.ConnectionLogger.ConnectionClosed(this, startTime, _stopwatch.Elapsed);
+                        }
+                        else
+                        {
+                            CloseDbConnectionAsync();
                         }
 
                         wasClosed = true;
-
-                        Dependencies.ConnectionLogger.ConnectionClosed(this, startTime, stopwatch.Elapsed);
                     }
                     catch (Exception e)
                     {
-                        Dependencies.ConnectionLogger.ConnectionError(this, e, startTime, stopwatch.Elapsed, false);
+                        Dependencies.ConnectionLogger.ConnectionError(this, e, startTime, _stopwatch.Elapsed, false);
 
                         throw;
                     }
@@ -847,7 +898,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
         }
 
         /// <summary>
-        ///     Template method that by default calls <see cref="DbConnection.Close" /> but can be overriden
+        ///     Template method that by default calls <see cref="System.Data.Common.DbConnection.Close" /> but can be overriden
         ///     by providers to make a different call instead.
         /// </summary>
         protected virtual void CloseDbConnection()
@@ -875,26 +926,32 @@ namespace Microsoft.EntityFrameworkCore.Storage
 
                 if (DbConnectionState != ConnectionState.Closed)
                 {
+                    var logger = Dependencies.ConnectionLogger;
                     var startTime = DateTimeOffset.UtcNow;
-                    var stopwatch = Stopwatch.StartNew();
-
-                    var interceptionResult = await Dependencies.ConnectionLogger.ConnectionClosingAsync(this, startTime)
-                        .ConfigureAwait(false);
 
                     try
                     {
-                        if (!interceptionResult.IsSuppressed)
+                        if (logger.ShouldLogConnectionClose(startTime))
+                        {
+                            _stopwatch.Restart();
+
+                            var interceptionResult = await Dependencies.ConnectionLogger.ConnectionClosingAsync(this, startTime)
+                                .ConfigureAwait(false);
+
+                            if (!interceptionResult.IsSuppressed)
+                            {
+                                await CloseDbConnectionAsync().ConfigureAwait(false);
+                            }
+
+                            await Dependencies.ConnectionLogger.ConnectionClosedAsync(this, startTime, _stopwatch.Elapsed)
+                                .ConfigureAwait(false);
+                        }
+                        else
                         {
                             await CloseDbConnectionAsync().ConfigureAwait(false);
                         }
 
                         wasClosed = true;
-
-                        await Dependencies.ConnectionLogger.ConnectionClosedAsync(
-                                this,
-                                startTime,
-                                stopwatch.Elapsed)
-                            .ConfigureAwait(false);
                     }
                     catch (Exception e)
                     {
@@ -902,7 +959,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
                                 this,
                                 e,
                                 startTime,
-                                stopwatch.Elapsed,
+                                DateTimeOffset.UtcNow - startTime,
                                 false)
                             .ConfigureAwait(false);
 
@@ -936,10 +993,10 @@ namespace Microsoft.EntityFrameworkCore.Storage
                 && _openedInternally;
 
         void IResettableService.ResetState()
-            => Dispose();
+            => ResetState(disposeDbConnection: false);
 
         Task IResettableService.ResetStateAsync(CancellationToken cancellationToken)
-            => DisposeAsync().AsTask();
+            => ResetStateAsync(disposeDbConnection: false).AsTask();
 
         /// <summary>
         ///     Gets a semaphore used to serialize access to this connection.
@@ -956,12 +1013,34 @@ namespace Microsoft.EntityFrameworkCore.Storage
         ///     Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
         /// </summary>
         public virtual void Dispose()
+            => ResetState(disposeDbConnection: true);
+
+        /// <summary>
+        ///     Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
+        /// </summary>
+        public virtual ValueTask DisposeAsync()
+            => ResetStateAsync(disposeDbConnection: true);
+
+        /// <summary>
+        ///     Resets the connection state. Called by <see cref="Dispose" /> and <see cref="IResettableService.ResetState" />.
+        /// </summary>
+        /// <param name="disposeDbConnection">
+        ///     Whether the underlying <see cref="DbConnection" /> should be disposed, assuming it is owned by this
+        ///     <see cref="RelationalConnection" />. If <see langword="false" />, the existing <see cref="DbConnection" /> may get reused.
+        /// </param>
+        protected virtual void ResetState(bool disposeDbConnection)
         {
             CurrentTransaction?.Dispose();
             ClearTransactions(clearAmbient: true);
 
-            if (_connectionOwned
-                && _connection != null)
+            _commandTimeout = _defaultCommandTimeout;
+
+            _openedCount = 0;
+            _openedInternally = false;
+
+            if (disposeDbConnection
+                && _connectionOwned
+                && _connection is not null)
             {
                 DisposeDbConnection();
                 _connection = null;
@@ -971,16 +1050,13 @@ namespace Microsoft.EntityFrameworkCore.Storage
         }
 
         /// <summary>
-        ///     Template method that by default calls Dispose on <see cref="System.Data.Common.DbConnection" /> but can be overriden
-        ///     by providers to make a different call instead.
+        ///     Resets the connection state. Called by <see cref="DisposeAsync" /> and <see cref="IResettableService.ResetStateAsync" />.
         /// </summary>
-        protected virtual void DisposeDbConnection()
-            => DbConnection.Dispose();
-
-        /// <summary>
-        ///     Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
-        /// </summary>
-        public virtual async ValueTask DisposeAsync()
+        /// <param name="disposeDbConnection">
+        ///     Whether the underlying <see cref="DbConnection" /> should be disposed, assuming it is owned by this
+        ///     <see cref="RelationalConnection" />. If <see langword="false" />, the existing <see cref="DbConnection" /> may get reused.
+        /// </param>
+        protected virtual async ValueTask ResetStateAsync(bool disposeDbConnection)
         {
             if (CurrentTransaction != null)
             {
@@ -989,18 +1065,29 @@ namespace Microsoft.EntityFrameworkCore.Storage
 
             ClearTransactions(clearAmbient: true);
 
-            if (_connectionOwned
-                && _connection != null)
+            _commandTimeout = _defaultCommandTimeout;
+
+            if (disposeDbConnection
+                && _connectionOwned
+                && _connection is not null)
             {
                 await DisposeDbConnectionAsync().ConfigureAwait(false);
                 _connection = null;
                 _openedCount = 0;
+                _openedInternally = false;
             }
         }
 
         /// <summary>
-        ///     Template method that by default calls <see cref="DbConnection.DisposeAsync" /> but can be overriden
-        ///     by providers to make a different call instead.
+        ///     Template method that by default calls <see cref="M:System.Data.Common.DbConnection.Dispose" /> but can be overriden by
+        ///     providers to make a different call instead.
+        /// </summary>
+        protected virtual void DisposeDbConnection()
+            => DbConnection.Dispose();
+
+        /// <summary>
+        ///     Template method that by default calls <see cref="System.Data.Common.DbConnection.DisposeAsync" /> but can be overriden by
+        ///     providers to make a different call instead.
         /// </summary>
         protected virtual ValueTask DisposeDbConnectionAsync()
             => DbConnection.DisposeAsync();

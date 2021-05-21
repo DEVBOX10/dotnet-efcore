@@ -4,8 +4,6 @@
 using System;
 using System.Collections.Generic;
 
-#nullable enable
-
 namespace Microsoft.EntityFrameworkCore.Metadata.Internal
 {
     /// <summary>
@@ -70,6 +68,14 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
+        public const string ValueGeneratorFactoryType = "ValueGeneratorFactoryType";
+
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
         public const string PropertyAccessMode = "PropertyAccessMode";
 
         /// <summary>
@@ -118,22 +124,6 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public const string ConstructorBinding = "ConstructorBinding";
-
-        /// <summary>
-        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
-        ///     any release. You should only use it directly in your code with extreme caution and knowing that
-        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
-        /// </summary>
-        public const string ServiceOnlyConstructorBinding = "ServiceOnlyConstructorBinding";
-
-        /// <summary>
-        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
-        ///     any release. You should only use it directly in your code with extreme caution and knowing that
-        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
-        /// </summary>
         public const string ValueConverter = "ValueConverter";
 
         /// <summary>
@@ -142,7 +132,23 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
+        public const string ValueConverterType = "ValueConverterType";
+
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
         public const string ValueComparer = "ValueComparer";
+
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
+        public const string ValueComparerType = "ValueComparerType";
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -225,6 +231,14 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
+        public const string ReadOnlyModel = "ReadOnlyModel";
+
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
         public const string InverseNavigations = "InversePropertyAttributeConvention:InverseNavigations";
 
         /// <summary>
@@ -289,16 +303,17 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
             Unicode,
             ProductVersion,
             ValueGeneratorFactory,
+            ValueGeneratorFactoryType,
             PropertyAccessMode,
             NavigationAccessMode,
             OwnedTypes,
             DiscriminatorProperty,
             DiscriminatorMappingComplete,
             DiscriminatorValue,
-            ConstructorBinding,
-            ServiceOnlyConstructorBinding,
             ValueConverter,
+            ValueConverterType,
             ValueComparer,
+            ValueComparerType,
 #pragma warning disable 618
             KeyValueComparer,
             StructuralValueComparer,
@@ -312,6 +327,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
             EagerLoaded,
             ProviderClrType,
             ModelDependencies,
+            ReadOnlyModel,
             InverseNavigations,
             DerivedTypes,
             NavigationCandidates,

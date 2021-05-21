@@ -22,6 +22,6 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// <summary>
         ///     Gets the value assigned to this annotation.
         /// </summary>
-        object Value { get; }
+        object? Value { get; }
     }
 }

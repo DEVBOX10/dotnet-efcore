@@ -8,7 +8,6 @@ using System.Globalization;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.TestUtilities;
@@ -26,74 +25,6 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
 {
     public partial class EntityTypeTest
     {
-        [ConditionalFact]
-        public void Use_of_custom_IEntityType_throws()
-        {
-            var type = new FakeEntityType();
-
-            Assert.Equal(
-                CoreStrings.CustomMetadata(nameof(Use_of_custom_IEntityType_throws), nameof(IReadOnlyEntityType), nameof(FakeEntityType)),
-                Assert.Throws<NotSupportedException>(() => type.AsEntityType()).Message);
-        }
-
-        private class FakeEntityType : Annotatable, IReadOnlyEntityType
-        {
-            public IReadOnlyModel Model { get; }
-            public string Name { get; }
-            public bool HasSharedClrType { get; }
-            public bool IsPropertyBag { get; }
-            public Type ClrType { get; }
-            public IReadOnlyEntityType BaseType { get; }
-            public string DefiningNavigationName { get; }
-            public IReadOnlyEntityType DefiningEntityType { get; }
-            public LambdaExpression QueryFilter { get; }
-
-            public IReadOnlyKey FindPrimaryKey()
-                => throw new NotImplementedException();
-
-            public IReadOnlyKey FindKey(IReadOnlyList<IReadOnlyProperty> properties)
-                => throw new NotImplementedException();
-
-            public IEnumerable<IReadOnlyKey> GetKeys()
-                => throw new NotImplementedException();
-
-            public IReadOnlyForeignKey FindForeignKey(IReadOnlyList<IReadOnlyProperty> properties, IReadOnlyKey principalKey, IReadOnlyEntityType principalEntityType)
-                => throw new NotImplementedException();
-
-            public IEnumerable<IReadOnlyForeignKey> GetForeignKeys()
-                => throw new NotImplementedException();
-
-            public IReadOnlyIndex FindIndex(IReadOnlyList<IReadOnlyProperty> properties)
-                => throw new NotImplementedException();
-
-            public IReadOnlyIndex FindIndex(string name)
-                => throw new NotImplementedException();
-
-            public IEnumerable<IReadOnlyIndex> GetIndexes()
-                => throw new NotImplementedException();
-
-            public IReadOnlyProperty FindProperty(string name)
-                => throw new NotImplementedException();
-
-            public IEnumerable<IReadOnlyProperty> GetProperties()
-                => throw new NotImplementedException();
-
-            public IReadOnlyServiceProperty FindServiceProperty(string name)
-                => throw new NotImplementedException();
-
-            public IEnumerable<IReadOnlyServiceProperty> GetServiceProperties()
-                => throw new NotImplementedException();
-
-            public IEnumerable<IDictionary<string, object>> GetSeedData()
-                => throw new NotImplementedException();
-
-            public IReadOnlySkipNavigation FindSkipNavigation([NotNull] string name)
-                => throw new NotImplementedException();
-
-            public IEnumerable<IReadOnlySkipNavigation> GetSkipNavigations()
-                => throw new NotImplementedException();
-        }
-
         [ConditionalFact]
         public void Throws_when_model_is_readonly()
         {
@@ -121,7 +52,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
 
             Assert.Equal(
                 CoreStrings.ModelReadOnly,
-                Assert.Throws<InvalidOperationException>(() => entityTypeA.SetChangeTrackingStrategy(ChangeTrackingStrategy.ChangingAndChangedNotifications)).Message);
+                Assert.Throws<InvalidOperationException>(
+                    () => entityTypeA.SetChangeTrackingStrategy(ChangeTrackingStrategy.ChangingAndChangedNotifications)).Message);
 
             Assert.Equal(
                 CoreStrings.ModelReadOnly,
@@ -157,7 +89,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
 
             Assert.Equal(
                 CoreStrings.ModelReadOnly,
-                Assert.Throws<InvalidOperationException>(() => entityTypeA.AddData(new { })).Message);
+                Assert.Throws<InvalidOperationException>(() => entityTypeA.AddData(new[] { new { } })).Message);
         }
 
         [ConditionalFact]
@@ -178,11 +110,14 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         public void Display_name_is_prettified_for_owned_shared_type()
             => Assert.Equal(
                 "Is<Awesome, When>.We#re.Living#Our.Dream",
-                CreateModel().AddEntityType("Everything.Is<Awesome, When>.We#re.Living#Our.Dream", typeof(Dictionary<string, object>)).DisplayName());
+                CreateModel().AddEntityType("Everything.Is<Awesome, When>.We#re.Living#Our.Dream", typeof(Dictionary<string, object>))
+                    .DisplayName());
 
         [ConditionalFact]
         public void Display_name_is_entity_type_name_when_shared_entity_type()
-            => Assert.Equal("Everything.Is+PostTag (Dictionary<string, object>)", CreateModel().AddEntityType("Everything.Is+PostTag", typeof(Dictionary<string, object>)).DisplayName());
+            => Assert.Equal(
+                "Everything.Is+PostTag (Dictionary<string, object>)",
+                CreateModel().AddEntityType("Everything.Is+PostTag", typeof(Dictionary<string, object>)).DisplayName());
 
         [ConditionalFact]
         public void Name_is_prettified_CLR_full_name()
@@ -2176,23 +2111,6 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         }
 
         [ConditionalFact]
-        public void Adding_a_new_service_property_with_a_type_that_already_exists_throws()
-        {
-            var model = CreateModel();
-            var entityType = model.AddEntityType(typeof(Customer));
-            entityType.AddServiceProperty(Customer.OrdersProperty);
-
-            Assert.Equal(
-                CoreStrings.DuplicateServicePropertyType(
-                    nameof(Customer.MoreOrders),
-                    "ICollection<Order>",
-                    nameof(Customer),
-                    nameof(Customer.Orders),
-                    nameof(Customer)),
-                Assert.Throws<InvalidOperationException>(() => entityType.AddServiceProperty(Customer.MoreOrdersProperty)).Message);
-        }
-
-        [ConditionalFact]
         public void Can_add_indexed_property()
         {
             var model = CreateModel();
@@ -2231,7 +2149,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
             var model = CreateModel();
             var entityType = model.AddEntityType(typeof(Customer));
             var property = entityType.AddIndexerProperty("Nation", typeof(string));
-            var itemProperty = entityType.AddProperty("Item", typeof(string));
+            entityType.AddProperty("Item", typeof(string));
             var indexerPropertyInfo = typeof(Customer).GetRuntimeProperty("Item");
             Assert.NotNull(indexerPropertyInfo);
 
@@ -2278,12 +2196,13 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         public void Can_get_property_indexes()
         {
             var modelBuilder = new ModelBuilder();
-            modelBuilder.Entity<Customer>(eb =>
-            {
-                eb.Property(c => c.Name);
-                eb.Property<int>("Id_");
-                eb.Property<int>("Mane_");
-            });
+            modelBuilder.Entity<Customer>(
+                eb =>
+                {
+                    eb.Property(c => c.Name);
+                    eb.Property<int>("Id_");
+                    eb.Property<int>("Mane_");
+                });
 
             var entityType = modelBuilder.FinalizeModel().FindEntityType(typeof(Customer));
 
@@ -3156,7 +3075,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
             public string Mane { get; set; }
 
             public object this[string name]
-                => null;
+            {
+                get => null;
+                set { }
+            }
 
             public ICollection<Order> Orders { get; set; }
             public ICollection<Order> MoreOrders { get; set; }

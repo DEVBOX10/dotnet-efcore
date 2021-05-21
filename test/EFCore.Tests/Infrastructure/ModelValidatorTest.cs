@@ -90,7 +90,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
 
             VerifyWarning(
                 CoreResources.LogCollectionWithoutComparer(
-                    new TestLogger<TestLoggingDefinitions>()).GenerateMessage("SomeStrings", "WithCollectionConversion"),
+                    new TestLogger<TestLoggingDefinitions>()).GenerateMessage("WithCollectionConversion", "SomeStrings"),
                 convertedProperty.DeclaringEntityType.Model);
         }
 
@@ -111,18 +111,18 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
 
         private IMutableProperty CreateConvertedCollectionProperty()
         {
-            var model = CreateConventionlessModelBuilder().Model;
+            var modelBuilder = CreateConventionalModelBuilder();
 
-            var entityType = model.AddEntityType(typeof(WithCollectionConversion));
-            entityType.SetPrimaryKey(entityType.AddProperty(nameof(WithCollectionConversion.Id), typeof(int)));
-
-            var convertedProperty = entityType.AddProperty(
-                nameof(WithCollectionConversion.SomeStrings), typeof(string[]));
-
-            convertedProperty.SetValueConverter(
+            IMutableProperty convertedProperty = null;
+            modelBuilder.Entity<WithCollectionConversion>(eb =>
+            {
+                eb.Property(e => e.Id);
+                convertedProperty = eb.Property(e => e.SomeStrings).Metadata;
+                convertedProperty.SetValueConverter(
                 new ValueConverter<string[], string>(
                     v => string.Join(',', v),
                     v => v.Split(',', StringSplitOptions.None)));
+            });
 
             return convertedProperty;
         }
@@ -202,7 +202,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
             ((IConventionEntityType)entityType).AddKey(keyProperty);
 
             VerifyWarning(
-                CoreResources.LogShadowPropertyCreated(new TestLogger<TestLoggingDefinitions>()).GenerateMessage("Key", "A"), model,
+                CoreResources.LogShadowPropertyCreated(new TestLogger<TestLoggingDefinitions>()).GenerateMessage("A", "Key"), model,
                 LogLevel.Debug);
         }
 
@@ -220,7 +220,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
 
             VerifyWarning(
                 CoreResources.LogShadowPropertyCreated(new TestLogger<TestLoggingDefinitions>())
-                    .GenerateMessage("Key", "A"), (IMutableModel)model, LogLevel.Debug);
+                    .GenerateMessage("A", "Key"), (IMutableModel)model, LogLevel.Debug);
         }
 
         [ConditionalFact]
@@ -1097,8 +1097,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
 
             VerifyError(
                 sensitiveDataLoggingEnabled
-                    ? CoreStrings.SeedDatumIncompatibleValueSensitive(nameof(A), "invalid", nameof(A.P0), "System.Nullable<int>")
-                    : CoreStrings.SeedDatumIncompatibleValue(nameof(A), nameof(A.P0), "System.Nullable<int>"),
+                    ? CoreStrings.SeedDatumIncompatibleValueSensitive(nameof(A), "invalid", nameof(A.P0), "int?")
+                    : CoreStrings.SeedDatumIncompatibleValue(nameof(A), nameof(A.P0), "int?"),
                 modelBuilder.Model,
                 sensitiveDataLoggingEnabled);
         }

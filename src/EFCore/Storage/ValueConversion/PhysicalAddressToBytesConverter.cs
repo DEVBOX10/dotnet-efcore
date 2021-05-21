@@ -2,16 +2,13 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System.Net.NetworkInformation;
-using JetBrains.Annotations;
-
-#nullable enable
 
 namespace Microsoft.EntityFrameworkCore.Storage.ValueConversion
 {
     /// <summary>
     ///     Converts a <see cref="PhysicalAddress" /> to and from a <see cref="byte" />.
     /// </summary>
-    public class PhysicalAddressToBytesConverter : ValueConverter<PhysicalAddress, byte[]>
+    public class PhysicalAddressToBytesConverter : ValueConverter<PhysicalAddress?, byte[]?>
     {
         private static readonly ConverterMappingHints _defaultHints = new(size: 8);
 
@@ -22,11 +19,11 @@ namespace Microsoft.EntityFrameworkCore.Storage.ValueConversion
         ///     Hints that can be used by the <see cref="ITypeMappingSource" /> to create data types with appropriate
         ///     facets for the converted data.
         /// </param>
-        public PhysicalAddressToBytesConverter([CanBeNull] ConverterMappingHints? mappingHints = null)
+        public PhysicalAddressToBytesConverter(ConverterMappingHints? mappingHints = null)
             : base(
-                // TODO-NULLABLE: Null is already sanitized externally, clean up as part of #13850
-                v => v == null ? default! : v.GetAddressBytes(),
-                v => v == null ? default! : new PhysicalAddress(v),
+                v => v == null ? default : v.GetAddressBytes(),
+                v => v == null ? default : new PhysicalAddress(v),
+                convertsNulls: true,
                 _defaultHints.With(mappingHints))
         {
         }

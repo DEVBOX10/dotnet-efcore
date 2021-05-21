@@ -737,30 +737,51 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
             }
 
             [ConditionalFact]
-            public virtual void Properties_can_have_value_converter_set_generic()
+            public virtual void Properties_can_have_value_converter_type_set()
             {
                 var modelBuilder = CreateModelBuilder();
                 var model = modelBuilder.Model;
-
-                var stringConverter = new StringToBytesConverter(Encoding.UTF8);
-                var intConverter = new CastingConverter<int, long>();
 
                 modelBuilder.Entity<Quarks>(
                     b =>
                     {
                         b.Property(e => e.Up);
-                        b.Property(e => e.Down).HasConversion(stringConverter);
-                        b.Property<int>("Charm").HasConversion(intConverter);
-                        b.Property<string>("Strange").HasConversion(stringConverter);
-                        b.Property<string>("Strange").HasConversion((ValueConverter)null);
+                        b.Property(e => e.Down).HasConversion(typeof(UTF8StringToBytesConverter), typeof(CustomValueComparer<string>));
+                        b.Property<int>("Charm").HasConversion<CastingConverter<int, long>, CustomValueComparer<int>>();
+                        b.Property<string>("Strange").HasConversion(typeof(UTF8StringToBytesConverter), typeof(CustomValueComparer<string>));
+                        b.Property<string>("Strange").HasConversion((ValueConverter)null, null);
                     });
 
                 var entityType = (IReadOnlyEntityType)model.FindEntityType(typeof(Quarks));
 
                 Assert.Null(entityType.FindProperty("Up").GetValueConverter());
-                Assert.Same(stringConverter, entityType.FindProperty("Down").GetValueConverter());
-                Assert.Same(intConverter, entityType.FindProperty("Charm").GetValueConverter());
+
+                var down = entityType.FindProperty("Down");
+                Assert.IsType<UTF8StringToBytesConverter>(down.GetValueConverter());
+                Assert.IsType<CustomValueComparer<string>>(down.GetValueComparer());
+
+                var charm = entityType.FindProperty("Charm");
+                Assert.IsType<CastingConverter<int, long>>(charm.GetValueConverter());
+                Assert.IsType<CustomValueComparer<int>>(charm.GetValueComparer());
+
                 Assert.Null(entityType.FindProperty("Strange").GetValueConverter());
+                Assert.Null(entityType.FindProperty("Strange").GetValueComparer());
+            }
+
+            private class UTF8StringToBytesConverter : StringToBytesConverter
+            {
+                public UTF8StringToBytesConverter()
+                    : base(Encoding.UTF8)
+                {
+                }
+            }
+
+            private class CustomValueComparer<T> : ValueComparer<T>
+            {
+                public CustomValueComparer()
+                    : base(false)
+                {
+                }
             }
 
             [ConditionalFact]
@@ -982,8 +1003,8 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                         b.Property(e => e.Down).HasValueGenerator(typeof(CustomValueGenerator));
                         b.Property<int>("Charm").HasValueGenerator((_, __) => new CustomValueGenerator());
                         b.Property<string>("Strange").HasValueGenerator<CustomValueGenerator>();
-                        b.Property<int>("Top").HasValueGenerator(typeof(CustomValueGenerator));
-                        b.Property<string>("Bottom").HasValueGenerator((_, __) => new CustomValueGenerator());
+                        b.Property<int>("Top").HasValueGeneratorFactory(typeof(CustomValueGeneratorFactory));
+                        b.Property<string>("Bottom").HasValueGeneratorFactory<CustomValueGeneratorFactory>();
                     });
 
                 modelBuilder.FinalizeModel();
@@ -1008,6 +1029,12 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
 
                 public override bool GeneratesTemporaryValues
                     => false;
+            }
+
+            private class CustomValueGeneratorFactory : ValueGeneratorFactory
+            {
+                public override ValueGenerator Create(IProperty property, IEntityType entityType)
+                    => new CustomValueGenerator();
             }
 
             [ConditionalFact]
@@ -1040,12 +1067,12 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 var entityType = model.FindEntityType(typeof(Quarks));
 
                 Assert.Equal(
-                    CoreStrings.CannotCreateValueGenerator(nameof(BadCustomValueGenerator1)),
+                    CoreStrings.CannotCreateValueGenerator(nameof(BadCustomValueGenerator1), "HasValueGenerator"),
                     Assert.Throws<InvalidOperationException>(
                         () => entityType.FindProperty("Up").GetValueGeneratorFactory()(null, null)).Message);
 
                 Assert.Equal(
-                    CoreStrings.CannotCreateValueGenerator(nameof(BadCustomValueGenerator2)),
+                    CoreStrings.CannotCreateValueGenerator(nameof(BadCustomValueGenerator2), "HasValueGenerator"),
                     Assert.Throws<InvalidOperationException>(
                         () => entityType.FindProperty("Down").GetValueGeneratorFactory()(null, null)).Message);
             }
@@ -1221,6 +1248,8 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                     .HasMaxLength(100)
                     .HasValueGenerator<CustomValueGenerator>()
                     .HasValueGenerator(typeof(CustomValueGenerator))
+                    .HasValueGeneratorFactory<CustomValueGeneratorFactory>()
+                    .HasValueGeneratorFactory(typeof(CustomValueGeneratorFactory))
                     .HasValueGenerator((_, __) => null)
                     .IsRequired();
             }
@@ -1265,18 +1294,26 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
             public virtual void Can_add_multiple_indexes()
             {
                 var modelBuilder = CreateModelBuilder();
-                var model = modelBuilder.Model;
 
                 var entityBuilder = modelBuilder.Entity<Customer>();
-                var firstIndexBuilder = entityBuilder.HasIndex(ix => ix.Id).IsUnique();
-                var secondIndexBuilder = entityBuilder.HasIndex(ix => ix.Name).HasAnnotation("A1", "V1");
+                entityBuilder.HasIndex(ix => ix.Id).IsUnique();
+                entityBuilder.HasIndex(ix => ix.Name).HasAnnotation("A1", "V1");
+                entityBuilder.HasIndex(ix => ix.Id, "Named");
 
-                var entityType = (IReadOnlyEntityType)model.FindEntityType(typeof(Customer));
+                var model = modelBuilder.FinalizeModel();
 
-                Assert.Equal(2, entityType.GetIndexes().Count());
-                Assert.True(firstIndexBuilder.Metadata.IsUnique);
-                Assert.False(((IReadOnlyIndex)secondIndexBuilder.Metadata).IsUnique);
-                Assert.Equal("V1", secondIndexBuilder.Metadata["A1"]);
+                var entityType = model.FindEntityType(typeof(Customer));
+                var idProperty = entityType.FindProperty(nameof(Customer.Id));
+                var nameProperty = entityType.FindProperty(nameof(Customer.Name));
+
+                Assert.Equal(3, entityType.GetIndexes().Count());
+                var firstIndex = entityType.FindIndex(idProperty);
+                Assert.True(firstIndex.IsUnique);
+                var secondIndex = entityType.FindIndex(nameProperty);
+                Assert.False(secondIndex.IsUnique);
+                Assert.Equal("V1", secondIndex["A1"]);
+                var namedIndex = entityType.FindIndex("Named");
+                Assert.False(namedIndex.IsUnique);
             }
 
             [ConditionalFact]
@@ -1501,13 +1538,15 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                         c.HasData(customers);
                     });
 
-                modelBuilder.FinalizeModel();
+                var finalModel = modelBuilder.FinalizeModel();
 
                 var customer = model.FindEntityType(typeof(Beta));
                 var data = customer.GetSeedData();
                 Assert.Equal(2, data.Count());
                 Assert.Equal(-1, data.First()[nameof(Beta.Id)]);
                 Assert.Equal(-2, data.Last()[nameof(Beta.Id)]);
+
+                var _ = finalModel.ToDebugString();
             }
 
             [ConditionalFact]
@@ -1670,26 +1709,35 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
             public virtual void Can_add_shared_type_entity_type()
             {
                 var modelBuilder = CreateModelBuilder();
-                modelBuilder.SharedTypeEntity<Dictionary<string, object>>("Shared1");
+                modelBuilder.SharedTypeEntity<Dictionary<string, object>>("Shared1", b =>
+                {
+                    b.IndexerProperty<int>("Key");
+                    b.HasKey("Key");
+                });
 
                 modelBuilder.SharedTypeEntity<Dictionary<string, object>>("Shared2", b => b.IndexerProperty<int>("Id"));
-
-                var model = modelBuilder.Model;
-                Assert.Equal(2, model.GetEntityTypes().Count());
-
-                var shared1 = modelBuilder.Model.FindEntityType("Shared1");
-                Assert.NotNull(shared1);
-                Assert.True(shared1.HasSharedClrType);
-                Assert.Null(shared1.FindProperty("Id"));
-
-                var shared2 = modelBuilder.Model.FindEntityType("Shared2");
-                Assert.NotNull(shared2);
-                Assert.True(shared2.HasSharedClrType);
-                Assert.NotNull(shared2.FindProperty("Id"));
 
                 Assert.Equal(
                     CoreStrings.ClashingSharedType(typeof(Dictionary<string, object>).ShortDisplayName()),
                     Assert.Throws<InvalidOperationException>(() => modelBuilder.Entity<Dictionary<string, object>>()).Message);
+
+                var model = modelBuilder.FinalizeModel();
+                Assert.Equal(2, model.GetEntityTypes().Count());
+
+                var shared1 = model.FindEntityType("Shared1");
+                Assert.NotNull(shared1);
+                Assert.True(shared1.HasSharedClrType);
+                Assert.Null(shared1.FindProperty("Id"));
+
+                var shared2 = model.FindEntityType("Shared2");
+                Assert.NotNull(shared2);
+                Assert.True(shared2.HasSharedClrType);
+                Assert.NotNull(shared2.FindProperty("Id"));
+
+                var indexer = shared1.FindIndexerPropertyInfo();
+                Assert.True(model.IsIndexerMethod(indexer.GetMethod));
+                Assert.True(model.IsIndexerMethod(indexer.SetMethod));
+                Assert.Same(indexer, shared2.FindIndexerPropertyInfo());
             }
 
             [ConditionalFact]

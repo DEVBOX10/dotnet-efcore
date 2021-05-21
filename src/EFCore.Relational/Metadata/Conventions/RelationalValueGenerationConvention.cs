@@ -2,11 +2,8 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System.Linq;
-using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure;
-
-#nullable enable
 
 namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
 {
@@ -26,8 +23,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <param name="dependencies"> Parameter object containing dependencies for this convention. </param>
         /// <param name="relationalDependencies">  Parameter object containing relational dependencies for this convention. </param>
         public RelationalValueGenerationConvention(
-            [NotNull] ProviderConventionSetBuilderDependencies dependencies,
-            [NotNull] RelationalConventionSetBuilderDependencies relationalDependencies)
+            ProviderConventionSetBuilderDependencies dependencies,
+            RelationalConventionSetBuilderDependencies relationalDependencies)
             : base(dependencies)
         {
         }
@@ -150,15 +147,15 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <param name="property"> The property. </param>
         /// <param name="storeObject"> The identifier of the store object. </param>
         /// <returns> The new store value generation strategy to set for the given property. </returns>
-        public static ValueGenerated? GetValueGenerated([NotNull] IReadOnlyProperty property, in StoreObjectIdentifier storeObject)
+        public static ValueGenerated? GetValueGenerated(IReadOnlyProperty property, in StoreObjectIdentifier storeObject)
         {
             var valueGenerated = GetValueGenerated(property);
             return valueGenerated
                 ?? (property.GetComputedColumnSql(storeObject) != null
                     ? ValueGenerated.OnAddOrUpdate
-                    : property.GetDefaultValue(storeObject) != null || property.GetDefaultValueSql(storeObject) != null
+                    : property.TryGetDefaultValue(storeObject, out _) || property.GetDefaultValueSql(storeObject) != null
                         ? ValueGenerated.OnAdd
-                        : (ValueGenerated?)null);
+                        : null);
         }
     }
 }

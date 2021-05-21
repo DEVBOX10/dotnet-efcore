@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
 using Microsoft.EntityFrameworkCore.Cosmos.Internal;
 using Microsoft.EntityFrameworkCore.Cosmos.Metadata.Internal;
@@ -18,6 +17,8 @@ using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Utilities;
 using Newtonsoft.Json.Linq;
+
+#nullable disable
 
 namespace Microsoft.EntityFrameworkCore.Cosmos.Query.Internal
 {
@@ -69,7 +70,7 @@ namespace Microsoft.EntityFrameworkCore.Cosmos.Query.Internal
                     .GetRuntimeMethods().Single(mi => mi.Name == nameof(SafeToObject));
 
             public CosmosProjectionBindingRemovingExpressionVisitorBase(
-                [NotNull] ParameterExpression jObjectParameter,
+                ParameterExpression jObjectParameter,
                 bool trackQueryResults)
             {
                 _jObjectParameter = jObjectParameter;
@@ -247,7 +248,9 @@ namespace Microsoft.EntityFrameworkCore.Cosmos.Query.Internal
                             projectionBindingExpression.Type, (projection.Expression as SqlExpression)?.TypeMapping);
                     }
 
+#pragma warning disable CS0618 // Type or member is obsolete
                     case CollectionShaperExpression collectionShaperExpression:
+#pragma warning restore CS0618 // Type or member is obsolete
                     {
                         ObjectArrayProjectionExpression objectArrayProjection;
                         switch (collectionShaperExpression.Projection)
@@ -711,13 +714,31 @@ namespace Microsoft.EntityFrameworkCore.Cosmos.Query.Internal
                         body = Expression.Convert(body, type);
                     }
 
+                    Expression replaceExpression;
+                    if (converter?.ConvertsNulls == true)
+                    {
+                        replaceExpression = ReplacingExpressionVisitor.Replace(
+                            converter.ConvertFromProviderExpression.Parameters.Single(),
+                            Expression.Default(converter.ProviderClrType),
+                            converter.ConvertFromProviderExpression.Body);
+
+                        if (replaceExpression.Type != type)
+                        {
+                            replaceExpression = Expression.Convert(replaceExpression, type);
+                        }
+                    }
+                    else
+                    {
+                        replaceExpression = Expression.Default(type);
+                    }
+
                     body = Expression.Condition(
                         Expression.OrElse(
                             Expression.Equal(jTokenParameter, Expression.Default(typeof(JToken))),
                             Expression.Equal(
                                 Expression.MakeMemberAccess(jTokenParameter, _jTokenTypePropertyInfo),
                                 Expression.Constant(JTokenType.Null))),
-                        Expression.Default(type),
+                        replaceExpression,
                         body);
 
                     valueExpression = Expression.Invoke(Expression.Lambda(body, jTokenParameter), jTokenExpression);

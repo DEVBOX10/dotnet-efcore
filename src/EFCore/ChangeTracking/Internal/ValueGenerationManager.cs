@@ -4,7 +4,6 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
@@ -41,10 +40,10 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public ValueGenerationManager(
-            [NotNull] IValueGeneratorSelector valueGeneratorSelector,
-            [NotNull] IKeyPropagator keyPropagator,
-            [NotNull] IDiagnosticsLogger<DbLoggerCategory.ChangeTracking> logger,
-            [NotNull] ILoggingOptions loggingOptions)
+            IValueGeneratorSelector valueGeneratorSelector,
+            IKeyPropagator keyPropagator,
+            IDiagnosticsLogger<DbLoggerCategory.ChangeTracking> logger,
+            ILoggingOptions loggingOptions)
         {
             _valueGeneratorSelector = valueGeneratorSelector;
             _keyPropagator = keyPropagator;
@@ -58,9 +57,9 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public virtual InternalEntityEntry Propagate(InternalEntityEntry entry)
+        public virtual InternalEntityEntry? Propagate(InternalEntityEntry entry)
         {
-            InternalEntityEntry chosenPrincipal = null;
+            InternalEntityEntry? chosenPrincipal = null;
             foreach (var property in entry.EntityType.GetForeignKeyProperties())
             {
                 if (!entry.HasDefaultValue(property))
@@ -112,7 +111,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             }
         }
 
-        private void Log(InternalEntityEntry entry, IProperty property, object generatedValue, bool temporary)
+        private void Log(InternalEntityEntry entry, IProperty property, object? generatedValue, bool temporary)
         {
             if (_loggingOptions.IsSensitiveDataLoggingEnabled)
             {
@@ -177,7 +176,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             => property.RequiresValueGenerator()
                 && _valueGeneratorSelector.Select(property, entityType).GeneratesTemporaryValues;
 
-        private static void SetGeneratedValue(InternalEntityEntry entry, IProperty property, object generatedValue, bool isTemporary)
+        private static void SetGeneratedValue(InternalEntityEntry entry, IProperty property, object? generatedValue, bool isTemporary)
         {
             if (generatedValue != null)
             {

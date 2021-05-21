@@ -2,12 +2,9 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Utilities;
-using CA = System.Diagnostics.CodeAnalysis;
-
-#nullable enable
 
 namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
 {
@@ -21,9 +18,9 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
     ///         an issue at https://github.com/dotnet/efcore.
     ///     </para>
     /// </summary>
-    public sealed class TableExpression : TableExpressionBase
+    public sealed class TableExpression : TableExpressionBase, ICloneable
     {
-        internal TableExpression([NotNull] ITableBase table)
+        internal TableExpression(ITableBase table)
             : base(table.Name.Substring(0, 1).ToLowerInvariant())
         {
             Name = table.Name;
@@ -47,7 +44,7 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
         /// <summary>
         ///     The alias assigned to this table source.
         /// </summary>
-        [CA.NotNull]
+        [NotNull]
         public override string? Alias
         {
             get => base.Alias!;
@@ -68,6 +65,10 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions
         ///     The <see cref="ITableBase" /> associated with this table or view.
         /// </summary>
         public ITableBase Table { get; }
+
+        /// <inheritdoc />
+        public object Clone()
+            => new TableExpression(Table) { Alias = Alias };
 
         /// <inheritdoc />
         public override bool Equals(object? obj)

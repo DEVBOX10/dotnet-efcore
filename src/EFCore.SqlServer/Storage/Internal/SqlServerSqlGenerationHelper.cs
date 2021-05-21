@@ -3,13 +3,10 @@
 
 using System;
 using System.Text;
-using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.SqlServer.Internal;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Utilities;
 using Microsoft.Extensions.DependencyInjection;
-
-#nullable enable
 
 namespace Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal
 {
@@ -34,7 +31,7 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public SqlServerSqlGenerationHelper([NotNull] RelationalSqlGenerationHelperDependencies dependencies)
+        public SqlServerSqlGenerationHelper(RelationalSqlGenerationHelperDependencies dependencies)
             : base(dependencies)
         {
         }
@@ -114,7 +111,7 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal
             => "SAVE TRANSACTION " + DelimitIdentifier(name) + StatementTerminator;
 
         /// <summary>
-        ///     Generates an SQL statement which which rolls back to a savepoint with the given name.
+        ///     Generates an SQL statement which rolls back to a savepoint with the given name.
         /// </summary>
         /// <param name="name"> The name of the savepoint to be rolled back to. </param>
         /// <returns> An SQL string to roll back the savepoint. </returns>
@@ -122,7 +119,7 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal
             => "ROLLBACK TRANSACTION " + DelimitIdentifier(name) + StatementTerminator;
 
         /// <summary>
-        ///     Generates an SQL statement which which releases a savepoint with the given name.
+        ///     Generates an SQL statement which releases a savepoint with the given name.
         /// </summary>
         /// <param name="name"> The name of the savepoint to be released. </param>
         /// <returns> An SQL string to release the savepoint. </returns>

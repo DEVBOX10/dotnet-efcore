@@ -16,6 +16,8 @@ using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Utilities;
 
+#nullable disable
+
 namespace Microsoft.EntityFrameworkCore.Cosmos.Query.Internal
 {
     /// <summary>
@@ -40,8 +42,10 @@ namespace Microsoft.EntityFrameworkCore.Cosmos.Query.Internal
 
         private readonly Stack<ProjectionMember> _projectionMembers = new();
 
+#pragma warning disable CS0618 // Type or member is obsolete
         private readonly IDictionary<ParameterExpression, CollectionShaperExpression> _collectionShaperMapping
             = new Dictionary<ParameterExpression, CollectionShaperExpression>();
+#pragma warning restore CS0618 // Type or member is obsolete
 
         private readonly Stack<INavigation> _includedNavigations
             = new();
@@ -53,8 +57,8 @@ namespace Microsoft.EntityFrameworkCore.Cosmos.Query.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public CosmosProjectionBindingExpressionVisitor(
-            [NotNull] IModel model,
-            [NotNull] CosmosSqlTranslatingExpressionVisitor sqlTranslator)
+            IModel model,
+            CosmosSqlTranslatingExpressionVisitor sqlTranslator)
         {
             _model = model;
             _sqlTranslator = sqlTranslator;
@@ -66,7 +70,7 @@ namespace Microsoft.EntityFrameworkCore.Cosmos.Query.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public virtual Expression Translate([NotNull] SelectExpression selectExpression, [NotNull] Expression expression)
+        public virtual Expression Translate(SelectExpression selectExpression, Expression expression)
         {
             _selectExpression = selectExpression;
             _clientEval = false;
@@ -364,7 +368,9 @@ namespace Microsoft.EntityFrameworkCore.Cosmos.Query.Internal
                             Expression.Convert(objectArrayProjectionExpression.InnerProjection, typeof(object)), typeof(ValueBuffer)),
                         nullable: true);
 
+#pragma warning disable CS0618 // Type or member is obsolete
                     return new CollectionShaperExpression(
+#pragma warning restore CS0618 // Type or member is obsolete
                         objectArrayProjectionExpression,
                         innerShaperExpression,
                         navigation,
@@ -568,7 +574,9 @@ namespace Microsoft.EntityFrameworkCore.Cosmos.Query.Internal
                                 Expression.Convert(objectArrayProjectionExpression.InnerProjection, typeof(object)), typeof(ValueBuffer)),
                             nullable: true);
 
+#pragma warning disable CS0618 // Type or member is obsolete
                         return new CollectionShaperExpression(
+#pragma warning restore CS0618 // Type or member is obsolete
                             objectArrayProjectionExpression,
                             innerShaperExpression,
                             navigation,
@@ -597,7 +605,9 @@ namespace Microsoft.EntityFrameworkCore.Cosmos.Query.Internal
 
                         case nameof(Queryable.Select)
                             when genericMethod == QueryableMethods.Select:
+#pragma warning disable CS0618 // Type or member is obsolete
                             if (!(visitedSource is CollectionShaperExpression shaper))
+#pragma warning restore CS0618 // Type or member is obsolete
                             {
                                 return null;
                             }

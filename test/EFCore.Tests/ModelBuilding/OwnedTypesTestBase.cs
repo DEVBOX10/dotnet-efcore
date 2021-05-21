@@ -405,7 +405,6 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 var owner = model.FindEntityType(typeof(Customer));
                 var ownership = owner.FindNavigation(nameof(Customer.Orders)).ForeignKey;
                 var owned = ownership.DeclaringEntityType;
-                Assert.Same(entityBuilder.OwnedEntityType, owned);
                 Assert.True(ownership.IsOwnership);
                 Assert.Equal("CustomerAlternateKey", ownership.Properties.Single().Name);
                 Assert.Equal(nameof(Customer.AlternateKey), ownership.PrincipalKey.Properties.Single().Name);
@@ -504,7 +503,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 Assert.Null(foreignKey.PrincipalToDependent);
                 Assert.NotEqual(ownership1.Properties.Single().Name, foreignKey.Properties.Single().Name);
                 Assert.Equal(5, model.GetEntityTypes().Count());
-                Assert.Equal(2, model.GetEntityTypes(typeof(Order)).Count());
+                Assert.Equal(2, model.FindEntityTypes(typeof(Order)).Count());
                 Assert.Equal(2, ownership1.DeclaringEntityType.GetForeignKeys().Count());
 
                 Assert.Equal(2, model.GetEntityTypes().Count(e => e.ClrType == typeof(Order)));
@@ -762,31 +761,39 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                     .OwnsMany(c => c.Orders)
                     .HasKey(o => o.OrderId);
 
-                var specialCustomer = modelBuilder.Entity<SpecialCustomer>()
+                modelBuilder.Entity<SpecialCustomer>()
                     .OwnsMany(
                         c => c.SpecialOrders, so =>
                         {
                             so.HasKey(o => o.SpecialOrderId);
                             so.Ignore(o => o.Customer);
                             so.OwnsOne(o => o.BackOrder);
-                        }).Metadata;
+                        });
 
                 var model = modelBuilder.FinalizeModel();
 
                 var customer = model.FindEntityType(typeof(Customer));
+                var specialCustomer = model.FindEntityType(typeof(SpecialCustomer));
 
                 var ownership = customer.FindNavigation(nameof(Customer.Orders)).ForeignKey;
                 Assert.True(ownership.IsOwnership);
                 Assert.False(ownership.IsUnique);
                 Assert.Equal(nameof(Order.OrderId), ownership.DeclaringEntityType.FindPrimaryKey().Properties.Single().Name);
+                Assert.Same(ownership.DeclaringEntityType,
+                    model.FindEntityType(typeof(Order), nameof(Customer.Orders), customer));
+                Assert.Equal(2, model.FindEntityTypes(typeof(Order)).Count());
+                Assert.True(model.IsShared(typeof(Order)));
+
                 var specialOwnership = specialCustomer.FindNavigation(nameof(SpecialCustomer.SpecialOrders)).ForeignKey;
                 Assert.True(specialOwnership.IsOwnership);
                 Assert.False(specialOwnership.IsUnique);
                 Assert.Equal(
                     nameof(SpecialOrder.SpecialOrderId), specialOwnership.DeclaringEntityType.FindPrimaryKey().Properties.Single().Name);
+                Assert.Same(specialOwnership.DeclaringEntityType,
+                    model.FindEntityType(typeof(SpecialOrder)));
 
                 Assert.Equal(9, modelBuilder.Model.GetEntityTypes().Count());
-                Assert.Equal(2, modelBuilder.Model.GetEntityTypes(typeof(Order)).Count());
+                Assert.Equal(2, modelBuilder.Model.FindEntityTypes(typeof(Order)).Count());
                 Assert.Equal(7, modelBuilder.Model.GetEntityTypes().Count(e => !e.HasSharedClrType));
                 Assert.Equal(5, modelBuilder.Model.GetEntityTypes().Count(e => e.IsOwned()));
 
@@ -834,7 +841,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                     nameof(SpecialOrder.SpecialOrderId), specialOwnership.DeclaringEntityType.FindPrimaryKey().Properties.Single().Name);
 
                 Assert.Equal(9, modelBuilder.Model.GetEntityTypes().Count());
-                Assert.Equal(2, modelBuilder.Model.GetEntityTypes(typeof(Order)).Count());
+                Assert.Equal(2, modelBuilder.Model.FindEntityTypes(typeof(Order)).Count());
                 // SpecialOrder and Address are only used once, but once they are made shared they don't revert to non-shared
                 Assert.Equal(5, modelBuilder.Model.GetEntityTypes().Count(e => !e.HasSharedClrType));
                 Assert.Equal(5, modelBuilder.Model.GetEntityTypes().Count(e => e.IsOwned()));
@@ -1400,7 +1407,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
 
                 var model = modelBuilder.FinalizeModel();
 
-                Assert.Single(model.GetEntityTypes(typeof(List<DependentEntity>)));
+                Assert.Single(model.FindEntityTypes(typeof(List<DependentEntity>)));
             }
 
             [ConditionalFact]

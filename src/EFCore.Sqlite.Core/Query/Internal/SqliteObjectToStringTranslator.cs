@@ -4,13 +4,10 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 using Microsoft.EntityFrameworkCore.Utilities;
-
-#nullable enable
 
 namespace Microsoft.EntityFrameworkCore.Sqlite.Query.Internal
 {
@@ -51,7 +48,7 @@ namespace Microsoft.EntityFrameworkCore.Sqlite.Query.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public SqliteObjectToStringTranslator([NotNull] ISqlExpressionFactory sqlExpressionFactory)
+        public SqliteObjectToStringTranslator(ISqlExpressionFactory sqlExpressionFactory)
             => _sqlExpressionFactory = sqlExpressionFactory;
 
         /// <summary>
@@ -69,10 +66,41 @@ namespace Microsoft.EntityFrameworkCore.Sqlite.Query.Internal
             Check.NotNull(method, nameof(method));
             Check.NotNull(arguments, nameof(arguments));
 
-            return method.Name == nameof(ToString)
-                && arguments.Count == 0
-                && instance != null
-                && _typeMapping.Contains(instance.Type)
+            if (instance == null || method.Name != nameof(ToString) || arguments.Count != 0)
+            {
+                return null;
+            }
+
+            if (instance.Type == typeof(bool))
+            {
+                if (instance is ColumnExpression columnExpression && columnExpression.IsNullable)
+                {
+                    return _sqlExpressionFactory.Case(
+                        new[]
+                        {
+                            new CaseWhenClause(
+                                _sqlExpressionFactory.Equal(instance, _sqlExpressionFactory.Constant(false)),
+                                _sqlExpressionFactory.Constant(false.ToString())),
+                            new CaseWhenClause(
+                                _sqlExpressionFactory.Equal(instance, _sqlExpressionFactory.Constant(true)),
+                                _sqlExpressionFactory.Constant(true.ToString()))
+                            },
+                        _sqlExpressionFactory.Constant(null));
+                }
+                else
+                {
+                    return _sqlExpressionFactory.Case(
+                        new[]
+                        {
+                            new CaseWhenClause(
+                                _sqlExpressionFactory.Equal(instance, _sqlExpressionFactory.Constant(false)),
+                                _sqlExpressionFactory.Constant(false.ToString()))
+                            },
+                        _sqlExpressionFactory.Constant(true.ToString()));
+                }
+            }
+
+            return _typeMapping.Contains(instance.Type)
                     ? _sqlExpressionFactory.Convert(instance, typeof(string))
                     : null;
         }

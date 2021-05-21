@@ -3,7 +3,6 @@
 using System;
 using System.Reflection;
 using System.Resources;
-using JetBrains.Annotations;
 
 #nullable enable
 
@@ -135,6 +134,12 @@ namespace Microsoft.EntityFrameworkCore.Tools.Properties
             => GetString("DbContextListDescription");
 
         /// <summary>
+        ///     Generates a compiled version of the model used by the DbContext.
+        /// </summary>
+        public static string DbContextOptimizeDescription
+            => GetString("DbContextOptimizeDescription");
+
+        /// <summary>
         ///     Scaffolds a DbContext and entity types for a database.
         /// </summary>
         public static string DbContextScaffoldDescription
@@ -185,7 +190,7 @@ namespace Microsoft.EntityFrameworkCore.Tools.Properties
         /// <summary>
         ///     Invalid template pattern '{template}'.
         /// </summary>
-        public static string InvalidTemplatePattern([CanBeNull] object? template)
+        public static string InvalidTemplatePattern(object? template)
             => string.Format(
                 GetString("InvalidTemplatePattern", nameof(template)),
                 template);
@@ -199,7 +204,7 @@ namespace Microsoft.EntityFrameworkCore.Tools.Properties
         /// <summary>
         ///     The last argument '{argumentName}' accepts multiple values. No more argument can be added.
         /// </summary>
-        public static string LastArgumentHasMultipleValues([CanBeNull] object? argumentName)
+        public static string LastArgumentHasMultipleValues(object? argumentName)
             => string.Format(
                 GetString("LastArgumentHasMultipleValues", nameof(argumentName)),
                 argumentName);
@@ -285,7 +290,7 @@ namespace Microsoft.EntityFrameworkCore.Tools.Properties
         /// <summary>
         ///     More than one project was found in directory '{projectDir}'. Specify one using its file name.
         /// </summary>
-        public static string MultipleProjectsInDirectory([CanBeNull] object? projectDir)
+        public static string MultipleProjectsInDirectory(object? projectDir)
             => string.Format(
                 GetString("MultipleProjectsInDirectory", nameof(projectDir)),
                 projectDir);
@@ -305,7 +310,7 @@ namespace Microsoft.EntityFrameworkCore.Tools.Properties
         /// <summary>
         ///     Startup project '{startupProject}' targets framework '.NETCoreApp' version '{targetFrameworkVersion}'. This version of the Entity Framework Core .NET Command-line Tools only supports version 2.0 or higher. For information on using older versions of the tools, see https://go.microsoft.com/fwlink/?linkid=871254
         /// </summary>
-        public static string NETCoreApp1StartupProject([CanBeNull] object? startupProject, [CanBeNull] object? targetFrameworkVersion)
+        public static string NETCoreApp1StartupProject(object? startupProject, object? targetFrameworkVersion)
             => string.Format(
                 GetString("NETCoreApp1StartupProject", nameof(startupProject), nameof(targetFrameworkVersion)),
                 startupProject, targetFrameworkVersion);
@@ -313,7 +318,7 @@ namespace Microsoft.EntityFrameworkCore.Tools.Properties
         /// <summary>
         ///     Startup project '{startupProject}' targets framework '.NETStandard'. There is no runtime associated with this framework, and projects targeting it cannot be executed directly. To use the Entity Framework Core .NET Command-line Tools with this project, add an executable project targeting .NET Core or .NET Framework that references this project, and set it as the startup project using --startup-project; or, update this project to cross-target .NET Core or .NET Framework. For more information on using the Entity Framework Tools with .NET Standard projects, see https://go.microsoft.com/fwlink/?linkid=2034781
         /// </summary>
-        public static string NETStandardStartupProject([CanBeNull] object? startupProject)
+        public static string NETStandardStartupProject(object? startupProject)
             => string.Format(
                 GetString("NETStandardStartupProject", nameof(startupProject)),
                 startupProject);
@@ -351,7 +356,7 @@ namespace Microsoft.EntityFrameworkCore.Tools.Properties
         /// <summary>
         ///     No project was found in directory '{projectDir}'.
         /// </summary>
-        public static string NoProjectInDirectory([CanBeNull] object? projectDir)
+        public static string NoProjectInDirectory(object? projectDir)
             => string.Format(
                 GetString("NoProjectInDirectory", nameof(projectDir)),
                 projectDir);
@@ -401,7 +406,7 @@ namespace Microsoft.EntityFrameworkCore.Tools.Properties
         /// <summary>
         ///     Response file '{fileName}' doesn't exist.
         /// </summary>
-        public static string ResponseFileMissing([CanBeNull] object? fileName)
+        public static string ResponseFileMissing(object? fileName)
             => string.Format(
                 GetString("ResponseFileMissing", nameof(fileName)),
                 fileName);
@@ -439,7 +444,7 @@ namespace Microsoft.EntityFrameworkCore.Tools.Properties
         /// <summary>
         ///     Unrecognized {argumentName} '{argumentValue}'.
         /// </summary>
-        public static string UnexpectedArgument([CanBeNull] object? argumentName, [CanBeNull] object? argumentValue)
+        public static string UnexpectedArgument(object? argumentName, object? argumentValue)
             => string.Format(
                 GetString("UnexpectedArgument", nameof(argumentName), nameof(argumentValue)),
                 argumentName, argumentValue);
@@ -447,7 +452,7 @@ namespace Microsoft.EntityFrameworkCore.Tools.Properties
         /// <summary>
         ///     Unexpected value '{optionValue}' for option '{optionName}'.
         /// </summary>
-        public static string UnexpectedOptionValue([CanBeNull] object? optionValue, [CanBeNull] object? optionName)
+        public static string UnexpectedOptionValue(object? optionValue, object? optionName)
             => string.Format(
                 GetString("UnexpectedOptionValue", nameof(optionValue), nameof(optionName)),
                 optionValue, optionName);
@@ -455,7 +460,7 @@ namespace Microsoft.EntityFrameworkCore.Tools.Properties
         /// <summary>
         ///     Startup project '{startupProject}' targets framework '{targetFramework}'. The Entity Framework Core .NET Command-line Tools don't support this framework.
         /// </summary>
-        public static string UnsupportedFramework([CanBeNull] object? startupProject, [CanBeNull] object? targetFramework)
+        public static string UnsupportedFramework(object? startupProject, object? targetFramework)
             => string.Format(
                 GetString("UnsupportedFramework", nameof(startupProject), nameof(targetFramework)),
                 startupProject, targetFramework);
@@ -469,7 +474,7 @@ namespace Microsoft.EntityFrameworkCore.Tools.Properties
         /// <summary>
         ///     Using project '{project}'.
         /// </summary>
-        public static string UsingProject([CanBeNull] object? project)
+        public static string UsingProject(object? project)
             => string.Format(
                 GetString("UsingProject", nameof(project)),
                 project);
@@ -477,7 +482,7 @@ namespace Microsoft.EntityFrameworkCore.Tools.Properties
         /// <summary>
         ///     Using startup project '{startupProject}'.
         /// </summary>
-        public static string UsingStartupProject([CanBeNull] object? startupProject)
+        public static string UsingStartupProject(object? startupProject)
             => string.Format(
                 GetString("UsingStartupProject", nameof(startupProject)),
                 startupProject);
@@ -491,7 +496,7 @@ namespace Microsoft.EntityFrameworkCore.Tools.Properties
         /// <summary>
         ///     Writing '{file}'...
         /// </summary>
-        public static string WritingFile([CanBeNull] object? file)
+        public static string WritingFile(object? file)
             => string.Format(
                 GetString("WritingFile", nameof(file)),
                 file);

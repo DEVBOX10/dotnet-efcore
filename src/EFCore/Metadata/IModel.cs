@@ -4,14 +4,14 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using JetBrains.Annotations;
+using System.Reflection;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Utilities;
 using Microsoft.Extensions.DependencyInjection;
-
-#nullable enable
 
 namespace Microsoft.EntityFrameworkCore.Metadata
 {
@@ -38,7 +38,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         /// </summary>
         /// <param name="name"> The name of the entity type to find. </param>
         /// <returns> The entity type, or <see langword="null" /> if none is found. </returns>
-        new IEntityType? FindEntityType([NotNull] string name);
+        new IEntityType? FindEntityType(string name);
 
         /// <summary>
         ///     Gets the entity type for the given name, defining navigation name
@@ -49,9 +49,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         /// <param name="definingEntityType"> The defining entity type of the entity type to find. </param>
         /// <returns> The entity type, or <see langword="null" /> if none is found. </returns>
         IEntityType? FindEntityType(
-            [NotNull] string name,
-            [NotNull] string definingNavigationName,
-            [NotNull] IEntityType definingEntityType);
+            string name,
+            string definingNavigationName,
+            IEntityType definingEntityType);
 
         /// <summary>
         ///     Gets the entity that maps the given entity class, where the class may be a proxy derived from the
@@ -61,7 +61,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         /// </summary>
         /// <param name="type"> The type to find the corresponding entity type for. </param>
         /// <returns> The entity type, or <see langword="null" /> if none is found. </returns>
-        IEntityType? FindRuntimeEntityType([NotNull] Type type)
+        IEntityType? FindRuntimeEntityType(Type type)
         {
             Check.NotNull(type, nameof(type));
 
@@ -80,24 +80,25 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         /// <summary>
         ///     The runtime service dependencies.
         /// </summary>
-        SingletonModelDependencies? ModelDependencies
-            => (SingletonModelDependencies?)FindRuntimeAnnotationValue(CoreAnnotationNames.ModelDependencies);
+        [DisallowNull]
+        RuntimeModelDependencies? ModelDependencies
+        {
+            get => (RuntimeModelDependencies?)FindRuntimeAnnotationValue(CoreAnnotationNames.ModelDependencies);
+            set => SetRuntimeAnnotation(CoreAnnotationNames.ModelDependencies, Check.NotNull(value, nameof(value)));
+        }
 
         /// <summary>
-        ///     Set the runtime service dependencies.
+        ///     Gets the runtime service dependencies.
         /// </summary>
-        /// <param name="modelDependencies"> The runtime service dependencies. </param>
-        /// <returns><see langword="true"/> if the runtime service dependencies were set; <see langword="false"/> otherwise. </returns>
-        bool SetModelDependencies([NotNull] SingletonModelDependencies modelDependencies)
+        RuntimeModelDependencies GetModelDependencies()
         {
-            if (FindRuntimeAnnotation(CoreAnnotationNames.ModelDependencies) != null)
+            var dependencies = ModelDependencies;
+            if (dependencies == null)
             {
-                return false;
+                throw new InvalidOperationException(CoreStrings.ModelNotFinalized(nameof(GetModelDependencies)));
             }
 
-            AddRuntimeAnnotation(CoreAnnotationNames.ModelDependencies, modelDependencies);
-
-            return true;
+            return dependencies;
         }
 
         /// <summary>
@@ -107,7 +108,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         /// </summary>
         /// <param name="type"> The type to find the corresponding entity type for. </param>
         /// <returns> The entity type, or <see langword="null" /> if none is found. </returns>
-        IEntityType? FindEntityType([NotNull] Type type);
+        new IEntityType? FindEntityType(Type type);
 
         /// <summary>
         ///     Gets the entity type for the given name, defining navigation name
@@ -118,9 +119,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         /// <param name="definingEntityType"> The defining entity type of the entity type to find. </param>
         /// <returns> The entity type, or <see langword="null" /> if none is found. </returns>
         IEntityType? FindEntityType(
-            [NotNull] Type type,
-            [NotNull] string definingNavigationName,
-            [NotNull] IEntityType definingEntityType)
+            Type type,
+            string definingNavigationName,
+            IEntityType definingEntityType)
             => (IEntityType?)((IReadOnlyModel)this).FindEntityType(type, definingNavigationName, definingEntityType);
 
         /// <summary>
@@ -129,7 +130,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         /// <param name="type"> The type of the entity type to find. </param>
         /// <returns> The entity types found. </returns>
         [DebuggerStepThrough]
-        IEnumerable<IEntityType> GetEntityTypes([NotNull] Type type);
+        new IEnumerable<IEntityType> FindEntityTypes(Type type);
 
         /// <summary>
         ///     Returns the entity types corresponding to the least derived types from the given.
@@ -137,10 +138,16 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         /// <param name="type"> The base type. </param>
         /// <param name="condition"> An optional condition for filtering entity types. </param>
         /// <returns> List of entity types corresponding to the least derived types from the given. </returns>
-        IEnumerable<IEntityType> FindLeastDerivedEntityTypes(
-            [NotNull] Type type,
-            [CanBeNull] Func<IEntityType, bool>? condition = null)
-            => ((IReadOnlyModel)this).FindLeastDerivedEntityTypes(type, condition == null ? null : t => condition((IEntityType)t))
+        new IEnumerable<IEntityType> FindLeastDerivedEntityTypes(
+            Type type,
+            Func<IReadOnlyEntityType, bool>? condition = null)
+            => ((IReadOnlyModel)this).FindLeastDerivedEntityTypes(type, condition == null ? null : t => condition(t))
                 .Cast<IEntityType>();
+
+        /// <summary>
+        ///     Gets a value indicating whether the given <see cref="MethodInfo"/> reprensents an indexer access.
+        /// </summary>
+        /// <param name="methodInfo"> The <see cref="MethodInfo"/> to check. </param>
+        bool IsIndexerMethod(MethodInfo methodInfo);
     }
 }
