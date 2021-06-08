@@ -1078,6 +1078,12 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             => GetString("TransactionAssociatedWithDifferentConnection");
 
         /// <summary>
+        ///     User transaction is not supported with a TransactionSuppressed migrations.
+        /// </summary>
+        public static string TransactionSuppressedMigrationInUserTransaction
+            => GetString("TransactionSuppressedMigrationInUserTransaction");
+
+        /// <summary>
         ///     Unable to bind '{memberType}.{member}' to an entity projection of '{entityType}'.
         /// </summary>
         public static string UnableToBindMemberToEntityProjection(object? memberType, object? member, object? entityType)
@@ -2232,6 +2238,56 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics.Internal
                             level,
                             RelationalEventId.ConnectionOpening,
                             _resourceManager.GetString("LogOpeningConnection")!)));
+            }
+
+            return (EventDefinition<string, string>)definition;
+        }
+
+        /// <summary>
+        ///     The entity of type '{entityType}' is an optional dependent using table sharing. The entity does not have any property with a non-default value to identify whether the entity exists. This means that when it is queried no object instance will be created instead of an instance with all properties set to default values. Any nested dependents will also be lost. Either don't save any instance with only default values or mark the incoming navigation as required in the model. Consider using 'DbContextOptionsBuilder.EnableSensitiveDataLogging' to see the key values of the entity.
+        /// </summary>
+        public static EventDefinition<string> LogOptionalDependentWithAllNullProperties(IDiagnosticsLogger logger)
+        {
+            var definition = ((RelationalLoggingDefinitions)logger.Definitions).LogOptionalDependentWithAllNullProperties;
+            if (definition == null)
+            {
+                definition = NonCapturingLazyInitializer.EnsureInitialized(
+                    ref ((RelationalLoggingDefinitions)logger.Definitions).LogOptionalDependentWithAllNullProperties,
+                    logger,
+                    static logger => new EventDefinition<string>(
+                        logger.Options,
+                        RelationalEventId.OptionalDependentWithAllNullPropertiesWarning,
+                        LogLevel.Warning,
+                        "RelationalEventId.OptionalDependentWithAllNullPropertiesWarning",
+                        level => LoggerMessage.Define<string>(
+                            level,
+                            RelationalEventId.OptionalDependentWithAllNullPropertiesWarning,
+                            _resourceManager.GetString("LogOptionalDependentWithAllNullProperties")!)));
+            }
+
+            return (EventDefinition<string>)definition;
+        }
+
+        /// <summary>
+        ///     The entity of type '{entityType}' with primary key values {keyValues} is an optional dependent using table sharing. The entity does not have any property with a non-default value to identify whether the entity exists. This means that when it is queried no object instance will be created instead of an instance with all properties set to default values. Any nested dependents will also be lost. Either don't save any instance with only default values or mark the incoming navigation as required in the model.
+        /// </summary>
+        public static EventDefinition<string, string> LogOptionalDependentWithAllNullPropertiesSensitive(IDiagnosticsLogger logger)
+        {
+            var definition = ((RelationalLoggingDefinitions)logger.Definitions).LogOptionalDependentWithAllNullPropertiesSensitive;
+            if (definition == null)
+            {
+                definition = NonCapturingLazyInitializer.EnsureInitialized(
+                    ref ((RelationalLoggingDefinitions)logger.Definitions).LogOptionalDependentWithAllNullPropertiesSensitive,
+                    logger,
+                    static logger => new EventDefinition<string, string>(
+                        logger.Options,
+                        RelationalEventId.OptionalDependentWithAllNullPropertiesWarning,
+                        LogLevel.Warning,
+                        "RelationalEventId.OptionalDependentWithAllNullPropertiesWarning",
+                        level => LoggerMessage.Define<string, string>(
+                            level,
+                            RelationalEventId.OptionalDependentWithAllNullPropertiesWarning,
+                            _resourceManager.GetString("LogOptionalDependentWithAllNullPropertiesSensitive")!)));
             }
 
             return (EventDefinition<string, string>)definition;
