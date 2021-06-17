@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -76,6 +77,96 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 Assert.Null(index.GetFilter());
             }
 
+            [ConditionalFact]
+            public virtual void Can_set_store_type_for_property_type()
+            {
+                var modelBuilder = CreateModelBuilder(c =>
+                {
+                    c.Properties<int>().HaveColumnType("smallint");
+                    c.Properties<string>().HaveColumnType("nchar(max)");
+                });
+
+                modelBuilder.Entity<Quarks>(
+                    b =>
+                    {
+                        b.Property<int>("Charm");
+                        b.Property<string>("Strange");
+                        b.Property<int>("Top");
+                        b.Property<string>("Bottom");
+                    });
+
+                var model = modelBuilder.FinalizeModel();
+                var entityType = model.FindEntityType(typeof(Quarks));
+
+                Assert.Equal("smallint", entityType.FindProperty(Customer.IdProperty.Name).GetColumnType());
+                Assert.Equal("smallint", entityType.FindProperty("Up").GetColumnType());
+                Assert.Equal("nchar(max)", entityType.FindProperty("Down").GetColumnType());
+                Assert.Equal("smallint", entityType.FindProperty("Charm").GetColumnType());
+                Assert.Equal("nchar(max)", entityType.FindProperty("Strange").GetColumnType());
+                Assert.Equal("smallint", entityType.FindProperty("Top").GetColumnType());
+                Assert.Equal("nchar(max)", entityType.FindProperty("Bottom").GetColumnType());
+            }
+
+            [ConditionalFact]
+            public virtual void Can_set_fixed_length_for_property_type()
+            {
+                var modelBuilder = CreateModelBuilder(c =>
+                {
+                    c.Properties<int>().AreFixedLength(false);
+                    c.Properties<string>().AreFixedLength();
+                });
+
+                modelBuilder.Entity<Quarks>(
+                    b =>
+                    {
+                        b.Property<int>("Charm");
+                        b.Property<string>("Strange");
+                        b.Property<int>("Top");
+                        b.Property<string>("Bottom");
+                    });
+
+                var model = modelBuilder.FinalizeModel();
+                var entityType = model.FindEntityType(typeof(Quarks));
+
+                Assert.False(entityType.FindProperty(Customer.IdProperty.Name).IsFixedLength());
+                Assert.False(entityType.FindProperty("Up").IsFixedLength());
+                Assert.True(entityType.FindProperty("Down").IsFixedLength());
+                Assert.False(entityType.FindProperty("Charm").IsFixedLength());
+                Assert.True(entityType.FindProperty("Strange").IsFixedLength());
+                Assert.False(entityType.FindProperty("Top").IsFixedLength());
+                Assert.True(entityType.FindProperty("Bottom").IsFixedLength());
+            }
+
+            [ConditionalFact]
+            public virtual void Can_set_collation_for_property_type()
+            {
+                var modelBuilder = CreateModelBuilder(c =>
+                {
+                    c.Properties<int>().UseCollation("Latin1_General_CS_AS_KS_WS");
+                    c.Properties<string>().UseCollation("Latin1_General_BIN");
+                });
+
+                modelBuilder.Entity<Quarks>(
+                    b =>
+                    {
+                        b.Property<int>("Charm");
+                        b.Property<string>("Strange");
+                        b.Property<int>("Top");
+                        b.Property<string>("Bottom");
+                    });
+
+                var model = modelBuilder.FinalizeModel();
+                var entityType = model.FindEntityType(typeof(Quarks));
+
+                Assert.Equal("Latin1_General_CS_AS_KS_WS", entityType.FindProperty(Customer.IdProperty.Name).GetCollation());
+                Assert.Equal("Latin1_General_CS_AS_KS_WS", entityType.FindProperty("Up").GetCollation());
+                Assert.Equal("Latin1_General_BIN", entityType.FindProperty("Down").GetCollation());
+                Assert.Equal("Latin1_General_CS_AS_KS_WS", entityType.FindProperty("Charm").GetCollation());
+                Assert.Equal("Latin1_General_BIN", entityType.FindProperty("Strange").GetCollation());
+                Assert.Equal("Latin1_General_CS_AS_KS_WS", entityType.FindProperty("Top").GetCollation());
+                Assert.Equal("Latin1_General_BIN", entityType.FindProperty("Bottom").GetCollation());
+            }
+
             protected override TestModelBuilder CreateModelBuilder(Action<ModelConfigurationBuilder> configure = null)
                 => CreateTestModelBuilder(SqlServerTestHelpers.Instance, configure);
         }
@@ -92,12 +183,12 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                     .WithOne()
                     .HasForeignKey<DisjointChildSubclass1>("ParentId");
 
-                modelBuilder.FinalizeModel();
+                var model = modelBuilder.FinalizeModel();
 
-                var property1 = modelBuilder.Model.FindEntityType(typeof(DisjointChildSubclass1)).FindProperty("ParentId");
+                var property1 = model.FindEntityType(typeof(DisjointChildSubclass1)).FindProperty("ParentId");
                 Assert.True(property1.IsForeignKey());
                 Assert.Equal("ParentId", property1.GetColumnBaseName());
-                var property2 = modelBuilder.Model.FindEntityType(typeof(DisjointChildSubclass2)).FindProperty("ParentId");
+                var property2 = model.FindEntityType(typeof(DisjointChildSubclass2)).FindProperty("ParentId");
                 Assert.True(property2.IsForeignKey());
                 Assert.Equal("DisjointChildSubclass2_ParentId", property2.GetColumnBaseName());
             }
@@ -111,11 +202,11 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 modelBuilder.Entity<DisjointChildSubclass1>();
                 modelBuilder.Entity<DisjointChildSubclass2>();
 
-                modelBuilder.FinalizeModel();
+                var model = modelBuilder.FinalizeModel();
 
-                var property1 = modelBuilder.Model.FindEntityType(typeof(DisjointChildSubclass1)).FindProperty(nameof(Child.Name));
+                var property1 = model.FindEntityType(typeof(DisjointChildSubclass1)).FindProperty(nameof(Child.Name));
                 Assert.Equal(nameof(Child.Name), property1.GetColumnBaseName());
-                var property2 = modelBuilder.Model.FindEntityType(typeof(DisjointChildSubclass2)).FindProperty(nameof(Child.Name));
+                var property2 = model.FindEntityType(typeof(DisjointChildSubclass2)).FindProperty(nameof(Child.Name));
                 Assert.Equal(nameof(Child.Name), property2.GetColumnBaseName());
             }
 
@@ -234,6 +325,69 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
 
                 var bunType = model.FindEntityType(typeof(Bun));
                 Assert.All(bunType.GetIndexes(), i => Assert.Null(i.GetFilter()));
+            }
+
+            [ConditionalFact]
+            public void Can_add_check_constraints()
+            {
+                var modelBuilder = CreateModelBuilder();
+                modelBuilder.Entity<Child>()
+                    .HasBaseType(null)
+                    .HasCheckConstraint("LargeId", "Id > 1000", c => c.HasName("CK_LargeId"));
+                modelBuilder.Entity<ChildBase>()
+                    .HasCheckConstraint("PositiveId", "Id > 0")
+                    .HasCheckConstraint("LargeId", "Id > 1000");
+                modelBuilder.Entity<Child>()
+                    .HasBaseType<ChildBase>();
+                modelBuilder.Entity<DisjointChildSubclass1>();
+
+                var model = modelBuilder.FinalizeModel();
+
+                var @base = model.FindEntityType(typeof(ChildBase));
+                Assert.Equal(2, @base.GetCheckConstraints().Count());
+
+                var firstCheckConstraint = @base.FindCheckConstraint("PositiveId");
+                Assert.Equal("PositiveId", firstCheckConstraint.ModelName);
+                Assert.Equal("Id > 0", firstCheckConstraint.Sql);
+                Assert.Equal("CK_ChildBase_PositiveId", firstCheckConstraint.Name);
+
+                var secondCheckConstraint = @base.FindCheckConstraint("LargeId");
+                Assert.Equal("LargeId", secondCheckConstraint.ModelName);
+                Assert.Equal("Id > 1000", secondCheckConstraint.Sql);
+                Assert.Equal("CK_LargeId", secondCheckConstraint.Name);
+
+                var child = model.FindEntityType(typeof(Child));
+                Assert.Equal(@base.GetCheckConstraints(), child.GetCheckConstraints());
+                Assert.Empty(child.GetDeclaredCheckConstraints());
+            }
+
+            [ConditionalFact]
+            public void Adding_conflicting_check_constraint_to_derived_type_throws()
+            {
+                var modelBuilder = CreateModelBuilder();
+                modelBuilder.Entity<ChildBase>()
+                    .HasCheckConstraint("LargeId", "Id > 100", c => c.HasName("CK_LargeId"));
+
+                Assert.Equal(
+                    RelationalStrings.DuplicateCheckConstraint("LargeId", nameof(Child), nameof(ChildBase)),
+                    Assert.Throws<InvalidOperationException>(
+                        () => modelBuilder.Entity<Child>().HasCheckConstraint("LargeId", "Id > 1000")).Message);
+            }
+
+            [ConditionalFact]
+            public void Adding_conflicting_check_constraint_to_derived_type_before_base_throws()
+            {
+                var modelBuilder = CreateModelBuilder();
+                modelBuilder.Entity<Child>()
+                    .HasBaseType(null)
+                    .HasCheckConstraint("LargeId", "Id > 1000");
+                modelBuilder.Entity<ChildBase>()
+                    .HasCheckConstraint("LargeId", "Id > 100", c => c.HasName("CK_LargeId"));
+
+                Assert.Equal(
+                    RelationalStrings.DuplicateCheckConstraint("LargeId", nameof(Child), nameof(ChildBase)),
+                    Assert.Throws<InvalidOperationException>(
+                        () => modelBuilder.Entity<Child>().HasBaseType<ChildBase>()).Message);
             }
 
             public class Parent
@@ -653,16 +807,16 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
             public override void Can_configure_owned_type()
             {
                 var modelBuilder = CreateModelBuilder();
-                var model = modelBuilder.Model;
 
-                var entityBuilder = modelBuilder.Entity<Customer>().OwnsOne(c => c.Details)
-                    .ToTable("CustomerDetails");
-                entityBuilder.Property(d => d.CustomerId);
-                entityBuilder.HasIndex(d => d.CustomerId);
-                entityBuilder.WithOwner(d => d.Customer)
+                var ownedBuilder = modelBuilder.Entity<Customer>().OwnsOne(c => c.Details)
+                    .ToTable("CustomerDetails")
+                    .HasCheckConstraint("CK_CustomerDetails_T", "AlternateKey <> 0", c => c.HasName("CK_Guid"));
+                ownedBuilder.Property(d => d.CustomerId);
+                ownedBuilder.HasIndex(d => d.CustomerId);
+                ownedBuilder.WithOwner(d => d.Customer)
                     .HasPrincipalKey(c => c.AlternateKey);
 
-                modelBuilder.FinalizeModel();
+                var model = modelBuilder.FinalizeModel();
 
                 var owner = model.FindEntityType(typeof(Customer));
                 Assert.Equal(typeof(Customer).FullName, owner.Name);
@@ -672,7 +826,12 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 Assert.Equal("CustomerAlternateKey", ownership.Properties.Single().Name);
                 Assert.Equal(nameof(Customer.AlternateKey), ownership.PrincipalKey.Properties.Single().Name);
                 var owned = ownership.DeclaringEntityType;
-                Assert.Same(entityBuilder.OwnedEntityType, owned);
+                Assert.Same(ownedBuilder.OwnedEntityType, owned);
+                Assert.Equal("CustomerDetails", owned.GetTableName());
+                var checkConstraint = owned.GetCheckConstraints().Single();
+                Assert.Equal("CK_CustomerDetails_T", checkConstraint.ModelName);
+                Assert.Equal("AlternateKey <> 0", checkConstraint.Sql);
+                Assert.Equal("CK_Guid", checkConstraint.Name);
                 Assert.Single(owned.GetForeignKeys());
                 Assert.Equal(nameof(CustomerDetails.CustomerId), owned.GetIndexes().Single().Properties.Single().Name);
                 Assert.Equal(
