@@ -1,9 +1,8 @@
-﻿// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -733,22 +732,9 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                 {
                     foreach (var missingColumn in missingConcurrencyTokens)
                     {
-                        var columnFound = false;
-                        foreach (var property in entityType.GetAllBaseTypesAscending().SelectMany(t => t.GetDeclaredProperties()))
-                        {
-                            if (property.GetColumnName(storeObject) == missingColumn)
-                            {
-                                columnFound = true;
-                                break;
-                            }
-                        }
-
-                        if (!columnFound)
-                        {
-                            throw new InvalidOperationException(
-                                RelationalStrings.MissingConcurrencyColumn(
-                                    entityType.DisplayName(), missingColumn, storeObject.DisplayName()));
-                        }
+                        throw new InvalidOperationException(
+                            RelationalStrings.MissingConcurrencyColumn(
+                                entityType.DisplayName(), missingColumn, storeObject.DisplayName()));
                     }
                 }
             }
@@ -1477,8 +1463,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                     }
                     else if (overlappingTables.Count == 0)
                     {
-                        Debug.Assert(firstPropertyTables != null, nameof(firstPropertyTables));
-                        Debug.Assert(lastPropertyTables != null, nameof(lastPropertyTables));
+                        Check.DebugAssert(firstPropertyTables != null, nameof(firstPropertyTables));
+                        Check.DebugAssert(lastPropertyTables != null, nameof(lastPropertyTables));
 
                         logger.IndexPropertiesMappedToNonOverlappingTables(
                             entityType,

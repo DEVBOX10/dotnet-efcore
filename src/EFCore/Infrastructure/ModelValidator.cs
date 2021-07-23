@@ -1,5 +1,5 @@
-﻿// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections;
@@ -141,7 +141,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         {
             Check.NotNull(model, nameof(model));
 
-            if (!(model is IConventionModel conventionModel))
+            if (model is not IConventionModel conventionModel)
             {
                 return;
             }
@@ -167,10 +167,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                     continue;
                 }
 
-                var clrProperties = new HashSet<string>(StringComparer.Ordinal);
-
                 var runtimeProperties = entityType.GetRuntimeProperties();
-
+                var clrProperties = new HashSet<string>(StringComparer.Ordinal);
                 clrProperties.UnionWith(
                     runtimeProperties.Values
                         .Where(pi => pi.IsCandidateProperty(needsWrite: false))
@@ -181,6 +179,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                     .Concat(entityType.GetNavigations())
                     .Concat(entityType.GetSkipNavigations())
                     .Concat(entityType.GetServiceProperties()).Select(p => p.Name));
+
                 if (entityType.IsPropertyBag)
                 {
                     clrProperties.ExceptWith(_dictionaryProperties);
@@ -191,7 +190,6 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                     continue;
                 }
 
-                var configuration = ((Model)entityType.Model).Configuration;
                 foreach (var clrPropertyName in clrProperties)
                 {
                     if (entityType.FindIgnoredConfigurationSource(clrPropertyName) != null)
@@ -212,31 +210,18 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                         continue;
                     }
 
-                    Dependencies.MemberClassifier.GetNavigationCandidates(entityType).TryGetValue(clrProperty, out var targetType);
+                    var targetType = Dependencies.MemberClassifier.FindCandidateNavigationPropertyType(
+                        clrProperty, conventionModel, out var targetOwned);
                     if (targetType == null
-                        || targetSequenceType == null)
+                        && clrProperty.FindSetterProperty() == null)
                     {
-                        if (clrProperty.FindSetterProperty() == null)
-                        {
-                            continue;
-                        }
-
-                        var sharedType = clrProperty.GetMemberType();
-                        if (conventionModel.IsShared(sharedType))
-                        {
-                            targetType = sharedType;
-                        }
+                        continue;
                     }
 
-                    var isTargetSharedOrOwned = targetType != null
-                        && (conventionModel.IsShared(targetType)
-                            || conventionModel.IsOwned(targetType));
-
-                    if (targetType?.IsValidEntityType() == true
-                        && (isTargetSharedOrOwned
-                            || conventionModel.FindEntityType(targetType) != null
-                            || targetType.GetRuntimeProperties().Any(p => p.IsCandidateProperty())))
+                    if (targetType != null)
                     {
+                        var targetShared = conventionModel.IsShared(targetType);
+                        targetOwned ??= IsOwned(targetType, conventionModel);
                         // ReSharper disable CheckForReferenceEqualityInstead.1
                         // ReSharper disable CheckForReferenceEqualityInstead.3
                         if ((!entityType.IsKeyless
@@ -244,21 +229,20 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                             && entityType.GetDerivedTypes().All(
                                 dt => dt.GetDeclaredNavigations().FirstOrDefault(n => n.Name == clrProperty.GetSimpleMemberName())
                                     == null)
-                            && (!isTargetSharedOrOwned
-                                || (!targetType.Equals(entityType.ClrType)
-                                    && (!entityType.IsInOwnershipPath(targetType)
-                                        || (entityType.FindOwnership()!.PrincipalEntityType.ClrType.Equals(targetType)
-                                            && targetSequenceType == null)))))
+                            && (!(targetShared || targetOwned.Value)
+                                || !targetType.Equals(entityType.ClrType))
+                            && (!entityType.IsInOwnershipPath(targetType)
+                                || targetSequenceType == null))
                         {
-                            if (conventionModel.IsOwned(entityType.ClrType)
-                                && conventionModel.IsOwned(targetType))
+                            if (entityType.IsOwned()
+                                && targetOwned.Value)
                             {
                                 throw new InvalidOperationException(
                                     CoreStrings.AmbiguousOwnedNavigation(
                                         entityType.DisplayName() + "." + clrProperty.Name, targetType.ShortDisplayName()));
                             }
 
-                            if (model.IsShared(targetType))
+                            if (targetShared)
                             {
                                 throw new InvalidOperationException(
                                     CoreStrings.NonConfiguredNavigationToSharedType(clrProperty.Name, entityType.DisplayName()));
@@ -288,6 +272,16 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                 }
             }
         }
+
+        /// <summary>
+        ///     Returns a value indicating whether that target CLR type would correspond to an owned entity type.
+        /// </summary>
+        /// <param name="targetType"> The target CLR type. </param>
+        /// <param name="conventionModel"> The model. </param>
+        /// <returns> <see langword="true"/> if the given CLR type corresponds to an owned entity type. </returns>
+        protected virtual bool IsOwned(Type targetType, IConventionModel conventionModel)
+            => conventionModel.FindIsOwnedConfigurationSource(targetType) != null
+                || conventionModel.FindEntityTypes(targetType).Any(t => t.IsOwned());
 
         /// <summary>
         ///     Validates that no attempt is made to ignore inherited properties.
@@ -705,9 +699,10 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
 
                 if (ownerships.Count == 1)
                 {
+                    Check.DebugAssert(entityType.IsOwned(), $"Expected the entity type {entityType.DisplayName()} to be marked as owned");
+
                     var ownership = ownerships[0];
-                    if (entityType.BaseType != null
-                        && ownership.DeclaringEntityType == entityType)
+                    if (entityType.BaseType != null)
                     {
                         throw new InvalidOperationException(CoreStrings.OwnedDerivedType(entityType.DisplayName()));
                     }
@@ -742,7 +737,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                                 ownership.PrincipalEntityType.DisplayName()));
                     }
                 }
-                else if (((IMutableModel)model).IsOwned(entityType.ClrType))
+                else if (((IConventionModel)model).IsOwned(entityType.ClrType)
+                    || entityType.IsOwned())
                 {
                     throw new InvalidOperationException(CoreStrings.OwnerlessOwnedType(entityType.DisplayName()));
                 }

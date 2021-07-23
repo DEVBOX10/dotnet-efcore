@@ -1,5 +1,5 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure;
@@ -41,6 +41,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         public override ConventionSet CreateConventionSet()
         {
             var conventionSet = base.CreateConventionSet();
+
+            ReplaceConvention(
+                conventionSet.ModelFinalizingConventions,
+                (SharedTableConvention)new SqliteSharedTableConvention(Dependencies, RelationalDependencies));
 
             ReplaceConvention(
                 conventionSet.ModelFinalizedConventions,

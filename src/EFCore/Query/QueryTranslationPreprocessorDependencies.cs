@@ -1,5 +1,5 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Utilities;
@@ -52,16 +52,24 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// </summary>
         [EntityFrameworkInternal]
         public QueryTranslationPreprocessorDependencies(
-            IEvaluatableExpressionFilter evaluatableExpressionFilter)
+            IEvaluatableExpressionFilter evaluatableExpressionFilter,
+            IQueryRootCreator queryRootCreator)
         {
             Check.NotNull(evaluatableExpressionFilter, nameof(evaluatableExpressionFilter));
+            Check.NotNull(queryRootCreator, nameof(queryRootCreator));
 
             EvaluatableExpressionFilter = evaluatableExpressionFilter;
+            QueryRootCreator = queryRootCreator;
         }
 
         /// <summary>
         ///     Evaluatable expression filter.
         /// </summary>
         public IEvaluatableExpressionFilter EvaluatableExpressionFilter { get; init; }
+
+        /// <summary>
+        ///     Query root creator.
+        /// </summary>
+        public IQueryRootCreator QueryRootCreator { get; init; }
     }
 }

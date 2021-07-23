@@ -1,5 +1,5 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Diagnostics;
@@ -89,7 +89,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
                         && configurationSource.Value.Overrides(Metadata.GetIsNullableConfigurationSource()))
                     || (Metadata.IsNullable == !required))
                 && (required != false
-                    || Metadata.ClrType.IsNullableType());
+                    || (Metadata.ClrType.IsNullableType()
+                        && Metadata.GetContainingKeys().All(k => configurationSource.Overrides(k.GetConfigurationSource()))));
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to

@@ -1,5 +1,5 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -34,23 +34,21 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
             IConventionContext<IConventionEntityTypeBuilder> context)
         {
             var entityType = entityTypeBuilder.Metadata;
-            var clrType = entityType.ClrType;
-            if (clrType == null
-                || entityType.HasSharedClrType
+            if (entityType.HasSharedClrType
                 || entityType.HasDefiningNavigation()
-                || entityType.Model.IsOwned(clrType)
-                || entityType.FindOwnership() != null)
+                || entityType.IsOwned())
             {
                 return;
             }
 
+            var clrType = entityType.ClrType;
             var model = entityType.Model;
             foreach (var directlyDerivedType in model.GetEntityTypes())
             {
                 if (directlyDerivedType != entityType
                         && !directlyDerivedType.HasSharedClrType
                         && !directlyDerivedType.HasDefiningNavigation()
-                        && !model.IsOwned(directlyDerivedType.ClrType)
+                        && !directlyDerivedType.IsOwned()
                         && directlyDerivedType.FindDeclaredOwnership() == null
                         && ((directlyDerivedType.BaseType == null && clrType.IsAssignableFrom(directlyDerivedType.ClrType))
                             || (directlyDerivedType.BaseType == entityType.BaseType && FindClosestBaseType(directlyDerivedType) == entityType)))

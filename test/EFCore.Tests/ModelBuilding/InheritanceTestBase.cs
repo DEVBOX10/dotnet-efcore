@@ -1,5 +1,5 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Collections.Generic;
 using System.Linq;
@@ -213,6 +213,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 var modelBuilder = CreateModelBuilder();
                 modelBuilder.Ignore<CustomerDetails>();
                 modelBuilder.Ignore<OrderDetails>();
+                modelBuilder.Ignore<Product>();
 
                 var principalEntityBuilder = modelBuilder.Entity<Customer>();
                 principalEntityBuilder.Ignore(nameof(Customer.Orders));
@@ -278,6 +279,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 var modelBuilder = CreateModelBuilder();
                 modelBuilder.Ignore<CustomerDetails>();
                 modelBuilder.Ignore<OrderDetails>();
+                modelBuilder.Ignore<Product>();
 
                 var principalEntityBuilder = modelBuilder.Entity<Customer>();
                 principalEntityBuilder.Ignore(nameof(Customer.Orders));
@@ -312,6 +314,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
             public virtual void Can_match_navigation_to_derived_type_with_inverse_on_base()
             {
                 var modelBuilder = CreateModelBuilder();
+                modelBuilder.Ignore<Product>();
                 modelBuilder.Ignore<CustomerDetails>();
                 modelBuilder.Ignore<OrderDetails>();
 
@@ -454,7 +457,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 Assert.Equal(nameof(Order.CustomerId), otherDerivedFk.Properties.Single().Name);
             }
 
-            [ConditionalFact(Skip = "Issue #18388")]
+            [ConditionalFact]
             public virtual void Can_promote_shadow_fk_to_the_base_type()
             {
                 var modelBuilder = CreateModelBuilder();
@@ -526,6 +529,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 modelBuilder.Ignore<OrderDetails>();
                 modelBuilder.Ignore<BackOrder>();
                 modelBuilder.Ignore<SpecialCustomer>();
+                modelBuilder.Ignore<Product>();
 
                 var principalEntityBuilder = modelBuilder.Entity<Customer>();
                 var derivedPrincipalEntityBuilder = modelBuilder.Entity<OtherCustomer>();
@@ -609,6 +613,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 modelBuilder.Ignore<OrderDetails>();
                 modelBuilder.Ignore<BackOrder>();
                 modelBuilder.Ignore<SpecialCustomer>();
+                modelBuilder.Ignore<Product>();
 
                 modelBuilder.Entity<Customer>();
                 var derivedPrincipalEntityBuilder = modelBuilder.Entity<OtherCustomer>();
@@ -698,10 +703,11 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
             }
 
             [ConditionalFact]
-            public virtual void Removing_derived_type_make_sure_that_entity_type_is_removed_from_directly_derived_type()
+            public virtual void Removing_derived_removes_it_from_directly_derived_type()
             {
                 var modelBuilder = CreateModelBuilder();
                 modelBuilder.Entity<Book>();
+                modelBuilder.Entity<BookLabel>();
                 modelBuilder.Ignore<SpecialBookLabel>();
                 modelBuilder.Ignore<AnotherBookLabel>();
 
@@ -760,9 +766,11 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 var extraSpecialBookLabelEntityBuilder = modelBuilder.Entity<ExtraSpecialBookLabel>();
                 modelBuilder.Entity<SpecialBookLabel>()
                     .HasOne(e => (ExtraSpecialBookLabel)e.SpecialBookLabel)
-                    .WithOne(e => (SpecialBookLabel)e.BookLabel);
+                    .WithOne(e => (SpecialBookLabel)e.BookLabel)
+                    .HasForeignKey<ExtraSpecialBookLabel>();
 
                 var fk = bookLabelEntityBuilder.Metadata.FindNavigation(nameof(BookLabel.SpecialBookLabel)).ForeignKey;
+                Assert.Equal(new[] { fk }, extraSpecialBookLabelEntityBuilder.Metadata.GetForeignKeys());
                 Assert.Equal(nameof(SpecialBookLabel.BookLabel), fk.DependentToPrincipal.Name);
                 Assert.Equal(new[] { fk }, extraSpecialBookLabelEntityBuilder.Metadata.GetForeignKeys());
             }
@@ -853,7 +861,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
             }
 
             [ConditionalFact] // #7049
-            public void Base_type_can_be_discovered_after_creating_foreign_keys_on_derived()
+            public virtual void Base_type_can_be_discovered_after_creating_foreign_keys_on_derived()
             {
                 var mb = CreateModelBuilder();
                 mb.Entity<AL>();
@@ -863,7 +871,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
             }
 
             [ConditionalFact]
-            public void Can_get_set_discriminator_mapping_is_complete()
+            public virtual void Can_get_set_discriminator_mapping_is_complete()
             {
                 var mb = CreateModelBuilder();
                 var baseTypeBuilder = mb.Entity<PBase>();

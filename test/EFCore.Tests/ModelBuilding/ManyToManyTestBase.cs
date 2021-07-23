@@ -1,5 +1,5 @@
-﻿// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections.Generic;
@@ -220,7 +220,10 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                         .Where(et => ((EntityType)et).IsImplicitlyCreatedJoinEntityType));
 
                 Assert.Empty(hob.GetSkipNavigations());
-                Assert.Empty(nob.GetSkipNavigations());
+                if (nob != null)
+                {
+                    Assert.Empty(nob.GetSkipNavigations());
+                }
             }
 
             [ConditionalFact]
@@ -441,6 +444,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                     .Navigation(e => e.Dependents)
                     .UsePropertyAccessMode(PropertyAccessMode.Field);
 
+                modelBuilder.Entity<OneToManyNavPrincipal>();
                 modelBuilder.Entity<NavDependent>()
                     .Navigation(e => e.ManyToManyPrincipals)
                     .UsePropertyAccessMode(PropertyAccessMode.Property);

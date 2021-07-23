@@ -1,5 +1,5 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.ComponentModel.DataAnnotations;
@@ -8,6 +8,7 @@ using System.Diagnostics;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.Logging;
 
+// ReSharper disable UnusedMember.Local
 namespace Microsoft.EntityFrameworkCore.Diagnostics
 {
     /// <summary>
@@ -146,7 +147,7 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         public static readonly EventId SaveChangesFailed = MakeUpdateId(Id.SaveChangesFailed);
 
         /// <summary>
-        ///     The same entity is being tracked as a different weak entity type.
+        ///     The same entity is being tracked as a different shared entity entity type.
         ///     This event is in the <see cref="DbLoggerCategory.Update" /> category.
         /// </summary>
         public static readonly EventId DuplicateDependentEntityTypeInstanceWarning =
@@ -686,7 +687,7 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
 
         /// <summary>
         ///     <para>
-        ///         There navigation that <see cref="InversePropertyAttribute" /> points to is not the defining navigation.
+        ///         The navigation that <see cref="InversePropertyAttribute" /> points to is not the defining navigation.
         ///     </para>
         ///     <para>
         ///         This event is in the <see cref="DbLoggerCategory.Model" /> category.
@@ -700,7 +701,7 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
 
         /// <summary>
         ///     <para>
-        ///         There navigation that <see cref="InversePropertyAttribute" /> points to is not the defining navigation.
+        ///         The navigation that <see cref="InversePropertyAttribute" /> points to is not the defining navigation.
         ///     </para>
         ///     <para>
         ///         This event is in the <see cref="DbLoggerCategory.Model" /> category.

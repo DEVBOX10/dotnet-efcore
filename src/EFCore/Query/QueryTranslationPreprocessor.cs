@@ -1,5 +1,5 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore.Query.Internal;
@@ -57,8 +57,12 @@ namespace Microsoft.EntityFrameworkCore.Query
             query = NormalizeQueryableMethod(query);
             query = new NullCheckRemovingExpressionVisitor().Visit(query);
             query = new SubqueryMemberPushdownExpressionVisitor(QueryCompilationContext.Model).Visit(query);
-            query = new NavigationExpandingExpressionVisitor(this, QueryCompilationContext, Dependencies.EvaluatableExpressionFilter)
-                .Expand(query);
+            query = new NavigationExpandingExpressionVisitor(
+                this,
+                QueryCompilationContext,
+                Dependencies.EvaluatableExpressionFilter,
+                Dependencies.QueryRootCreator)
+                    .Expand(query);
             query = new QueryOptimizingExpressionVisitor().Visit(query);
             query = new NullCheckRemovingExpressionVisitor().Visit(query);
 

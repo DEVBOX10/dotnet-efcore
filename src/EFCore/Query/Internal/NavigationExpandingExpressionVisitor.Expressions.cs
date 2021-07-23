@@ -1,5 +1,5 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections.Generic;
@@ -15,10 +15,11 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
     {
         private sealed class EntityReference : Expression, IPrintableExpression
         {
-            public EntityReference(IEntityType entityType)
+            public EntityReference(IEntityType entityType, QueryRootExpression? queryRootExpression)
             {
                 EntityType = entityType;
                 IncludePaths = new IncludeTreeNode(entityType, this, setLoaded: true);
+                QueryRootExpression = queryRootExpression;
             }
 
             public IEntityType EntityType { get; }
@@ -29,6 +30,7 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
             public bool IsOptional { get; private set; }
             public IncludeTreeNode IncludePaths { get; private set; }
             public IncludeTreeNode? LastIncludeTreeNode { get; private set; }
+            public QueryRootExpression? QueryRootExpression { get; private set; }
 
             public override ExpressionType NodeType
                 => ExpressionType.Extension;
@@ -45,7 +47,7 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
 
             public EntityReference Snapshot()
             {
-                var result = new EntityReference(EntityType) { IsOptional = IsOptional };
+                var result = new EntityReference(EntityType, QueryRootExpression) { IsOptional = IsOptional };
                 result.IncludePaths = IncludePaths.Snapshot(result);
 
                 return result;

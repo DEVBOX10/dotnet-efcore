@@ -1,5 +1,5 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections.Generic;
@@ -1044,11 +1044,11 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 => Wrap<TEntity, TDependentEntity>(
                     OwnedNavigationBuilder.Ignore(propertyExpression.GetMemberAccess().GetSimpleMemberName()));
 
-            public override TestIndexBuilder<TEntity> HasIndex(params string[] propertyNames)
-                => new NonGenericTestIndexBuilder<TEntity>(OwnedNavigationBuilder.HasIndex(propertyNames));
+            public override TestIndexBuilder<TDependentEntity> HasIndex(params string[] propertyNames)
+                => new NonGenericTestIndexBuilder<TDependentEntity>(OwnedNavigationBuilder.HasIndex(propertyNames));
 
-            public override TestIndexBuilder<TEntity> HasIndex(Expression<Func<TDependentEntity, object?>> indexExpression)
-                => new NonGenericTestIndexBuilder<TEntity>(
+            public override TestIndexBuilder<TDependentEntity> HasIndex(Expression<Func<TDependentEntity, object?>> indexExpression)
+                => new NonGenericTestIndexBuilder<TDependentEntity>(
                     OwnedNavigationBuilder.HasIndex(
                         indexExpression.GetMemberAccessList().Select(p => p.GetSimpleMemberName()).ToArray()));
 

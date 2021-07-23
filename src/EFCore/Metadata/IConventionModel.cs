@@ -1,5 +1,5 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections.Generic;
@@ -79,7 +79,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
 
         /// <summary>
         ///     <para>
-        ///         Adds a shadow state entity type to the model.
+        ///         Adds a state entity type of default type to the model.
         ///     </para>
         ///     <para>
         ///         Shadow entities are not currently supported in a model that is used at runtime with a <see cref="DbContext" />.
@@ -115,7 +115,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         IConventionEntityType? AddEntityType(string name, Type clrType, bool fromDataAnnotation = false);
 
         /// <summary>
-        ///     Adds an entity type with a defining navigation to the model.
+        ///     Adds an owned entity type with a defining navigation to the model.
         /// </summary>
         /// <param name="name"> The name of the entity type to be added. </param>
         /// <param name="definingNavigationName"> The defining navigation. </param>
@@ -129,7 +129,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
             bool fromDataAnnotation = false);
 
         /// <summary>
-        ///     Adds an entity type with a defining navigation to the model.
+        ///     Adds an owned entity type with a defining navigation to the model.
         /// </summary>
         /// <param name="type"> The CLR class that is used to represent instances of this entity type. </param>
         /// <param name="definingNavigationName"> The defining navigation. </param>
@@ -141,6 +141,43 @@ namespace Microsoft.EntityFrameworkCore.Metadata
             string definingNavigationName,
             IConventionEntityType definingEntityType,
             bool fromDataAnnotation = false);
+
+        /// <summary>
+        ///     <para>
+        ///         Adds an owned entity type of default type to the model.
+        ///     </para>
+        ///     <para>
+        ///         Shadow entities are not currently supported in a model that is used at runtime with a <see cref="DbContext" />.
+        ///         Therefore, shadow state entity types will only exist in migration model snapshots, etc.
+        ///     </para>
+        /// </summary>
+        /// <param name="name"> The name of the entity to be added. </param>
+        /// <param name="fromDataAnnotation"> Indicates whether the configuration was specified using a data annotation. </param>
+        /// <returns> The new entity type. </returns>
+        IConventionEntityType? AddOwnedEntityType(string name, bool fromDataAnnotation = false);
+
+        /// <summary>
+        ///     Adds an owned entity type to the model.
+        /// </summary>
+        /// <param name="type"> The CLR class that is used to represent instances of the entity type. </param>
+        /// <param name="fromDataAnnotation"> Indicates whether the configuration was specified using a data annotation. </param>
+        /// <returns> The new entity type. </returns>
+        IConventionEntityType? AddOwnedEntityType(Type type, bool fromDataAnnotation = false);
+
+        /// <summary>
+        ///     <para>
+        ///         Adds an owned shared type entity type to the model.
+        ///     </para>
+        ///     <para>
+        ///         Shared type entity type is an entity type which can share CLR type with other types in the model but has
+        ///         a unique name and always identified by the name.
+        ///     </para>
+        /// </summary>
+        /// <param name="name"> The name of the entity to be added. </param>
+        /// <param name="clrType"> The CLR class that is used to represent instances of the entity type. </param>
+        /// <param name="fromDataAnnotation"> Indicates whether the configuration was specified using a data annotation. </param>
+        /// <returns> The new entity type. </returns>
+        IConventionEntityType? AddOwnedEntityType(string name, Type clrType, bool fromDataAnnotation = false);
 
         /// <summary>
         ///     Gets the entity with the given name. Returns <see langword="null" /> if no entity type with the given name is found
@@ -256,7 +293,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         new IEnumerable<IConventionEntityType> FindLeastDerivedEntityTypes(
             Type type,
             Func<IReadOnlyEntityType, bool>? condition = null)
-            => ((IReadOnlyModel)this).FindLeastDerivedEntityTypes(type, condition == null ? null : t => condition(t))
+            => ((IReadOnlyModel)this).FindLeastDerivedEntityTypes(type, condition)
                 .Cast<IConventionEntityType>();
 
         /// <summary>
@@ -266,6 +303,24 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         /// <param name="type"> The type of the entity type that should be shared. </param>
         /// <param name="fromDataAnnotation"> Indicates whether the configuration was specified using a data annotation. </param>
         void AddShared(Type type, bool fromDataAnnotation = false);
+
+        /// <summary>
+        ///     Marks the given type as not shared, indicating that when discovered matching entity types
+        ///     should not be configured as shared type entity types.
+        /// </summary>
+        /// <param name="type"> The type of the entity type that should be shared. </param>
+        /// <returns> The removed type. </returns>
+        Type? RemoveShared(Type type);
+
+        /// <summary>
+        ///     Returns the configuration source if the given type is marked as shared.
+        /// </summary>
+        /// <param name="type"> The type that could be shared. </param>
+        /// <returns>
+        ///     The configuration source if the given type is marked as shared,
+        ///     <see langword="null" /> otherwise.
+        /// </returns>
+        ConfigurationSource? FindIsSharedConfigurationSource(Type type);
 
         /// <summary>
         ///     Marks the given entity type as owned, indicating that when discovered entity types using the given type
@@ -289,18 +344,17 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         /// </summary>
         /// <param name="type"> The type of the entity type that could be owned. </param>
         /// <returns>
-        ///     <see langword="true" /> if the given type name is marked as owned,
+        ///     <see langword="true" /> if the given type is marked as owned,
         ///     <see langword="null" /> otherwise.
         /// </returns>
         bool IsOwned(Type type) => FindIsOwnedConfigurationSource(type) != null;
 
         /// <summary>
-        ///     Returns a value indicating whether the entity types using the given type should be configured
-        ///     as owned types when discovered.
+        ///     Returns the configuration source if the given type is marked as owned.
         /// </summary>
         /// <param name="type"> The type of the entity type that could be owned. </param>
         /// <returns>
-        ///     The configuration source if the given type name is marked as owned,
+        ///     The configuration source if the given type is marked as owned,
         ///     <see langword="null" /> otherwise.
         /// </returns>
         ConfigurationSource? FindIsOwnedConfigurationSource(Type type);

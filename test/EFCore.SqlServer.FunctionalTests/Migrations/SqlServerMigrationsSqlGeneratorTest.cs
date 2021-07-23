@@ -1,5 +1,5 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.IO;
@@ -1018,8 +1018,9 @@ SELECT @@ROWCOUNT;
 
             var storeType = isUnicode ? "nvarchar(max)" : "varchar(max)";
             var unicodePrefix = isUnicode ? "N" : string.Empty;
+            var unicodePrefixForType = isUnicode ? "n" : string.Empty;
             var expectedSql = @$"CREATE TABLE [dbo].[TestLineBreaks] (
-    [TestDefaultValue] {storeType} NOT NULL DEFAULT CONCAT({unicodePrefix}CHAR(13), {unicodePrefix}CHAR(10), {unicodePrefix}'Various Line', {unicodePrefix}CHAR(13), {unicodePrefix}'Breaks', {unicodePrefix}CHAR(10))
+    [TestDefaultValue] {storeType} NOT NULL DEFAULT CONCAT(CAST({unicodePrefixForType}char(13) AS {storeType}), {unicodePrefixForType}char(10), {unicodePrefix}'Various Line', {unicodePrefixForType}char(13), {unicodePrefix}'Breaks', {unicodePrefixForType}char(10))
 );
 ";
             AssertSql(expectedSql);

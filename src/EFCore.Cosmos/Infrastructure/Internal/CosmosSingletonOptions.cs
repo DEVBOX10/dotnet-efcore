@@ -1,5 +1,5 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Net;
@@ -153,6 +153,7 @@ namespace Microsoft.EntityFrameworkCore.Cosmos.Infrastructure.Internal
                 ConnectionString = cosmosOptions.ConnectionString;
                 Region = cosmosOptions.Region;
                 LimitToEndpoint = cosmosOptions.LimitToEndpoint;
+                EnableContentResponseOnWrite = cosmosOptions.EnableContentResponseOnWrite;
                 ConnectionMode = cosmosOptions.ConnectionMode;
                 WebProxy = cosmosOptions.WebProxy;
                 RequestTimeout = cosmosOptions.RequestTimeout;
@@ -161,7 +162,6 @@ namespace Microsoft.EntityFrameworkCore.Cosmos.Infrastructure.Internal
                 GatewayModeMaxConnectionLimit = cosmosOptions.GatewayModeMaxConnectionLimit;
                 MaxTcpConnectionsPerEndpoint = cosmosOptions.MaxTcpConnectionsPerEndpoint;
                 MaxRequestsPerTcpConnection = cosmosOptions.MaxRequestsPerTcpConnection;
-                EnableContentResponseOnWrite = cosmosOptions.EnableContentResponseOnWrite;
             }
         }
 

@@ -1,5 +1,5 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections.Generic;
@@ -125,6 +125,12 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// </summary>
         public virtual IList<IForeignKeyAnnotationChangedConvention> ForeignKeyAnnotationChangedConventions { get; }
             = new List<IForeignKeyAnnotationChangedConvention>();
+
+        /// <summary>
+        ///     Conventions to run when a navigation is set to <see langword="null"/> on a foreign key.
+        /// </summary>
+        public virtual IList<IForeignKeyNullNavigationSetConvention> ForeignKeyNullNavigationSetConventions { get; }
+            = new List<IForeignKeyNullNavigationSetConvention>();
 
         /// <summary>
         ///     Conventions to run when a navigation property is added.

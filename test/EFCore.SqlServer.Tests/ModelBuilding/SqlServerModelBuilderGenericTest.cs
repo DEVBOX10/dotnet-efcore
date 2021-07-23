@@ -1,5 +1,5 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections.Generic;
@@ -1095,6 +1095,26 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 Assert.Null(entity.GetTemporalPeriodStartPropertyName());
                 Assert.Null(entity.GetTemporalPeriodEndPropertyName());
                 Assert.Equal(3, entity.GetProperties().Count());
+            }
+
+            [ConditionalFact]
+            public virtual void Implicit_many_to_many_converted_from_non_temporal_to_temporal()
+            {
+                var modelBuilder = CreateModelBuilder();
+                var model = modelBuilder.Model;
+
+                modelBuilder.Entity<ImplicitManyToManyA>();
+                modelBuilder.Entity<ImplicitManyToManyB>();
+
+                modelBuilder.Entity<ImplicitManyToManyA>().ToTable(tb => tb.IsTemporal());
+                modelBuilder.Entity<ImplicitManyToManyB>().ToTable(tb => tb.IsTemporal());
+
+                modelBuilder.FinalizeModel();
+
+                var entity = model.FindEntityType(typeof(ImplicitManyToManyA));
+                var joinEntity = entity.GetSkipNavigations().Single().JoinEntityType;
+
+                Assert.True(joinEntity.IsTemporal());
             }
 
             protected override TestModelBuilder CreateModelBuilder(Action<ModelConfigurationBuilder> configure = null)

@@ -1,5 +1,5 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections.Generic;
@@ -218,10 +218,22 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         {
             EnsureMutable();
 
-            Validate(properties, principalKey, DeclaringEntityType, PrincipalEntityType);
-
             var oldProperties = Properties;
             var oldPrincipalKey = PrincipalKey;
+
+            if (oldProperties.SequenceEqual(properties)
+                && oldPrincipalKey == principalKey)
+            {
+                if (configurationSource != null)
+                {
+                    UpdatePropertiesConfigurationSource(configurationSource.Value);
+                    UpdatePrincipalKeyConfigurationSource(configurationSource.Value);
+                }
+
+                return oldProperties;
+            }
+
+            Validate(properties, principalKey, DeclaringEntityType, PrincipalEntityType);
 
             DeclaringEntityType.OnForeignKeyUpdating(this);
 
@@ -440,6 +452,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
             var oldNavigation = pointsToPrincipal ? DependentToPrincipal : PrincipalToDependent;
             if (name == oldNavigation?.Name)
             {
+                var oldConfigurationSource = pointsToPrincipal
+                    ? _dependentToPrincipalConfigurationSource
+                    : _principalToDependentConfigurationSource;
+
                 if (pointsToPrincipal)
                 {
                     UpdateDependentToPrincipalConfigurationSource(configurationSource);
@@ -449,7 +465,21 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
                     UpdatePrincipalToDependentConfigurationSource(configurationSource);
                 }
 
+                if (name == null
+                    && configurationSource.OverridesStrictly(oldConfigurationSource))
+                {
+                    DeclaringEntityType.Model.ConventionDispatcher.OnForeignKeyNullNavigationSet(Builder, pointsToPrincipal);
+                }
+
                 return oldNavigation!;
+            }
+
+            if (name == null
+                && IsOwnership
+                && !pointsToPrincipal)
+            {
+                throw new InvalidOperationException(CoreStrings.OwnershipToDependent(
+                    oldNavigation?.Name, PrincipalEntityType.DisplayName(), DeclaringEntityType.DisplayName()));
             }
 
             if (oldNavigation != null)
@@ -496,7 +526,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
             {
                 Check.DebugAssert(oldNavigation.Name != null, "oldNavigation.Name is null");
 
-                string? removedNavigationName = null;
+                string? removedNavigationName;
                 if (pointsToPrincipal)
                 {
                     removedNavigationName = DeclaringEntityType.Model.ConventionDispatcher.OnNavigationRemoved(
@@ -516,6 +546,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
 
                 if (navigation == null)
                 {
+                    DeclaringEntityType.Model.ConventionDispatcher.OnForeignKeyNullNavigationSet(Builder, pointsToPrincipal);
                     return oldNavigation.Name == removedNavigationName ? oldNavigation : null;
                 }
             }
@@ -523,6 +554,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
             if (navigation != null)
             {
                 navigation = (Navigation?)DeclaringEntityType.Model.ConventionDispatcher.OnNavigationAdded(navigation.Builder)?.Metadata;
+            }
+            else
+            {
+                DeclaringEntityType.Model.ConventionDispatcher.OnForeignKeyNullNavigationSet(Builder, pointsToPrincipal);
             }
 
             return navigation;
@@ -805,6 +840,21 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         public virtual bool? SetIsOwnership(bool? ownership, ConfigurationSource configurationSource)
         {
             EnsureMutable();
+
+            if (ownership == true)
+            {
+                if (!DeclaringEntityType.IsOwned())
+                {
+                    throw new InvalidOperationException(CoreStrings.ClashingNonOwnedEntityType(DeclaringEntityType.DisplayName()));
+                }
+
+                if (PrincipalToDependent == null)
+                {
+                    throw new InvalidOperationException(
+                        CoreStrings.NavigationlessOwnership(
+                            PrincipalEntityType.DisplayName(), DeclaringEntityType.DisplayName()));
+                }
+            }
 
             var oldIsOwnership = IsOwnership;
             _isOwnership = ownership;

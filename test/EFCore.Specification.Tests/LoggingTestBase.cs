@@ -1,5 +1,5 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Linq;
@@ -26,7 +26,7 @@ namespace Microsoft.EntityFrameworkCore
         public void Logs_context_initialization_no_tracking()
         {
             Assert.Equal(
-                ExpectedMessage("NoTracking " + DefaultOptions),
+                ExpectedMessage(DefaultOptions + "NoTracking"),
                 ActualMessage(s => CreateOptionsBuilder(s).UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)));
         }
 
@@ -34,7 +34,7 @@ namespace Microsoft.EntityFrameworkCore
         public void Logs_context_initialization_sensitive_data_logging()
         {
             Assert.Equal(
-                ExpectedMessage("SensitiveDataLoggingEnabled " + DefaultOptions),
+                ExpectedMessage(DefaultOptions + "SensitiveDataLoggingEnabled"),
                 ActualMessage(s => CreateOptionsBuilder(s).EnableSensitiveDataLogging()));
         }
 

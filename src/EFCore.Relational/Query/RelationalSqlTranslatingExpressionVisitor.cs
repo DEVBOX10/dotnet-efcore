@@ -1,5 +1,5 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections;
@@ -1358,7 +1358,7 @@ namespace Microsoft.EntityFrameworkCore.Query
             var rightEntityType = rightEntityReference?.EntityType;
             var entityType = leftEntityType ?? rightEntityType;
 
-            Debug.Assert(entityType != null, "At least one side should be entityReference so entityType should be non-null.");
+            Check.DebugAssert(entityType != null, "At least one side should be entityReference so entityType should be non-null.");
 
             if (leftEntityType != null
                 && rightEntityType != null

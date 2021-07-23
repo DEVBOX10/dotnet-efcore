@@ -1,5 +1,5 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections.Generic;
@@ -25,20 +25,6 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
         {
             protected override TestModelBuilder CreateTestModelBuilder(TestHelpers testHelpers, Action<ModelConfigurationBuilder>? configure)
                 => new NonGenericStringTestModelBuilder(testHelpers, configure);
-
-            public override void Reconfiguring_owned_type_as_non_owned_throws()
-            {
-                var modelBuilder = CreateModelBuilder();
-
-                modelBuilder.Ignore<Customer>();
-                modelBuilder.Entity<SpecialCustomer>().OwnsOne(c => c.Details);
-
-                Assert.Equal(
-                    CoreStrings.ClashingOwnedEntityType(typeof(CustomerDetails).FullName),
-                    Assert.Throws<InvalidOperationException>(
-                        () =>
-                            modelBuilder.Entity<SpecialCustomer>().HasOne(c => c.Details)).Message);
-            }
 
             // Shadow navigations not supported #3864
             public override void Can_configure_owned_type_collection_with_one_call()

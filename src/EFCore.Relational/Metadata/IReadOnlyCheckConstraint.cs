@@ -1,5 +1,5 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
@@ -35,7 +35,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         /// </summary>
         /// <param name="storeObject"> The identifier of the store object. </param>
         /// <returns> The database name of the check constraint for the given store object. </returns>
-        string GetName(in StoreObjectIdentifier storeObject);
+        string? GetName(in StoreObjectIdentifier storeObject);
 
         /// <summary>
         ///     Returns the default database name that would be used for this check constraint.

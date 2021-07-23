@@ -1,5 +1,5 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.EntityFrameworkCore.Cosmos.Internal;
 using Microsoft.EntityFrameworkCore.TestUtilities;
@@ -137,6 +137,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         public virtual void Detects_missing_partition_key_property()
         {
             var modelBuilder = CreateConventionalModelBuilder();
+            modelBuilder.Entity<Customer>();
             modelBuilder.Entity<Order>().HasPartitionKey("PartitionKey");
 
             VerifyError(CosmosStrings.PartitionKeyMissingProperty(typeof(Order).Name, "PartitionKey"), modelBuilder);
@@ -193,6 +194,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         public virtual void Detects_properties_mapped_to_same_property()
         {
             var modelBuilder = CreateConventionalModelBuilder();
+            modelBuilder.Entity<Customer>();
             modelBuilder.Entity<Order>(
                 ob =>
                 {
@@ -209,6 +211,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         public virtual void Detects_property_and_embedded_type_mapped_to_same_property()
         {
             var modelBuilder = CreateConventionalModelBuilder();
+            modelBuilder.Entity<Customer>();
             modelBuilder.Entity<Order>(
                 ob =>
                 {

@@ -1,5 +1,5 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Data.Common;
@@ -428,11 +428,21 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
 
             /// <summary>
             ///     Returns a hash code created from any options that would cause a new <see cref="IServiceProvider" />
-            ///     to be needed. Most extensions do not have any such options and should return zero.
+            ///     to be needed. For example, if the options affect a singleton service. However most extensions do not
+            ///     have any such options and should return zero.
             /// </summary>
             /// <returns> A hash over options that require a new service provider when changed. </returns>
-            public override long GetServiceProviderHashCode()
+            public override int GetServiceProviderHashCode()
                 => 0;
+
+            /// <summary>
+            ///     Returns a value indicating whether all of the options used in <see cref="GetServiceProviderHashCode"/>
+            ///     are the same as in the given extension.
+            /// </summary>
+            /// <param name="other"> The other extension. </param>
+            /// <returns> A value indicating whether all of the options that require a new service provider are the same. </returns>
+            public override bool ShouldUseSameServiceProvider(DbContextOptionsExtensionInfo other)
+                => true;
 
             /// <summary>
             ///     A message fragment for logging typically containing information about

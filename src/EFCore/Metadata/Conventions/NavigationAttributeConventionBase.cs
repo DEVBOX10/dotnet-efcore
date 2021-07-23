@@ -1,5 +1,5 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections.Generic;
@@ -120,8 +120,6 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
             IConventionEntityType entityType,
             IConventionContext<IConventionEntityType> context)
         {
-            var type = entityType.ClrType;
-
             var navigations = GetNavigationsWithAttribute(entityType);
             if (navigations == null)
             {
@@ -134,7 +132,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
                 var attributes = navigationPropertyInfo.GetCustomAttributes<TAttribute>(inherit: true);
                 foreach (var attribute in attributes)
                 {
-                    ProcessEntityTypeRemoved(modelBuilder, type, navigationPropertyInfo, targetClrType, attribute, context);
+                    ProcessEntityTypeRemoved(modelBuilder, entityType, navigationPropertyInfo, targetClrType, attribute, context);
                     if (((ConventionContext<IConventionEntityType>)context).ShouldStopProcessing())
                     {
                         return;
@@ -286,8 +284,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
 
         private Type? FindCandidateNavigationWithAttributePropertyType(PropertyInfo propertyInfo, IConventionModel model)
         {
-            var targetClrType = Dependencies.MemberClassifier.FindCandidateNavigationPropertyType(
-                propertyInfo, ((Model)model).Configuration);
+            var targetClrType = Dependencies.MemberClassifier.FindCandidateNavigationPropertyType(propertyInfo, model, out var _);
             return targetClrType != null
                 && Attribute.IsDefined(propertyInfo, typeof(TAttribute), inherit: true)
                     ? targetClrType
@@ -296,9 +293,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
 
         private Type? FindCandidateNavigationWithAttributePropertyType(PropertyInfo propertyInfo, IConventionEntityType entityType)
             => Dependencies.MemberClassifier.GetNavigationCandidates(entityType)
-                .TryGetValue(propertyInfo, out var targetClrType)
+                .TryGetValue(propertyInfo, out var target)
                 && Attribute.IsDefined(propertyInfo, typeof(TAttribute), inherit: true)
-                    ? targetClrType
+                    ? target.Type
                     : null;
 
         /// <summary>
@@ -380,14 +377,14 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         ///     Called for every navigation property that has an attribute after an entity type is removed.
         /// </summary>
         /// <param name="modelBuilder"> The builder for the model. </param>
-        /// <param name="type"> The ignored entity type. </param>
+        /// <param name="entityType"> The ignored entity type. </param>
         /// <param name="navigationMemberInfo"> The navigation member info. </param>
         /// <param name="targetClrType"> The CLR type of the target entity type. </param>
         /// <param name="attribute"> The attribute. </param>
         /// <param name="context"> Additional information associated with convention execution. </param>
         public virtual void ProcessEntityTypeRemoved(
             IConventionModelBuilder modelBuilder,
-            Type type,
+            IConventionEntityType entityType,
             MemberInfo navigationMemberInfo,
             Type targetClrType,
             TAttribute attribute,

@@ -1,5 +1,5 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Collections.Generic;
 using System.Linq;
@@ -193,21 +193,22 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
             IReadOnlyEntityType entityType,
             IReadOnlyList<IReadOnlyEntityType> mappedTypes)
         {
-            if (entityType.FindPrimaryKey() == null)
+            if (entityType.FindPrimaryKey() == null
+                || propertiesMappedToConcurrencyColumn.Count == 0)
             {
                 return false;
             }
 
-            var propertyMissing = false;
+            var propertyMissing = true;
             foreach (var mappedProperty in propertiesMappedToConcurrencyColumn)
             {
                 var declaringEntityType = mappedProperty.DeclaringEntityType;
                 if (declaringEntityType.IsAssignableFrom(entityType)
-                    || entityType.IsAssignableFrom(declaringEntityType)
                     || declaringEntityType.IsInOwnershipPath(entityType)
                     || entityType.IsInOwnershipPath(declaringEntityType))
                 {
-                    // The concurrency token is in the same hierarchy or in the same aggregate
+                    // The concurrency token is on the base type or in the same aggregate
+                    propertyMissing = false;
                     continue;
                 }
 
@@ -222,11 +223,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
                             || entityType.IsAssignableFrom(fk.PrincipalEntityType)))
                 {
                     // The concurrency token is on a type that shares the row with a base or derived type
-                    continue;
+                    propertyMissing = false;
                 }
-
-                propertyMissing = true;
-                break;
             }
 
             return propertyMissing;

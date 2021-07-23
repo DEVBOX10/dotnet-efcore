@@ -1,9 +1,8 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Linq.Expressions;
@@ -29,13 +28,16 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
 
             private readonly NavigationExpandingExpressionVisitor _navigationExpandingExpressionVisitor;
             private readonly NavigationExpansionExpression _source;
+            private readonly IQueryRootCreator _queryRootCreator;
 
             public ExpandingExpressionVisitor(
                 NavigationExpandingExpressionVisitor navigationExpandingExpressionVisitor,
-                NavigationExpansionExpression source)
+                NavigationExpansionExpression source,
+                IQueryRootCreator queryRootCreator)
             {
                 _navigationExpandingExpressionVisitor = navigationExpandingExpressionVisitor;
                 _source = source;
+                _queryRootCreator = queryRootCreator;
                 Model = navigationExpandingExpressionVisitor._queryCompilationContext.Model;
             }
 
@@ -44,7 +46,7 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
                 expression = Visit(expression);
                 if (applyIncludes)
                 {
-                    expression = new IncludeExpandingExpressionVisitor(_navigationExpandingExpressionVisitor, _source)
+                    expression = new IncludeExpandingExpressionVisitor(_navigationExpandingExpressionVisitor, _source, _queryRootCreator)
                         .Visit(expression);
                 }
 
@@ -157,7 +159,7 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
                         return ownedExpansion;
                     }
 
-                    var ownedEntityReference = new EntityReference(targetType);
+                    var ownedEntityReference = new EntityReference(targetType, entityReference.QueryRootExpression);
                     _navigationExpandingExpressionVisitor.PopulateEagerLoadedNavigations(ownedEntityReference.IncludePaths);
                     ownedEntityReference.MarkAsOptional();
                     if (entityReference.IncludePaths.TryGetValue(navigation, out var includePath))
@@ -226,7 +228,9 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
                     {
                         // Second psuedo-navigation is a reference
                         var secondTargetType = navigation.TargetEntityType;
-                        var innerQueryable = new QueryRootExpression(secondTargetType);
+                        // we can use the entity reference here. If the join entity wasn't temporal,
+                        // the query root creator would have thrown the exception when it was being created
+                        var innerQueryable = _queryRootCreator.CreateQueryRoot(secondTargetType, entityReference.QueryRootExpression);
                         var innerSource = (NavigationExpansionExpression)_navigationExpandingExpressionVisitor.Visit(innerQueryable);
 
                         if (includeTree != null)
@@ -274,7 +278,7 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
                     {
                         // Second psuedo-navigation is a collection
                         var secondTargetType = navigation.TargetEntityType;
-                        var innerQueryable = new QueryRootExpression(secondTargetType);
+                        var innerQueryable = _queryRootCreator.CreateQueryRoot(secondTargetType, entityReference.QueryRootExpression);
                         var innerSource = (NavigationExpansionExpression)_navigationExpandingExpressionVisitor.Visit(innerQueryable);
 
                         if (includeTree != null)
@@ -341,9 +345,9 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
                 var collection = !foreignKey.IsUnique && !onDependent;
                 var targetType = onDependent ? foreignKey.PrincipalEntityType : foreignKey.DeclaringEntityType;
 
-                Debug.Assert(!targetType.IsOwned(), "Owned entity expanding foreign key.");
+                Check.DebugAssert(!targetType.IsOwned(), "Owned entity expanding foreign key.");
 
-                var innerQueryable = new QueryRootExpression(targetType);
+                var innerQueryable = _queryRootCreator.CreateQueryRoot(targetType, entityReference.QueryRootExpression);
                 var innerSource = (NavigationExpansionExpression)_navigationExpandingExpressionVisitor.Visit(innerQueryable);
 
                 // We detect and copy over include for navigation being expanded automatically
@@ -501,8 +505,9 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
 
             public IncludeExpandingExpressionVisitor(
                 NavigationExpandingExpressionVisitor navigationExpandingExpressionVisitor,
-                NavigationExpansionExpression source)
-                : base(navigationExpandingExpressionVisitor, source)
+                NavigationExpansionExpression source,
+                IQueryRootCreator queryRootCreator)
+                : base(navigationExpandingExpressionVisitor, source, queryRootCreator)
             {
                 _logger = navigationExpandingExpressionVisitor._queryCompilationContext.Logger;
                 _queryStateManager = navigationExpandingExpressionVisitor._queryCompilationContext.QueryTrackingBehavior
@@ -912,12 +917,15 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
         {
             private readonly NavigationExpandingExpressionVisitor _visitor;
             private readonly bool _applyIncludes;
+            private readonly IQueryRootCreator _queryRootCreator;
 
             public PendingSelectorExpandingExpressionVisitor(
                 NavigationExpandingExpressionVisitor visitor,
+                IQueryRootCreator queryRootCreator,
                 bool applyIncludes = false)
             {
                 _visitor = visitor;
+                _queryRootCreator = queryRootCreator;
                 _applyIncludes = applyIncludes;
             }
 
@@ -928,7 +936,7 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
                 {
                     _visitor.ApplyPendingOrderings(navigationExpansionExpression);
 
-                    var pendingSelector = new ExpandingExpressionVisitor(_visitor, navigationExpansionExpression)
+                    var pendingSelector = new ExpandingExpressionVisitor(_visitor, navigationExpansionExpression, _queryRootCreator)
                         .Expand(navigationExpansionExpression.PendingSelector, _applyIncludes);
                     pendingSelector = _visitor._subqueryMemberPushdownExpressionVisitor.Visit(pendingSelector);
                     pendingSelector = _visitor.Visit(pendingSelector);

@@ -1,5 +1,5 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Linq;
@@ -70,26 +70,12 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
             var entityType = model.FindEntityType(elementType);
             if (entityType?.IsOwned() == true
                 || model.IsOwned(elementType)
-                || (entityType == null && model.GetEntityTypes().Any(e => e.ClrType == elementType)))
+                || (entityType == null && model.FindEntityTypes(elementType).Any()))
             {
                 return;
             }
 
-            IConventionEntityTypeBuilder? entityTypeBuilder;
-            if (entityType != null)
-            {
-                entityTypeBuilder = entityType.Builder;
-            }
-            else
-            {
-                entityTypeBuilder = dbFunctionBuilder.ModelBuilder.Entity(elementType);
-                if (entityTypeBuilder == null)
-                {
-                    return;
-                }
-
-                entityType = entityTypeBuilder.Metadata;
-            }
+            dbFunctionBuilder.ModelBuilder.Entity(elementType);
         }
     }
 }

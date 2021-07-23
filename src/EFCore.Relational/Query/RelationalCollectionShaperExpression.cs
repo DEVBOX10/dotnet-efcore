@@ -1,5 +1,5 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections.Generic;
@@ -32,7 +32,7 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <param name="innerShaper"> An expression used to create individual elements of the collection. </param>
         /// <param name="navigation"> A navigation associated with this collection, if any. </param>
         /// <param name="elementType"> The clr type of individual elements in the collection. </param>
-        [Obsolete("Use ctor which takes value comaprers.")]
+        [Obsolete("Use ctor which takes value comparers.")]
         public RelationalCollectionShaperExpression(
             int collectionId,
             Expression parentIdentifier,

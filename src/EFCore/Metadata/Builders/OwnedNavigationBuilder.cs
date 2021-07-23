@@ -1,5 +1,5 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using System.Collections.Generic;
@@ -17,6 +17,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
     public class OwnedNavigationBuilder : IInfrastructure<IConventionEntityTypeBuilder>
     {
         private InternalForeignKeyBuilder _builder;
+        private EntityType _dependentEntityType;
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -28,7 +29,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
         public OwnedNavigationBuilder(IMutableForeignKey ownership)
         {
             PrincipalEntityType = (EntityType)ownership.PrincipalEntityType;
-            DependentEntityType = (EntityType)ownership.DeclaringEntityType;
+            _dependentEntityType = (EntityType)ownership.DeclaringEntityType;
             _builder = ((ForeignKey)ownership).Builder;
         }
 
@@ -42,7 +43,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
         ///     Gets the dependent entity type used to configure this relationship.
         /// </summary>
         [EntityFrameworkInternal]
-        protected virtual EntityType DependentEntityType { get; }
+        protected virtual EntityType DependentEntityType
+            => _dependentEntityType.IsInModel
+                ? _dependentEntityType
+                : _dependentEntityType = Builder.Metadata.DeclaringEntityType;
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -55,7 +59,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
         {
             get
             {
-                if (!_builder.Metadata.IsInModel)
+                if (!_builder.Metadata.IsInModel
+                    && PrincipalEntityType.IsInModel)
                 {
                     _builder = PrincipalEntityType.FindNavigation(_builder.Metadata.PrincipalToDependent!.Name)?.ForeignKey.Builder!;
                 }
@@ -794,7 +799,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
                 navigationName,
                 DependentEntityType.Builder.HasRelationship(
                     relatedEntityType, navigationName, ConfigurationSource.Explicit,
-                    targetIsPrincipal: DependentEntityType == relatedEntityType ? true : (bool?)null)!.Metadata);
+                    targetIsPrincipal: DependentEntityType == relatedEntityType ? true : null)!.Metadata);
         }
 
         /// <summary>
@@ -868,7 +873,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
                 navigationName,
                 DependentEntityType.Builder.HasRelationship(
                     relatedEntityType, navigationName, ConfigurationSource.Explicit,
-                    targetIsPrincipal: DependentEntityType == relatedEntityType ? true : (bool?)null)!.Metadata);
+                    targetIsPrincipal: DependentEntityType == relatedEntityType ? true : null)!.Metadata);
         }
 
         /// <summary>
@@ -930,7 +935,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
                 }
             }
 
-            return relatedEntityType ?? DependentEntityType.Builder.ModelBuilder.Entity(relatedType, ConfigurationSource.Explicit)!.Metadata;
+            return relatedEntityType ?? DependentEntityType.Builder.ModelBuilder.Entity(
+                relatedType, ConfigurationSource.Explicit, shouldBeOwned: false)!.Metadata;
         }
 
         /// <summary>

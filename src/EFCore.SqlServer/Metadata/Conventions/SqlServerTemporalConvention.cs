@@ -1,5 +1,5 @@
-﻿// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -10,7 +10,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
     /// <summary>
     ///     A convention that manipulates temporal settings for an entity mapped to a temporal table.
     /// </summary>
-    public class SqlServerTemporalConvention : IEntityTypeAnnotationChangedConvention
+    public class SqlServerTemporalConvention : IEntityTypeAnnotationChangedConvention, ISkipNavigationForeignKeyChangedConvention
     {
         private const string PeriodStartDefaultName = "PeriodStart";
         private const string PeriodEndDefaultName = "PeriodEnd";
@@ -35,6 +35,20 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
                     if (entityTypeBuilder.Metadata.GetTemporalPeriodEndPropertyName() == null)
                     {
                         entityTypeBuilder.HasPeriodEnd(PeriodEndDefaultName);
+                    }
+
+                    foreach (var skipLevelNavigation in entityTypeBuilder.Metadata.GetSkipNavigations())
+                    {
+                        if (skipLevelNavigation.DeclaringEntityType.IsTemporal()
+                            && skipLevelNavigation.Inverse is IConventionSkipNavigation inverse
+                            && inverse.DeclaringEntityType.IsTemporal()
+                            && skipLevelNavigation.JoinEntityType is IConventionEntityType joinEntityType
+                            && joinEntityType.HasSharedClrType
+                            && !joinEntityType.IsTemporal()
+                            && joinEntityType.GetConfigurationSource() == ConfigurationSource.Convention)
+                        {
+                            joinEntityType.SetIsTemporal(true);
+                        }
                     }
                 }
                 else
@@ -79,6 +93,25 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
                         periodPropertyBuilder.HasColumnName(periodPropertyName);
                     }
                 }
+            }
+        }
+
+        /// <inheritdoc />
+        public virtual void ProcessSkipNavigationForeignKeyChanged(
+            IConventionSkipNavigationBuilder skipNavigationBuilder,
+            IConventionForeignKey? foreignKey,
+            IConventionForeignKey? oldForeignKey,
+            IConventionContext<IConventionForeignKey> context)
+        {
+             if (skipNavigationBuilder.Metadata.JoinEntityType is IConventionEntityType joinEntityType
+                && joinEntityType.HasSharedClrType
+                && !joinEntityType.IsTemporal()
+                && joinEntityType.GetConfigurationSource() == ConfigurationSource.Convention
+                && skipNavigationBuilder.Metadata.DeclaringEntityType.IsTemporal()
+                && skipNavigationBuilder.Metadata.Inverse is IConventionSkipNavigation inverse
+                && inverse.DeclaringEntityType.IsTemporal())
+            {
+                joinEntityType.SetIsTemporal(true);
             }
         }
     }
