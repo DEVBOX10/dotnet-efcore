@@ -79,7 +79,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
 
             MethodInfo = methodInfo;
 
-            ModelName = GetFunctionName(methodInfo, methodInfo.GetParameters());
+            ModelName = GetFunctionName(methodInfo);
         }
 
         /// <summary>
@@ -125,8 +125,15 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
             }
         }
 
-        private static string GetFunctionName(MethodInfo methodInfo, ParameterInfo[] parameters)
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
+        public static string GetFunctionName(MethodInfo methodInfo)
         {
+            var parameters = methodInfo.GetParameters();
             var builder = new StringBuilder();
 
             if (methodInfo.DeclaringType != null)
@@ -201,7 +208,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         /// </summary>
         public static IReadOnlyDbFunction? FindDbFunction(IReadOnlyModel model, MethodInfo methodInfo)
             => model[RelationalAnnotationNames.DbFunctions] is SortedDictionary<string, IDbFunction> functions
-                && functions.TryGetValue(GetFunctionName(methodInfo, methodInfo.GetParameters()), out var dbFunction)
+                && functions.TryGetValue(GetFunctionName(methodInfo), out var dbFunction)
                     ? dbFunction
                     : null;
 
@@ -254,7 +261,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
 
         private static SortedDictionary<string, IDbFunction> GetOrCreateFunctions(IMutableModel model)
             => (SortedDictionary<string, IDbFunction>)(
-                model[RelationalAnnotationNames.DbFunctions] ??= new SortedDictionary<string, IDbFunction>());
+                model[RelationalAnnotationNames.DbFunctions] ??= new SortedDictionary<string, IDbFunction>(StringComparer.Ordinal));
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -268,7 +275,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         {
             if (model[RelationalAnnotationNames.DbFunctions] is SortedDictionary<string, IDbFunction> functions)
             {
-                var name = GetFunctionName(methodInfo, methodInfo.GetParameters());
+                var name = GetFunctionName(methodInfo);
                 if (functions.TryGetValue(name, out var function))
                 {
                     var dbFunction = (DbFunction)function;
@@ -544,7 +551,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
                                 (IRelationalTypeMappingSource)((IModel)dbFunction.Model).GetModelDependencies().TypeMappingSource;
                             return !string.IsNullOrEmpty(dbFunction._storeType)
                                         ? relationalTypeMappingSource.FindMapping(dbFunction._storeType)!
-                                        : relationalTypeMappingSource.FindMapping(dbFunction.ReturnType)!;
+                                        : relationalTypeMappingSource.FindMapping(dbFunction.ReturnType, (IModel)dbFunction.Model)!;
                         })
                     : _typeMapping;
             set => SetTypeMapping(value, ConfigurationSource.Explicit);

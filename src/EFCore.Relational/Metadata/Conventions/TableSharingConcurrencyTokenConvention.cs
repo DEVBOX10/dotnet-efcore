@@ -6,6 +6,7 @@ using System.Linq;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure;
+using Microsoft.EntityFrameworkCore.Utilities;
 
 namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
 {
@@ -29,13 +30,21 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
             ProviderConventionSetBuilderDependencies dependencies,
             RelationalConventionSetBuilderDependencies relationalDependencies)
         {
+            Check.NotNull(relationalDependencies, nameof(relationalDependencies));
+
             Dependencies = dependencies;
+            RelationalDependencies = relationalDependencies;
         }
 
         /// <summary>
-        ///     Parameter object containing service dependencies.
+        ///     Dependencies for this service.
         /// </summary>
         protected virtual ProviderConventionSetBuilderDependencies Dependencies { get; }
+
+        /// <summary>
+        ///     Relational provider-specific dependencies for this service.
+        /// </summary>
+        protected virtual RelationalConventionSetBuilderDependencies RelationalDependencies { get; }
 
         /// <inheritdoc />
         public virtual void ProcessModelFinalizing(
@@ -232,22 +241,17 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
 
         private static void RemoveDerivedEntityTypes<T>(Dictionary<IConventionEntityType, T> entityTypeDictionary)
         {
-            var entityTypesWithDerivedTypes =
-                entityTypeDictionary.Where(e => e.Key.GetDirectlyDerivedTypes().Any());
-            foreach (var entityType in entityTypeDictionary.Where(e => e.Key.BaseType != null))
+            foreach (var entityType in entityTypeDictionary.Keys)
             {
-                foreach (var otherEntityType in entityTypesWithDerivedTypes)
+                var baseType = entityType.BaseType;
+                while (baseType != null)
                 {
-                    if (otherEntityType.Equals(entityType))
+                    if (entityTypeDictionary.ContainsKey(baseType))
                     {
-                        continue;
-                    }
-
-                    if (otherEntityType.Key.IsAssignableFrom(entityType.Key))
-                    {
-                        entityTypeDictionary.Remove(entityType.Key);
+                        entityTypeDictionary.Remove(entityType);
                         break;
                     }
+                    baseType = baseType.BaseType;
                 }
             }
         }

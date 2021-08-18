@@ -1,10 +1,7 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
@@ -1717,7 +1714,7 @@ namespace TestNamespace
                     eb.OwnsMany(typeof(OwnedType).FullName, "ManyOwned", ob =>
                     {
                         ob.IsMemoryOptimized();
-                        ob.ToTable("ManyOwned", excludedFromMigrations: true);
+                        ob.ToTable("ManyOwned", t => t.ExcludeFromMigrations());
                     });
 
                     eb.HasMany(e => e.Principals).WithMany(e => (ICollection<PrincipalDerived<DependentBase<byte?>>>)e.Deriveds)
@@ -1904,6 +1901,11 @@ namespace TestNamespace
             DataEntityType.CreateAnnotations(data);
             ObjectEntityType.CreateAnnotations(@object);
 
+            var type = this.AddScalarTypeConfiguration(
+                typeof(string),
+                maxLength: 256);
+            type.AddAnnotation(""Relational:IsFixedLength"", true);
+
             var functions = new SortedDictionary<string, IDbFunction>();
             var getBlobs = new RuntimeDbFunction(
                 ""GetBlobs()"",
@@ -1940,7 +1942,7 @@ namespace TestNamespace
                 ""condition"",
                 typeof(string),
                 false,
-                ""nvarchar(max)"");
+                ""nchar(256)"");
 
             functions[""Microsoft.EntityFrameworkCore.Scaffolding.Internal.CSharpRuntimeModelCodeGeneratorTest+DbFunctionContext.GetCount(System.Guid?,string)""] = getCount;
 
@@ -2000,7 +2002,7 @@ namespace TestNamespace
                 ""date"",
                 typeof(string),
                 false,
-                ""nvarchar(max)"");
+                ""nchar(256)"");
 
             isDateStatic.AddAnnotation(""MyGuid"", new Guid(""00000000-0000-0000-0000-000000000000""));
             functions[""Microsoft.EntityFrameworkCore.Scaffolding.Internal.CSharpRuntimeModelCodeGeneratorTest+DbFunctionContext.IsDateStatic(string)""] = isDateStatic;
@@ -2147,12 +2149,12 @@ namespace TestNamespace
                     var getCountParameter2 = getCount.Parameters[1];
                     Assert.Same(getCount, getCountParameter2.Function);
                     Assert.Equal("condition", getCountParameter2.Name);
-                    Assert.Equal("nvarchar(max)", getCountParameter2.StoreType);
+                    Assert.Equal("nchar(256)", getCountParameter2.StoreType);
                     Assert.False(getCountParameter2.PropagatesNullability);
                     Assert.Equal(typeof(string), getCountParameter2.ClrType);
-                    Assert.Equal("nvarchar(max)", getCountParameter2.TypeMapping.StoreType);
+                    Assert.Equal("nchar(256)", getCountParameter2.TypeMapping.StoreType);
                     Assert.Equal("condition", getCountParameter2.StoreFunctionParameter.Name);
-                    Assert.Equal("nvarchar(max)", getCountParameter2.StoreFunctionParameter.Type);
+                    Assert.Equal("nchar(256)", getCountParameter2.StoreFunctionParameter.Type);
                     Assert.NotNull(getCountParameter2.ToString());
 
                     var isDate = model.FindDbFunction(typeof(DbFunctionContext).GetMethod("IsDateStatic"));
@@ -2176,12 +2178,12 @@ namespace TestNamespace
                     var isDateParameter = isDate.Parameters[0];
                     Assert.Same(isDate, isDateParameter.Function);
                     Assert.Equal("date", isDateParameter.Name);
-                    Assert.Equal("nvarchar(max)", isDateParameter.StoreType);
+                    Assert.Equal("nchar(256)", isDateParameter.StoreType);
                     Assert.False(isDateParameter.PropagatesNullability);
                     Assert.Equal(typeof(string), isDateParameter.ClrType);
-                    Assert.Equal("nvarchar(max)", isDateParameter.TypeMapping.StoreType);
+                    Assert.Equal("nchar(256)", isDateParameter.TypeMapping.StoreType);
                     Assert.Equal("date", isDateParameter.StoreFunctionParameter.Name);
-                    Assert.Equal("nvarchar(max)", isDateParameter.StoreFunctionParameter.Type);
+                    Assert.Equal("nchar(256)", isDateParameter.StoreFunctionParameter.Type);
 
                     var getData = model.FindDbFunction(typeof(DbFunctionContext)
                         .GetMethod("GetData", new Type[] { typeof(int) }));
@@ -2289,13 +2291,14 @@ namespace TestNamespace
                 => throw new NotImplementedException();
 
             public IQueryable<Data> GetData(int id)
-            {
-                return FromExpression(() => GetData(id));
-            }
+                => FromExpression(() => GetData(id));
 
             public IQueryable<Data> GetData()
+                => FromExpression(() => GetData());
+
+            protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
             {
-                return FromExpression(() => GetData());
+                configurationBuilder.Scalars<string>().HaveMaxLength(256).AreFixedLength();
             }
 
             protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -3216,7 +3219,7 @@ namespace TestNamespace
             options.ContextType = context.GetType();
 
             var generator = services
-                .BuildServiceProvider()
+                .BuildServiceProvider(validateScopes: true)
                 .GetRequiredService<ICompiledModelCodeGeneratorSelector>()
                 .Select(options);
 

@@ -169,11 +169,12 @@ namespace Microsoft.EntityFrameworkCore.Query
                         _values = values;
                     }
 
-                    public override RelationalDataReader ExecuteReader(RelationalCommandParameterObject parameterObject)
+                    public override RelationalDataReader ExecuteReader(
+                        RelationalCommandParameterObject parameterObject)
                     {
                         var command = parameterObject.Connection.DbConnection.CreateCommand();
                         command.CommandText = CommandText;
-                        var reader = new BadDataRelationalDataReader(this);
+                        var reader = new BadDataRelationalDataReader();
                         reader.Initialize(
                             new FakeConnection(),
                             command,
@@ -191,8 +192,8 @@ namespace Microsoft.EntityFrameworkCore.Query
 
                     private class BadDataRelationalDataReader : RelationalDataReader
                     {
-                        public BadDataRelationalDataReader(BadDataRelationalCommand relationalCommand)
-                            : base(relationalCommand)
+                        public BadDataRelationalDataReader()
+                            : base()
                         {
                         }
                     }

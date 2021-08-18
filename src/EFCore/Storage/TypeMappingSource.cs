@@ -1,9 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -71,7 +69,15 @@ namespace Microsoft.EntityFrameworkCore.Storage
                 }
             }
 
-            var resolvedMapping = _explicitMappings.GetOrAdd(
+            var resolvedMapping = FindMappingWithConversion(mappingInfo, providerClrType, customConverter);
+
+            ValidateMapping(resolvedMapping, principals?[0]);
+
+            return resolvedMapping;
+        }
+
+        private CoreTypeMapping? FindMappingWithConversion(TypeMappingInfo mappingInfo, Type? providerClrType, ValueConverter? customConverter)
+            => _explicitMappings.GetOrAdd(
                 (mappingInfo, providerClrType, customConverter),
                 k =>
                 {
@@ -128,11 +134,6 @@ namespace Microsoft.EntityFrameworkCore.Storage
                     return mapping;
                 });
 
-            ValidateMapping(resolvedMapping, principals?[0]);
-
-            return resolvedMapping;
-        }
-
         /// <summary>
         ///     <para>
         ///         Finds the type mapping for a given <see cref="IProperty" />.
@@ -155,8 +156,8 @@ namespace Microsoft.EntityFrameworkCore.Storage
         ///     </para>
         ///     <para>
         ///         Note: Only call this method if there is no <see cref="IProperty" />
-        ///         or <see cref="MemberInfo" /> available, otherwise call <see cref="FindMapping(IProperty)" />
-        ///         or <see cref="FindMapping(MemberInfo)" />
+        ///         or <see cref="IModel" /> available, otherwise call <see cref="FindMapping(IProperty)" />
+        ///         or <see cref="FindMapping(Type, IModel)" />
         ///     </para>
         ///     <para>
         ///         Note: providers should typically not need to override this method.
@@ -166,6 +167,44 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// <returns> The type mapping, or <see langword="null" /> if none was found. </returns>
         public override CoreTypeMapping? FindMapping(Type type)
             => FindMappingWithConversion(new TypeMappingInfo(type), null);
+
+        /// <summary>
+        ///     <para>
+        ///         Finds the type mapping for a given <see cref="Type" />, taking pre-convention configuration into the account.
+        ///     </para>
+        ///     <para>
+        ///         Note: Only call this method if there is no <see cref="IProperty" />,
+        ///         otherwise call <see cref="FindMapping(IProperty)" />.
+        ///     </para>
+        /// </summary>
+        /// <param name="type"> The CLR type. </param>
+        /// <param name="model"> The model. </param>
+        /// <returns> The type mapping, or <see langword="null" /> if none was found. </returns>
+        public override CoreTypeMapping? FindMapping(Type type, IModel model)
+        {
+            type = type.UnwrapNullableType();
+            var typeConfiguration = model.FindScalarTypeConfiguration(type);
+            TypeMappingInfo mappingInfo;
+            Type? providerClrType = null;
+            ValueConverter? customConverter = null;
+            if (typeConfiguration == null)
+            {
+                mappingInfo = new TypeMappingInfo(type);
+            }
+            else
+            {
+                providerClrType = typeConfiguration.GetProviderClrType()?.UnwrapNullableType();
+                customConverter = typeConfiguration.GetValueConverter();
+                mappingInfo = new TypeMappingInfo(
+                    customConverter?.ProviderClrType ?? type,
+                    unicode: typeConfiguration.IsUnicode(),
+                    size: typeConfiguration.GetMaxLength(),
+                    precision: typeConfiguration.GetPrecision(),
+                    scale: typeConfiguration.GetScale());
+            }
+
+            return FindMappingWithConversion(mappingInfo, providerClrType, customConverter);
+        }
 
         /// <summary>
         ///     <para>

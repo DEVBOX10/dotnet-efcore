@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
+using System.Reflection;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Sqlite.Infrastructure.Internal;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,10 +16,14 @@ namespace Microsoft.EntityFrameworkCore
             IServiceCollection services,
             Action<RelationalDbContextOptionsBuilder<SqliteDbContextOptionsBuilder, SqliteOptionsExtension>> relationalAction)
             => new DbContextOptionsBuilder()
-                .UseInternalServiceProvider(services.AddEntityFrameworkSqlite().BuildServiceProvider())
+                .UseInternalServiceProvider(services.AddEntityFrameworkSqlite().BuildServiceProvider(validateScopes: true))
                 .UseSqlite("Data Source=LoggingSqliteTest.db", relationalAction);
 
         protected override string ProviderName
             => "Microsoft.EntityFrameworkCore.Sqlite";
+
+        protected override string ProviderVersion
+            => typeof(SqliteOptionsExtension).Assembly
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
     }
 }

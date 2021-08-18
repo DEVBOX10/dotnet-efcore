@@ -24,7 +24,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
     /// </summary>
     public class RelationalCommand : IRelationalCommand
     {
-        private readonly RelationalDataReader _relationalReader;
+        private RelationalDataReader? _relationalReader;
         private readonly Stopwatch _stopwatch = new();
 
         /// <summary>
@@ -51,12 +51,10 @@ namespace Microsoft.EntityFrameworkCore.Storage
             Dependencies = dependencies;
             CommandText = commandText;
             Parameters = parameters;
-
-            _relationalReader = CreateRelationalDataReader();
         }
 
         /// <summary>
-        ///     Command building dependencies.
+        ///     Relational provider-specific dependencies for this service.
         /// </summary>
         protected virtual RelationalCommandBuilderDependencies Dependencies { get; }
 
@@ -103,7 +101,8 @@ namespace Microsoft.EntityFrameworkCore.Storage
                             context,
                             commandId,
                             connection.ConnectionId,
-                            startTime)
+                            startTime,
+                            parameterObject.CommandSource)
                         ?? default;
 
                     var nonQueryResult = interceptionResult.HasResult
@@ -118,7 +117,8 @@ namespace Microsoft.EntityFrameworkCore.Storage
                             connection.ConnectionId,
                             nonQueryResult,
                             startTime,
-                            _stopwatch.Elapsed)
+                            _stopwatch.Elapsed,
+                            parameterObject.CommandSource)
                         ?? nonQueryResult;
                 }
                 else
@@ -137,7 +137,8 @@ namespace Microsoft.EntityFrameworkCore.Storage
                     connection.ConnectionId,
                     exception,
                     startTime,
-                    _stopwatch.Elapsed);
+                    _stopwatch.Elapsed,
+                    parameterObject.CommandSource);
 
                 throw;
             }
@@ -189,6 +190,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
                                 commandId,
                                 connection.ConnectionId,
                                 startTime,
+                                parameterObject.CommandSource,
                                 cancellationToken)
                             .ConfigureAwait(false);
 
@@ -207,6 +209,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
                                 result,
                                 startTime,
                                 _stopwatch.Elapsed,
+                                parameterObject.CommandSource,
                                 cancellationToken)
                             .ConfigureAwait(false);
                     }
@@ -232,6 +235,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
                             exception,
                             startTime,
                             _stopwatch.Elapsed,
+                            parameterObject.CommandSource,
                             cancellationToken)
                         .ConfigureAwait(false);
                 }
@@ -277,7 +281,8 @@ namespace Microsoft.EntityFrameworkCore.Storage
                             context,
                             commandId,
                             connection.ConnectionId,
-                            startTime)
+                            startTime,
+                            parameterObject.CommandSource)
                         ?? default;
 
                     var result = interceptionResult.HasResult
@@ -292,7 +297,8 @@ namespace Microsoft.EntityFrameworkCore.Storage
                             connection.ConnectionId,
                             result,
                             startTime,
-                            _stopwatch.Elapsed)
+                            _stopwatch.Elapsed,
+                            parameterObject.CommandSource)
                         ?? result;
                 }
                 else
@@ -311,7 +317,8 @@ namespace Microsoft.EntityFrameworkCore.Storage
                     connection.ConnectionId,
                     exception,
                     startTime,
-                    _stopwatch.Elapsed);
+                    _stopwatch.Elapsed,
+                    parameterObject.CommandSource);
 
                 throw;
             }
@@ -363,6 +370,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
                                 commandId,
                                 connection.ConnectionId,
                                 startTime,
+                                parameterObject.CommandSource,
                                 cancellationToken)
                             .ConfigureAwait(false);
 
@@ -381,6 +389,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
                             result,
                             startTime,
                             _stopwatch.Elapsed,
+                            parameterObject.CommandSource,
                             cancellationToken).ConfigureAwait(false);
                     }
 
@@ -405,6 +414,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
                             exception,
                             startTime,
                             _stopwatch.Elapsed,
+                            parameterObject.CommandSource,
                             cancellationToken)
                         .ConfigureAwait(false);
                 }
@@ -457,7 +467,8 @@ namespace Microsoft.EntityFrameworkCore.Storage
                         context,
                         commandId,
                         connection.ConnectionId,
-                        startTime);
+                        startTime,
+                        parameterObject.CommandSource);
 
                     reader = interceptionResult.HasResult
                         ? interceptionResult.Result
@@ -471,7 +482,8 @@ namespace Microsoft.EntityFrameworkCore.Storage
                         connection.ConnectionId,
                         reader,
                         startTime,
-                        _stopwatch.Elapsed);
+                        _stopwatch.Elapsed,
+                        parameterObject.CommandSource);
                 }
                 else
                 {
@@ -489,7 +501,8 @@ namespace Microsoft.EntityFrameworkCore.Storage
                     connection.ConnectionId,
                     exception,
                     startTime,
-                    _stopwatch.Elapsed);
+                    _stopwatch.Elapsed,
+                    parameterObject.CommandSource);
 
                 CleanupCommand(command, connection);
 
@@ -501,6 +514,11 @@ namespace Microsoft.EntityFrameworkCore.Storage
                 if (readerColumns != null)
                 {
                     reader = new BufferedDataReader(reader, detailedErrorsEnabled).Initialize(readerColumns);
+                }
+
+                if (_relationalReader == null)
+                {
+                    _relationalReader = CreateRelationalDataReader();
                 }
 
                 _relationalReader.Initialize(parameterObject.Connection, command, reader, commandId, logger);
@@ -565,6 +583,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
                             commandId,
                             connection.ConnectionId,
                             startTime,
+                            parameterObject.CommandSource,
                             cancellationToken)
                         .ConfigureAwait(false);
 
@@ -581,6 +600,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
                             reader,
                             startTime,
                             _stopwatch.Elapsed,
+                            parameterObject.CommandSource,
                             cancellationToken)
                         .ConfigureAwait(false);
                 }
@@ -603,6 +623,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
                             exception,
                             startTime,
                             DateTimeOffset.UtcNow - startTime,
+                            parameterObject.CommandSource,
                             cancellationToken)
                         .ConfigureAwait(false);
                 }
@@ -618,6 +639,11 @@ namespace Microsoft.EntityFrameworkCore.Storage
                 {
                     reader = await new BufferedDataReader(reader, detailedErrorsEnabled).InitializeAsync(readerColumns, cancellationToken)
                         .ConfigureAwait(false);
+                }
+
+                if (_relationalReader == null)
+                {
+                    _relationalReader = CreateRelationalDataReader();
                 }
 
                 _relationalReader.Initialize(parameterObject.Connection, command, reader, commandId, logger);
@@ -667,14 +693,23 @@ namespace Microsoft.EntityFrameworkCore.Storage
                 _stopwatch.Restart();
 
                 var interceptionResult = logger.CommandCreating(
-                    connection, commandMethod, context, commandId, connectionId, startTime);
+                    connection, commandMethod, context, commandId, connectionId, startTime,
+                    parameterObject.CommandSource);
 
                 command = interceptionResult.HasResult
                     ? interceptionResult.Result
                     : connection.DbConnection.CreateCommand();
 
                 command = logger.CommandCreated(
-                    connection, command, commandMethod, context, commandId, connectionId, startTime, _stopwatch.Elapsed);
+                    connection, 
+                    command, 
+                    commandMethod, 
+                    context, 
+                    commandId, 
+                    connectionId, 
+                    startTime, 
+                    _stopwatch.Elapsed,
+                    parameterObject.CommandSource);
             }
             else
             {
@@ -743,7 +778,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// </summary>
         /// <returns>The created <see cref="RelationalDataReader" />.</returns>
         protected virtual RelationalDataReader CreateRelationalDataReader()
-             => new(this);
+             => new();
 
         /// <summary>
         ///     Populates this command from the provided <paramref name="command"/>.

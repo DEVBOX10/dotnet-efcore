@@ -1,11 +1,14 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Linq;
-using System.Threading.Tasks;
+using System.Collections.Immutable;
+using System.Runtime.InteropServices;
 using Microsoft.Azure.Cosmos;
+using Microsoft.Azure.Cosmos.Serialization.HybridRow;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Cosmos.ChangeTracking.Internal;
 using Microsoft.EntityFrameworkCore.Cosmos.Internal;
+using Microsoft.EntityFrameworkCore.Diagnostics.Internal;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using Microsoft.EntityFrameworkCore.TestUtilities;
@@ -41,11 +44,21 @@ namespace Microsoft.EntityFrameworkCore.Cosmos
                 context.Add(customer);
 
                 context.SaveChanges();
+
+                var logEntry = TestSqlLoggerFactory.Log.Single();
+                Assert.Equal(LogLevel.Information, logEntry.Level);
+                Assert.Contains("CreateItem", logEntry.Message);
             }
 
             using (var context = new CustomerContext(options))
             {
+                TestSqlLoggerFactory.Clear();
                 var customerFromStore = context.Set<Customer>().Single();
+
+                var logEntry = TestSqlLoggerFactory.Log.Last();
+                Assert.Equal(LogLevel.Information, logEntry.Level);
+                Assert.Contains("ReadNext", logEntry.Message);
+                TestSqlLoggerFactory.Clear();
 
                 Assert.Equal(42, customerFromStore.Id);
                 Assert.Equal("Theon", customerFromStore.Name);
@@ -53,11 +66,21 @@ namespace Microsoft.EntityFrameworkCore.Cosmos
                 customerFromStore.Name = "Theon Greyjoy";
 
                 context.SaveChanges();
+
+                logEntry = TestSqlLoggerFactory.Log.Single();
+                Assert.Equal(LogLevel.Information, logEntry.Level);
+                Assert.Contains("ReplaceItem", logEntry.Message);
             }
 
             using (var context = new CustomerContext(options))
             {
-                var customerFromStore = context.Set<Customer>().Single();
+                TestSqlLoggerFactory.Clear();
+                var customerFromStore = context.Find<Customer>(42);
+
+                var logEntry = TestSqlLoggerFactory.Log.Last();
+                Assert.Equal(LogLevel.Information, logEntry.Level);
+                Assert.Contains("ReadItem", logEntry.Message);
+                TestSqlLoggerFactory.Clear();
 
                 Assert.Equal(42, customerFromStore.Id);
                 Assert.Equal("Theon Greyjoy", customerFromStore.Name);
@@ -65,6 +88,10 @@ namespace Microsoft.EntityFrameworkCore.Cosmos
                 context.Remove(customerFromStore);
 
                 context.SaveChanges();
+
+                logEntry = TestSqlLoggerFactory.Log.Single();
+                Assert.Equal(LogLevel.Information, logEntry.Level);
+                Assert.Contains("DeleteItem", logEntry.Message);
             }
 
             using (var context = new CustomerContext(options))
@@ -87,11 +114,20 @@ namespace Microsoft.EntityFrameworkCore.Cosmos
                 context.Add(customer);
 
                 await context.SaveChangesAsync();
+
+                var logEntry = TestSqlLoggerFactory.Log.Single();
+                Assert.Equal(LogLevel.Information, logEntry.Level);
+                Assert.Contains("CreateItem", logEntry.Message);
             }
 
             using (var context = new CustomerContext(options))
             {
                 var customerFromStore = await context.Set<Customer>().SingleAsync();
+
+                var logEntry = TestSqlLoggerFactory.Log.Last();
+                Assert.Equal(LogLevel.Information, logEntry.Level);
+                Assert.Contains("ReadNext", logEntry.Message);
+                TestSqlLoggerFactory.Clear();
 
                 Assert.Equal(42, customerFromStore.Id);
                 Assert.Equal("Theon", customerFromStore.Name);
@@ -99,11 +135,20 @@ namespace Microsoft.EntityFrameworkCore.Cosmos
                 customerFromStore.Name = "Theon Greyjoy";
 
                 await context.SaveChangesAsync();
+
+                logEntry = TestSqlLoggerFactory.Log.Single();
+                Assert.Equal(LogLevel.Information, logEntry.Level);
+                Assert.Contains("ReplaceItem", logEntry.Message);
             }
 
             using (var context = new CustomerContext(options))
             {
-                var customerFromStore = await context.Set<Customer>().SingleAsync();
+                var customerFromStore = await context.FindAsync<Customer>(42);
+
+                var logEntry = TestSqlLoggerFactory.Log.Last();
+                Assert.Equal(LogLevel.Information, logEntry.Level);
+                Assert.Contains("ReadItem", logEntry.Message);
+                TestSqlLoggerFactory.Clear();
 
                 Assert.Equal(42, customerFromStore.Id);
                 Assert.Equal("Theon Greyjoy", customerFromStore.Name);
@@ -111,6 +156,10 @@ namespace Microsoft.EntityFrameworkCore.Cosmos
                 context.Remove(customerFromStore);
 
                 await context.SaveChangesAsync();
+
+                logEntry = TestSqlLoggerFactory.Log.Single();
+                Assert.Equal(LogLevel.Information, logEntry.Level);
+                Assert.Contains("DeleteItem", logEntry.Message);
             }
 
             using (var context = new CustomerContext(options))
@@ -459,6 +508,244 @@ namespace Microsoft.EntityFrameworkCore.Cosmos
                         cb.Property(c => c.PartitionKey).HasConversion<string>().ToJsonProperty("pk");
                         cb.HasPartitionKey(c => c.PartitionKey);
                     });
+            }
+        }
+
+        [ConditionalFact]
+        public async Task Can_add_update_delete_with_collections()
+        {
+            await Can_add_update_delete_with_collection(
+                new List<short> { 1, 2 },
+                c =>
+                {
+                    c.Collection.Clear();
+                    c.Collection.Add(3);
+                },
+                new List<short> { 3 });
+
+            await Can_add_update_delete_with_collection<IList<byte?>>(
+                new List<byte?>(),
+                c =>
+                {
+                    c.Collection.Clear();
+                    c.Collection.Add(3);
+                    c.Collection.Add(null);
+                },
+                new List<byte?> { 3, null });
+
+            await Can_add_update_delete_with_collection<IReadOnlyList<string>>(
+                new[] { "1", null },
+                c =>
+                {
+                    c.Collection = new List<string> { "3", "2", "1" };
+                },
+                new List<string> { "3", "2", "1" });
+
+            // See #25343
+            await Can_add_update_delete_with_collection(
+                new List<EntityType> { EntityType.Base, EntityType.Derived, EntityType.Derived },
+                c =>
+                {
+                    c.Collection.Clear();
+                    c.Collection.Add(EntityType.Base);
+                },
+                new List<EntityType> { EntityType.Base },
+                modelBuilder => modelBuilder.Entity<CustomerWithCollection<List<EntityType>>>(c =>
+                    c.Property(s => s.Collection)
+                        .HasConversion(m => m.Select(v => (int)v).ToList(), p => p.Select(v => (EntityType)v).ToList(),
+                            new ListComparer<EntityType, List<EntityType>>(ValueComparer.CreateDefault(typeof(EntityType), false), readOnly: false))));
+
+            await Can_add_update_delete_with_collection(
+                new[] { 1f, 2 },
+                c =>
+                {
+                    c.Collection[0] = 3f;
+                },
+                new[] { 3f, 2 });
+
+            await Can_add_update_delete_with_collection(
+                new decimal?[] { 1, null },
+                c =>
+                {
+                    c.Collection[0] = 3;
+                },
+                new decimal?[] { 3, null });
+
+            await Can_add_update_delete_with_collection(
+                new Dictionary<string, int> { { "1", 1 } },
+                c =>
+                {
+                    c.Collection["2"] = 3;
+                },
+                new Dictionary<string, int> { { "1", 1 }, { "2", 3 } });
+
+            await Can_add_update_delete_with_collection<IDictionary<string, long?>>(
+                new SortedDictionary<string, long?> { { "2", 2 }, { "1", 1 } },
+                c =>
+                {
+                    c.Collection.Clear();
+                    c.Collection["2"] = null;
+                },
+                new SortedDictionary<string, long?> { { "2", null } });
+
+            await Can_add_update_delete_with_collection<IReadOnlyDictionary<string, short?>>(
+                 ImmutableDictionary<string, short?>.Empty
+                    .Add("2", 2).Add("1", 1),
+                c =>
+                {
+                    c.Collection = ImmutableDictionary<string, short?>.Empty.Add("1", 1).Add("2", null);
+                },
+                new Dictionary<string, short?> { { "1", 1 }, { "2", null } });
+        }
+
+        [ConditionalFact]
+        public async Task Can_add_update_delete_with_nested_collections()
+        {
+            await Can_add_update_delete_with_collection(
+                new List<List<short>> { new List<short> { 1, 2 } },
+                c =>
+                {
+                    c.Collection.Clear();
+                    c.Collection.Add(new List<short> { 3 });
+                },
+                new List<List<short>> { new List<short> { 3 } });
+
+            await Can_add_update_delete_with_collection<IList<byte?[]>>(
+                new List<byte?[]>(),
+                c =>
+                {
+                    c.Collection.Add(new byte?[] { 3, null });
+                    c.Collection.Add(null);
+                },
+                new List<byte?[]> { new byte?[] { 3, null }, null });
+
+            await Can_add_update_delete_with_collection<IReadOnlyList<Dictionary<string, string>>>(
+                new Dictionary<string, string>[] { new Dictionary<string, string> { { "1", null } } },
+                c =>
+                {
+                    var dictionary = c.Collection[0]["3"] = "2";
+                },
+                new List<Dictionary<string, string>> { new Dictionary<string, string> { { "1", null }, { "3", "2" } } });
+
+            await Can_add_update_delete_with_collection(
+                new List<float>[] { new List<float> { 1f }, new List<float> { 2 } },
+                c =>
+                {
+                    c.Collection[1][0] = 3f;
+                },
+                new List<float>[] { new List<float> { 1f }, new List<float> { 3f } });
+
+            await Can_add_update_delete_with_collection(
+                new decimal?[][] { new decimal?[] { 1, null } },
+                c =>
+                {
+                    c.Collection[0][1] = 3;
+                },
+                new decimal?[][] { new decimal?[] { 1, 3 } });
+
+            await Can_add_update_delete_with_collection(
+                new Dictionary<string, List<int>> { { "1", new List<int> { 1 } } },
+                c =>
+                {
+                    c.Collection["2"] = new List<int> { 3 };
+                },
+                new Dictionary<string, List<int>> { { "1", new List<int> { 1 } }, { "2", new List<int> { 3 } } });
+
+            await Can_add_update_delete_with_collection<IDictionary<string, long?[]>>(
+                new SortedDictionary<string, long?[]> { { "2", new long?[] { 2 } }, { "1", new long?[] { 1 } } },
+                c =>
+                {
+                    c.Collection.Clear();
+                    c.Collection["2"] = null;
+                },
+                new SortedDictionary<string, long?[]> { { "2", null } });
+
+            await Can_add_update_delete_with_collection<IReadOnlyDictionary<string, Dictionary<string, short?>>>(
+                 ImmutableDictionary<string, Dictionary<string, short?>>.Empty
+                    .Add("2", new Dictionary<string, short?> { { "value", 2 } }).Add("1", new Dictionary<string, short?> { { "value", 1 } }),
+                c =>
+                {
+                    c.Collection = ImmutableDictionary<string, Dictionary<string, short?>>.Empty
+                        .Add("1", new Dictionary<string, short?> { { "value", 1 } }).Add("2", null);
+                },
+                new Dictionary<string, Dictionary<string, short?>> { { "1", new Dictionary<string, short?> { { "value", 1 } } }, { "2", null } });
+        }
+
+        private async Task Can_add_update_delete_with_collection<TCollection>(
+            TCollection initialValue,
+            Action<CustomerWithCollection<TCollection>> modify,
+            TCollection modifiedValue,
+            Action<ModelBuilder> onModelBuilder = null)
+            where TCollection : class
+        {
+            var options = Fixture.CreateOptions();
+
+            var customer = new CustomerWithCollection<TCollection> { Id = 42, Name = "Theon", Collection = initialValue };
+
+            using (var context = new CollectionCustomerContext<TCollection>(options, onModelBuilder))
+            {
+                await context.Database.EnsureCreatedAsync();
+
+                context.Add(customer);
+
+                await context.SaveChangesAsync();
+            }
+
+            using (var context = new CollectionCustomerContext<TCollection>(options))
+            {
+                var customerFromStore = await context.Customers.SingleAsync();
+
+                Assert.Equal(42, customerFromStore.Id);
+                Assert.Equal(initialValue, customerFromStore.Collection);
+
+                modify(customerFromStore);
+
+                await context.SaveChangesAsync();
+            }
+
+            using (var context = new CollectionCustomerContext<TCollection>(options))
+            {
+                var customerFromStore = await context.Customers.SingleAsync();
+
+                Assert.Equal(42, customerFromStore.Id);
+                Assert.Equal(modifiedValue, customerFromStore.Collection);
+
+                customerFromStore.Collection = null;
+
+                await context.SaveChangesAsync();
+            }
+
+            using (var context = new CollectionCustomerContext<TCollection>(options))
+            {
+                var customerFromStore = await context.Customers.SingleAsync();
+
+                Assert.Equal(42, customerFromStore.Id);
+                Assert.Null(customerFromStore.Collection);
+            }
+        }
+
+        private class CustomerWithCollection<TCollection>
+        {
+            public int Id { get; set; }
+            public string Name { get; set; }
+            public TCollection Collection { get; set; }
+        }
+
+        private class CollectionCustomerContext<TCollection> : DbContext
+        {
+            private readonly Action<ModelBuilder> _onModelBuilder;
+
+            public DbSet<CustomerWithCollection<TCollection>> Customers { get; set; }
+
+            public CollectionCustomerContext(DbContextOptions dbContextOptions, Action<ModelBuilder> onModelBuilder = null)
+                : base(dbContextOptions)
+            {
+                _onModelBuilder = onModelBuilder;
+            }
+
+            protected override void OnModelCreating(ModelBuilder modelBuilder)
+            {
+                _onModelBuilder?.Invoke(modelBuilder);
             }
         }
 
@@ -1388,6 +1675,17 @@ OFFSET 0 LIMIT 1");
             logger.AssertBaseline(expected);
         }
 
+        protected TestSqlLoggerFactory TestSqlLoggerFactory
+            => (TestSqlLoggerFactory)Fixture.ListLoggerFactory;
+
+        protected void AssertSql(params string[] expected)
+            => TestSqlLoggerFactory.AssertBaseline(expected);
+
+        protected void AssertContainsSql(params string[] expected)
+            => TestSqlLoggerFactory.AssertBaseline(expected, assertOrder: false);
+
+        protected ListLoggerFactory LoggerFactory { get; }
+
         public class CosmosFixture : ServiceProviderFixtureBase, IAsyncLifetime
         {
             public CosmosFixture()
@@ -1406,6 +1704,9 @@ OFFSET 0 LIMIT 1");
                 ListLoggerFactory.Clear();
                 return CreateOptions(TestStore);
             }
+
+            protected override bool ShouldLogCategory(string logCategory)
+                => logCategory == DbLoggerCategory.Database.Command.Name;
 
             public Task InitializeAsync()
                 => Task.CompletedTask;

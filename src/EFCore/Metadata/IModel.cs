@@ -1,15 +1,13 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -149,5 +147,18 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         /// </summary>
         /// <param name="methodInfo"> The <see cref="MethodInfo"/> to check. </param>
         bool IsIndexerMethod(MethodInfo methodInfo);
+
+        /// <summary>
+        ///     Gets all the pre-convention configurations.
+        /// </summary>
+        /// <returns> The pre-convention configurations. </returns>
+        IEnumerable<IScalarTypeConfiguration> GetScalarTypeConfigurations();
+
+        /// <summary>
+        ///     Finds the pre-convention configurations for a given scalar <see cref="Type" />.
+        /// </summary>
+        /// <param name="propertyType"> The CLR type. </param>
+        /// <returns> The pre-convention configuration or <see langword="null" /> if none is found. </returns>
+        IScalarTypeConfiguration? FindScalarTypeConfiguration(Type propertyType);
     }
 }

@@ -58,7 +58,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
     CONSTRAINT [PK_People] PRIMARY KEY ([CustomId]),
     CONSTRAINT [AK_People_SSN] UNIQUE ([SSN]),
     CONSTRAINT [CK_People_EmployerId] CHECK ([EmployerId] > 0),
-    CONSTRAINT [FK_People_Employers_EmployerId] FOREIGN KEY ([EmployerId]) REFERENCES [Employers] ([Id]) ON DELETE NO ACTION
+    CONSTRAINT [FK_People_Employers_EmployerId] FOREIGN KEY ([EmployerId]) REFERENCES [Employers] ([Id])
 );
 DECLARE @description AS sql_variant;
 SET @description = N'Table comment';
@@ -144,6 +144,26 @@ EXEC sp_addextendedproperty 'MS_Description', @description, 'SCHEMA', @defaultSc
             AssertSql(
                 @"CREATE TABLE [People] (
     [SomeProperty] nvarchar(max) SPARSE NULL
+);");
+        }
+
+        [ConditionalFact]
+        public virtual async Task Create_table_with_identity_column_value_converter()
+        {
+            await Test(
+                _ => { },
+                builder => builder.UseIdentityColumns()
+                    .Entity("People").Property<int>("IdentityColumn").HasConversion<short>().ValueGeneratedOnAdd(),
+                model =>
+                {
+                    var table = Assert.Single(model.Tables);
+                    var column = Assert.Single(table.Columns, c => c.Name == "IdentityColumn");
+                    Assert.Equal(ValueGenerated.OnAdd, column.ValueGenerated);
+                });
+
+            AssertSql(
+                @"CREATE TABLE [People] (
+    [IdentityColumn] smallint NOT NULL IDENTITY
 );");
         }
 
@@ -609,6 +629,21 @@ ALTER TABLE [People] DROP COLUMN [Sum];
 ALTER TABLE [People] ADD [Sum] AS [X] + [Y] PERSISTED;");
         }
 
+        public override async Task Alter_column_make_non_computed()
+        {
+            await base.Alter_column_make_non_computed();
+
+            AssertSql(
+                @"DECLARE @var0 sysname;
+SELECT @var0 = [d].[name]
+FROM [sys].[default_constraints] [d]
+INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+WHERE ([d].[parent_object_id] = OBJECT_ID(N'[People]') AND [c].[name] = N'Sum');
+IF @var0 IS NOT NULL EXEC(N'ALTER TABLE [People] DROP CONSTRAINT [' + @var0 + '];');
+ALTER TABLE [People] DROP COLUMN [Sum];
+ALTER TABLE [People] ADD [Sum] int NOT NULL;");
+        }
+
         [ConditionalFact]
         public override async Task Alter_column_add_comment()
         {
@@ -623,33 +658,12 @@ EXEC sp_addextendedproperty 'MS_Description', @description, 'SCHEMA', @defaultSc
         }
 
         [ConditionalFact]
-        public virtual async Task Alter_computed_column_add_comment()
+        public override async Task Alter_computed_column_add_comment()
         {
-            await Test(
-                builder => builder.Entity("People", x =>
-                {
-                    x.Property<int>("Id");
-                    x.Property<int>("SomeColumn").HasComputedColumnSql("42");
-                }),
-                builder => { },
-                builder => builder.Entity("People").Property<int>("SomeColumn").HasComment("Some comment"),
-                model =>
-                {
-                    var table = Assert.Single(model.Tables);
-                    var column = Assert.Single(table.Columns.Where(c => c.Name == "SomeColumn"));
-                    Assert.Equal("Some comment", column.Comment);
-                });
+            await base.Alter_computed_column_add_comment();
 
             AssertSql(
-                @"DECLARE @var0 sysname;
-SELECT @var0 = [d].[name]
-FROM [sys].[default_constraints] [d]
-INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
-WHERE ([d].[parent_object_id] = OBJECT_ID(N'[People]') AND [c].[name] = N'SomeColumn');
-IF @var0 IS NOT NULL EXEC(N'ALTER TABLE [People] DROP CONSTRAINT [' + @var0 + '];');
-ALTER TABLE [People] DROP COLUMN [SomeColumn];
-ALTER TABLE [People] ADD [SomeColumn] AS 42;
-DECLARE @defaultSchema AS sysname;
+                @"DECLARE @defaultSchema AS sysname;
 SET @defaultSchema = SCHEMA_NAME();
 DECLARE @description AS sql_variant;
 SET @description = N'Some comment';
@@ -1039,6 +1053,28 @@ INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [
 WHERE ([d].[parent_object_id] = OBJECT_ID(N'[People]') AND [c].[name] = N'Id');
 IF @var0 IS NOT NULL EXEC(N'ALTER TABLE [People] DROP CONSTRAINT [' + @var0 + '];');
 ALTER TABLE [People] DROP COLUMN [Id];");
+        }
+
+        public override async Task Drop_column_computed_and_non_computed_with_dependency()
+        {
+            await base.Drop_column_computed_and_non_computed_with_dependency();
+
+            AssertSql(
+                @"DECLARE @var0 sysname;
+SELECT @var0 = [d].[name]
+FROM [sys].[default_constraints] [d]
+INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+WHERE ([d].[parent_object_id] = OBJECT_ID(N'[People]') AND [c].[name] = N'Y');
+IF @var0 IS NOT NULL EXEC(N'ALTER TABLE [People] DROP CONSTRAINT [' + @var0 + '];');
+ALTER TABLE [People] DROP COLUMN [Y];",
+                //
+                @"DECLARE @var1 sysname;
+SELECT @var1 = [d].[name]
+FROM [sys].[default_constraints] [d]
+INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+WHERE ([d].[parent_object_id] = OBJECT_ID(N'[People]') AND [c].[name] = N'X');
+IF @var1 IS NOT NULL EXEC(N'ALTER TABLE [People] DROP CONSTRAINT [' + @var1 + '];');
+ALTER TABLE [People] DROP COLUMN [X];");
         }
 
         public override async Task Rename_column()
@@ -1631,7 +1667,7 @@ ALTER TABLE [People] ALTER COLUMN [Name] nvarchar(450) NULL;",
             await base.Add_foreign_key();
 
             AssertSql(
-                @"ALTER TABLE [Orders] ADD CONSTRAINT [FK_Orders_Customers_CustomerId] FOREIGN KEY ([CustomerId]) REFERENCES [Customers] ([Id]) ON DELETE NO ACTION;");
+                @"ALTER TABLE [Orders] ADD CONSTRAINT [FK_Orders_Customers_CustomerId] FOREIGN KEY ([CustomerId]) REFERENCES [Customers] ([Id]);");
         }
 
         public override async Task Add_foreign_key_with_name()
@@ -1639,7 +1675,7 @@ ALTER TABLE [People] ALTER COLUMN [Name] nvarchar(450) NULL;",
             await base.Add_foreign_key_with_name();
 
             AssertSql(
-                @"ALTER TABLE [Orders] ADD CONSTRAINT [FK_Foo] FOREIGN KEY ([CustomerId]) REFERENCES [Customers] ([Id]) ON DELETE NO ACTION;");
+                @"ALTER TABLE [Orders] ADD CONSTRAINT [FK_Foo] FOREIGN KEY ([CustomerId]) REFERENCES [Customers] ([Id]);");
         }
 
         public override async Task Drop_foreign_key()
@@ -1972,7 +2008,7 @@ EXEC(N'CREATE TABLE [Customer] (
 
                         e.ToTable(tb => tb.IsTemporal(ttb =>
                         {
-                            ttb.WithHistoryTable("HistoryTable");
+                            ttb.UseHistoryTable("HistoryTable");
                             ttb.HasPeriodStart("SystemTimeStart");
                             ttb.HasPeriodEnd("SystemTimeEnd");
                         }));
@@ -2197,7 +2233,7 @@ EXEC(N'CREATE TABLE [Customer] (
 
                             e.ToTable("Customers", tb => tb.IsTemporal(ttb =>
                             {
-                                ttb.WithHistoryTable("HistoryTable", "historySchema");
+                                ttb.UseHistoryTable("HistoryTable", "historySchema");
                                 ttb.HasPeriodStart("SystemTimeStart");
                                 ttb.HasPeriodEnd("SystemTimeEnd");
                             }));
@@ -2285,7 +2321,7 @@ EXEC(N'CREATE TABLE [Customer] (
 
                         e.ToTable(tb => tb.IsTemporal(ttb =>
                         {
-                            ttb.WithHistoryTable("HistoryTable");
+                            ttb.UseHistoryTable("HistoryTable");
                             ttb.HasPeriodStart("Start").HasColumnName("PeriodStart");
                             ttb.HasPeriodEnd("End").HasColumnName("PeriodEnd");
                         }));
@@ -2319,7 +2355,7 @@ EXEC(N'CREATE TABLE [Customer] (
 
                         e.ToTable(tb => tb.IsTemporal(ttb =>
                         {
-                            ttb.WithHistoryTable("HistoryTable", "historySchema");
+                            ttb.UseHistoryTable("HistoryTable", "historySchema");
                             ttb.HasPeriodStart("Start").HasColumnName("PeriodStart");
                             ttb.HasPeriodEnd("End").HasColumnName("PeriodEnd");
                         }));
@@ -2353,7 +2389,7 @@ EXEC(N'CREATE TABLE [Customer] (
 
                         e.ToTable(tb => tb.IsTemporal(ttb =>
                         {
-                            ttb.WithHistoryTable("HistoryTable");
+                            ttb.UseHistoryTable("HistoryTable");
                             ttb.HasPeriodStart("Start");
                             ttb.HasPeriodEnd("End");
                         }));
@@ -2416,7 +2452,7 @@ EXEC(N'ALTER TABLE [RenamedCustomers] SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE
 
                         e.ToTable(tb => tb.IsTemporal(ttb =>
                         {
-                            ttb.WithHistoryTable("HistoryTable", "historySchema");
+                            ttb.UseHistoryTable("HistoryTable", "historySchema");
                             ttb.HasPeriodStart("Start");
                             ttb.HasPeriodEnd("End");
                         }));
@@ -2482,7 +2518,7 @@ EXEC(N'ALTER TABLE [RenamedCustomers] SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE
                     {
                         e.ToTable("Customers", tb => tb.IsTemporal(ttb =>
                         {
-                            ttb.WithHistoryTable("HistoryTable");
+                            ttb.UseHistoryTable("HistoryTable");
                             ttb.HasPeriodStart("Start");
                             ttb.HasPeriodEnd("End");
                         }));
@@ -2492,7 +2528,7 @@ EXEC(N'ALTER TABLE [RenamedCustomers] SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE
                     {
                         e.ToTable("Customers", tb => tb.IsTemporal(ttb =>
                         {
-                            ttb.WithHistoryTable("RenamedHistoryTable");
+                            ttb.UseHistoryTable("RenamedHistoryTable");
                             ttb.HasPeriodStart("Start");
                             ttb.HasPeriodEnd("End");
                         }));
@@ -2539,7 +2575,7 @@ EXEC(N'ALTER TABLE [RenamedCustomers] SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE
                     {
                         e.ToTable("Customers", tb => tb.IsTemporal(ttb =>
                         {
-                            ttb.WithHistoryTable("HistoryTable", "historySchema");
+                            ttb.UseHistoryTable("HistoryTable", "historySchema");
                             ttb.HasPeriodStart("Start");
                             ttb.HasPeriodEnd("End");
                         }));
@@ -2549,7 +2585,7 @@ EXEC(N'ALTER TABLE [RenamedCustomers] SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE
                     {
                         e.ToTable("Customers", tb => tb.IsTemporal(ttb =>
                         {
-                            ttb.WithHistoryTable("HistoryTable", "modifiedHistorySchema");
+                            ttb.UseHistoryTable("HistoryTable", "modifiedHistorySchema");
                             ttb.HasPeriodStart("Start");
                             ttb.HasPeriodEnd("End");
                         }));
@@ -2600,7 +2636,7 @@ EXEC(N'ALTER TABLE [RenamedCustomers] SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE
                     {
                         e.ToTable("Customers", "schema", tb => tb.IsTemporal(ttb =>
                         {
-                            ttb.WithHistoryTable("HistoryTable", "historySchema");
+                            ttb.UseHistoryTable("HistoryTable", "historySchema");
                             ttb.HasPeriodStart("Start");
                             ttb.HasPeriodEnd("End");
                         }));
@@ -2613,7 +2649,7 @@ EXEC(N'ALTER TABLE [RenamedCustomers] SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE
                     {
                         e.ToTable("RenamedCustomers", "newSchema", tb => tb.IsTemporal(ttb =>
                         {
-                            ttb.WithHistoryTable("RenamedHistoryTable", "newHistorySchema");
+                            ttb.UseHistoryTable("RenamedHistoryTable", "newHistorySchema");
                             ttb.HasPeriodStart("Start");
                             ttb.HasPeriodEnd("End");
                         }));
@@ -2674,7 +2710,7 @@ ALTER SCHEMA [newHistorySchema] TRANSFER [historySchema].[RenamedHistoryTable];"
 
                         e.ToTable("Customers", tb => tb.IsTemporal(ttb =>
                         {
-                            ttb.WithHistoryTable("HistoryTable");
+                            ttb.UseHistoryTable("HistoryTable");
                             ttb.HasPeriodStart("Start");
                             ttb.HasPeriodEnd("End");
                         }));
@@ -2685,7 +2721,7 @@ ALTER SCHEMA [newHistorySchema] TRANSFER [historySchema].[RenamedHistoryTable];"
                         e.Property<string>("Name");
                         e.Property<int>("Number");
                     }),
-                builder => 
+                builder =>
                     {
                     },
                 model =>
@@ -2760,7 +2796,7 @@ EXEC(N'ALTER TABLE [Customers] SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE = [' +
 
                         e.ToTable("Customers", tb => tb.IsTemporal(ttb =>
                         {
-                            ttb.WithHistoryTable("HistoryTable");
+                            ttb.UseHistoryTable("HistoryTable");
                             ttb.HasPeriodStart("Start");
                             ttb.HasPeriodEnd("End");
                         }));
@@ -2788,7 +2824,7 @@ EXEC(N'ALTER TABLE [Customers] SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE = [' +
                         c => Assert.Equal("Start", c.Name),
                         c => Assert.Equal("Name", c.Name),
                         c => Assert.Equal("Number", c.Name));
-            Assert.Same(
+                    Assert.Same(
                         table.Columns.Single(c => c.Name == "Id"),
                         Assert.Single(table.PrimaryKey!.Columns));
                 });
@@ -2814,7 +2850,7 @@ EXEC(N'ALTER TABLE [Customers] SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE = [' +
 
                         e.ToTable(tb => tb.IsTemporal(ttb =>
                         {
-                            ttb.WithHistoryTable("HistoryTable");
+                            ttb.UseHistoryTable("HistoryTable");
                             ttb.HasPeriodStart("PeriodStart");
                             ttb.HasPeriodEnd("PeriodEnd");
                         }));
@@ -2935,7 +2971,7 @@ ALTER TABLE [Customer] DROP COLUMN [PeriodStart];",
 
                         e.ToTable(tb => tb.IsTemporal(ttb =>
                         {
-                            ttb.WithHistoryTable("HistoryTable");
+                            ttb.UseHistoryTable("HistoryTable");
                             ttb.HasPeriodStart("PeriodStart");
                             ttb.HasPeriodEnd("PeriodEnd");
                         }));
@@ -3116,7 +3152,7 @@ EXEC(N'ALTER TABLE [Customer] SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE = [' + 
 
                         e.ToTable(tb => tb.IsTemporal(ttb =>
                         {
-                            ttb.WithHistoryTable("HistoryTable");
+                            ttb.UseHistoryTable("HistoryTable");
                             ttb.HasPeriodStart("Start");
                             ttb.HasPeriodEnd("End");
                         }));
@@ -3227,7 +3263,7 @@ EXEC(N'ALTER TABLE [Customer] SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE = [' + 
 
                         e.ToTable(tb => tb.IsTemporal(ttb =>
                         {
-                            ttb.WithHistoryTable("HistoryTable");
+                            ttb.UseHistoryTable("HistoryTable");
                             ttb.HasPeriodStart("Start");
                             ttb.HasPeriodEnd("End");
                         }));
@@ -3278,7 +3314,7 @@ EXEC(N'ALTER TABLE [Customer] SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE = [' + 
 
                         e.ToTable(tb => tb.IsTemporal(ttb =>
                         {
-                            ttb.WithHistoryTable("HistoryTable");
+                            ttb.UseHistoryTable("HistoryTable");
                             ttb.HasPeriodStart("Start");
                             ttb.HasPeriodEnd("End");
                         }));
@@ -3294,7 +3330,7 @@ EXEC(N'ALTER TABLE [Customer] SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE = [' + 
 
                         e.ToTable(tb => tb.IsTemporal(ttb =>
                         {
-                            ttb.WithHistoryTable("HistoryTable");
+                            ttb.UseHistoryTable("HistoryTable");
                             ttb.HasPeriodStart("ModifiedStart");
                             ttb.HasPeriodEnd("ModifiedEnd");
                         }));
@@ -3343,7 +3379,7 @@ EXEC(N'ALTER TABLE [Customer] SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE = [' + 
                     {
                         e.ToTable(tb => tb.IsTemporal(ttb =>
                         {
-                            ttb.WithHistoryTable("HistoryTable");
+                            ttb.UseHistoryTable("HistoryTable");
                             ttb.HasPeriodStart("Start");
                             ttb.HasPeriodEnd("End");
                         }));
@@ -3353,7 +3389,7 @@ EXEC(N'ALTER TABLE [Customer] SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE = [' + 
                     {
                         e.ToTable(tb => tb.IsTemporal(ttb =>
                         {
-                            ttb.WithHistoryTable("HistoryTable");
+                            ttb.UseHistoryTable("HistoryTable");
                             ttb.HasPeriodStart("Start").HasColumnName("ModifiedStart");
                             ttb.HasPeriodEnd("End").HasColumnName("ModifiedEnd");
                         }));
@@ -3467,7 +3503,7 @@ EXEC sp_addextendedproperty 'MS_Description', @description, 'SCHEMA', @defaultSc
 
                         e.ToTable(tb => tb.IsTemporal(ttb =>
                         {
-                            ttb.WithHistoryTable("HistoryTable");
+                            ttb.UseHistoryTable("HistoryTable");
                             ttb.HasPeriodStart("Start");
                             ttb.HasPeriodEnd("End");
                         }));
@@ -3601,7 +3637,7 @@ EXEC sp_addextendedproperty 'MS_Description', @description, 'SCHEMA', @defaultSc
 
                         e.ToTable("Customers", tb => tb.IsTemporal(ttb =>
                         {
-                            ttb.WithHistoryTable("HistoryTable");
+                            ttb.UseHistoryTable("HistoryTable");
                             ttb.HasPeriodStart("Start");
                             ttb.HasPeriodEnd("End");
                         }));
@@ -3672,11 +3708,6 @@ WHERE name = '{connection.Database}';";
                 ? collation
                 : null;
         }
-
-        protected override ReferentialAction Normalize(ReferentialAction value)
-            => value == ReferentialAction.Restrict
-                ? ReferentialAction.NoAction
-                : value;
 
         public class MigrationsSqlServerFixture : MigrationsFixtureBase
         {

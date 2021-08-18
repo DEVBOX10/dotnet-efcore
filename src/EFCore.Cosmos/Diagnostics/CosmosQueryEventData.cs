@@ -1,8 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 
 namespace Microsoft.EntityFrameworkCore.Diagnostics
@@ -21,7 +19,7 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         /// <param name="partitionKey"> The key of the Cosmos partition that the query is using. </param>
         /// <param name="parameters"> Name/values for each parameter in the Cosmos Query. </param>
         /// <param name="querySql"> The SQL representing the query. </param>
-        /// <param name="logSensitiveData"> Indicates whether or not the application allows logging of sensitive data. </param>
+        /// <param name="logSensitiveData"> Indicates whether the application allows logging of sensitive data. </param>
         public CosmosQueryEventData(
             EventDefinitionBase eventDefinition,
             Func<EventDefinitionBase, EventData, string> messageGenerator,
@@ -60,7 +58,7 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         public virtual string QuerySql { get; }
 
         /// <summary>
-        ///     Indicates whether or not the application allows logging of sensitive data.
+        ///     Indicates whether the application allows logging of sensitive data.
         /// </summary>
         public virtual bool LogSensitiveData { get; }
     }

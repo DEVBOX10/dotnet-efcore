@@ -35,7 +35,7 @@ namespace Microsoft.EntityFrameworkCore.Query
         }
 
         /// <summary>
-        ///     Parameter object containing service dependencies.
+        ///     Dependencies for this service.
         /// </summary>
         protected virtual QueryTranslationPreprocessorDependencies Dependencies { get; }
 
@@ -61,7 +61,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                 this,
                 QueryCompilationContext,
                 Dependencies.EvaluatableExpressionFilter,
-                Dependencies.QueryRootCreator)
+                Dependencies.NavigationExpansionExtensibilityHelper)
                     .Expand(query);
             query = new QueryOptimizingExpressionVisitor().Visit(query);
             query = new NullCheckRemovingExpressionVisitor().Visit(query);

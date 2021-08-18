@@ -55,12 +55,12 @@ namespace Microsoft.EntityFrameworkCore.TestUtilities
             AuthToken = TestEnvironment.AuthToken;
             ConnectionString = TestEnvironment.ConnectionString;
             _configureCosmos = extensionConfiguration == null
-                ? (Action<CosmosDbContextOptionsBuilder>)(b => b.ApplyConfiguration())
-                : (b =>
+                ? b => b.ApplyConfiguration()
+                : b =>
                 {
                     b.ApplyConfiguration();
                     extensionConfiguration(b);
-                });
+                };
 
             _storeContext = new TestStoreContext(this);
 
@@ -232,14 +232,14 @@ namespace Microsoft.EntityFrameworkCore.TestUtilities
         public override async Task CleanAsync(DbContext context)
         {
             var cosmosClientWrapper = context.GetService<ICosmosClientWrapper>();
-            var created = await cosmosClientWrapper.CreateDatabaseIfNotExistsAsync();
+            var created = await cosmosClientWrapper.CreateDatabaseIfNotExistsAsync(null);
             try
             {
                 if (!created)
                 {
                     var cosmosClient = context.Database.GetCosmosClient();
                     var database = cosmosClient.GetDatabase(Name);
-                    var containerIterator = database.GetContainerQueryIterator<ContainerProperties>();
+                    var containerIterator = database.GetContainerQueryIterator<Azure.Cosmos.ContainerProperties>();
                     while (containerIterator.HasMoreResults)
                     {
                         foreach (var containerProperties in await containerIterator.ReadNextAsync())

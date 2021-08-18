@@ -9,6 +9,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Numerics;
 using System.Text;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -137,7 +138,7 @@ namespace Microsoft.EntityFrameworkCore.Design.Internal
                 { typeof(Guid), (c, v) => c.Literal((Guid)v) },
                 { typeof(int), (c, v) => c.Literal((int)v) },
                 { typeof(long), (c, v) => c.Literal((long)v) },
-                { typeof(NestedClosureCodeFragment), (c, v) => c.Fragment((NestedClosureCodeFragment)v) },
+                { typeof(NestedClosureCodeFragment), (c, v) => c.Fragment((NestedClosureCodeFragment)v, 0) },
                 { typeof(object[]), (c, v) => c.Literal((object[])v) },
                 { typeof(object[,]), (c, v) => c.Literal((object[,])v) },
                 { typeof(sbyte), (c, v) => c.Literal((sbyte)v) },
@@ -776,7 +777,7 @@ namespace Microsoft.EntityFrameworkCore.Design.Internal
         /// </summary>
         public virtual string UnknownLiteral(object? value)
         {
-            if (value == null)
+            if (value is null)
             {
                 return "null";
             }
@@ -970,12 +971,54 @@ namespace Microsoft.EntityFrameworkCore.Design.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public virtual string Fragment(MethodCallCodeFragment fragment)
-        {
-            var builder = new StringBuilder();
+        public virtual string Fragment(MethodCallCodeFragment fragment, string? instanceIdentifier = null, bool typeQualified = false)
+            => Fragment(fragment, typeQualified, instanceIdentifier, indent: 0);
 
+        private string Fragment(MethodCallCodeFragment fragment, bool typeQualified, string? instanceIdentifier, int indent)
+        {
+            var builder = new IndentedStringBuilder();
             var current = fragment;
-            while (current != null)
+
+            if (typeQualified)
+            {
+                if (instanceIdentifier is null || fragment.MethodInfo is null || fragment.ChainedCall is not null)
+                {
+                    throw new ArgumentException(DesignStrings.CannotGenerateTypeQualifiedMethodCall);
+                }
+
+                builder
+                    .Append(fragment.DeclaringType!)
+                    .Append('.')
+                    .Append(fragment.Method)
+                    .Append('(')
+                    .Append(instanceIdentifier);
+
+                for (var i = 0; i < fragment.Arguments.Count; i++)
+                {
+                    builder.Append(", ");
+                    Argument(fragment.Arguments[i]);
+                }
+
+                builder.Append(')');
+
+                return builder.ToString();
+            }
+
+            // Non-type-qualified fragment
+
+            if (instanceIdentifier is not null)
+            {
+                builder.Append(instanceIdentifier);
+
+                if (current.ChainedCall is not null)
+                {
+                    builder
+                        .AppendLine()
+                        .IncrementIndent();
+                }
+            }
+
+            while (true)
             {
                 builder
                     .Append('.')
@@ -989,32 +1032,54 @@ namespace Microsoft.EntityFrameworkCore.Design.Internal
                         builder.Append(", ");
                     }
 
-                    builder.Append(UnknownLiteral(current.Arguments[i]));
+                    Argument(current.Arguments[i]);
                 }
 
                 builder.Append(')');
 
+                if (current.ChainedCall is null)
+                {
+                    break;
+                }
+
+                builder.AppendLine();
                 current = current.ChainedCall;
             }
 
             return builder.ToString();
+
+            void Argument(object? argument)
+            {
+                if (argument is NestedClosureCodeFragment nestedFragment)
+                {
+                    builder.Append(Fragment(nestedFragment, indent));
+                }
+                else
+                {
+                    builder.Append(UnknownLiteral(argument));
+                }
+            }
         }
 
-        private string Fragment(NestedClosureCodeFragment fragment)
+        private string Fragment(NestedClosureCodeFragment fragment, int indent)
         {
             if (fragment.MethodCalls.Count == 1)
             {
-                return fragment.Parameter + " => " + fragment.Parameter + Fragment(fragment.MethodCalls[0]);
+                return fragment.Parameter + " => " + Fragment(fragment.MethodCalls[0], typeQualified: false, fragment.Parameter, indent);
             }
 
             var builder = new IndentedStringBuilder();
             builder.AppendLine(fragment.Parameter + " =>");
+            for (var i = -1; i < indent; i++)
+            {
+                builder.IncrementIndent();
+            }
             builder.AppendLine("{");
             using (builder.Indent())
             {
                 foreach (var methodCall in fragment.MethodCalls)
                 {
-                    builder.Append(fragment.Parameter + Fragment(methodCall));
+                    builder.AppendLines(Fragment(methodCall, typeQualified: false, fragment.Parameter, indent + 1), skipFinalNewline: true);
                     builder.AppendLine(";");
                 }
             }

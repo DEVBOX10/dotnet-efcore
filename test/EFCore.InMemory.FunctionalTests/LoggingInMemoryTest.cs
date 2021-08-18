@@ -1,6 +1,8 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Reflection;
+using Microsoft.EntityFrameworkCore.InMemory.Infrastructure.Internal;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Microsoft.EntityFrameworkCore
@@ -10,10 +12,14 @@ namespace Microsoft.EntityFrameworkCore
         protected override DbContextOptionsBuilder CreateOptionsBuilder(IServiceCollection services)
             => new DbContextOptionsBuilder()
                 .UseInMemoryDatabase("LoggingInMemoryTest")
-                .UseInternalServiceProvider(services.AddEntityFrameworkInMemoryDatabase().BuildServiceProvider());
+                .UseInternalServiceProvider(services.AddEntityFrameworkInMemoryDatabase().BuildServiceProvider(validateScopes: true));
 
         protected override string ProviderName
             => "Microsoft.EntityFrameworkCore.InMemory";
+
+        protected override string ProviderVersion
+            => typeof(InMemoryOptionsExtension).Assembly
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
 
         protected override string DefaultOptions
             => "StoreName=LoggingInMemoryTest ";

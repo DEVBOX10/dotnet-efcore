@@ -61,6 +61,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             ISqlGenerationHelper sqlGenerationHelper,
             IRelationalTypeMappingSource typeMappingSource,
             ICurrentDbContext currentContext,
+            IModificationCommandFactory modificationCommandFactory,
             ILoggingOptions loggingOptions,
             IRelationalCommandDiagnosticsLogger logger,
             IDiagnosticsLogger<DbLoggerCategory.Migrations> migrationsLogger)
@@ -79,6 +80,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             UpdateSqlGenerator = updateSqlGenerator;
             TypeMappingSource = typeMappingSource;
             CurrentContext = currentContext;
+            ModificationCommandFactory = modificationCommandFactory;
             LoggingOptions = loggingOptions;
             Logger = logger;
             MigrationsLogger = migrationsLogger;
@@ -108,6 +110,11 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         ///     Contains the <see cref="DbContext" /> currently in use.
         /// </summary>
         public ICurrentDbContext CurrentContext { get; init; }
+
+        /// <summary>
+        ///     The <see cref="IModificationCommand" /> factory.
+        /// </summary>
+        public IModificationCommandFactory ModificationCommandFactory { get; init; }
 
         /// <summary>
         ///     The logging options.

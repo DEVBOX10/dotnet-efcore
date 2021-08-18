@@ -24,9 +24,10 @@ namespace Microsoft.EntityFrameworkCore.Query
     ///         services using the 'With...' methods. Do not call the constructor at any point in this process.
     ///     </para>
     ///     <para>
-    ///         The service lifetime is <see cref="ServiceLifetime.Singleton" />. This means a single instance
-    ///         is used by many <see cref="DbContext" /> instances. The implementation must be thread-safe.
-    ///         This service cannot depend on services registered as <see cref="ServiceLifetime.Scoped" />.
+    ///         The service lifetime is <see cref="ServiceLifetime.Scoped" />. This means that each
+    ///         <see cref="DbContext" /> instance will use its own instance of this service.
+    ///         The implementation may depend on other services registered with any lifetime.
+    ///         The implementation does not need to be thread-safe.
     ///     </para>
     /// </summary>
     public sealed record QueryTranslationPreprocessorDependencies
@@ -53,13 +54,13 @@ namespace Microsoft.EntityFrameworkCore.Query
         [EntityFrameworkInternal]
         public QueryTranslationPreprocessorDependencies(
             IEvaluatableExpressionFilter evaluatableExpressionFilter,
-            IQueryRootCreator queryRootCreator)
+            INavigationExpansionExtensibilityHelper navigationExpansionExtensibilityHelper)
         {
             Check.NotNull(evaluatableExpressionFilter, nameof(evaluatableExpressionFilter));
-            Check.NotNull(queryRootCreator, nameof(queryRootCreator));
+            Check.NotNull(navigationExpansionExtensibilityHelper, nameof(navigationExpansionExtensibilityHelper));
 
             EvaluatableExpressionFilter = evaluatableExpressionFilter;
-            QueryRootCreator = queryRootCreator;
+            NavigationExpansionExtensibilityHelper = navigationExpansionExtensibilityHelper;
         }
 
         /// <summary>
@@ -68,8 +69,8 @@ namespace Microsoft.EntityFrameworkCore.Query
         public IEvaluatableExpressionFilter EvaluatableExpressionFilter { get; init; }
 
         /// <summary>
-        ///     Query root creator.
+        ///     Navigation expansion extensibility helper.
         /// </summary>
-        public IQueryRootCreator QueryRootCreator { get; init; }
+        public INavigationExpansionExtensibilityHelper NavigationExpansionExtensibilityHelper { get; init; }
     }
 }

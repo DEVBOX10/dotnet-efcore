@@ -882,6 +882,37 @@ namespace Microsoft.EntityFrameworkCore.Query
                 });
         }
 
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Filter_on_indexer_using_closure(bool async)
+        {
+            var zipCode = "ZipCode";
+
+            return AssertQuery(
+                async,
+                ss => ss.Set<OwnedPerson>().Where(p => (int)p.PersonAddress[zipCode] == 38654));
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual async Task Filter_on_indexer_using_function_argument(bool async)
+        {
+            var zipCode = "ZipCode";
+
+            Func<bool, string, Task> myFunc = async (b, n) =>
+            {
+                using var ctx = CreateContext();
+
+                var query = async
+                    ? await ctx.Set<OwnedPerson>().Where(p => (int)p.PersonAddress[n] == 38654).ToListAsync()
+                    : ctx.Set<OwnedPerson>().Where(p => (int)p.PersonAddress[n] == 38654).ToList();
+
+                Assert.Single(query);
+            };
+
+            await myFunc(async, zipCode);
+        }
+
         protected virtual DbContext CreateContext()
             => Fixture.CreateContext();
 
@@ -1064,11 +1095,13 @@ namespace Microsoft.EntityFrameworkCore.Query
                                 Assert.Equal(ee.Id, aa.Id);
                                 Assert.Equal(ee.Name, aa.Name);
                                 Assert.Equal(ee.Composition.Count, aa.Composition.Count);
-                                for (var i = 0; i < ee.Composition.Count; i++)
+                                foreach (var (eec, aac) in Enumerable.Zip(
+                                    ee.Composition.OrderBy(eec => eec.Id),
+                                    aa.Composition.OrderBy(aac => aac.Id)))
                                 {
-                                    Assert.Equal(ee.Composition[i].Id, aa.Composition[i].Id);
-                                    Assert.Equal(ee.Composition[i].Name, aa.Composition[i].Name);
-                                    Assert.Equal(ee.Composition[i].StarId, aa.Composition[i].StarId);
+                                    Assert.Equal(eec.Id, aac.Id);
+                                    Assert.Equal(eec.Name, aac.Name);
+                                    Assert.Equal(eec.StarId, aac.StarId);
                                 }
                             }
                         }

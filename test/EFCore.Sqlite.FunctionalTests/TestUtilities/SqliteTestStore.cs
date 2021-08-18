@@ -18,7 +18,7 @@ namespace Microsoft.EntityFrameworkCore.TestUtilities
 
         public static SqliteTestStore GetOrCreateInitialized(string name)
             => new SqliteTestStore(name).InitializeSqlite(
-                new ServiceCollection().AddEntityFrameworkSqlite().BuildServiceProvider(),
+                new ServiceCollection().AddEntityFrameworkSqlite().BuildServiceProvider(validateScopes: true),
                 (Func<DbContext>)null,
                 null);
 
@@ -41,7 +41,6 @@ namespace Microsoft.EntityFrameworkCore.TestUtilities
             }.ToString();
 
             var connection = new SqliteConnection(ConnectionString);
-            SpatialiteLoader.TryLoad(connection);
             Connection = connection;
         }
 

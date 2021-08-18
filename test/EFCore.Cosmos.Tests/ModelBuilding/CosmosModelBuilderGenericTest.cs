@@ -1,9 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using Microsoft.EntityFrameworkCore.TestUtilities;
@@ -29,6 +26,20 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
             public override void Properties_specified_by_string_are_shadow_properties_unless_already_known_to_be_CLR_properties()
             {
                 // Fails due to extra shadow properties
+            }
+
+            protected override void Mapping_throws_for_non_ignored_array()
+            {
+                var modelBuilder = CreateModelBuilder();
+
+                modelBuilder.Entity<OneDee>();
+
+                var model = modelBuilder.FinalizeModel();
+                var entityType = model.FindEntityType(typeof(OneDee));
+
+                var property = entityType.FindProperty(nameof(OneDee.One));
+                Assert.Null(property.GetProviderClrType());
+                Assert.NotNull(property.FindTypeMapping());
             }
 
             [ConditionalFact]
@@ -352,8 +363,90 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 Assert.Equal(2, joinType.GetForeignKeys().Count());
                 Assert.Equal(3, joinType.FindPrimaryKey().Properties.Count);
                 Assert.Equal(6, joinType.GetProperties().Count());
+                Assert.Equal("DbContext", joinType.GetContainer());
                 Assert.Equal("PartitionId", joinType.GetPartitionKeyPropertyName());
                 Assert.Equal("PartitionId", joinType.FindPrimaryKey().Properties.Last().Name);
+            }
+
+            [ConditionalFact]
+            public virtual void Can_use_implicit_join_entity_with_partition_keys()
+            {
+                var modelBuilder = CreateModelBuilder();
+
+                modelBuilder.Ignore<OneToManyNavPrincipal>();
+                modelBuilder.Ignore<OneToOneNavPrincipal>();
+
+                modelBuilder.Entity<ManyToManyNavPrincipal>(mb =>
+                {
+                    mb.Ignore(e => e.Dependents);
+                    mb.Property<string>("PartitionId");
+                    mb.HasPartitionKey("PartitionId");
+                });
+
+                modelBuilder.Entity<NavDependent>(mb =>
+                {
+                    mb.Property<string>("PartitionId");
+                    mb.HasPartitionKey("PartitionId");
+                });
+
+                modelBuilder.Entity<ManyToManyNavPrincipal>()
+                    .HasMany(e => e.Dependents)
+                    .WithMany(e => e.ManyToManyPrincipals);
+
+                var model = modelBuilder.FinalizeModel();
+
+                var joinType = model.FindEntityType("ManyToManyNavPrincipalNavDependent");
+                Assert.NotNull(joinType);
+                Assert.Equal(2, joinType.GetForeignKeys().Count());
+                Assert.Equal(3, joinType.FindPrimaryKey().Properties.Count);
+                Assert.Equal(6, joinType.GetProperties().Count());
+                Assert.Equal("DbContext", joinType.GetContainer());
+                Assert.Equal("PartitionId", joinType.GetPartitionKeyPropertyName());
+                Assert.Equal("PartitionId", joinType.FindPrimaryKey().Properties.Last().Name);
+            }
+
+            [ConditionalFact]
+            public virtual void Can_use_implicit_join_entity_with_partition_keys_changed()
+            {
+                var modelBuilder = CreateModelBuilder();
+
+                modelBuilder.Ignore<OneToManyNavPrincipal>();
+                modelBuilder.Ignore<OneToOneNavPrincipal>();
+
+                modelBuilder.Entity<ManyToManyNavPrincipal>(mb =>
+                {
+                    mb.Property<string>("PartitionId");
+                    mb.HasPartitionKey("PartitionId");
+                });
+
+                modelBuilder.Entity<NavDependent>(mb =>
+                {
+                    mb.Property<string>("PartitionId");
+                    mb.HasPartitionKey("PartitionId");
+                });
+
+                modelBuilder.Entity<ManyToManyNavPrincipal>(mb =>
+                {
+                    mb.Property<string>("Partition2Id");
+                    mb.HasPartitionKey("Partition2Id");
+                });
+
+                modelBuilder.Entity<NavDependent>(mb =>
+                {
+                    mb.Property<string>("Partition2Id");
+                    mb.HasPartitionKey("Partition2Id");
+                });
+
+                var model = modelBuilder.FinalizeModel();
+
+                var joinType = model.FindEntityType("ManyToManyNavPrincipalNavDependent");
+                Assert.NotNull(joinType);
+                Assert.Equal(2, joinType.GetForeignKeys().Count());
+                Assert.Equal(3, joinType.FindPrimaryKey().Properties.Count);
+                Assert.Equal(6, joinType.GetProperties().Count());
+                Assert.Equal("DbContext", joinType.GetContainer());
+                Assert.Equal("Partition2Id", joinType.GetPartitionKeyPropertyName());
+                Assert.Equal("Partition2Id", joinType.FindPrimaryKey().Properties.Last().Name);
             }
 
             public override void Join_type_is_automatically_configured_by_convention()
@@ -361,7 +454,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 // Many-to-many not configured by convention on Cosmos
             }
 
-            public override void Throws_for_ForeignKeyAttribute_on_navigation()
+            public override void ForeignKeyAttribute_configures_the_properties()
             {
                 // Many-to-many not configured by convention on Cosmos
             }

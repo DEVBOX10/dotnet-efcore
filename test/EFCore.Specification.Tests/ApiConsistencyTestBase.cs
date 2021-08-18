@@ -13,7 +13,6 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -140,7 +139,7 @@ namespace Microsoft.EntityFrameworkCore
 
             Assert.False(
                 nonGenericMethods.Count > 0,
-                "\r\n-- Non-generic fluent returns --\r\n"
+                "\r\n-- Non-generic fluent returns that aren't hidden --\r\n"
                 + string.Join(
                     Environment.NewLine, nonGenericMethods.Select(
                         m =>
@@ -742,13 +741,15 @@ namespace Microsoft.EntityFrameworkCore
                        && !it.Name.EndsWith("Dependencies", StringComparison.Ordinal)
                        && (it.GetConstructors().Length != 1
                            || it.GetConstructors()[0].GetParameters().Length == 0
-                           || it.GetConstructors()[0].GetParameters()[0].Name != "dependencies"
+                           || (it.GetConstructors()[0].GetParameters()[0].Name != "dependencies"
+                               && it.GetConstructors()[0].GetParameters()[0].Name != "relationalDependencies")
                            // Check that the parameter has a non-public copy constructor, identifying C# 9 records
                            || !it.GetConstructors()[0].GetParameters()[0].ParameterType
                                .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
-                               .Any(c => c.GetParameters() is var parameters
-                                   && parameters.Length == 1
-                                   && parameters[0].Name == "original"))
+                               .Any(
+                                   c => c.GetParameters() is var parameters
+                                       && parameters.Length == 1
+                                       && parameters[0].Name == "original"))
                    select it)
                 .ToList();
 

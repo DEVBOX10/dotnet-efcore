@@ -125,7 +125,7 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
 
         private bool Equals(FromSqlQueryRootExpression queryRootExpression)
             => base.Equals(queryRootExpression)
-                && string.Equals(Sql, queryRootExpression.Sql, StringComparison.OrdinalIgnoreCase)
+                && Sql == queryRootExpression.Sql
                 && ExpressionEqualityComparer.Instance.Equals(Argument, queryRootExpression.Argument);
 
         /// <summary>

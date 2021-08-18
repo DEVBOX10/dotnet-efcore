@@ -5,6 +5,7 @@ using System;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -45,7 +46,7 @@ namespace Microsoft.EntityFrameworkCore.ValueGeneration
         }
 
         /// <summary>
-        ///     Parameter object containing dependencies for this service.
+        ///     Dependencies for this service.
         /// </summary>
         protected virtual ValueGeneratorSelectorDependencies Dependencies { get; }
 
@@ -81,11 +82,17 @@ namespace Microsoft.EntityFrameworkCore.ValueGeneration
 
                     if (converter != null)
                     {
-                        throw new NotSupportedException(
-                            CoreStrings.ValueGenWithConversion(
-                                property.DeclaringEntityType.DisplayName(),
-                                property.Name,
-                                converter.GetType().ShortDisplayName()));
+                        var type = converter.ProviderClrType.UnwrapNullableType();
+                        if (!type.IsInteger()
+                            && !type.IsEnum
+                            && type != typeof(decimal))
+                        {
+                            throw new NotSupportedException(
+                                CoreStrings.ValueGenWithConversion(
+                                    property.DeclaringEntityType.DisplayName(),
+                                    property.Name,
+                                    converter.GetType().ShortDisplayName()));
+                        }
                     }
                 }
             }

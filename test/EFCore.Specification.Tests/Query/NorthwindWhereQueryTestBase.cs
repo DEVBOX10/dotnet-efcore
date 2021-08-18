@@ -897,6 +897,18 @@ namespace Microsoft.EntityFrameworkCore.Query
 
         [ConditionalTheory]
         [MemberData(nameof(IsAsyncData))]
+        public virtual Task Where_datetimeoffset_utcnow(bool async)
+        {
+            var myDatetimeOffset = new DateTimeOffset(2015, 4, 10, 0, 0, 0, new TimeSpan(-8, 0, 0));
+
+            return AssertQuery(
+                async,
+                ss => ss.Set<Customer>().Where(c => DateTimeOffset.UtcNow != myDatetimeOffset),
+                entryCount: 91);
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
         public virtual Task Where_datetime_today(bool async)
         {
             return AssertQuery(
@@ -2487,5 +2499,30 @@ namespace Microsoft.EntityFrameworkCore.Query
                 ss => ss.Set<Customer>().Where(c => (object)c.Region == null),
                 entryCount: 60);
         }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Filter_with_EF_Property_using_closure_for_property_name(bool async)
+        {
+            var id = "CustomerID";
+
+            return AssertQuery(
+                async,
+                ss => ss.Set<Customer>().Where(c => EF.Property<string>(c, id) == "ALFKI"),
+                entryCount: 1);
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Filter_with_EF_Property_using_function_for_property_name(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => ss.Set<Customer>().Where(c => EF.Property<string>(c, StringMethod("CustomerID")) == "ALFKI"),
+                entryCount: 1);
+        }
+
+        private string StringMethod(string arg)
+            => arg;
     }
 }
