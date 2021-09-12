@@ -141,11 +141,13 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
             bool nullable)
         {
             var mainBuilder = new IndentedStringBuilder();
-            var namespaces = new SortedSet<string>(new NamespaceComparer()) {
-                contextType.Namespace!,
+            var namespaces = new SortedSet<string>(new NamespaceComparer())
+            {
                 typeof(RuntimeModel).Namespace!,
                 typeof(DbContextAttribute).Namespace!
             };
+
+            AddNamespace(contextType, namespaces);
 
             if (!string.IsNullOrEmpty(@namespace))
             {
@@ -158,30 +160,24 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
             var className = _code.Identifier(contextType.ShortDisplayName()) + ModelSuffix;
             mainBuilder
                 .Append("[DbContext(typeof(").Append(_code.Reference(contextType)).AppendLine("))]")
-                .Append("partial class ").Append(className).AppendLine(" : " + nameof(RuntimeModel))
+                .Append("public partial class ").Append(className).AppendLine(" : " + nameof(RuntimeModel))
                 .AppendLine("{");
 
             using (mainBuilder.Indent())
             {
                 mainBuilder
-                    .Append("private static ").Append(className).AppendLine(nullable ? "? _instance;" : " _instance;")
-                    .Append("public static IModel Instance")
-                    .AppendLines(@"
+                    .Append("static ").Append(className).Append("()")
+                    .AppendLines(
+                @"
 {
-    get
-    {
-        if (_instance == null)
-        {
-            _instance = new " + className + @"();
-            _instance.Initialize();
-            _instance.Customize();
-        }
-
-        return _instance;
-    }
-}");
-
-                mainBuilder
+    var model = new " + className + @"();
+    model.Initialize();
+    model.Customize();
+    _instance = model;
+}")
+                    .AppendLine()
+                    .Append("private static ").Append(className).AppendLine(" _instance;")
+                    .AppendLine("public static IModel Instance => _instance;")
                     .AppendLine()
                     .AppendLine("partial void Initialize();")
                     .AppendLine()
@@ -223,7 +219,7 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
 
             var className = _code.Identifier(contextType.ShortDisplayName()) + ModelSuffix;
             mainBuilder
-                .Append("partial class ").AppendLine(className)
+                .Append("public partial class ").AppendLine(className)
                 .AppendLine("{");
 
             using (mainBuilder.Indent())
@@ -236,8 +232,10 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
                     var entityTypes = model.GetEntityTypesInHierarchicalOrder();
                     var variables = new HashSet<string>();
 
+                    var anyEntityTypes = false;
                     foreach (var entityType in entityTypes)
                     {
+                        anyEntityTypes = true;
                         var variableName = _code.Identifier(entityType.ShortName(), variables, capitalize: false);
 
                         var firstChar = variableName[0] == '@' ? variableName[1] : variableName[0];
@@ -265,7 +263,7 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
                             .AppendLine(");");
                     }
 
-                    if (entityTypes.Count > 0)
+                    if (anyEntityTypes)
                     {
                         mainBuilder.AppendLine();
                     }
@@ -339,7 +337,7 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
                             .AppendLine(");");
                     }
 
-                    if (entityTypes.Count > 0)
+                    if (anyEntityTypes)
                     {
                         mainBuilder.AppendLine();
                     }
@@ -352,7 +350,7 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
                         namespaces,
                         variables);
 
-                    foreach (var typeConfiguration in model.GetScalarTypeConfigurations())
+                    foreach (var typeConfiguration in model.GetTypeMappingConfigurations())
                     {
                         Create(typeConfiguration, parameters);
                     }
@@ -383,14 +381,14 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
         }
 
         private void Create(
-            IScalarTypeConfiguration typeConfiguration,
+            ITypeMappingConfiguration typeConfiguration,
             CSharpRuntimeAnnotationCodeGeneratorParameters parameters)
         {
             var variableName = _code.Identifier("type", parameters.ScopeVariables, capitalize: false);
 
             var mainBuilder = parameters.MainBuilder;
             mainBuilder
-                .Append("var ").Append(variableName).Append(" = ").Append(parameters.TargetName).AppendLine(".AddScalarTypeConfiguration(")
+                .Append("var ").Append(variableName).Append(" = ").Append(parameters.TargetName).AppendLine(".AddTypeMappingConfiguration(")
                 .IncrementIndent()
                 .Append(_code.Literal(typeConfiguration.ClrType));
 
@@ -476,7 +474,7 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
             }
 
             mainBuilder
-                .Append("partial class ").AppendLine(className)
+                .Append("internal partial class ").AppendLine(className)
                 .AppendLine("{");
             using (mainBuilder.Indent())
             {
@@ -1377,14 +1375,14 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
 
         private static void AddNamespace(Type type, ISet<string> namespaces)
         {
-            if (type.Namespace != null)
+            if (!string.IsNullOrEmpty(type.Namespace))
             {
                 namespaces.Add(type.Namespace);
             }
 
             if (type.IsGenericType)
             {
-                foreach(var argument in type.GenericTypeArguments)
+                foreach (var argument in type.GenericTypeArguments)
                 {
                     AddNamespace(argument, namespaces);
                 }

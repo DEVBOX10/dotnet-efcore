@@ -12,6 +12,9 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
     ///     A <see cref="DiagnosticSource" /> event payload class for events that have
     ///     two unmapped property collections.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-diagnostics">Logging, events, and diagnostics</see> for more information.
+    /// </remarks>
     public class TwoUnmappedPropertyCollectionsEventData : EventData
     {
         /// <summary>

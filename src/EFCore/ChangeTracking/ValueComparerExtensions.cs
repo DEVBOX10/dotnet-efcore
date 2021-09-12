@@ -6,6 +6,9 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking
     /// <summary>
     ///     Extension methods for <see cref="ValueComparer" />.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-value-comparers">EF Core value comparers</see> for more information.
+    /// </remarks>
     public static class ValueComparerExtensions
     {
         /// <summary>

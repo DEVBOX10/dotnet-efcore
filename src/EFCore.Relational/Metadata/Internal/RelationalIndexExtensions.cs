@@ -85,6 +85,20 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
                 return false;
             }
 
+            if (index.GetFilter(storeObject) != duplicateIndex.GetFilter(storeObject))
+            {
+                throw new InvalidOperationException(
+                    RelationalStrings.DuplicateIndexFiltersMismatch(
+                        index.Properties.Format(),
+                        index.DeclaringEntityType.DisplayName(),
+                        duplicateIndex.Properties.Format(),
+                        duplicateIndex.DeclaringEntityType.DisplayName(),
+                        index.DeclaringEntityType.GetSchemaQualifiedTableName(),
+                        index.GetDatabaseName(storeObject),
+                        index.GetFilter(),
+                        duplicateIndex.GetFilter()));
+            }
+
             return true;
         }
     }

@@ -15,6 +15,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Query.Internal;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
@@ -1403,9 +1404,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                         RelationalCommandCache relationalCommandCache,
                         bool detailedErrorsEnabled)
                     {
-                        var relationalCommandTemplate = relationalCommandCache.GetRelationalCommand(queryContext.ParameterValues);
-                        var relationalCommand = queryContext.Connection.RentCommand();
-                        relationalCommand.PopulateFrom(relationalCommandTemplate);
+                        var relationalCommand = relationalCommandCache.RentAndPopulateRelationalCommand(queryContext);
 
                         return relationalCommand.ExecuteReader(
                             new RelationalCommandParameterObject(
@@ -1483,18 +1482,17 @@ namespace Microsoft.EntityFrameworkCore.Query
                             (queryContext, relationalCommandCache, detailedErrorsEnabled),
                             ((RelationalQueryContext, RelationalCommandCache, bool) tup, CancellationToken cancellationToken)
                                 => InitializeReaderAsync(tup.Item1, tup.Item2, tup.Item3, cancellationToken),
-                            verifySucceeded: null)
+                            verifySucceeded: null,
+                            queryContext.CancellationToken)
                         .ConfigureAwait(false);
 
-                    async Task<RelationalDataReader> InitializeReaderAsync(
+                    static async Task<RelationalDataReader> InitializeReaderAsync(
                         RelationalQueryContext queryContext,
                         RelationalCommandCache relationalCommandCache,
                         bool detailedErrorsEnabled,
                         CancellationToken cancellationToken)
                     {
-                        var relationalCommandTemplate = relationalCommandCache.GetRelationalCommand(queryContext.ParameterValues);
-                        var relationalCommand = queryContext.Connection.RentCommand();
-                        relationalCommand.PopulateFrom(relationalCommandTemplate);
+                        var relationalCommand = relationalCommandCache.RentAndPopulateRelationalCommand(queryContext);
 
                         return await relationalCommand.ExecuteReaderAsync(
                                 new RelationalCommandParameterObject(
@@ -1734,7 +1732,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                         RelationalCommandCache relationalCommandCache,
                         bool detailedErrorsEnabled)
                     {
-                        var relationalCommand = relationalCommandCache.GetRelationalCommand(queryContext.ParameterValues);
+                        var relationalCommand = relationalCommandCache.RentAndPopulateRelationalCommand(queryContext);
 
                         return relationalCommand.ExecuteReader(
                             new RelationalCommandParameterObject(
@@ -1804,16 +1802,17 @@ namespace Microsoft.EntityFrameworkCore.Query
                             (queryContext, relationalCommandCache, detailedErrorsEnabled),
                             ((RelationalQueryContext, RelationalCommandCache, bool) tup, CancellationToken cancellationToken)
                                 => InitializeReaderAsync(tup.Item1, tup.Item2, tup.Item3, cancellationToken),
-                            verifySucceeded: null)
+                            verifySucceeded: null,
+                            queryContext.CancellationToken)
                         .ConfigureAwait(false);
 
-                    async Task<RelationalDataReader> InitializeReaderAsync(
+                    static async Task<RelationalDataReader> InitializeReaderAsync(
                         RelationalQueryContext queryContext,
                         RelationalCommandCache relationalCommandCache,
                         bool detailedErrorsEnabled,
                         CancellationToken cancellationToken)
                     {
-                        var relationalCommand = relationalCommandCache.GetRelationalCommand(queryContext.ParameterValues);
+                        var relationalCommand = relationalCommandCache.RentAndPopulateRelationalCommand(queryContext);
 
                         return await relationalCommand.ExecuteReaderAsync(
                             new RelationalCommandParameterObject(

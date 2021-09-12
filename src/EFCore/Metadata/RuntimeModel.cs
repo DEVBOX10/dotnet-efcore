@@ -1,8 +1,11 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -24,11 +27,14 @@ namespace Microsoft.EntityFrameworkCore.Metadata
     ///         This is a light-weight implementation that is constructed from a built model and is not meant to be used at design-time.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-modeling">Modeling entity types and relationships</see> for more information.
+    /// </remarks>
     public class RuntimeModel : AnnotatableBase, IRuntimeModel
     {
         private readonly SortedDictionary<string, RuntimeEntityType> _entityTypes = new(StringComparer.Ordinal);
         private readonly Dictionary<Type, SortedSet<RuntimeEntityType>> _sharedTypes = new();
-        private readonly Dictionary<Type, RuntimeScalarTypeConfiguration> _typeConfigurations = new();
+        private readonly Dictionary<Type, RuntimeTypeMappingConfiguration> _typeConfigurations = new();
         private bool _skipDetectChanges;
 
         private readonly ConcurrentDictionary<Type, PropertyInfo?> _indexerPropertyInfoMap = new();
@@ -149,7 +155,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         /// </param>
         /// <param name="valueConverter"> The custom <see cref="ValueConverter" /> for this type. </param>
         /// <returns> The newly created property. </returns>
-        public virtual RuntimeScalarTypeConfiguration AddScalarTypeConfiguration(
+        public virtual RuntimeTypeMappingConfiguration AddTypeMappingConfiguration(
             Type clrType,
             int? maxLength = null,
             bool? unicode = null,
@@ -158,7 +164,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
             Type? providerPropertyType = null,
             ValueConverter? valueConverter = null)
         {
-            var typeConfiguration = new RuntimeScalarTypeConfiguration(
+            var typeConfiguration = new RuntimeTypeMappingConfiguration(
                 clrType,
                 maxLength,
                 unicode,
@@ -292,11 +298,11 @@ namespace Microsoft.EntityFrameworkCore.Metadata
             => _sharedTypes.ContainsKey(type);
 
         /// <inheritdoc/>
-        IEnumerable<IScalarTypeConfiguration> IModel.GetScalarTypeConfigurations()
+        IEnumerable<ITypeMappingConfiguration> IModel.GetTypeMappingConfigurations()
             => _typeConfigurations.Values;
 
         /// <inheritdoc/>
-        IScalarTypeConfiguration? IModel.FindScalarTypeConfiguration(Type propertyType)
+        ITypeMappingConfiguration? IModel.FindTypeMappingConfiguration(Type propertyType)
             => _typeConfigurations.Count == 0
                 ? null
                 : _typeConfigurations.GetValueOrDefault(propertyType);

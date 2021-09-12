@@ -534,10 +534,12 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
             [Flags]
             public enum HasDataOverload
             {
+#pragma warning disable SA1602 // Enumeration items should be documented
                 Array = 0,
                 Enumerable = 1,
                 Generic = 2,
                 Params = 4
+#pragma warning restore SA1602 // Enumeration items should be documented
             }
 
             [ConditionalTheory]
@@ -851,8 +853,6 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                     nameof(SpecialOrder.SpecialOrderId), specialOwnership.DeclaringEntityType.FindPrimaryKey().Properties.Single().Name);
 
                 Assert.Equal(2, modelBuilder.Model.FindEntityTypes(typeof(Order)).Count());
-                // SpecialOrder and Address are only used once, but once they are made shared they don't revert to non-shared
-                Assert.Equal(7, modelBuilder.Model.GetEntityTypes().Count(e => !e.HasSharedClrType));
 
                 var conventionModel = (IConventionModel)modelBuilder.Model;
                 Assert.Null(conventionModel.FindIgnoredConfigurationSource(typeof(Order)));
@@ -877,6 +877,8 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 var owner = model.FindEntityType(typeof(SpecialOrder));
                 var ownership = owner.FindNavigation(nameof(SpecialOrder.ShippingAddress)).ForeignKey;
                 Assert.True(ownership.IsOwnership);
+                Assert.True(ownership.IsRequired);
+                Assert.True(ownership.IsRequiredDependent);
                 Assert.NotNull(ownership.DeclaringEntityType.FindProperty(nameof(StreetAddress.Street)));
             }
 

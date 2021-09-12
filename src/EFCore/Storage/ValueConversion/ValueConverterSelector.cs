@@ -25,6 +25,9 @@ namespace Microsoft.EntityFrameworkCore.Storage.ValueConversion
     ///         This service cannot depend on services registered as <see cref="ServiceLifetime.Scoped" />.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-value-converters">EF Core value converters</see> for more information.
+    /// </remarks>
     public class ValueConverterSelector : IValueConverterSelector
     {
         private readonly ConcurrentDictionary<(Type ModelClrType, Type ProviderClrType), ValueConverterInfo> _converters = new();
@@ -57,6 +60,8 @@ namespace Microsoft.EntityFrameworkCore.Storage.ValueConversion
             typeof(double),
             typeof(float)
         };
+
+        private static readonly Type? _readOnlyIPAddressType = IPAddress.Loopback.GetType();
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="ValueConverterSelector" /> class.
@@ -139,19 +144,19 @@ namespace Microsoft.EntityFrameworkCore.Storage.ValueConversion
             else if (modelClrType == typeof(Guid))
             {
                 if (providerClrType == null
-                    || providerClrType == typeof(byte[]))
-                {
-                    yield return _converters.GetOrAdd(
-                        (modelClrType, typeof(byte[])),
-                        k => GuidToBytesConverter.DefaultInfo);
-                }
-
-                if (providerClrType == null
                     || providerClrType == typeof(string))
                 {
                     yield return _converters.GetOrAdd(
                         (modelClrType, typeof(string)),
                         k => GuidToStringConverter.DefaultInfo);
+                }
+
+                if (providerClrType == null
+                    || providerClrType == typeof(byte[]))
+                {
+                    yield return _converters.GetOrAdd(
+                        (modelClrType, typeof(byte[])),
+                        k => GuidToBytesConverter.DefaultInfo);
                 }
             }
             else if (modelClrType == typeof(byte[]))
@@ -291,7 +296,7 @@ namespace Microsoft.EntityFrameworkCore.Storage.ValueConversion
                                 NumberToBytesConverter<long>.DefaultInfo.MappingHints));
                 }
             }
-            else if (modelClrType == typeof(IPAddress))
+            else if (modelClrType == typeof(IPAddress) || modelClrType == _readOnlyIPAddressType)
             {
                 if (providerClrType == null
                     || providerClrType == typeof(string))

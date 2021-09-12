@@ -591,11 +591,10 @@ FROM [Customers] AS [c]
 OUTER APPLY (
     SELECT TOP(1) [o].[OrderID], [o].[ProductID], [o].[Discount], [o].[Quantity], [o].[UnitPrice]
     FROM [Order Details] AS [o]
-    WHERE (
-        SELECT TOP(1) [o0].[OrderID]
+    WHERE EXISTS (
+        SELECT 1
         FROM [Orders] AS [o0]
-        WHERE [c].[CustomerID] = [o0].[CustomerID]
-        ORDER BY [o0].[OrderID]) IS NOT NULL AND ((
+        WHERE [c].[CustomerID] = [o0].[CustomerID]) AND ((
         SELECT TOP(1) [o1].[OrderID]
         FROM [Orders] AS [o1]
         WHERE [c].[CustomerID] = [o1].[CustomerID]
@@ -614,11 +613,10 @@ ORDER BY [c].[CustomerID]");
                 @"SELECT (
     SELECT TOP(1) [o].[ProductID]
     FROM [Order Details] AS [o]
-    WHERE (
-        SELECT TOP(1) [o0].[OrderID]
+    WHERE EXISTS (
+        SELECT 1
         FROM [Orders] AS [o0]
-        WHERE [c].[CustomerID] = [o0].[CustomerID]
-        ORDER BY [o0].[OrderID]) IS NOT NULL AND ((
+        WHERE [c].[CustomerID] = [o0].[CustomerID]) AND ((
         SELECT TOP(1) [o1].[OrderID]
         FROM [Orders] AS [o1]
         WHERE [c].[CustomerID] = [o1].[CustomerID]
@@ -1170,6 +1168,16 @@ WHERE [c].[CustomerID] = N'ALFKI'");
         public override async Task Contains_over_entityType_with_null_should_rewrite_to_identity_equality_subquery(bool async)
         {
             await base.Contains_over_entityType_with_null_should_rewrite_to_identity_equality_subquery(async);
+
+            AssertSql(
+                @"SELECT [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate]
+FROM [Orders] AS [o]
+WHERE 0 = 1");
+        }
+
+        public override async Task Contains_over_entityType_with_null_in_projection(bool async)
+        {
+            await base.Contains_over_entityType_with_null_in_projection(async);
 
             AssertSql(
                 @"SELECT [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate]

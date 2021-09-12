@@ -51,7 +51,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
             => PropertyMappings.First().Property.IsUnicode(StoreObjectIdentifier.Table(Table.Name, Table.Schema));
 
         /// <summary>
-        ///     Returns a flag indicating if the property as capable of storing only fixed-length data, such as strings.
+        ///     Returns a flag indicating whether the property is capable of storing only fixed-length data, such as strings.
         /// </summary>
         bool? IsFixedLength
             => PropertyMappings.First().Property.IsFixedLength(StoreObjectIdentifier.Table(Table.Name, Table.Schema));
@@ -83,21 +83,26 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         /// <returns> True if the default value was explicitly set; false otherwise. </returns>
         public virtual bool TryGetDefaultValue(out object? defaultValue)
         {
-            var property = PropertyMappings.First().Property;
-
-            if (!property.TryGetDefaultValue(StoreObjectIdentifier.Table(Table.Name, Table.Schema), out defaultValue))
+            foreach (var mapping in PropertyMappings)
             {
-                return false;
+                var property = mapping.Property;
+                if (!property.TryGetDefaultValue(StoreObjectIdentifier.Table(Table.Name, Table.Schema), out defaultValue))
+                {
+                    continue;
+                }
+
+                var converter = property.GetValueConverter() ?? PropertyMappings.First().TypeMapping.Converter;
+
+                if (converter != null)
+                {
+                    defaultValue = converter.ConvertToProvider(defaultValue);
+                }
+
+                return true;
             }
 
-            var converter = property.GetValueConverter() ?? PropertyMappings.First().TypeMapping.Converter;
-
-            if (converter != null)
-            {
-                defaultValue = converter.ConvertToProvider(defaultValue);
-            }
-
-            return true;
+            defaultValue = null;
+            return false;
         }
 
         /// <summary>

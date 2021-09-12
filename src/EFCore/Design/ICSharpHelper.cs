@@ -11,6 +11,10 @@ namespace Microsoft.EntityFrameworkCore.Design
     /// <summary>
     ///     Helper for generating C# code.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     for more information.
+    /// </remarks>
     public interface ICSharpHelper
     {
         /// <summary>
@@ -206,8 +210,9 @@ namespace Microsoft.EntityFrameworkCore.Design
         ///     Generates a <see cref="Type"/> literal.
         /// </summary>
         /// <param name="value"> The value. </param>
+        /// <param name="fullName"> Whether the type should be namespace-qualified. </param>
         /// <returns> The literal. </returns>
-        string Literal(Type value);
+        string Literal(Type value, bool? fullName = null);
 
         /// <summary>
         ///     Generates an object array literal.
@@ -228,8 +233,9 @@ namespace Microsoft.EntityFrameworkCore.Design
         ///     Generates a C# type reference.
         /// </summary>
         /// <param name="type"> The type to reference. </param>
+        /// <param name="fullName"> Whether the type should be namespace-qualified. </param>
         /// <returns> The reference. </returns>
-        string Reference(Type type);
+        string Reference(Type type, bool? fullName = null);
 
         /// <summary>
         ///     Generates a literal for a type not known at compile time.

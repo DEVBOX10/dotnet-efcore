@@ -13,6 +13,9 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking
     ///     Provides access to change tracking information and operations for a node in a
     ///     graph of entities that is being traversed.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-track-graph">Tracking entities in EF Core</see> for more information.
+    /// </remarks>
     public class EntityEntryGraphNode<TState> : EntityEntryGraphNode
     {
         /// <summary>

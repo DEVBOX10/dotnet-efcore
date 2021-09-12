@@ -12,6 +12,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
     /// <summary>
     ///     A convention that configures the non-nullable navigations to principal entity type as required.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-conventions">Model building conventions</see> for more information.
+    /// </remarks>
     public class NonNullableNavigationConvention :
         NonNullableConventionBase,
         INavigationAddedConvention,
@@ -66,16 +69,13 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
                 return;
             }
 
-            if (foreignKey.GetPrincipalEndConfigurationSource() != null)
+            if (navigation.IsOnDependent)
             {
-                if (navigation.IsOnDependent)
-                {
-                    foreignKey.Builder.IsRequired(true);
-                }
-                else
-                {
-                    foreignKey.Builder.IsRequiredDependent(true);
-                }
+                foreignKey.Builder.IsRequired(true);
+            }
+            else
+            {
+                foreignKey.Builder.IsRequiredDependent(true);
             }
         }
 

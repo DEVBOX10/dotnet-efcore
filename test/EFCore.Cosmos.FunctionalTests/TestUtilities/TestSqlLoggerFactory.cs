@@ -1,6 +1,10 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Xunit;
@@ -62,7 +66,7 @@ namespace Microsoft.EntityFrameworkCore.TestUtilities
             {
                 var methodCallLine = Environment.StackTrace.Split(
                     new[] { _eol },
-                    StringSplitOptions.RemoveEmptyEntries)[3].Substring(6);
+                    StringSplitOptions.RemoveEmptyEntries)[3][6..];
 
                 var indexMethodEnding = methodCallLine.IndexOf(')') + 1;
                 var testName = methodCallLine.Substring(0, indexMethodEnding);

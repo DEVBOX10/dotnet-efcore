@@ -41,7 +41,7 @@ namespace System
             => Nullable.GetUnderlyingType(type) ?? type;
 
         public static bool IsNullableValueType(this Type type)
-            => type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>);
+            => type.IsConstructedGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>);
 
         public static bool IsNullableType(this Type type)
             => !type.IsValueType || type.IsNullableValueType();
@@ -312,6 +312,11 @@ namespace System
                 type = typesToProcess.Dequeue();
                 baseTypes.Add(type);
 
+                if (type.IsNullableValueType())
+                {
+                    typesToProcess.Enqueue(Nullable.GetUnderlyingType(type)!);
+                }
+
                 if (type.IsConstructedGenericType)
                 {
                     typesToProcess.Enqueue(type.GetGenericTypeDefinition());
@@ -420,8 +425,10 @@ namespace System
 #pragma warning disable IDE0034 // Simplify 'default' expression - default causes default(object)
             { typeof(int), default(int) },
             { typeof(Guid), default(Guid) },
+            { typeof(DateOnly), default(DateOnly) },
             { typeof(DateTime), default(DateTime) },
             { typeof(DateTimeOffset), default(DateTimeOffset) },
+            { typeof(TimeOnly), default(TimeOnly) },
             { typeof(long), default(long) },
             { typeof(bool), default(bool) },
             { typeof(double), default(double) },

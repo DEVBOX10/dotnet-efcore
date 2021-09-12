@@ -1,6 +1,8 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using System.Linq;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure;
@@ -14,6 +16,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
     ///     a many-to-many join entity with suitable foreign keys, sets the two
     ///     matching skip navigations to use those foreign keys.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-conventions">Model building conventions</see> for more information.
+    /// </remarks>
     public class ManyToManyJoinEntityTypeConvention :
         ISkipNavigationAddedConvention,
         ISkipNavigationInverseChangedConvention,

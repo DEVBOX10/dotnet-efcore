@@ -21,6 +21,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
     ///     A convention that configures relationships between entity types based on the navigation properties
     ///     as long as there is no ambiguity as to which is the corresponding inverse navigation.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-conventions">Model building conventions</see> for more information.
+    /// </remarks>
     public class RelationshipDiscoveryConvention :
         IEntityTypeAddedConvention,
         IEntityTypeIgnoredConvention,
@@ -46,17 +49,24 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// </summary>
         protected virtual ProviderConventionSetBuilderDependencies Dependencies { get; }
 
-        private void DiscoverRelationships(IConventionEntityTypeBuilder entityTypeBuilder, IConventionContext context)
+        private void DiscoverRelationships(
+            IConventionEntityTypeBuilder entityTypeBuilder,
+            IConventionContext context,
+            HashSet<Type>? otherInverseCandidateTypes = null)
         {
-            var relationshipCandidates = FindRelationshipCandidates(entityTypeBuilder);
+            var relationshipCandidates = FindRelationshipCandidates(entityTypeBuilder, otherInverseCandidateTypes);
             relationshipCandidates = RemoveIncompatibleWithExistingRelationships(relationshipCandidates, entityTypeBuilder);
             relationshipCandidates = RemoveInheritedInverseNavigations(relationshipCandidates);
             relationshipCandidates = RemoveSingleSidedBaseNavigations(relationshipCandidates, entityTypeBuilder);
 
             CreateRelationships(relationshipCandidates, entityTypeBuilder);
+
+            DiscoverUnidirectionalInverses(entityTypeBuilder, context, otherInverseCandidateTypes);
         }
 
-        private IReadOnlyList<RelationshipCandidate> FindRelationshipCandidates(IConventionEntityTypeBuilder entityTypeBuilder)
+        private IReadOnlyList<RelationshipCandidate> FindRelationshipCandidates(
+            IConventionEntityTypeBuilder entityTypeBuilder,
+            HashSet<Type>? otherInverseCandidateTypes)
         {
             var entityType = entityTypeBuilder.Metadata;
             var relationshipCandidates = new Dictionary<IConventionEntityType, RelationshipCandidate>();
@@ -116,6 +126,11 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
                             && targetOwnership.PrincipalToDependent?.Name == navigationPropertyInfo.GetSimpleMemberName()))
                     && (ownership == null
                         || !entityType.IsInOwnershipPath(candidateTargetEntityType));
+
+                if (!candidateTargetEntityType.HasSharedClrType)
+                {
+                    otherInverseCandidateTypes?.Remove(targetClrType);
+                }
 
                 if (candidateTargetEntityType.IsOwned()
                     && !shouldBeOwnership
@@ -771,6 +786,24 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
             }
         }
 
+        private void DiscoverUnidirectionalInverses(
+            IConventionEntityTypeBuilder entityTypeBuilder,
+            IConventionContext context,
+            HashSet<Type>? otherInverseCandidateTypes)
+        {
+            var model = entityTypeBuilder.Metadata.Model;
+            if (otherInverseCandidateTypes != null)
+            {
+                foreach (var inverseCandidateType in otherInverseCandidateTypes)
+                {
+                    foreach (var inverseCandidateEntityType in model.FindEntityTypes(inverseCandidateType).ToList())
+                    {
+                        DiscoverRelationships(inverseCandidateEntityType.Builder, context);
+                    }
+                }
+            }
+        }
+
         private void RemoveExtraOwnershipInverse(IConventionEntityType entityType, RelationshipCandidate relationshipCandidate)
         {
             if (relationshipCandidate.NavigationProperties.Count > 1
@@ -954,7 +987,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         public virtual void ProcessEntityTypeAdded(
             IConventionEntityTypeBuilder entityTypeBuilder,
             IConventionContext<IConventionEntityTypeBuilder> context)
-            => DiscoverRelationships(entityTypeBuilder, context);
+            => DiscoverRelationships(
+                entityTypeBuilder,
+                context,
+                Dependencies.MemberClassifier.GetInverseCandidateTypes(entityTypeBuilder.Metadata).ToHashSet());
 
         /// <inheritdoc />
         public virtual void ProcessEntityTypeBaseTypeChanged(
@@ -1017,7 +1053,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
             if (foreignKey.IsOwnership
                 && !entityTypeBuilder.Metadata.IsOwned())
             {
-                DiscoverRelationships(entityTypeBuilder, context);
+                DiscoverRelationships(
+                    entityTypeBuilder,
+                    context,
+                    Dependencies.MemberClassifier.GetInverseCandidateTypes(entityTypeBuilder.Metadata).ToHashSet());
             }
         }
 
@@ -1230,7 +1269,11 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         public virtual void ProcessForeignKeyOwnershipChanged(
             IConventionForeignKeyBuilder relationshipBuilder,
             IConventionContext<bool?> context)
-            => DiscoverRelationships(relationshipBuilder.Metadata.DeclaringEntityType.Builder, context);
+        {
+            var entityType = relationshipBuilder.Metadata.DeclaringEntityType;
+            DiscoverRelationships(entityType.Builder, context,
+                Dependencies.MemberClassifier.GetInverseCandidateTypes(entityType).ToHashSet());
+        }
 
         // TODO: Rely on layering to remove these when no longer referenced #15898
         private static bool IsImplicitlyCreatedUnusedType(IConventionEntityType entityType)

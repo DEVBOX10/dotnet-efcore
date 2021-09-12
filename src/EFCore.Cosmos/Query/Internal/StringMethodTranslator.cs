@@ -1,6 +1,9 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Utilities;
@@ -247,14 +250,19 @@ namespace Microsoft.EntityFrameworkCore.Cosmos.Query.Internal
                 || _stringComparisonWithComparisonTypeArgumentStatic.Equals(method))
             {
                 var comparisonTypeArgument = arguments[^1];
+
                 if (comparisonTypeArgument is SqlConstantExpression constantComparisonTypeArgument
                     && constantComparisonTypeArgument.Value is StringComparison comparisonTypeArgumentValue
-                    && comparisonTypeArgumentValue == StringComparison.OrdinalIgnoreCase)
+                    && (comparisonTypeArgumentValue == StringComparison.OrdinalIgnoreCase
+                        || comparisonTypeArgumentValue == StringComparison.Ordinal))
                 {
-
                     return _stringComparisonWithComparisonTypeArgumentInstance.Equals(method)
-                        ? TranslateSystemFunction("STRINGEQUALS", typeof(bool), instance!, arguments[0], _sqlExpressionFactory.Constant(true))
-                        : TranslateSystemFunction("STRINGEQUALS", typeof(bool), arguments[0], arguments[1], _sqlExpressionFactory.Constant(true));
+                        ? comparisonTypeArgumentValue == StringComparison.OrdinalIgnoreCase
+                            ? TranslateSystemFunction("STRINGEQUALS", typeof(bool), instance!, arguments[0], _sqlExpressionFactory.Constant(true))
+                            : TranslateSystemFunction("STRINGEQUALS", typeof(bool), instance!, arguments[0])
+                        : comparisonTypeArgumentValue == StringComparison.OrdinalIgnoreCase
+                            ? TranslateSystemFunction("STRINGEQUALS", typeof(bool), arguments[0], arguments[1], _sqlExpressionFactory.Constant(true))
+                            : TranslateSystemFunction("STRINGEQUALS", typeof(bool), arguments[0], arguments[1]);
                 }
             }
 

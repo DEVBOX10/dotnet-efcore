@@ -16,6 +16,11 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
     ///         behavior of warnings.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-diagnostics">Logging, events, and diagnostics</see>, and
+    ///     <see href="https://aka.ms/efcore-docs-sqlserver">Accessing SQL Server and SQL Azure databases with EF Core</see>
+    ///     for more information.
+    /// </remarks>
     public static class SqlServerEventId
     {
         // Warning: These values must not change between releases.
@@ -64,6 +69,8 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             ForeignKeyPrincipalColumnMissingWarning,
             ReflexiveConstraintIgnored,
             DuplicateForeignKeyConstraintIgnored,
+            ColumnWithoutTypeWarning,
+            ForeignKeyReferencesUnknownPrincipalTableWarning
         }
 
         private static readonly string _validationPrefix = DbLoggerCategory.Model.Validation.Name + ".";
@@ -184,6 +191,13 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             MakeScaffoldingId(Id.ForeignKeyReferencesMissingPrincipalTableWarning);
 
         /// <summary>
+        ///     A foreign key references a unknown table at the principal end.
+        ///     This event is in the <see cref="DbLoggerCategory.Scaffolding" /> category.
+        /// </summary>
+        public static readonly EventId ForeignKeyReferencesUnknownPrincipalTableWarning =
+            MakeScaffoldingId(Id.ForeignKeyReferencesUnknownPrincipalTableWarning);
+
+        /// <summary>
         ///     A table was found.
         ///     This event is in the <see cref="DbLoggerCategory.Scaffolding" /> category.
         /// </summary>
@@ -237,5 +251,11 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         ///     This event is in the <see cref="DbLoggerCategory.Scaffolding" /> category.
         /// </summary>
         public static readonly EventId DuplicateForeignKeyConstraintIgnored = MakeScaffoldingId(Id.DuplicateForeignKeyConstraintIgnored);
+
+        /// <summary>
+        ///     A column was skipped because its database type could not be found.
+        ///     This event is in the <see cref="DbLoggerCategory.Scaffolding" /> category.
+        /// </summary>
+        public static readonly EventId ColumnWithoutTypeWarning = MakeScaffoldingId(Id.ColumnWithoutTypeWarning);
     }
 }

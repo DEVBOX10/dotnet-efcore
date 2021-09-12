@@ -11,11 +11,17 @@ namespace Microsoft.EntityFrameworkCore.ValueGeneration
     /// <summary>
     ///     Generates values for properties when an entity is added to a context.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-value-generation">EF Core value generation</see> for more information.
+    /// </remarks>
     public abstract class ValueGenerator
     {
         /// <summary>
         ///     Gets a value to be assigned to a property.
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-value-generation">EF Core value generation</see> for more information.
+        /// </remarks>
         /// <param name="entry"> The change tracking entry of the entity for which the value is being generated. </param>
         /// <returns> The value to be assigned to a property. </returns>
         public virtual object? Next(EntityEntry entry)
@@ -24,6 +30,9 @@ namespace Microsoft.EntityFrameworkCore.ValueGeneration
         /// <summary>
         ///     Template method to be overridden by implementations to perform value generation.
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-value-generation">EF Core value generation</see> for more information.
+        /// </remarks>
         /// <param name="entry"> The change tracking entry of the entity for which the value is being generated. </param>
         /// <returns> The generated value. </returns>
         protected abstract object? NextValue(EntityEntry entry);
@@ -31,6 +40,9 @@ namespace Microsoft.EntityFrameworkCore.ValueGeneration
         /// <summary>
         ///     Gets a value to be assigned to a property.
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-value-generation">EF Core value generation</see> for more information.
+        /// </remarks>
         /// <param name="entry"> The change tracking entry of the entity for which the value is being generated. </param>
         /// <param name="cancellationToken">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
         /// <returns> The value to be assigned to a property. </returns>
@@ -43,6 +55,9 @@ namespace Microsoft.EntityFrameworkCore.ValueGeneration
         /// <summary>
         ///     Template method to be overridden by implementations to perform value generation.
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-value-generation">EF Core value generation</see> for more information.
+        /// </remarks>
         /// <param name="entry"> The change tracking entry of the entity for which the value is being generated. </param>
         /// <param name="cancellationToken">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
         /// <returns> The generated value. </returns>
@@ -65,6 +80,21 @@ namespace Microsoft.EntityFrameworkCore.ValueGeneration
         ///         key which are saved to the database.
         ///     </para>
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-value-generation">EF Core value generation</see> for more information.
+        /// </remarks>
         public abstract bool GeneratesTemporaryValues { get; }
+
+        /// <summary>
+        ///     Gets a value indicating whether the values generated are stable. That is, the value will always be the
+        ///     same for a given property in a given entity, and does not depend on what other values may have been generated
+        ///     previously. For example, discriminator values generated for a TPH hierarchy are stable. Stable values will never
+        ///     be marked as unknown.
+        /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-value-generation">EF Core value generation</see> for more information.
+        /// </remarks>
+        public virtual bool GeneratesStableValues
+            => false;
     }
 }

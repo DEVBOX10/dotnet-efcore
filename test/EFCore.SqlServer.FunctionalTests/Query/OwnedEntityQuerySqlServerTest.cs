@@ -61,5 +61,43 @@ FROM (
 INNER JOIN [Leaf24777] AS [l] ON [t].[Id1] = [l].[ModdleAId]
 ORDER BY [t].[Id], [t].[Id0], [t].[Id1]");
         }
+
+        public override async Task Projecting_owned_collection_and_aggregate(bool async)
+        {
+            await base.Projecting_owned_collection_and_aggregate(async);
+
+            AssertSql(
+                @"SELECT [b].[Id], (
+    SELECT COALESCE(SUM([p].[CommentsCount]), 0)
+    FROM [Post24133] AS [p]
+    WHERE [b].[Id] = [p].[BlogId]), [p0].[Title], [p0].[CommentsCount], [p0].[BlogId], [p0].[Id]
+FROM [Blog24133] AS [b]
+LEFT JOIN [Post24133] AS [p0] ON [b].[Id] = [p0].[BlogId]
+ORDER BY [b].[Id], [p0].[BlogId]");
+        }
+
+        public override async Task Projecting_correlated_collection_property_for_owned_entity(bool async)
+        {
+            await base.Projecting_correlated_collection_property_for_owned_entity(async);
+
+            AssertSql(
+                @"SELECT [w].[WarehouseCode], [w].[Id], [w0].[CountryCode], [w0].[WarehouseCode], [w0].[Id]
+FROM [Warehouses] AS [w]
+LEFT JOIN [WarehouseDestinationCountry] AS [w0] ON [w].[WarehouseCode] = [w0].[WarehouseCode]
+ORDER BY [w].[Id], [w0].[WarehouseCode]");
+        }
+
+        public override async Task Owned_collection_basic_split_query(bool async)
+        {
+            await base.Owned_collection_basic_split_query(async);
+
+            AssertSql(
+                @"@__id_0='6c1ae3e5-30b9-4c77-8d98-f02075974a0a'
+
+SELECT TOP(1) [l].[Id]
+FROM [Location25680] AS [l]
+WHERE [l].[Id] = @__id_0
+ORDER BY [l].[Id]");
+        }
     }
 }

@@ -13,6 +13,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
     ///     as long as there is no ambiguity as to which is the corresponding inverse navigation.
     ///     All navigations are assumed to be targeting owned entity types for Cosmos.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-conventions">Model building conventions</see>, and
+    ///     <see href="https://aka.ms/efcore-docs-cosmos">Accessing Azure Cosmos DB with EF Core</see> for more information.
+    /// </remarks>
     public class CosmosRelationshipDiscoveryConvention : RelationshipDiscoveryConvention
     {
         /// <summary>
@@ -40,6 +44,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <param name="model"> The model. </param>
         /// <returns> <see langword="true"/> if the given entity type should be owned. </returns>
         public static bool ShouldBeOwnedType(Type targetType, IConventionModel model)
-            => !targetType.IsGenericType || targetType.GetGenericTypeDefinition() != typeof(List<>);
+            => !targetType.IsGenericType
+            || targetType == typeof(Dictionary<string, object>)
+            || targetType.GetInterface(typeof(IEnumerable<>).Name) == null;
     }
 }

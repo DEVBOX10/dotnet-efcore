@@ -333,13 +333,10 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Internal
                 },
                 result =>
                 {
-                    Assert.Equal(14, result.Count);
-
-                    var createBankTableOperation = Assert.IsType<CreateTableOperation>(result[0]);
-                    Assert.Equal("Banks", createBankTableOperation.Name);
-                    Assert.Empty(createBankTableOperation.ForeignKeys);
-
-                    Assert.Equal(4, result.OfType<AddForeignKeyOperation>().Count());
+                    Assert.Equal(3, result.OfType<CreateTableOperation>().Count());
+                    Assert.Equal(7, result.OfType<CreateIndexOperation>().Count());
+                    Assert.Equal(7, result.OfType<CreateTableOperation>().SelectMany(t => t.ForeignKeys).Count()
+                        + result.OfType<AddForeignKeyOperation>().Count());
                 });
         }
 
@@ -4798,6 +4795,75 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Internal
                     Assert.Equal(1, operations.Count);
                     Assert.IsType<RenameColumnOperation>(operations[0]);
                 });
+        }
+
+        [ConditionalFact]
+        public void Add_column_with_foreign_key()
+        {
+            Execute(
+                source => source.Entity(
+                    "Yeast",
+                    x =>
+                    {
+                        x.Property<string>("Id").HasColumnType("ansi_string_fixed(127)");
+                    }),
+                target => target.Entity(
+                    "Yeast",
+                    x =>
+                    {
+                        x.Property<string>("Id").HasColumnType("ansi_string_fixed(127)");
+                        x.Property<string>("ParentId").IsFixedLength(false);
+                        x.HasOne("Yeast").WithMany().HasForeignKey("ParentId");
+                    }),
+                operations => Assert.Collection(operations, o =>
+                    {
+                        var operation = Assert.IsType<AddColumnOperation>(o);
+                        Assert.Equal("ParentId", operation.Name);
+                        Assert.Equal("ansi_string_fixed(127)", operation.ColumnType);
+                    }, o =>
+                    {
+                        var operation = Assert.IsType<CreateIndexOperation>(o);
+                        Assert.Equal(new[] { "ParentId" }, operation.Columns);
+                    }, o =>
+                    {
+                        var operation = Assert.IsType<AddForeignKeyOperation>(o);
+                        Assert.Equal(new[] { "ParentId" }, operation.Columns);
+                    }
+                ));
+        }
+
+        [ConditionalFact]
+        public void Change_principal_column_facets()
+        {
+            Execute(
+                source => source.Entity(
+                    "Yeast",
+                    x =>
+                    {
+                        x.Property<string>("Id");
+                        x.Property<string>("ParentId");
+                        x.HasOne("Yeast").WithMany().HasForeignKey("ParentId");
+                    }),
+                target => target.Entity(
+                    "Yeast",
+                    x =>
+                    {
+                        x.Property<string>("Id").HasMaxLength(127).IsFixedLength().IsUnicode(false);
+                        x.Property<string>("ParentId").IsFixedLength(false);
+                        x.HasOne("Yeast").WithMany().HasForeignKey("ParentId");
+                    }),
+                operations => Assert.Collection(operations, o =>
+                    {
+                        var operation = Assert.IsType<AlterColumnOperation>(o);
+                        Assert.Equal("ParentId", operation.Name);
+                        Assert.Equal("ansi_string(127)", operation.ColumnType);
+                    }, o =>
+                    {
+                        var operation = Assert.IsType<AlterColumnOperation>(o);
+                        Assert.Equal("Id", operation.Name);
+                        Assert.Equal("ansi_string_fixed(127)", operation.ColumnType);
+                    }
+                ));
         }
 
         [ConditionalFact]

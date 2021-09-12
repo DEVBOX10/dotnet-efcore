@@ -21,7 +21,7 @@ namespace Microsoft.EntityFrameworkCore.Query
             : base(fixture)
         {
             ClearLog();
-            Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
+            //Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
         }
 
         protected override bool CanExecuteQueryString
@@ -1821,6 +1821,11 @@ WHERE 0 = 1");
         public override Task Regex_IsMatch_MethodCall_constant_input(bool async)
         {
             return AssertTranslationFailed(() => base.Regex_IsMatch_MethodCall_constant_input(async));
+        }
+
+        public override Task Datetime_subtraction_TotalDays(bool async)
+        {
+            return AssertTranslationFailed(() =>  base.Datetime_subtraction_TotalDays(async));
         }
 
         private void AssertSql(params string[] expected)

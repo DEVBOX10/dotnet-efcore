@@ -156,6 +156,9 @@ CollectionEnum.Id ---> [int] [Precision = 10 Scale = 0]
 CollectionEnum.Roles ---> [nullable nvarchar] [MaxLength = -1]
 CollectionScalar.Id ---> [int] [Precision = 10 Scale = 0]
 CollectionScalar.Tags ---> [nullable nvarchar] [MaxLength = -1]
+Dashboard.Id ---> [int] [Precision = 10 Scale = 0]
+Dashboard.Layouts ---> [nullable nvarchar] [MaxLength = -1]
+Dashboard.Name ---> [nullable nvarchar] [MaxLength = -1]
 DateTimeEnclosure.DateTimeOffset ---> [nullable datetimeoffset] [Precision = 7]
 DateTimeEnclosure.Id ---> [int] [Precision = 10 Scale = 0]
 EmailTemplate.Id ---> [uniqueidentifier]
@@ -295,7 +298,7 @@ WHERE [b].[Id] = 1");
         public override void Value_conversion_on_enum_collection_contains()
         {
             Assert.Contains(
-                CoreStrings.TranslationFailed("").Substring(47),
+                CoreStrings.TranslationFailed("")[47..],
                 Assert.Throws<InvalidOperationException>(() => base.Value_conversion_on_enum_collection_contains()).Message);
         }
 

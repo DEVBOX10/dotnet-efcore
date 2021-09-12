@@ -19,6 +19,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
     ///     A convention that configures the inverse navigation property based on the <see cref="InversePropertyAttribute" />
     ///     specified on the other navigation property.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-conventions">Model building conventions</see> for more information.
+    /// </remarks>
     public class InversePropertyAttributeConvention :
         NavigationAttributeConventionBase<InversePropertyAttribute>,
         IModelFinalizingConvention
@@ -78,7 +81,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
             var targetEntityType = targetEntityTypeBuilder.Metadata;
             var targetClrType = targetEntityType.ClrType;
             var inverseNavigationPropertyInfo = targetEntityType.GetRuntimeProperties().Values
-                .FirstOrDefault(p => string.Equals(p.GetSimpleMemberName(), attribute.Property, StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefault(p => string.Equals(p.GetSimpleMemberName(), attribute.Property))
+                ?? targetEntityType.GetRuntimeProperties().Values
+                    .FirstOrDefault(p => string.Equals(p.GetSimpleMemberName(), attribute.Property, StringComparison.OrdinalIgnoreCase));
 
             if (inverseNavigationPropertyInfo == null
                 || !Dependencies.MemberClassifier.GetNavigationCandidates(targetEntityType)[inverseNavigationPropertyInfo]
@@ -742,7 +747,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
                     var otherEntityType = FindActualEntityType(referencingTuple.Item2);
                     if (otherEntityType != null)
                     {
-                        // TODO: Trigger relationship discovery instead #25279
+                        // TODO: Rely on layering to trigger relationship discovery instead #15898
 
                         var existingInverses = targetEntityType.GetNavigations()
                             .Where(n => n.TargetEntityType == otherEntityType).ToList();

@@ -22,6 +22,9 @@ namespace Microsoft.EntityFrameworkCore
     ///         that is passed to the context constructor.
     ///     </para>
     /// </summary>
+    /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-pre-convention">Pre-convention model building in EF Core</see> for more information.
+    /// </remarks>
     public class ModelConfigurationBuilder
     {
         private readonly ModelConfiguration _modelConfiguration = new();
@@ -30,6 +33,9 @@ namespace Microsoft.EntityFrameworkCore
         /// <summary>
         ///     Initializes a new instance of the <see cref="ModelConfigurationBuilder" />.
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-pre-convention">Pre-convention model building in EF Core</see> for more information.
+        /// </remarks>
         /// <param name="conventions"> The conventions to be applied during model building. </param>
         public ModelConfigurationBuilder(ConventionSet conventions)
         {
@@ -50,6 +56,9 @@ namespace Microsoft.EntityFrameworkCore
         /// <summary>
         ///     Prevents the conventions from the given type from discovering properties of the given or derived types.
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-pre-convention">Pre-convention model building in EF Core</see> for more information.
+        /// </remarks>
         /// <typeparam name="T"> The type to be ignored. </typeparam>
         /// <returns>
         ///     The same <see cref="ModelConfigurationBuilder" /> instance so that additional configuration calls can be chained.
@@ -60,6 +69,9 @@ namespace Microsoft.EntityFrameworkCore
         /// <summary>
         ///     Prevents the conventions from the given type from discovering properties of the given or derived types.
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-pre-convention">Pre-convention model building in EF Core</see> for more information.
+        /// </remarks>
         /// <param name="type"> The type to be ignored. </param>
         /// <returns>
         ///     The same <see cref="ModelConfigurationBuilder" /> instance so that additional configuration calls can be chained.
@@ -81,6 +93,9 @@ namespace Microsoft.EntityFrameworkCore
         ///         This can also be called on an interface to apply the configuration to all properties of implementing types.
         ///     </para>
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-pre-convention">Pre-convention model building in EF Core</see> for more information.
+        /// </remarks>
         /// <typeparam name="TProperty"> The property type to be configured. </typeparam>
         /// <returns> An object that can be used to configure the properties. </returns>
         public virtual PropertiesConfigurationBuilder<TProperty> Properties<TProperty>()
@@ -98,6 +113,9 @@ namespace Microsoft.EntityFrameworkCore
         ///         This can also be called on an interface to apply the configuration to all properties of implementing types.
         ///     </para>
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-pre-convention">Pre-convention model building in EF Core</see> for more information.
+        /// </remarks>
         /// <typeparam name="TProperty"> The property type to be configured. </typeparam>
         /// <param name="buildAction"> An action that performs configuration of the property. </param>
         /// <returns>
@@ -123,6 +141,9 @@ namespace Microsoft.EntityFrameworkCore
         ///         properties of implementing and constructed types.
         ///     </para>
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-pre-convention">Pre-convention model building in EF Core</see> for more information.
+        /// </remarks>
         /// <param name="propertyType"> The property type to be configured. </param>
         /// <returns> An object that can be used to configure the property. </returns>
         public virtual PropertiesConfigurationBuilder Properties(Type propertyType)
@@ -143,6 +164,9 @@ namespace Microsoft.EntityFrameworkCore
         ///         properties of implementing and constructed types.
         ///     </para>
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-pre-convention">Pre-convention model building in EF Core</see> for more information.
+        /// </remarks>
         /// <param name="propertyType"> The property type to be configured. </param>
         /// <param name="buildAction"> An action that performs configuration of the property. </param>
         /// <returns>
@@ -175,13 +199,16 @@ namespace Microsoft.EntityFrameworkCore
         ///         should be enough in most cases.
         ///     </para>
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-pre-convention">Pre-convention model building in EF Core</see> for more information.
+        /// </remarks>
         /// <typeparam name="TScalar"> The scalar type to be configured. </typeparam>
         /// <returns> An object that can be used to configure the scalars. </returns>
-        public virtual ScalarConfigurationBuilder<TScalar> Scalars<TScalar>()
+        public virtual TypeMappingConfigurationBuilder<TScalar> DefaultTypeMapping<TScalar>()
         {
-            var scalar = _modelConfiguration.GetOrAddScalar(typeof(TScalar));
+            var scalar = _modelConfiguration.GetOrAddTypeMapping(typeof(TScalar));
 
-            return new ScalarConfigurationBuilder<TScalar>(scalar);
+            return new TypeMappingConfigurationBuilder<TScalar>(scalar);
         }
 
         /// <summary>
@@ -198,17 +225,20 @@ namespace Microsoft.EntityFrameworkCore
         ///         should be enough in most cases.
         ///     </para>
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-pre-convention">Pre-convention model building in EF Core</see> for more information.
+        /// </remarks>
         /// <typeparam name="TScalar"> The scalar type to be configured. </typeparam>
         /// <param name="buildAction"> An action that performs configuration for the scalars. </param>
         /// <returns>
         ///     The same <see cref="ModelConfigurationBuilder" /> instance so that additional configuration calls can be chained.
         /// </returns>
-        public virtual ModelConfigurationBuilder Scalars<TScalar>(
-            Action<ScalarConfigurationBuilder<TScalar>> buildAction)
+        public virtual ModelConfigurationBuilder DefaultTypeMapping<TScalar>(
+            Action<TypeMappingConfigurationBuilder<TScalar>> buildAction)
         {
             Check.NotNull(buildAction, nameof(buildAction));
 
-            var scalarBuilder = Scalars<TScalar>();
+            var scalarBuilder = DefaultTypeMapping<TScalar>();
             buildAction(scalarBuilder);
 
             return this;
@@ -228,15 +258,18 @@ namespace Microsoft.EntityFrameworkCore
         ///         should be enough in most cases.
         ///     </para>
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-pre-convention">Pre-convention model building in EF Core</see> for more information.
+        /// </remarks>
         /// <param name="scalarType"> The scalar type to be configured. </param>
         /// <returns> An object that can be used to configure the scalars. </returns>
-        public virtual ScalarConfigurationBuilder Scalars(Type scalarType)
+        public virtual TypeMappingConfigurationBuilder DefaultTypeMapping(Type scalarType)
         {
             Check.NotNull(scalarType, nameof(scalarType));
 
-            var scalar = _modelConfiguration.GetOrAddScalar(scalarType);
+            var scalar = _modelConfiguration.GetOrAddTypeMapping(scalarType);
 
-            return new ScalarConfigurationBuilder(scalar);
+            return new TypeMappingConfigurationBuilder(scalar);
         }
 
         /// <summary>
@@ -253,19 +286,22 @@ namespace Microsoft.EntityFrameworkCore
         ///         should be enough in most cases.
         ///     </para>
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-pre-convention">Pre-convention model building in EF Core</see> for more information.
+        /// </remarks>
         /// <param name="scalarType"> The scalar type to be configured. </param>
         /// <param name="buildAction"> An action that performs configuration for the scalars. </param>
         /// <returns>
         ///     The same <see cref="ModelConfigurationBuilder" /> instance so that additional configuration calls can be chained.
         /// </returns>
-        public virtual ModelConfigurationBuilder Scalars(
+        public virtual ModelConfigurationBuilder DefaultTypeMapping(
             Type scalarType,
-            Action<ScalarConfigurationBuilder> buildAction)
+            Action<TypeMappingConfigurationBuilder> buildAction)
         {
             Check.NotNull(scalarType, nameof(scalarType));
             Check.NotNull(buildAction, nameof(buildAction));
 
-            var scalarBuilder = Scalars(scalarType);
+            var scalarBuilder = DefaultTypeMapping(scalarType);
             buildAction(scalarBuilder);
 
             return this;
@@ -276,10 +312,13 @@ namespace Microsoft.EntityFrameworkCore
         ///     <see cref="DbContext.OnModelCreating" />; this method allows it to be run
         ///     explicitly in cases where the automatic execution is not possible.
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-pre-convention">Pre-convention model building in EF Core</see> for more information.
+        /// </remarks>
         /// <param name="modelDependencies"> The dependencies object used during model building. </param>
         /// <returns> The configured <see cref="ModelBuilder" />. </returns>
         public virtual ModelBuilder CreateModelBuilder(ModelDependencies? modelDependencies)
-            => new(_conventions, modelDependencies, _modelConfiguration.IsEmpty() ? null : _modelConfiguration);
+            => new(_conventions, modelDependencies, _modelConfiguration.IsEmpty() ? null : _modelConfiguration.Validate());
 
         #region Hidden System.Object members
 

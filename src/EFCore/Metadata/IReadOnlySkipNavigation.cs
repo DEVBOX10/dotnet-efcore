@@ -13,6 +13,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata
     ///     Represents a navigation property that is part of a relationship
     ///     that is forwarded through a third entity type.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-modeling">Modeling entity types and relationships</see> for more information.
+    /// </remarks>
     public interface IReadOnlySkipNavigation : IReadOnlyNavigationBase
     {
         /// <summary>
@@ -86,24 +89,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
                 builder.Append(" (");
             }
 
-            if (this.GetIdentifyingMemberInfo() == null)
-            {
-                // Shadow navigation
-                if (IsCollection)
-                {
-                    builder.Append("IEnumerable<");
-                }
-                builder.Append(TargetEntityType.ClrType.ShortDisplayName());
-                if (IsCollection)
-                {
-                    builder.Append(">");
-                }
-                builder.Append(")");
-            }
-            else
-            {
-                builder.Append(ClrType.ShortDisplayName()).Append(")");
-            }
+            builder.Append(ClrType.ShortDisplayName()).Append(")");
 
             if (IsCollection)
             {

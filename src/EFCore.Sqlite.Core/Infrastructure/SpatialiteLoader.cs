@@ -19,6 +19,10 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
     /// <summary>
     ///     Finds and loads SpatiaLite.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-spatial">Spatial data</see>, and
+    ///     <see href="https://aka.ms/efcore-docs-sqlite">Accessing SQLite databases with EF Core</see> for more information.
+    /// </remarks>
     public static class SpatialiteLoader
     {
         private static readonly string? _sharedLibraryExtension;
@@ -127,7 +131,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                 var candidateAssets = new Dictionary<(string, string), int>();
                 var rid = RuntimeInformation.RuntimeIdentifier;
                 var rids = DependencyContext.Default!.RuntimeGraph.FirstOrDefault(g => g.Runtime == rid)?.Fallbacks.ToList()
-                    ?? new List<string>();
+                    ?? new List<string?>();
                 rids.Insert(0, rid);
 
                 foreach (var library in DependencyContext.Default.RuntimeLibraries)
@@ -142,7 +146,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                                 StringComparison.OrdinalIgnoreCase))
                             {
                                 var fallbacks = rids.IndexOf(group.Runtime);
-                                if (fallbacks != -1)
+                                if (fallbacks != -1 && library.Path is not null)
                                 {
                                     candidateAssets.Add((library.Path, file.Path), fallbacks);
                                 }

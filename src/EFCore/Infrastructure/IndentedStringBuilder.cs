@@ -17,6 +17,10 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
     ///         not used in application code.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     for more information.
+    /// </remarks>
     public class IndentedStringBuilder
     {
         private const byte IndentSize = 4;
@@ -212,6 +216,13 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
             => new Indenter(this);
 
         /// <summary>
+        ///     Temporarily disables all indentation. Restores the original indentation when the returned object is disposed.
+        /// </summary>
+        /// <returns> An object that restores the original indentation when disposed. </returns>
+        public virtual IDisposable SuspendIndent()
+            => new IndentSuspender(this);
+
+        /// <summary>
         ///     Returns the built string.
         /// </summary>
         /// <returns> The built string. </returns>
@@ -241,6 +252,22 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
 
             public void Dispose()
                 => _stringBuilder.DecrementIndent();
+        }
+
+        private sealed class IndentSuspender : IDisposable
+        {
+            private readonly IndentedStringBuilder _stringBuilder;
+            private readonly byte _indent;
+
+            public IndentSuspender(IndentedStringBuilder stringBuilder)
+            {
+                _stringBuilder = stringBuilder;
+                _indent = _stringBuilder._indent;
+                _stringBuilder._indent = 0;
+            }
+
+            public void Dispose()
+                => _stringBuilder._indent = _indent;
         }
     }
 }

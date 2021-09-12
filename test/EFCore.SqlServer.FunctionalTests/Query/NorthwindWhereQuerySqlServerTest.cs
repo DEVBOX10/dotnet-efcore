@@ -18,7 +18,7 @@ namespace Microsoft.EntityFrameworkCore.Query
             : base(fixture)
         {
             ClearLog();
-            Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
+            //Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
         }
 
         protected override bool CanExecuteQueryString
@@ -1692,11 +1692,10 @@ WHERE EXISTS (
             AssertSql(
                 @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE (
-    SELECT TOP(1) [o].[OrderID]
+WHERE NOT (EXISTS (
+    SELECT 1
     FROM [Orders] AS [o]
-    WHERE [c].[CustomerID] = [o].[CustomerID]
-    ORDER BY [o].[OrderID]) IS NULL");
+    WHERE [c].[CustomerID] = [o].[CustomerID]))");
         }
 
         public override async Task Where_subquery_FirstOrDefault_compared_to_entity(bool async)
@@ -1996,14 +1995,17 @@ ORDER BY [o].[OrderID], [o1].[OrderID]");
             AssertSql(
                 @"@__entity_equality_order_0_OrderID='10248' (Nullable = true)
 
-SELECT [c].[CustomerID], [o0].[OrderID], [o0].[CustomerID], [o0].[EmployeeID], [o0].[OrderDate]
+SELECT [c].[CustomerID], [t].[OrderID], [t].[CustomerID], [t].[EmployeeID], [t].[OrderDate]
 FROM [Customers] AS [c]
-LEFT JOIN [Orders] AS [o0] ON [c].[CustomerID] = [o0].[CustomerID]
+LEFT JOIN (
+    SELECT [o0].[OrderID], [o0].[CustomerID], [o0].[EmployeeID], [o0].[OrderDate]
+    FROM [Orders] AS [o0]
+) AS [t] ON [c].[CustomerID] = [t].[CustomerID]
 WHERE EXISTS (
     SELECT 1
     FROM [Orders] AS [o]
     WHERE ([c].[CustomerID] = [o].[CustomerID]) AND ([o].[OrderID] = @__entity_equality_order_0_OrderID))
-ORDER BY [c].[CustomerID]");
+ORDER BY [c].[CustomerID], [t].[OrderID]");
         }
 
         public override async Task Where_collection_navigation_ToArray_Count(bool async)
@@ -2028,14 +2030,17 @@ ORDER BY [o].[OrderID], [o1].[OrderID]");
             AssertSql(
                 @"@__entity_equality_order_0_OrderID='10248' (Nullable = true)
 
-SELECT [c].[CustomerID], [o0].[OrderID], [o0].[CustomerID], [o0].[EmployeeID], [o0].[OrderDate]
+SELECT [c].[CustomerID], [t].[OrderID], [t].[CustomerID], [t].[EmployeeID], [t].[OrderDate]
 FROM [Customers] AS [c]
-LEFT JOIN [Orders] AS [o0] ON [c].[CustomerID] = [o0].[CustomerID]
+LEFT JOIN (
+    SELECT [o0].[OrderID], [o0].[CustomerID], [o0].[EmployeeID], [o0].[OrderDate]
+    FROM [Orders] AS [o0]
+) AS [t] ON [c].[CustomerID] = [t].[CustomerID]
 WHERE EXISTS (
     SELECT 1
     FROM [Orders] AS [o]
     WHERE ([c].[CustomerID] = [o].[CustomerID]) AND ([o].[OrderID] = @__entity_equality_order_0_OrderID))
-ORDER BY [c].[CustomerID]");
+ORDER BY [c].[CustomerID], [t].[OrderID]");
         }
 
         public override async Task Where_collection_navigation_AsEnumerable_Count(bool async)
@@ -2060,14 +2065,17 @@ ORDER BY [o].[OrderID], [o1].[OrderID]");
             AssertSql(
                 @"@__entity_equality_order_0_OrderID='10248' (Nullable = true)
 
-SELECT [c].[CustomerID], [o0].[OrderID], [o0].[CustomerID], [o0].[EmployeeID], [o0].[OrderDate]
+SELECT [c].[CustomerID], [t].[OrderID], [t].[CustomerID], [t].[EmployeeID], [t].[OrderDate]
 FROM [Customers] AS [c]
-LEFT JOIN [Orders] AS [o0] ON [c].[CustomerID] = [o0].[CustomerID]
+LEFT JOIN (
+    SELECT [o0].[OrderID], [o0].[CustomerID], [o0].[EmployeeID], [o0].[OrderDate]
+    FROM [Orders] AS [o0]
+) AS [t] ON [c].[CustomerID] = [t].[CustomerID]
 WHERE EXISTS (
     SELECT 1
     FROM [Orders] AS [o]
     WHERE ([c].[CustomerID] = [o].[CustomerID]) AND ([o].[OrderID] = @__entity_equality_order_0_OrderID))
-ORDER BY [c].[CustomerID]");
+ORDER BY [c].[CustomerID], [t].[OrderID]");
         }
 
         public override async Task Where_collection_navigation_ToList_Count_member(bool async)
@@ -2278,6 +2286,188 @@ WHERE [c].[CustomerID] = N'ALFKI'");
                 @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
 WHERE [c].[CustomerID] = N'ALFKI'");
+        }
+
+        public override async Task FirstOrDefault_over_scalar_projection_compared_to_null(bool async)
+        {
+            await base.FirstOrDefault_over_scalar_projection_compared_to_null(async);
+
+            AssertSql(
+                @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+FROM [Customers] AS [c]
+WHERE NOT (EXISTS (
+    SELECT 1
+    FROM [Orders] AS [o]
+    WHERE [c].[CustomerID] = [o].[CustomerID]))");
+        }
+
+        public override async Task FirstOrDefault_over_scalar_projection_compared_to_not_null(bool async)
+        {
+            await base.FirstOrDefault_over_scalar_projection_compared_to_not_null(async);
+
+            AssertSql(
+                @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+FROM [Customers] AS [c]
+WHERE EXISTS (
+    SELECT 1
+    FROM [Orders] AS [o]
+    WHERE [c].[CustomerID] = [o].[CustomerID])");
+        }
+
+        public override async Task FirstOrDefault_over_custom_projection_compared_to_null(bool async)
+        {
+            await base.FirstOrDefault_over_custom_projection_compared_to_null(async);
+
+            AssertSql(
+                @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+FROM [Customers] AS [c]
+WHERE NOT (EXISTS (
+    SELECT 1
+    FROM [Orders] AS [o]
+    WHERE [c].[CustomerID] = [o].[CustomerID]))");
+        }
+
+        public override async Task FirstOrDefault_over_custom_projection_compared_to_not_null(bool async)
+        {
+            await base.FirstOrDefault_over_custom_projection_compared_to_not_null(async);
+
+            AssertSql(
+                @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+FROM [Customers] AS [c]
+WHERE EXISTS (
+    SELECT 1
+    FROM [Orders] AS [o]
+    WHERE [c].[CustomerID] = [o].[CustomerID])");
+        }
+
+        public override async Task SingleOrDefault_over_custom_projection_compared_to_null(bool async)
+        {
+            await base.SingleOrDefault_over_custom_projection_compared_to_null(async);
+
+            AssertSql(
+                @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+FROM [Customers] AS [c]
+WHERE NOT (EXISTS (
+    SELECT 1
+    FROM [Orders] AS [o]
+    WHERE [c].[CustomerID] = [o].[CustomerID]))");
+        }
+
+        public override async Task SingleOrDefault_over_custom_projection_compared_to_not_null(bool async)
+        {
+            await base.SingleOrDefault_over_custom_projection_compared_to_not_null(async);
+
+            AssertSql(
+                @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+FROM [Customers] AS [c]
+WHERE EXISTS (
+    SELECT 1
+    FROM [Orders] AS [o]
+    WHERE [c].[CustomerID] = [o].[CustomerID])");
+        }
+
+        public override async Task LastOrDefault_over_custom_projection_compared_to_null(bool async)
+        {
+            await base.LastOrDefault_over_custom_projection_compared_to_null(async);
+
+            AssertSql(
+                @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+FROM [Customers] AS [c]
+WHERE NOT (EXISTS (
+    SELECT 1
+    FROM [Orders] AS [o]
+    WHERE [c].[CustomerID] = [o].[CustomerID]))");
+        }
+
+        public override async Task LastOrDefault_over_custom_projection_compared_to_not_null(bool async)
+        {
+            await base.LastOrDefault_over_custom_projection_compared_to_not_null(async);
+
+            AssertSql(
+                @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+FROM [Customers] AS [c]
+WHERE EXISTS (
+    SELECT 1
+    FROM [Orders] AS [o]
+    WHERE [c].[CustomerID] = [o].[CustomerID])");
+        }
+
+        public override async Task First_over_custom_projection_compared_to_null(bool async)
+        {
+            await base.First_over_custom_projection_compared_to_null(async);
+
+            AssertSql(
+                @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+FROM [Customers] AS [c]
+WHERE NOT (EXISTS (
+    SELECT 1
+    FROM [Orders] AS [o]
+    WHERE [c].[CustomerID] = [o].[CustomerID]))");
+        }
+
+        public override async Task First_over_custom_projection_compared_to_not_null(bool async)
+        {
+            await base.First_over_custom_projection_compared_to_not_null(async);
+
+            AssertSql(
+                @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+FROM [Customers] AS [c]
+WHERE EXISTS (
+    SELECT 1
+    FROM [Orders] AS [o]
+    WHERE [c].[CustomerID] = [o].[CustomerID])");
+        }
+
+        public override async Task Single_over_custom_projection_compared_to_null(bool async)
+        {
+            await base.Single_over_custom_projection_compared_to_null(async);
+
+            AssertSql(
+                @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+FROM [Customers] AS [c]
+WHERE NOT (EXISTS (
+    SELECT 1
+    FROM [Orders] AS [o]
+    WHERE [c].[CustomerID] = [o].[CustomerID]))");
+        }
+
+        public override async Task Single_over_custom_projection_compared_to_not_null(bool async)
+        {
+            await base.Single_over_custom_projection_compared_to_not_null(async);
+
+            AssertSql(
+                @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+FROM [Customers] AS [c]
+WHERE EXISTS (
+    SELECT 1
+    FROM [Orders] AS [o]
+    WHERE [c].[CustomerID] = [o].[CustomerID])");
+        }
+
+        public override async Task Last_over_custom_projection_compared_to_null(bool async)
+        {
+            await base.Last_over_custom_projection_compared_to_null(async);
+
+            AssertSql(
+                @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+FROM [Customers] AS [c]
+WHERE NOT (EXISTS (
+    SELECT 1
+    FROM [Orders] AS [o]
+    WHERE [c].[CustomerID] = [o].[CustomerID]))");
+        }
+
+        public override async Task Last_over_custom_projection_compared_to_not_null(bool async)
+        {
+            await base.Last_over_custom_projection_compared_to_not_null(async);
+
+            AssertSql(
+                @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+FROM [Customers] AS [c]
+WHERE EXISTS (
+    SELECT 1
+    FROM [Orders] AS [o]
+    WHERE [c].[CustomerID] = [o].[CustomerID])");
         }
 
         private void AssertSql(params string[] expected)

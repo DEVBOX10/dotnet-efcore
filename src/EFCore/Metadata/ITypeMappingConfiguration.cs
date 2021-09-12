@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
@@ -9,7 +10,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata
     /// <summary>
     ///     Represents the configuration for a scalar type.
     /// </summary>
-    public interface IScalarTypeConfiguration : IAnnotatable
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-modeling">Modeling entity types and relationships</see> for more information.
+    /// </remarks>
+    public interface ITypeMappingConfiguration : IAnnotatable
     {
         /// <summary>
         ///     Gets the type configured by this object.

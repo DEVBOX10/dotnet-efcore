@@ -9,6 +9,10 @@ namespace Microsoft.EntityFrameworkCore.Design
     ///     Enables configuring design-time services. Tools will automatically discover implementations of this
     ///     interface that are in the startup assembly.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     for more information.
+    /// </remarks>
     public interface IDesignTimeServices
     {
         /// <summary>

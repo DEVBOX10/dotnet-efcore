@@ -26,6 +26,10 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
     ///         This service cannot depend on services registered as <see cref="ServiceLifetime.Scoped" />.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     for more information.
+    /// </remarks>
     public class ModelValidator : IModelValidator
     {
         private static readonly IEnumerable<string> _dictionaryProperties =
@@ -662,7 +666,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         {
             Check.NotNull(model, nameof(model));
 
-            var requireFullNotifications = (bool?)model[CoreAnnotationNames.FullChangeTrackingNotificationsRequiredAnnotation] == true;
+            var requireFullNotifications = (bool?)model[CoreAnnotationNames.FullChangeTrackingNotificationsRequired] == true;
             foreach (var entityType in model.GetEntityTypes())
             {
                 var errorMessage = EntityType.CheckChangeTrackingStrategy(

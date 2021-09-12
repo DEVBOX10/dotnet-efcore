@@ -4,22 +4,43 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Microsoft.EntityFrameworkCore.Storage
 {
     /// <summary>
-    ///     A strategy that is used to execute a command or query against the database, possibly with logic to retry when a failure occurs.
+    ///     <para>
+    ///         A strategy that is used to execute a command or query against the database, possibly with logic to retry when a failure occurs.
+    ///     </para>
+    ///     <para>
+    ///         The service lifetime is <see cref="ServiceLifetime.Scoped" />. This means that each
+    ///         <see cref="DbContext" /> instance will use its own instance of this service.
+    ///         The implementation may depend on other services registered with any lifetime.
+    ///         The implementation does not need to be thread-safe.
+    ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-connection-resiliency">Connection resiliency and database retries</see>
+    ///     for more information.
+    /// </remarks>
     public interface IExecutionStrategy
     {
         /// <summary>
         ///     Indicates whether this <see cref="IExecutionStrategy" /> might retry the execution after a failure.
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-connection-resiliency">Connection resiliency and database retries</see>
+        ///     for more information.
+        /// </remarks>
         bool RetriesOnFailure { get; }
 
         /// <summary>
         ///     Executes the specified operation and returns the result.
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-connection-resiliency">Connection resiliency and database retries</see>
+        ///     for more information.
+        /// </remarks>
         /// <param name="state"> The state that will be passed to the operation. </param>
         /// <param name="operation">
         ///     A delegate representing an executable operation that returns the result of type <typeparamref name="TResult" />.
@@ -39,6 +60,10 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// <summary>
         ///     Executes the specified asynchronous operation and returns the result.
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-connection-resiliency">Connection resiliency and database retries</see>
+        ///     for more information.
+        /// </remarks>
         /// <param name="state"> The state that will be passed to the operation. </param>
         /// <param name="operation">
         ///     A function that returns a started task of type <typeparamref name="TResult" />.

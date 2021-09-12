@@ -2832,11 +2832,13 @@ FROM [Bases] AS [b]");
                     @"SELECT [t1].[AnotherEntity11818_Name] AS [Key], COUNT(*) + 5 AS [cnt]
 FROM [Table] AS [t]
 LEFT JOIN (
-    SELECT [t0].[Id], [t0].[AnotherEntity11818_Name]
+    SELECT [t0].[Id], [t0].[Exists], [t0].[AnotherEntity11818_Name]
     FROM [Table] AS [t0]
     INNER JOIN [Table] AS [t2] ON [t0].[Id] = [t2].[Id]
     WHERE [t0].[Exists] IS NOT NULL
-) AS [t1] ON [t].[Id] = [t1].[Id]
+) AS [t1] ON [t].[Id] = CASE
+    WHEN [t1].[Exists] IS NOT NULL THEN [t1].[Id]
+END
 GROUP BY [t1].[AnotherEntity11818_Name]");
             }
 
@@ -2863,17 +2865,21 @@ GROUP BY [t1].[AnotherEntity11818_Name]");
                     @"SELECT [t1].[AnotherEntity11818_Name] AS [MyKey], COUNT(*) + 5 AS [cnt]
 FROM [Table] AS [t]
 LEFT JOIN (
-    SELECT [t0].[Id], [t0].[AnotherEntity11818_Name]
+    SELECT [t0].[Id], [t0].[Exists], [t0].[AnotherEntity11818_Name]
     FROM [Table] AS [t0]
     INNER JOIN [Table] AS [t2] ON [t0].[Id] = [t2].[Id]
     WHERE [t0].[Exists] IS NOT NULL
-) AS [t1] ON [t].[Id] = [t1].[Id]
+) AS [t1] ON [t].[Id] = CASE
+    WHEN [t1].[Exists] IS NOT NULL THEN [t1].[Id]
+END
 LEFT JOIN (
-    SELECT [t4].[Id], [t4].[MaumarEntity11818_Name]
+    SELECT [t4].[Id], [t4].[MaumarEntity11818_Exists], [t4].[MaumarEntity11818_Name]
     FROM [Table] AS [t4]
     INNER JOIN [Table] AS [t5] ON [t4].[Id] = [t5].[Id]
     WHERE [t4].[MaumarEntity11818_Exists] IS NOT NULL
-) AS [t3] ON [t].[Id] = [t3].[Id]
+) AS [t3] ON [t].[Id] = CASE
+    WHEN [t3].[MaumarEntity11818_Exists] IS NOT NULL THEN [t3].[Id]
+END
 GROUP BY [t1].[AnotherEntity11818_Name], [t3].[MaumarEntity11818_Name]");
             }
 
@@ -2898,17 +2904,21 @@ GROUP BY [t1].[AnotherEntity11818_Name], [t3].[MaumarEntity11818_Name]");
                     @"SELECT TOP(1) [t1].[AnotherEntity11818_Name] AS [MyKey], [t3].[MaumarEntity11818_Name] AS [cnt]
 FROM [Table] AS [t]
 LEFT JOIN (
-    SELECT [t0].[Id], [t0].[AnotherEntity11818_Name]
+    SELECT [t0].[Id], [t0].[Exists], [t0].[AnotherEntity11818_Name]
     FROM [Table] AS [t0]
     INNER JOIN [Table] AS [t2] ON [t0].[Id] = [t2].[Id]
     WHERE [t0].[Exists] IS NOT NULL
-) AS [t1] ON [t].[Id] = [t1].[Id]
+) AS [t1] ON [t].[Id] = CASE
+    WHEN [t1].[Exists] IS NOT NULL THEN [t1].[Id]
+END
 LEFT JOIN (
-    SELECT [t4].[Id], [t4].[MaumarEntity11818_Name]
+    SELECT [t4].[Id], [t4].[MaumarEntity11818_Exists], [t4].[MaumarEntity11818_Name]
     FROM [Table] AS [t4]
     INNER JOIN [Table] AS [t5] ON [t4].[Id] = [t5].[Id]
     WHERE [t4].[MaumarEntity11818_Exists] IS NOT NULL
-) AS [t3] ON [t].[Id] = [t3].[Id]
+) AS [t3] ON [t].[Id] = CASE
+    WHEN [t3].[MaumarEntity11818_Exists] IS NOT NULL THEN [t3].[Id]
+END
 GROUP BY [t1].[AnotherEntity11818_Name], [t3].[MaumarEntity11818_Name]");
             }
         }
@@ -3928,65 +3938,6 @@ ORDER BY [p].[Id]");
 
         #endregion
 
-        #region Issue13346
-
-        [ConditionalFact]
-        public virtual async Task ToQuery_can_define_in_own_terms_using_FromSql()
-        {
-            var contextFactory = await InitializeAsync<MyContext13346>(seed: c => c.Seed());
-
-            using (var context = contextFactory.CreateContext())
-            {
-                var query = context.Set<MyContext13346.OrderSummary13346>().ToList();
-
-                Assert.Equal(4, query.Count);
-
-                AssertSql("SELECT o.Amount From Orders AS o");
-            }
-        }
-
-        protected class MyContext13346 : DbContext
-        {
-            public virtual DbSet<Order13346> Orders { get; set; }
-
-            public MyContext13346(DbContextOptions options)
-                : base(options)
-            {
-            }
-
-            protected override void OnModelCreating(ModelBuilder modelBuilder)
-            {
-                modelBuilder.Entity<OrderSummary13346>()
-                    .HasNoKey()
-                    .ToSqlQuery("SELECT o.Amount From Orders AS o");
-            }
-
-            public void Seed()
-            {
-                AddRange(
-                    new Order13346 { Amount = 1 },
-                    new Order13346 { Amount = 2 },
-                    new Order13346 { Amount = 3 },
-                    new Order13346 { Amount = 4 }
-                );
-
-                SaveChanges();
-            }
-
-            public class Order13346
-            {
-                public int Id { get; set; }
-                public int Amount { get; set; }
-            }
-
-            public class OrderSummary13346
-            {
-                public int Amount { get; set; }
-            }
-        }
-
-        #endregion
-
         #region Issue13079
 
         [ConditionalFact]
@@ -4111,7 +4062,7 @@ ORDER BY [p].[Id]");
             }
         }
 
-        [ConditionalFact(Skip = "Issue #22256")]
+        [ConditionalFact]
         public virtual async Task Projecting_column_with_value_converter_of_ulong_byte_array()
         {
             var contextFactory = await InitializeAsync<MyContext12518>(seed: c => c.Seed());
@@ -4121,7 +4072,7 @@ ORDER BY [p].[Id]");
                 var result = context.Parents.OrderBy(e => e.Id).Select(p => (ulong?)p.Child.ULongRowVersion).FirstOrDefault();
 
                 AssertSql(
-                    @"SELECT TOP(1) [p].[Id], [p].[ChildId], [c].[Id], [c].[ParentId], [c].[ULongRowVersion]
+                    @"SELECT TOP(1) [c].[ULongRowVersion]
 FROM [Parents] AS [p]
 LEFT JOIN [Children] AS [c] ON [p].[ChildId] = [c].[Id]
 ORDER BY [p].[Id]");
@@ -5397,10 +5348,10 @@ OUTER APPLY (
     SELECT [s].[ThingId], [t].[Id], [s].[Id] AS [Id0]
     FROM [Things] AS [t]
     LEFT JOIN [Subthings] AS [s] ON [t].[Id] = [s].[ThingId]
-    WHERE (
-        SELECT TOP(1) [v].[Id]
+    WHERE EXISTS (
+        SELECT 1
         FROM [Values] AS [v]
-        WHERE [e].[Id] = [v].[Entity11023Id]) IS NOT NULL AND (((
+        WHERE [e].[Id] = [v].[Entity11023Id]) AND (((
         SELECT TOP(1) [v0].[Id]
         FROM [Values] AS [v0]
         WHERE [e].[Id] = [v0].[Entity11023Id]) = [t].[Value11023Id]) OR ((
@@ -7148,10 +7099,10 @@ FROM [Businesses] AS [b]");
 
                 AssertSql(
                     @"SELECT TOP(2) CASE
-    WHEN (
-        SELECT TOP(1) [c].[Id]
+    WHEN EXISTS (
+        SELECT 1
         FROM [CoverIllustrations] AS [c]
-        WHERE ([b0].[Id] = [c].[CoverId]) AND ([c].[State] >= 2)) IS NOT NULL THEN CAST(1 AS bit)
+        WHERE ([b0].[Id] = [c].[CoverId]) AND ([c].[State] >= 2)) THEN CAST(1 AS bit)
     ELSE CAST(0 AS bit)
 END, (
     SELECT TOP(1) [c0].[Uri]
@@ -7291,13 +7242,13 @@ WHERE [b].[Id] = 1");
                     @"p0='0'
 p1='1'
 
-SELECT [t].[Id], [t].[Type], [t0].[Id], [t0].[Type]
+SELECT [m].[Id], [m].[Type], [m0].[Id], [m0].[Type]
 FROM (
     Select * from Tests Where Type = @p0
-) AS [t]
+) AS [m]
 CROSS JOIN (
     Select * from Tests Where Type = @p1
-) AS [t0]");
+) AS [m0]");
             }
         }
 
@@ -7752,13 +7703,19 @@ FROM (
 LEFT JOIN (
     SELECT [s].[Id], [s].[AggregateId], [s].[FourthValueObject_Value], [f].[Id] AS [Id0], [f].[AnyValue], [f].[SecondValueObjectId], [t1].[Id] AS [Id1], [t1].[SecondValueObjectId] AS [SecondValueObjectId0], [t1].[FourthValueObject_Value] AS [FourthValueObject_Value0], [t1].[Id0] AS [Id00], [t1].[AnyValue] AS [AnyValue0], [t1].[ThirdValueObjectId]
     FROM [SecondValueObjects] AS [s]
-    LEFT JOIN [FourthFifthValueObjects] AS [f] ON [s].[Id] = [f].[SecondValueObjectId]
+    LEFT JOIN [FourthFifthValueObjects] AS [f] ON CASE
+        WHEN [s].[FourthValueObject_Value] IS NOT NULL THEN [s].[Id]
+    END = [f].[SecondValueObjectId]
     LEFT JOIN (
         SELECT [t0].[Id], [t0].[SecondValueObjectId], [t0].[FourthValueObject_Value], [t3].[Id] AS [Id0], [t3].[AnyValue], [t3].[ThirdValueObjectId]
         FROM [ThirdValueObjects] AS [t0]
-        LEFT JOIN [ThirdFifthValueObjects] AS [t3] ON [t0].[Id] = [t3].[ThirdValueObjectId]
+        LEFT JOIN [ThirdFifthValueObjects] AS [t3] ON CASE
+            WHEN [t0].[FourthValueObject_Value] IS NOT NULL THEN [t0].[Id]
+        END = [t3].[ThirdValueObjectId]
     ) AS [t1] ON [s].[Id] = [t1].[SecondValueObjectId]
-) AS [t2] ON [t].[Id] = [t2].[AggregateId]
+) AS [t2] ON CASE
+    WHEN [t].[FirstValueObject_Value] IS NOT NULL THEN [t].[Id]
+END = [t2].[AggregateId]
 ORDER BY [t].[Id] DESC, [t2].[Id], [t2].[Id0], [t2].[Id1]");
             }
         }
@@ -9275,8 +9232,7 @@ VALUES (i.[Value])
 OUTPUT INSERTED.[Id], i._Position
 INTO @inserted0;
 
-SELECT [t].[Id] FROM [BaseEntities] t
-INNER JOIN @inserted0 i ON ([t].[Id] = [i].[Id])
+SELECT [i].[Id] FROM @inserted0 i
 ORDER BY [i].[_Position];");
             }
         }
@@ -10159,7 +10115,7 @@ CROSS APPLY OPENJSON([c].[Json], N'$.items') AS [o]" });
 
         #endregion
 
-        #region Issue24569
+        #region Issue25400
 
         [ConditionalTheory]
         [InlineData(true)]
@@ -10171,17 +10127,17 @@ CROSS APPLY OPENJSON([c].[Json], N'$.items') AS [o]" });
 
             using (var context = contextFactory.CreateContext())
             {
-                Test24569.ConstructorCallCount = 0;
+                Test25400.ConstructorCallCount = 0;
 
-                var query = context.Set<Test24569>().AsNoTracking().OrderBy(e => e.Id);
+                var query = context.Set<Test25400>().AsNoTracking().OrderBy(e => e.Id);
                 var test = async
                     ? await query.FirstOrDefaultAsync()
                     : query.FirstOrDefault();
 
-                Assert.Equal(1, Test24569.ConstructorCallCount);
+                Assert.Equal(1, Test25400.ConstructorCallCount);
 
-            AssertSql(
-                @"SELECT TOP(1) [t].[Id], [t].[Value]
+                AssertSql(
+                    @"SELECT TOP(1) [t].[Id], [t].[Value]
 FROM [Tests] AS [t]
 ORDER BY [t].[Id]");
             }
@@ -10189,7 +10145,7 @@ ORDER BY [t].[Id]");
 
         protected class MyContext25400 : DbContext
         {
-            public DbSet<Test24569> Tests { get; set; }
+            public DbSet<Test25400> Tests { get; set; }
 
             public MyContext25400(DbContextOptions options)
                 : base(options)
@@ -10198,33 +10154,189 @@ ORDER BY [t].[Id]");
 
             protected override void OnModelCreating(ModelBuilder modelBuilder)
             {
-                modelBuilder.Entity<Test24569>().HasKey(e => e.Id);
+                modelBuilder.Entity<Test25400>().HasKey(e => e.Id);
             }
 
             public void Seed()
             {
-                Tests.Add(new Test24569(15));
+                Tests.Add(new Test25400(15));
 
                 SaveChanges();
             }
         }
 
-        protected class Test24569
+        protected class Test25400
         {
             public static int ConstructorCallCount = 0;
 
-            public Test24569()
+            public Test25400()
             {
                 ++ConstructorCallCount;
             }
 
-            public Test24569(int value)
+            public Test25400(int value)
             {
                 Value = value;
             }
 
             public int Id { get; set; }
             public int Value { get; set; }
+        }
+
+        #endregion
+
+        #region Issue25225
+
+        [ConditionalFact]
+        public virtual async Task Can_query_with_nav_collection_in_projection_with_split_query_in_parallel_async()
+        {
+            var contextFactory = await CreateContext25225Async();
+            var task1 = QueryAsync(MyContext25225.Parent1Id, MyContext25225.Collection1Id);
+            var task2 = QueryAsync(MyContext25225.Parent2Id, MyContext25225.Collection2Id);
+            await Task.WhenAll(task1, task2);
+
+            async Task QueryAsync(Guid parentId, Guid collectionId)
+            {
+                using (var context = contextFactory.CreateContext())
+                {
+                    ClearLog();
+                    for (int i = 0; i < 100; i++)
+                    {
+                        var parent = await SelectParent25225(context, parentId).SingleAsync();
+                        AssertParent25225(parentId, collectionId, parent);
+                    }
+                }
+            }
+        }
+
+        [ConditionalFact]
+        public virtual async Task Can_query_with_nav_collection_in_projection_with_split_query_in_parallel_sync()
+        {
+            var contextFactory = await CreateContext25225Async();
+            var task1 = Task.Factory.StartNew(() => Query(MyContext25225.Parent1Id, MyContext25225.Collection1Id));
+            var task2 = Task.Factory.StartNew(() => Query(MyContext25225.Parent2Id, MyContext25225.Collection2Id));
+            await Task.WhenAll(task1, task2);
+
+            void Query(Guid parentId, Guid collectionId)
+            {
+                using (var context = contextFactory.CreateContext())
+                {
+                    ClearLog();
+                    for (int i = 0; i < 10; i++)
+                    {
+                        var parent = SelectParent25225(context, parentId).Single();
+                        AssertParent25225(parentId, collectionId, parent);
+                    }
+                }
+            }
+        }
+
+        private Task<ContextFactory<MyContext25225>> CreateContext25225Async()
+        {
+            return InitializeAsync<MyContext25225>(
+                seed: c => c.Seed(),
+                onConfiguring: o => new SqlServerDbContextOptionsBuilder(o).UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)
+            );
+        }
+
+        private static IQueryable<ParentViewModel25225> SelectParent25225(MyContext25225 context, Guid parentId)
+        {
+            return context
+                .Parents
+                .Where(x => x.Id == parentId)
+                .Select(
+                    p => new ParentViewModel25225
+                    {
+                        Id = p.Id,
+                        Collection = p
+                            .Collection
+                            .Select(
+                                c => new CollectionViewModel25225
+                                {
+                                    Id = c.Id,
+                                    ParentId = c.ParentId,
+                                })
+                            .ToArray()
+                    });
+        }
+
+        private static void AssertParent25225(Guid expectedParentId, Guid expectedCollectionId, ParentViewModel25225 actualParent)
+        {
+            Assert.Equal(expectedParentId, actualParent.Id);
+            Assert.Collection(
+                actualParent.Collection,
+                c => Assert.Equal(expectedCollectionId, c.Id)
+            );
+        }
+
+        protected class MyContext25225 : DbContext
+        {
+            public static readonly Guid Parent1Id = new("d6457b52-690a-419e-8982-a1a8551b4572");
+            public static readonly Guid Parent2Id = new("e79c82f4-3ae7-4c65-85db-04e08cba6fa7");
+            public static readonly Guid Collection1Id = new("7ce625fb-863d-41b3-b42e-e4e4367f7548");
+            public static readonly Guid Collection2Id = new("d347bbd5-003a-441f-a148-df8ab8ac4a29");
+            public DbSet<Parent25225> Parents { get; set; }
+
+            public MyContext25225(DbContextOptions options)
+                : base(options)
+            {
+            }
+
+            public void Seed()
+            {
+                var parent1 = new Parent25225
+                {
+                    Id = Parent1Id,
+                    Collection = new List<Collection25225>
+                    {
+                        new Collection25225
+                        {
+                            Id = Collection1Id,
+                        }
+                    }
+                };
+
+                var parent2 = new Parent25225
+                {
+                    Id = Parent2Id,
+                    Collection = new List<Collection25225>
+                    {
+                        new Collection25225
+                        {
+                            Id = Collection2Id,
+                        }
+                    }
+                };
+
+                AddRange(parent1, parent2);
+
+                SaveChanges();
+            }
+
+            public class Parent25225
+            {
+                public Guid Id { get; set; }
+                public ICollection<Collection25225> Collection { get; set; }
+            }
+
+            public class Collection25225
+            {
+                public Guid Id { get; set; }
+                public Guid ParentId { get; set; }
+                public Parent25225 Parent { get; set; }
+            }
+        }
+
+        public class ParentViewModel25225
+        {
+            public Guid Id { get; set; }
+            public ICollection<CollectionViewModel25225> Collection { get; set; }
+        }
+
+        public class CollectionViewModel25225
+        {
+            public Guid Id { get; set; }
+            public Guid ParentId { get; set; }
         }
 
         #endregion

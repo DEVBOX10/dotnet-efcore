@@ -123,7 +123,7 @@ namespace Microsoft.EntityFrameworkCore.Query
 
         public override Task Where_math_truncate(bool async)
             => AssertTranslationFailed(() => base.Where_math_truncate(async));
-        
+
         public override Task Where_mathf_acos(bool async)
             => AssertTranslationFailed(() => base.Where_mathf_acos(async));
 
@@ -138,7 +138,7 @@ namespace Microsoft.EntityFrameworkCore.Query
 
         public override Task Where_mathf_ceiling1(bool async)
             => AssertTranslationFailed(() => base.Where_mathf_ceiling1(async));
-        
+
         public override Task Where_mathf_cos(bool async)
             => AssertTranslationFailed(() => base.Where_mathf_cos(async));
 
@@ -370,7 +370,7 @@ WHERE substr(""c"".""CustomerID"", 1 + 1) = 'LFKI'");
             await base.Substring_with_one_arg_with_closure(async);
 
             AssertSql(
-                @"@__start_0='2' (DbType = String)
+                @"@__start_0='2'
 
 SELECT ""c"".""ContactName""
 FROM ""Customers"" AS ""c""
@@ -402,7 +402,7 @@ WHERE ""c"".""CustomerID"" = 'ALFKI'");
             await base.Substring_with_two_args_with_closure(async);
 
             AssertSql(
-                @"@__start_0='2' (DbType = String)
+                @"@__start_0='2'
 
 SELECT substr(""c"".""ContactName"", @__start_0 + 1, 3)
 FROM ""Customers"" AS ""c""
@@ -615,6 +615,11 @@ WHERE regexp('^T', ""c"".""CustomerID"")");
             AssertSql(@"SELECT ""c"".""CustomerID"", ""c"".""Address"", ""c"".""City"", ""c"".""CompanyName"", ""c"".""ContactName"", ""c"".""ContactTitle"", ""c"".""Country"", ""c"".""Fax"", ""c"".""Phone"", ""c"".""PostalCode"", ""c"".""Region""
 FROM ""Customers"" AS ""c""
 WHERE regexp(""c"".""CustomerID"", 'ALFKI')");
+        }
+
+        public override Task Datetime_subtraction_TotalDays(bool async)
+        {
+            return AssertTranslationFailed(() => base.Datetime_subtraction_TotalDays(async));
         }
 
         private void AssertSql(params string[] expected)

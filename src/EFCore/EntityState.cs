@@ -6,6 +6,9 @@ namespace Microsoft.EntityFrameworkCore
     /// <summary>
     ///     The state in which an entity is being tracked by a context.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-change-tracking">EF Core change tracking</see> for more information.
+    /// </remarks>
     public enum EntityState
     {
         /// <summary>

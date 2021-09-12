@@ -4027,7 +4027,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                     }));
         }
 
-        [ConditionalTheory(Skip = "issue #22896")]
+        [ConditionalTheory]
         [MemberData(nameof(IsAsyncData))]
         public virtual Task Collection_FirstOrDefault_entity_collection_accesses_in_projection(bool async)
         {
@@ -4041,7 +4041,13 @@ namespace Microsoft.EntityFrameworkCore.Query
                         Pushdown = l1.OneToMany_Optional1
                             .Where(x => x.Name == "L2 02")
                             .FirstOrDefault().OneToMany_Optional2.ToList()
-                    }));
+                    }),
+                elementSorter: e => e.Id,
+                elementAsserter: (e, a) =>
+                {
+                    Assert.Equal(e.Id, a.Id);
+                    AssertCollection(e.Pushdown, a.Pushdown);
+                });
         }
 
         [ConditionalTheory]
@@ -4268,6 +4274,18 @@ namespace Microsoft.EntityFrameworkCore.Query
                           InheritanceDerived2Id = EF.Property<int?>(x, "InheritanceDerived2Id"),
                       },
                 elementSorter: e => e.Id);
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Prune_does_not_throw_null_ref(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => from ids in (from l2 in ss.Set<Level2>().Where(i => i.Id < 5)
+                                   select l2.Level1_Required_Id).DefaultIfEmpty()
+                      from l1 in ss.Set<Level1>().Where(x => x.Id != ids)
+                      select l1);
         }
     }
 }

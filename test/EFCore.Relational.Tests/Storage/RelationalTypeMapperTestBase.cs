@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
 using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace Microsoft.EntityFrameworkCore.Storage
@@ -44,43 +45,43 @@ namespace Microsoft.EntityFrameworkCore.Storage
             {
                 var model = CreateModelBuilder(c =>
                 {
-                    var scalarBuilder = c.Scalars(propertyType);
+                    var scalarBuilder = c.DefaultTypeMapping(propertyType);
 
                     if (maxLength.HasValue)
                     {
-                        scalarBuilder.HaveMaxLength(maxLength.Value);
+                        scalarBuilder.HasMaxLength(maxLength.Value);
                     }
 
                     if (precision.HasValue)
                     {
                         if (scale.HasValue)
                         {
-                            scalarBuilder.HavePrecision(precision.Value, scale.Value);
+                            scalarBuilder.HasPrecision(precision.Value, scale.Value);
                         }
                         else
                         {
-                            scalarBuilder.HavePrecision(precision.Value);
+                            scalarBuilder.HasPrecision(precision.Value);
                         }
                     }
 
                     if (providerType != null)
                     {
-                        scalarBuilder.HaveConversion(providerType);
+                        scalarBuilder.HasConversion(providerType);
                     }
 
                     if (unicode.HasValue)
                     {
-                        scalarBuilder.AreUnicode(unicode.Value);
+                        scalarBuilder.IsUnicode(unicode.Value);
                     }
 
                     if (fixedLength.HasValue)
                     {
-                        scalarBuilder.AreFixedLength(fixedLength.Value);
+                        scalarBuilder.IsFixedLength(fixedLength.Value);
                     }
 
                     if (storeTypeName != null)
                     {
-                        scalarBuilder.HaveColumnType(storeTypeName);
+                        scalarBuilder.HasColumnType(storeTypeName);
                     }
                 }).FinalizeModel();
 

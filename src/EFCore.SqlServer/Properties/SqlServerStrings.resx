@@ -184,6 +184,10 @@
     <value>The property '{property}' on entity type '{entityType}' is of type 'byte', but is set up to use a SQL Server identity column; this requires that values starting at 255 and counting down will be used for temporary key values. A temporary key value is needed for every entity inserted in a single call to 'SaveChanges'. Care must be taken that these values do not collide with real key values.</value>
     <comment>Warning SqlServerEventId.ByteIdentityColumnWarning string string</comment>
   </data>
+  <data name="LogColumnWithoutType" xml:space="preserve">
+    <value>A database type for column '{columnName}' on table '{tableName}' could not be found, the column will be skipped.</value>
+    <comment>Warning SqlServerEventId.ColumnWithoutTypeWarning string string</comment>
+  </data>
   <data name="LogConflictingValueGenerationStrategies" xml:space="preserve">
     <value>Both the SqlServerValueGenerationStrategy '{generationStrategy}' and '{otherGenerationStrategy}' have been set on property '{propertyName}' on entity type '{entityName}'. Configuring two strategies is usually unintentional and will likely result in a database error.</value>
     <comment>Warning SqlServerEventId.ConflictingValueGenerationStrategiesWarning string string string string</comment>
@@ -195,6 +199,10 @@
   <data name="LogDefaultDecimalTypeColumn" xml:space="preserve">
     <value>No store type was specified for the decimal property '{property}' on entity type '{entityType}'. This will cause values to be silently truncated if they do not fit in the default precision and scale. Explicitly specify the SQL server column type that can accommodate all the values in 'OnModelCreating' using 'HasColumnType', specify precision and scale using 'HasPrecision', or configure a value converter using 'HasConversion'.</value>
     <comment>Warning SqlServerEventId.DecimalTypeDefaultWarning string string</comment>
+  </data>
+  <data name="LogDuplicateForeignKeyConstraintIgnored" xml:space="preserve">
+    <value>Skipping foreign key '{foreignKeyName}' on table '{tableName}' since it is a duplicate of '{duplicateForeignKeyName}'.</value>
+    <comment>Warning SqlServerEventId.DuplicateForeignKeyConstraintIgnored string string string</comment>
   </data>
   <data name="LogFoundColumn" xml:space="preserve">
     <value>Found column with table: {tableName}, column name: {columnName}, ordinal: {ordinal}, data type: {dataType}, maximum length: {maxLength}, precision: {precision}, scale: {scale}, nullable: {nullable}, identity: {identity}, default value: {defaultValue}, computed value: {computedValue}, computed value is stored: {stored}.</value>
@@ -244,6 +252,10 @@
     <value>Skipping foreign key with identity '{id}' on table '{tableName}', since the principal column '{principalColumnName}' on the foreign key's principal table, '{principalTableName}', was not found in the model.</value>
     <comment>Warning SqlServerEventId.ForeignKeyPrincipalColumnMissingWarning string string string string</comment>
   </data>
+  <data name="LogPrincipalTableInformationNotFound" xml:space="preserve">
+    <value>Skipping foreign key '{foreignKeyName}' on table '{tableName}' since principal table information is not available. This usually happens when the user doesn't have permission to read data about principal table.</value>
+    <comment>Warning SqlServerEventId.ForeignKeyReferencesUnknownPrincipalTableWarning string? string?</comment>
+  </data>
   <data name="LogPrincipalTableNotInSelectionSet" xml:space="preserve">
     <value>Skipping foreign key '{foreignKeyName}' on table '{tableName}' since principal table '{principalTableName}' was not found in the model. This usually happens when the principal table was not included in the selection set.</value>
     <comment>Warning SqlServerEventId.ForeignKeyReferencesMissingPrincipalTableWarning string? string? string?</comment>
@@ -251,10 +263,6 @@
   <data name="LogReflexiveConstraintIgnored" xml:space="preserve">
     <value>Skipping foreign key '{foreignKeyName}' on table '{tableName}' since all of its columns reference themselves.</value>
     <comment>Debug SqlServerEventId.ReflexiveConstraintIgnored string string</comment>
-  </data>
-  <data name="DuplicateForeignKeyConstraintIgnored" xml:space="preserve">
-    <value>Skipping foreign key '{foreignKeyName}' on table '{tableName}' since it is a duplicate of '{duplicateForeignKeyName}'.</value>
-    <comment>Warning SqlServerEventId.DuplicateForeignKeyConstraintIgnored string string string</comment>
   </data>
   <data name="LogSavepointsDisabledBecauseOfMARS" xml:space="preserve">
     <value>Savepoints are disabled because Multiple Active Result Sets (MARS) is enabled. If 'SaveChanges' fails, then the transaction cannot be automatically rolled back to a known clean state. Instead, the transaction should be rolled back by the application before retrying 'SaveChanges'. See https://go.microsoft.com/fwlink/?linkid=2149338 for more information. To identify the code which triggers this warning, call 'ConfigureWarnings(w =&gt; w.Throw(SqlServerEventId.SavepointsDisabledBecauseOfMARS))'.</value>

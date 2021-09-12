@@ -8,6 +8,9 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
     /// <summary>
     ///     A common interface for event payload classes that have an <see cref="INavigationBase" />.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-diagnostics">Logging, events, and diagnostics</see> for more information.
+    /// </remarks>
     public interface INavigationBaseEventData
     {
         /// <summary>

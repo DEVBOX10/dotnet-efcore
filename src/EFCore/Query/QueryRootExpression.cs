@@ -4,6 +4,7 @@
 using System;
 using System.Linq;
 using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Utilities;
@@ -19,6 +20,10 @@ namespace Microsoft.EntityFrameworkCore.Query
     ///         not used in application code.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     and <see href="https://aka.ms/efcore-how-queries-work">How EF Core queries work</see> for more information.
+    /// </remarks>
     public class QueryRootExpression : Expression, IPrintableExpression
     {
         /// <summary>
@@ -65,6 +70,17 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <returns> A new query root expression without query provider. </returns>
         public virtual Expression DetachQueryProvider()
             => new QueryRootExpression(EntityType);
+
+        /// <summary>
+        ///     Updates entity type associated with this query root with equivalent optimized version.
+        /// </summary>
+        /// <param name="entityType"> The entity type to replace with. </param>
+        /// <returns> New query root containing given entity type. </returns>
+        public virtual QueryRootExpression UpdateEntityType(IEntityType entityType)
+            => entityType.ClrType != EntityType.ClrType
+                || entityType.Name != EntityType.Name
+                ? throw new InvalidOperationException(CoreStrings.QueryRootDifferentEntityType(entityType.DisplayName()))
+                : new QueryRootExpression(entityType);
 
         /// <inheritdoc />
         public override ExpressionType NodeType

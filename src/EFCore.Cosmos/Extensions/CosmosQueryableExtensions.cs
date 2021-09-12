@@ -17,6 +17,10 @@ namespace Microsoft.EntityFrameworkCore
     /// <summary>
     ///     Cosmos-specific extension methods for LINQ queries.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-query">Querying data with EF Core</see>, and
+    ///     <see href="https://aka.ms/efcore-docs-cosmos">Accessing Azure Cosmos DB with EF Core</see> for more information.
+    /// </remarks>
     public static class CosmosQueryableExtensions
     {
         internal static readonly MethodInfo WithPartitionKeyMethodInfo
@@ -26,6 +30,10 @@ namespace Microsoft.EntityFrameworkCore
         ///     Specify the partition key for partition used for the query. Required when using
         ///     a resource token that provides permission based on a partition key for authentication,
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-query">Querying data with EF Core</see>, and
+        ///     <see href="https://aka.ms/efcore-docs-cosmos">Accessing Azure Cosmos DB with EF Core</see> for more information.
+        /// </remarks>
         /// <typeparam name="TEntity"> The type of entity being queried. </typeparam>
         /// <param name="source"> The source query. </param>
         /// <param name="partitionKey"> The partition key. </param>
@@ -64,6 +72,10 @@ namespace Microsoft.EntityFrameworkCore
         ///     </para>
         ///     <code>context.Blogs.FromSqlRaw(""SELECT * FROM root c WHERE c["Name"] = {0})", userSuppliedSearchTerm)</code>
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-query">Querying data with EF Core</see>, and
+        ///     <see href="https://aka.ms/efcore-docs-cosmos">Accessing Azure Cosmos DB with EF Core</see> for more information.
+        /// </remarks>
         /// <typeparam name="TEntity"> The type of the elements of <paramref name="source" />. </typeparam>
         /// <param name="source">
         ///     An <see cref="IQueryable{T}" /> to use as the base of the raw SQL query (typically a <see cref="DbSet{TEntity}" />).
@@ -73,7 +85,7 @@ namespace Microsoft.EntityFrameworkCore
         /// <returns> An <see cref="IQueryable{T}" /> representing the raw SQL query. </returns>
         [StringFormatMethod("sql")]
         public static IQueryable<TEntity> FromSqlRaw<TEntity>(
-            this IQueryable<TEntity> source,
+            this DbSet<TEntity> source,
             [NotParameterized] string sql,
             params object[] parameters)
             where TEntity : class
@@ -82,7 +94,8 @@ namespace Microsoft.EntityFrameworkCore
             Check.NotEmpty(sql, nameof(sql));
             Check.NotNull(parameters, nameof(parameters));
 
-            var queryRootExpression = (QueryRootExpression)source.Expression;
+            var queryableSource = (IQueryable)source;
+            var queryRootExpression = (QueryRootExpression)queryableSource.Expression;
 
             var entityType = queryRootExpression.EntityType;
 
@@ -97,7 +110,7 @@ namespace Microsoft.EntityFrameworkCore
                 sql,
                 Expression.Constant(parameters));
 
-            return source.Provider.CreateQuery<TEntity>(fromSqlQueryRootExpression);
+            return queryableSource.Provider.CreateQuery<TEntity>(fromSqlQueryRootExpression);
         }
     }
 }

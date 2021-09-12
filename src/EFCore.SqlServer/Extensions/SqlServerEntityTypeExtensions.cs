@@ -1,6 +1,8 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.SqlServer.Metadata.Internal;
 
@@ -10,6 +12,11 @@ namespace Microsoft.EntityFrameworkCore
     /// <summary>
     ///     Entity type extension methods for SQL Server-specific metadata.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-modeling">Modeling entity types and relationships</see>, and
+    ///     <see href="https://aka.ms/efcore-docs-sqlserver">Accessing SQL Server and SQL Azure databases with EF Core</see>
+    ///     for more information.
+    /// </remarks>
     public static class SqlServerEntityTypeExtensions
     {
         private const string DefaultHistoryTableNameSuffix = "History";
@@ -102,7 +109,9 @@ namespace Microsoft.EntityFrameworkCore
         /// <param name="entityType"> The entity type. </param>
         /// <returns> Name of the period start property. </returns>
         public static string? GetPeriodStartPropertyName(this IReadOnlyEntityType entityType)
-            => entityType[SqlServerAnnotationNames.TemporalPeriodStartPropertyName] as string;
+            => entityType is RuntimeEntityType
+                ? throw new InvalidOperationException(CoreStrings.RuntimeModelMissingData)
+                : entityType[SqlServerAnnotationNames.TemporalPeriodStartPropertyName] as string;
 
         /// <summary>
         ///     Sets a value representing the name of the period start property of the entity mapped to a temporal table.
@@ -146,7 +155,9 @@ namespace Microsoft.EntityFrameworkCore
         /// <param name="entityType"> The entity type. </param>
         /// <returns> Name of the period start property. </returns>
         public static string? GetPeriodEndPropertyName(this IReadOnlyEntityType entityType)
-            => entityType[SqlServerAnnotationNames.TemporalPeriodEndPropertyName] as string;
+            => entityType is RuntimeEntityType
+                ? throw new InvalidOperationException(CoreStrings.RuntimeModelMissingData)
+                : entityType[SqlServerAnnotationNames.TemporalPeriodEndPropertyName] as string;
 
         /// <summary>
         ///     Sets a value representing the name of the period end property of the entity mapped to a temporal table.
@@ -190,11 +201,13 @@ namespace Microsoft.EntityFrameworkCore
         /// <param name="entityType"> The entity type. </param>
         /// <returns> Name of the history table. </returns>
         public static string? GetHistoryTableName(this IReadOnlyEntityType entityType)
-            => entityType[SqlServerAnnotationNames.TemporalHistoryTableName] is string historyTableName
-                ? historyTableName
-                : entityType[SqlServerAnnotationNames.IsTemporal] as bool? == true
-                    ? entityType.ShortName() + DefaultHistoryTableNameSuffix
-                    : null;
+            => entityType is RuntimeEntityType
+                ? throw new InvalidOperationException(CoreStrings.RuntimeModelMissingData)
+                : entityType[SqlServerAnnotationNames.TemporalHistoryTableName] is string historyTableName
+                    ? historyTableName
+                    : entityType[SqlServerAnnotationNames.IsTemporal] as bool? == true
+                        ? entityType.ShortName() + DefaultHistoryTableNameSuffix
+                        : null;
 
         /// <summary>
         ///     Sets a value representing the name of the history table associated with the entity mapped to a temporal table.
@@ -238,8 +251,10 @@ namespace Microsoft.EntityFrameworkCore
         /// <param name="entityType"> The entity type. </param>
         /// <returns> Name of the history table. </returns>
         public static string? GetHistoryTableSchema(this IReadOnlyEntityType entityType)
-            => entityType[SqlServerAnnotationNames.TemporalHistoryTableSchema] as string
-                ?? entityType[RelationalAnnotationNames.Schema] as string;
+            => entityType is RuntimeEntityType
+                ? throw new InvalidOperationException(CoreStrings.RuntimeModelMissingData)
+                : entityType[SqlServerAnnotationNames.TemporalHistoryTableSchema] as string
+                    ?? entityType[RelationalAnnotationNames.Schema] as string;
 
         /// <summary>
         ///     Sets a value representing the schema of the history table associated with the entity mapped to a temporal table.

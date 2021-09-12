@@ -20,6 +20,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
     ///         and it is not designed to be directly constructed in your application code.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-modeling">Modeling entity types and relationships</see> for more information.
+    /// </remarks>
     public class PropertiesConfigurationBuilder
     {
         /// <summary>
@@ -33,7 +36,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
         {
             Check.NotNull(property, nameof(property));
 
-            Property = property;
+            Configuration = property;
         }
 
         /// <summary>
@@ -43,7 +46,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         [EntityFrameworkInternal]
-        protected virtual PropertyConfiguration Property { get; }
+        protected virtual PropertyConfiguration Configuration { get; }
 
         /// <summary>
         ///     Adds or updates an annotation on the property.
@@ -55,7 +58,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
         {
             Check.NotEmpty(annotation, nameof(annotation));
 
-            Property[annotation] = value;
+            Configuration[annotation] = value;
 
             return this;
         }
@@ -68,7 +71,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
         /// <returns> The same builder instance so that multiple configuration calls can be chained. </returns>
         public virtual PropertiesConfigurationBuilder HaveMaxLength(int maxLength)
         {
-            Property.SetMaxLength(maxLength);
+            Configuration.SetMaxLength(maxLength);
 
             return this;
         }
@@ -81,8 +84,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
         /// <returns> The same builder instance so that multiple configuration calls can be chained. </returns>
         public virtual PropertiesConfigurationBuilder HavePrecision(int precision, int scale)
         {
-            Property.SetPrecision(precision);
-            Property.SetScale(scale);
+            Configuration.SetPrecision(precision);
+            Configuration.SetScale(scale);
 
             return this;
         }
@@ -96,7 +99,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
         /// <returns> The same builder instance so that multiple configuration calls can be chained. </returns>
         public virtual PropertiesConfigurationBuilder HavePrecision(int precision)
         {
-            Property.SetPrecision(precision);
+            Configuration.SetPrecision(precision);
 
             return this;
         }
@@ -109,7 +112,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
         /// <returns> The same builder instance so that multiple configuration calls can be chained. </returns>
         public virtual PropertiesConfigurationBuilder AreUnicode(bool unicode = true)
         {
-            Property.SetIsUnicode(unicode);
+            Configuration.SetIsUnicode(unicode);
 
             return this;
         }
@@ -135,11 +138,11 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
 
             if (typeof(ValueConverter).IsAssignableFrom(conversionType))
             {
-                Property.SetValueConverter(conversionType);
+                Configuration.SetValueConverter(conversionType);
             }
             else
             {
-                Property.SetProviderClrType(conversionType);
+                Configuration.SetProviderClrType(conversionType);
             }
 
             return this;
@@ -169,14 +172,14 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
 
             if (typeof(ValueConverter).IsAssignableFrom(conversionType))
             {
-                Property.SetValueConverter(conversionType);
+                Configuration.SetValueConverter(conversionType);
             }
             else
             {
-                Property.SetProviderClrType(conversionType);
+                Configuration.SetProviderClrType(conversionType);
             }
 
-            Property.SetValueComparer(comparerType);
+            Configuration.SetValueComparer(comparerType);
 
             return this;
         }

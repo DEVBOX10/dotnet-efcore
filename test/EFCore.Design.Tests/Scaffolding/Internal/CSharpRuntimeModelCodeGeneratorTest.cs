@@ -1,12 +1,19 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Data;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Cosmos.ValueGeneration.Internal;
 using Microsoft.EntityFrameworkCore.Design;
+using Microsoft.EntityFrameworkCore.Design.Internal;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.InMemory.Storage.Internal;
@@ -15,6 +22,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
+using Microsoft.EntityFrameworkCore.Scaffolding.Internal;
 using Microsoft.EntityFrameworkCore.Sqlite.Design.Internal;
 using Microsoft.EntityFrameworkCore.SqlServer.Design.Internal;
 using Microsoft.EntityFrameworkCore.SqlServer.Metadata.Internal;
@@ -27,6 +35,22 @@ using NetTopologySuite;
 using NetTopologySuite.Geometries;
 using Newtonsoft.Json.Linq;
 using Xunit;
+using static Microsoft.EntityFrameworkCore.Migrations.Design.CSharpMigrationsGeneratorTest;
+using static Microsoft.EntityFrameworkCore.Scaffolding.Internal.CSharpRuntimeModelCodeGeneratorTest;
+
+public class GlobalNamespaceContext : Microsoft.EntityFrameworkCore.Scaffolding.Internal.CSharpRuntimeModelCodeGeneratorTest.ContextBase
+{
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity("1", e =>
+        {
+            e.Property<int>("Id");
+            e.HasKey("Id");
+        });
+    }
+}
 
 namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
 {
@@ -53,23 +77,18 @@ using Microsoft.EntityFrameworkCore.Scaffolding.Internal;
 namespace TestNamespace
 {
     [DbContext(typeof(CSharpRuntimeModelCodeGeneratorTest.EmptyContext))]
-    partial class EmptyContextModel : RuntimeModel
+    public partial class EmptyContextModel : RuntimeModel
     {
-        private static EmptyContextModel _instance;
-        public static IModel Instance
+        static EmptyContextModel()
         {
-            get
-            {
-                if (_instance == null)
-                {
-                    _instance = new EmptyContextModel();
-                    _instance.Initialize();
-                    _instance.Customize();
-                }
-
-                return _instance;
-            }
+            var model = new EmptyContextModel();
+            model.Initialize();
+            model.Customize();
+            _instance = model;
         }
+
+        private static EmptyContextModel _instance;
+        public static IModel Instance => _instance;
 
         partial void Initialize();
 
@@ -89,7 +108,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace TestNamespace
 {
-    partial class EmptyContextModel
+    public partial class EmptyContextModel
     {
         partial void Initialize()
         {
@@ -125,20 +144,6 @@ namespace TestNamespace
                 {
                     Assert.NotNull(model.FindEntityType("1"));
                 });
-        }
-
-        public class GlobalNamespaceContext : ContextBase
-        {
-            protected override void OnModelCreating(ModelBuilder modelBuilder)
-            {
-                base.OnModelCreating(modelBuilder);
-
-                modelBuilder.Entity("1", e =>
-                {
-                    e.Property<int>("Id");
-                    e.HasKey("Id");
-                });
-            }
         }
 
         [ConditionalFact]
@@ -426,7 +431,7 @@ namespace TestNamespace
                 base.OnModelCreating(modelBuilder);
 
                 modelBuilder.HasDbFunction(typeof(FunctionTypeMappingContext).GetMethod(nameof(GetSqlFragmentStatic)))
-                    .Metadata.TypeMapping = new StringTypeMapping("varchar");
+                    .Metadata.TypeMapping = new StringTypeMapping("varchar", DbType.AnsiString);
             }
         }
 
@@ -450,8 +455,397 @@ namespace TestNamespace
                 base.OnModelCreating(modelBuilder);
 
                 modelBuilder.HasDbFunction(typeof(FunctionParameterTypeMappingContext).GetMethod(nameof(GetSqlFragmentStatic)))
-                    .HasParameter("param").Metadata.TypeMapping = new StringTypeMapping("varchar");
+                    .HasParameter("param").Metadata.TypeMapping = new StringTypeMapping("varchar", DbType.AnsiString);
             }
+        }
+
+        [ConditionalFact]
+        public void Fully_qualified_model()
+        {
+            Test(
+                new TestModel.Internal.DbContext(),
+                new CompiledModelCodeGenerationOptions()
+                {
+                    ModelNamespace = "Internal"
+                },
+                code =>
+                    Assert.Collection(code,
+                    c => AssertFileContents(
+                    "DbContextModel.cs",
+                    @"// <auto-generated />
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Scaffolding.TestModel.Internal;
+
+#pragma warning disable 219, 612, 618
+#nullable disable
+
+namespace Internal
+{
+    [DbContext(typeof(DbContext))]
+    public partial class DbContextModel : RuntimeModel
+    {
+        static DbContextModel()
+        {
+            var model = new DbContextModel();
+            model.Initialize();
+            model.Customize();
+            _instance = model;
+        }
+
+        private static DbContextModel _instance;
+        public static IModel Instance => _instance;
+
+        partial void Initialize();
+
+        partial void Customize();
+    }
+}
+",
+                        c),
+                    c => AssertFileContents(
+                    "DbContextModelBuilder.cs",
+                    @"// <auto-generated />
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
+
+#pragma warning disable 219, 612, 618
+#nullable disable
+
+namespace Internal
+{
+    public partial class DbContextModel
+    {
+        partial void Initialize()
+        {
+            var index = IndexEntityType.Create(this);
+            var @internal = InternalEntityType.Create(this);
+            var identityUser = IdentityUserEntityType.Create(this);
+            var identityUser0 = IdentityUser0EntityType.Create(this, identityUser);
+
+            IndexEntityType.CreateAnnotations(index);
+            InternalEntityType.CreateAnnotations(@internal);
+            IdentityUserEntityType.CreateAnnotations(identityUser);
+            IdentityUser0EntityType.CreateAnnotations(identityUser0);
+
+        }
+    }
+}
+",
+                        c),
+                    c => AssertFileContents(
+                    "IndexEntityType.cs",
+                    @"// <auto-generated />
+using System;
+using System.Reflection;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Scaffolding.Internal;
+
+#pragma warning disable 219, 612, 618
+#nullable disable
+
+namespace Internal
+{
+    internal partial class IndexEntityType
+    {
+        public static RuntimeEntityType Create(RuntimeModel model, RuntimeEntityType baseEntityType = null)
+        {
+            var runtimeEntityType = model.AddEntityType(
+                ""Microsoft.EntityFrameworkCore.Scaffolding.Internal.Index"",
+                typeof(Microsoft.EntityFrameworkCore.Scaffolding.Internal.Index),
+                baseEntityType);
+
+            var id = runtimeEntityType.AddProperty(
+                ""Id"",
+                typeof(Guid),
+                propertyInfo: typeof(Microsoft.EntityFrameworkCore.Scaffolding.Internal.Index).GetProperty(""Id"", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(Microsoft.EntityFrameworkCore.Scaffolding.Internal.Index).GetField(""<Id>k__BackingField"", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                valueGenerated: ValueGenerated.OnAdd,
+                afterSaveBehavior: PropertySaveBehavior.Throw);
+
+            var key = runtimeEntityType.AddKey(
+                new[] { id });
+            runtimeEntityType.SetPrimaryKey(key);
+
+            return runtimeEntityType;
+        }
+
+        public static void CreateAnnotations(RuntimeEntityType runtimeEntityType)
+        {
+
+            Customize(runtimeEntityType);
+        }
+
+        static partial void Customize(RuntimeEntityType runtimeEntityType);
+    }
+}
+",
+                        c),
+                    c =>
+                    AssertFileContents(
+                    "InternalEntityType.cs",
+                    @"// <auto-generated />
+using System;
+using System.Reflection;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Scaffolding.Internal;
+
+#pragma warning disable 219, 612, 618
+#nullable disable
+
+namespace Internal
+{
+    internal partial class InternalEntityType
+    {
+        public static RuntimeEntityType Create(RuntimeModel model, RuntimeEntityType baseEntityType = null)
+        {
+            var runtimeEntityType = model.AddEntityType(
+                ""Microsoft.EntityFrameworkCore.Scaffolding.Internal.Internal"",
+                typeof(Microsoft.EntityFrameworkCore.Scaffolding.Internal.Internal),
+                baseEntityType);
+
+            var id = runtimeEntityType.AddProperty(
+                ""Id"",
+                typeof(long),
+                propertyInfo: typeof(Microsoft.EntityFrameworkCore.Scaffolding.Internal.Internal).GetProperty(""Id"", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(Microsoft.EntityFrameworkCore.Scaffolding.Internal.Internal).GetField(""<Id>k__BackingField"", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                valueGenerated: ValueGenerated.OnAdd,
+                afterSaveBehavior: PropertySaveBehavior.Throw);
+
+            var key = runtimeEntityType.AddKey(
+                new[] { id });
+            runtimeEntityType.SetPrimaryKey(key);
+
+            return runtimeEntityType;
+        }
+
+        public static void CreateAnnotations(RuntimeEntityType runtimeEntityType)
+        {
+
+            Customize(runtimeEntityType);
+        }
+
+        static partial void Customize(RuntimeEntityType runtimeEntityType);
+    }
+}
+",
+                        c),
+                    c => AssertFileContents(
+                    "IdentityUserEntityType.cs",
+                    @"// <auto-generated />
+using System;
+using System.Reflection;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.TestModels.AspNetIdentity;
+using Microsoft.EntityFrameworkCore.ValueGeneration;
+
+#pragma warning disable 219, 612, 618
+#nullable disable
+
+namespace Internal
+{
+    internal partial class IdentityUserEntityType
+    {
+        public static RuntimeEntityType Create(RuntimeModel model, RuntimeEntityType baseEntityType = null)
+        {
+            var runtimeEntityType = model.AddEntityType(
+                ""Microsoft.EntityFrameworkCore.TestModels.AspNetIdentity.IdentityUser"",
+                typeof(IdentityUser),
+                baseEntityType,
+                discriminatorProperty: ""Discriminator"");
+
+            var id = runtimeEntityType.AddProperty(
+                ""Id"",
+                typeof(string),
+                propertyInfo: typeof(IdentityUser<string>).GetProperty(""Id"", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(IdentityUser<string>).GetField(""<Id>k__BackingField"", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                afterSaveBehavior: PropertySaveBehavior.Throw);
+
+            var accessFailedCount = runtimeEntityType.AddProperty(
+                ""AccessFailedCount"",
+                typeof(int),
+                propertyInfo: typeof(IdentityUser<string>).GetProperty(""AccessFailedCount"", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(IdentityUser<string>).GetField(""<AccessFailedCount>k__BackingField"", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly));
+
+            var concurrencyStamp = runtimeEntityType.AddProperty(
+                ""ConcurrencyStamp"",
+                typeof(string),
+                propertyInfo: typeof(IdentityUser<string>).GetProperty(""ConcurrencyStamp"", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(IdentityUser<string>).GetField(""<ConcurrencyStamp>k__BackingField"", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                nullable: true);
+
+            var discriminator = runtimeEntityType.AddProperty(
+                ""Discriminator"",
+                typeof(string),
+                afterSaveBehavior: PropertySaveBehavior.Throw,
+                valueGeneratorFactory: new DiscriminatorValueGeneratorFactory().Create);
+
+            var email = runtimeEntityType.AddProperty(
+                ""Email"",
+                typeof(string),
+                propertyInfo: typeof(IdentityUser<string>).GetProperty(""Email"", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(IdentityUser<string>).GetField(""<Email>k__BackingField"", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                nullable: true);
+
+            var emailConfirmed = runtimeEntityType.AddProperty(
+                ""EmailConfirmed"",
+                typeof(bool),
+                propertyInfo: typeof(IdentityUser<string>).GetProperty(""EmailConfirmed"", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(IdentityUser<string>).GetField(""<EmailConfirmed>k__BackingField"", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly));
+
+            var lockoutEnabled = runtimeEntityType.AddProperty(
+                ""LockoutEnabled"",
+                typeof(bool),
+                propertyInfo: typeof(IdentityUser<string>).GetProperty(""LockoutEnabled"", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(IdentityUser<string>).GetField(""<LockoutEnabled>k__BackingField"", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly));
+
+            var lockoutEnd = runtimeEntityType.AddProperty(
+                ""LockoutEnd"",
+                typeof(DateTimeOffset?),
+                propertyInfo: typeof(IdentityUser<string>).GetProperty(""LockoutEnd"", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(IdentityUser<string>).GetField(""<LockoutEnd>k__BackingField"", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                nullable: true);
+
+            var normalizedEmail = runtimeEntityType.AddProperty(
+                ""NormalizedEmail"",
+                typeof(string),
+                propertyInfo: typeof(IdentityUser<string>).GetProperty(""NormalizedEmail"", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(IdentityUser<string>).GetField(""<NormalizedEmail>k__BackingField"", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                nullable: true);
+
+            var normalizedUserName = runtimeEntityType.AddProperty(
+                ""NormalizedUserName"",
+                typeof(string),
+                propertyInfo: typeof(IdentityUser<string>).GetProperty(""NormalizedUserName"", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(IdentityUser<string>).GetField(""<NormalizedUserName>k__BackingField"", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                nullable: true);
+
+            var passwordHash = runtimeEntityType.AddProperty(
+                ""PasswordHash"",
+                typeof(string),
+                propertyInfo: typeof(IdentityUser<string>).GetProperty(""PasswordHash"", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(IdentityUser<string>).GetField(""<PasswordHash>k__BackingField"", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                nullable: true);
+
+            var phoneNumber = runtimeEntityType.AddProperty(
+                ""PhoneNumber"",
+                typeof(string),
+                propertyInfo: typeof(IdentityUser<string>).GetProperty(""PhoneNumber"", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(IdentityUser<string>).GetField(""<PhoneNumber>k__BackingField"", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                nullable: true);
+
+            var phoneNumberConfirmed = runtimeEntityType.AddProperty(
+                ""PhoneNumberConfirmed"",
+                typeof(bool),
+                propertyInfo: typeof(IdentityUser<string>).GetProperty(""PhoneNumberConfirmed"", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(IdentityUser<string>).GetField(""<PhoneNumberConfirmed>k__BackingField"", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly));
+
+            var securityStamp = runtimeEntityType.AddProperty(
+                ""SecurityStamp"",
+                typeof(string),
+                propertyInfo: typeof(IdentityUser<string>).GetProperty(""SecurityStamp"", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(IdentityUser<string>).GetField(""<SecurityStamp>k__BackingField"", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                nullable: true);
+
+            var twoFactorEnabled = runtimeEntityType.AddProperty(
+                ""TwoFactorEnabled"",
+                typeof(bool),
+                propertyInfo: typeof(IdentityUser<string>).GetProperty(""TwoFactorEnabled"", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(IdentityUser<string>).GetField(""<TwoFactorEnabled>k__BackingField"", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly));
+
+            var userName = runtimeEntityType.AddProperty(
+                ""UserName"",
+                typeof(string),
+                propertyInfo: typeof(IdentityUser<string>).GetProperty(""UserName"", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(IdentityUser<string>).GetField(""<UserName>k__BackingField"", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                nullable: true);
+
+            var key = runtimeEntityType.AddKey(
+                new[] { id });
+            runtimeEntityType.SetPrimaryKey(key);
+
+            return runtimeEntityType;
+        }
+
+        public static void CreateAnnotations(RuntimeEntityType runtimeEntityType)
+        {
+            runtimeEntityType.AddAnnotation(""DiscriminatorValue"", ""IdentityUser"");
+
+            Customize(runtimeEntityType);
+        }
+
+        static partial void Customize(RuntimeEntityType runtimeEntityType);
+    }
+}
+",
+                        c),
+                    c =>
+                    AssertFileContents(
+                    "IdentityUser0EntityType.cs",
+                    @"// <auto-generated />
+using System;
+using System.Reflection;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Scaffolding.Internal;
+
+#pragma warning disable 219, 612, 618
+#nullable disable
+
+namespace Internal
+{
+    internal partial class IdentityUser0EntityType
+    {
+        public static RuntimeEntityType Create(RuntimeModel model, RuntimeEntityType baseEntityType = null)
+        {
+            var runtimeEntityType = model.AddEntityType(
+                ""Microsoft.EntityFrameworkCore.Scaffolding.Internal.IdentityUser"",
+                typeof(IdentityUser),
+                baseEntityType,
+                discriminatorProperty: ""Discriminator"");
+
+            return runtimeEntityType;
+        }
+
+        public static void CreateAnnotations(RuntimeEntityType runtimeEntityType)
+        {
+            runtimeEntityType.AddAnnotation(""DiscriminatorValue"", ""DerivedIdentityUser"");
+
+            Customize(runtimeEntityType);
+        }
+
+        static partial void Customize(RuntimeEntityType runtimeEntityType);
+    }
+}
+",
+                        c)),
+                model => {
+                    Assert.Equal(4, model.GetEntityTypes().Count());
+                    Assert.Same(model, model.FindRuntimeAnnotationValue("ReadOnlyModel"));
+                },
+                typeof(FullyQualifiedDesignTimeServices));
+        }
+
+        private class FullyQualifiedDesignTimeServices : IDesignTimeServices
+        {
+            public void ConfigureDesignTimeServices(IServiceCollection serviceCollection)
+            {
+                serviceCollection.AddSingleton<ICSharpHelper, FullyQualifiedCSharpHelper>();
+            }
+        }
+
+        private class FullyQualifiedCSharpHelper : CSharpHelper
+        {
+            public FullyQualifiedCSharpHelper(ITypeMappingSource typeMappingSource) : base(typeMappingSource)
+            {
+            }
+
+            public override bool ShouldUseFullName(Type type)
+                => base.ShouldUseFullName(type);
+
+            public override bool ShouldUseFullName(string shortTypeName)
+                => base.ShouldUseFullName(shortTypeName)
+                || shortTypeName == nameof(Index)
+                || shortTypeName == nameof(Internal);
         }
 
         [ConditionalFact]
@@ -474,23 +868,18 @@ using Microsoft.EntityFrameworkCore.Scaffolding.Internal;
 namespace TestNamespace
 {
     [DbContext(typeof(CSharpRuntimeModelCodeGeneratorTest.BigContext))]
-    partial class BigContextModel : RuntimeModel
+    public partial class BigContextModel : RuntimeModel
     {
-        private static BigContextModel? _instance;
-        public static IModel Instance
+        static BigContextModel()
         {
-            get
-            {
-                if (_instance == null)
-                {
-                    _instance = new BigContextModel();
-                    _instance.Initialize();
-                    _instance.Customize();
-                }
-
-                return _instance;
-            }
+            var model = new BigContextModel();
+            model.Initialize();
+            model.Customize();
+            _instance = model;
         }
+
+        private static BigContextModel _instance;
+        public static IModel Instance => _instance;
 
         partial void Initialize();
 
@@ -509,7 +898,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace TestNamespace
 {
-    partial class BigContextModel
+    public partial class BigContextModel
     {
         partial void Initialize()
         {
@@ -551,6 +940,7 @@ using System;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations.Design;
 using Microsoft.EntityFrameworkCore.Scaffolding.Internal;
 using Microsoft.EntityFrameworkCore.ValueGeneration;
 using NetTopologySuite.Geometries;
@@ -560,7 +950,7 @@ using NetTopologySuite.Geometries;
 
 namespace TestNamespace
 {
-    partial class DependentBasebyteEntityType
+    internal partial class DependentBasebyteEntityType
     {
         public static RuntimeEntityType Create(RuntimeModel model, RuntimeEntityType? baseEntityType = null)
         {
@@ -585,7 +975,7 @@ namespace TestNamespace
 
             var enumDiscriminator = runtimeEntityType.AddProperty(
                 ""EnumDiscriminator"",
-                typeof(CSharpRuntimeModelCodeGeneratorTest.Discriminator),
+                typeof(CSharpMigrationsGeneratorTest.Enum1),
                 afterSaveBehavior: PropertySaveBehavior.Throw,
                 valueGeneratorFactory: new DiscriminatorValueGeneratorFactory().Create);
             enumDiscriminator.AddAnnotation(""SqlServer:ValueGenerationStrategy"", SqlServerValueGenerationStrategy.None);
@@ -650,7 +1040,7 @@ namespace TestNamespace
 
         public static void CreateAnnotations(RuntimeEntityType runtimeEntityType)
         {
-            runtimeEntityType.AddAnnotation(""DiscriminatorValue"", CSharpRuntimeModelCodeGeneratorTest.Discriminator.Base);
+            runtimeEntityType.AddAnnotation(""DiscriminatorValue"", CSharpMigrationsGeneratorTest.Enum1.One);
             runtimeEntityType.AddAnnotation(""Relational:FunctionName"", null);
             runtimeEntityType.AddAnnotation(""Relational:Schema"", null);
             runtimeEntityType.AddAnnotation(""Relational:SqlQuery"", null);
@@ -680,7 +1070,7 @@ using NetTopologySuite.Geometries;
 
 namespace TestNamespace
 {
-    partial class PrincipalBaseEntityType
+    internal partial class PrincipalBaseEntityType
     {
         public static RuntimeEntityType Create(RuntimeModel model, RuntimeEntityType? baseEntityType = null)
         {
@@ -792,7 +1182,7 @@ using NetTopologySuite.Geometries;
 
 namespace TestNamespace
 {
-    partial class OwnedTypeEntityType
+    internal partial class OwnedTypeEntityType
     {
         public static RuntimeEntityType Create(RuntimeModel model, RuntimeEntityType? baseEntityType = null)
         {
@@ -882,7 +1272,7 @@ using NetTopologySuite.Geometries;
 
 namespace TestNamespace
 {
-    partial class OwnedType0EntityType
+    internal partial class OwnedType0EntityType
     {
         public static RuntimeEntityType Create(RuntimeModel model, RuntimeEntityType? baseEntityType = null)
         {
@@ -971,7 +1361,7 @@ using NetTopologySuite.Geometries;
 
 namespace TestNamespace
 {
-    partial class PrincipalBasePrincipalDerivedDependentBasebyteEntityType
+    internal partial class PrincipalBasePrincipalDerivedDependentBasebyteEntityType
     {
         public static RuntimeEntityType Create(RuntimeModel model, RuntimeEntityType? baseEntityType = null)
         {
@@ -1074,6 +1464,7 @@ namespace TestNamespace
 using System;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations.Design;
 using Microsoft.EntityFrameworkCore.Scaffolding.Internal;
 
 #pragma warning disable 219, 612, 618
@@ -1081,7 +1472,7 @@ using Microsoft.EntityFrameworkCore.Scaffolding.Internal;
 
 namespace TestNamespace
 {
-    partial class DependentDerivedbyteEntityType
+    internal partial class DependentDerivedbyteEntityType
     {
         public static RuntimeEntityType Create(RuntimeModel model, RuntimeEntityType? baseEntityType = null)
         {
@@ -1114,7 +1505,7 @@ namespace TestNamespace
 
         public static void CreateAnnotations(RuntimeEntityType runtimeEntityType)
         {
-            runtimeEntityType.AddAnnotation(""DiscriminatorValue"", CSharpRuntimeModelCodeGeneratorTest.Discriminator.Derived);
+            runtimeEntityType.AddAnnotation(""DiscriminatorValue"", CSharpMigrationsGeneratorTest.Enum1.Two);
             runtimeEntityType.AddAnnotation(""Relational:FunctionName"", null);
             runtimeEntityType.AddAnnotation(""Relational:Schema"", null);
             runtimeEntityType.AddAnnotation(""Relational:SqlQuery"", null);
@@ -1142,7 +1533,7 @@ using Microsoft.EntityFrameworkCore.Scaffolding.Internal;
 
 namespace TestNamespace
 {
-    partial class PrincipalDerivedDependentBasebyteEntityType
+    internal partial class PrincipalDerivedDependentBasebyteEntityType
     {
         public static RuntimeEntityType Create(RuntimeModel model, RuntimeEntityType? baseEntityType = null)
         {
@@ -1405,13 +1796,13 @@ namespace TestNamespace
                     Assert.Same(principalKey, referenceOwnership.PrincipalKey);
 
                     var ownedServiceProperty = referenceOwnedType.GetServiceProperties().Single();
-                    Assert.Equal(typeof(DbContext), ownedServiceProperty.ClrType);
-                    Assert.Equal(typeof(DbContext), ownedServiceProperty.PropertyInfo.PropertyType);
+                    Assert.Equal(typeof(EntityFrameworkCore.DbContext), ownedServiceProperty.ClrType);
+                    Assert.Equal(typeof(EntityFrameworkCore.DbContext), ownedServiceProperty.PropertyInfo.PropertyType);
                     Assert.Null(ownedServiceProperty.FieldInfo);
                     Assert.Same(referenceOwnedType, ownedServiceProperty.DeclaringEntityType);
                     var ownedServicePropertyBinding = ownedServiceProperty.ParameterBinding;
                     Assert.IsType<ContextParameterBinding>(ownedServicePropertyBinding);
-                    Assert.Equal(typeof(DbContext), ownedServicePropertyBinding.ServiceType);
+                    Assert.Equal(typeof(EntityFrameworkCore.DbContext), ownedServicePropertyBinding.ServiceType);
                     Assert.Equal(ownedServiceProperty, ownedServicePropertyBinding.ConsumedProperties.Single());
                     Assert.Equal(PropertyAccessMode.PreferField, ownedServiceProperty.GetPropertyAccessMode());
                     Assert.Null(ownedServiceProperty[CoreAnnotationNames.PropertyAccessMode]);
@@ -1560,7 +1951,7 @@ namespace TestNamespace
                     var principalDiscriminator = dependentBase.FindDiscriminatorProperty();
                     Assert.IsType<DiscriminatorValueGenerator>(
                         principalDiscriminator.GetValueGeneratorFactory()(principalDiscriminator, dependentBase));
-                    Assert.Equal(Discriminator.Base, dependentBase.GetDiscriminatorValue());
+                    Assert.Equal(Enum1.One, dependentBase.GetDiscriminatorValue());
 
                     var dependentBaseForeignKey = dependentBase.GetForeignKeys().Single(fk => fk != dependentForeignKey);
                     var dependentForeignKeyProperty = dependentBaseForeignKey.Properties.Single();
@@ -1568,7 +1959,7 @@ namespace TestNamespace
                     Assert.Equal(new[] { dependentBaseForeignKey, dependentForeignKey }, dependentForeignKeyProperty.GetContainingForeignKeys());
 
                     var dependentDerived = dependentBase.GetDerivedTypes().Single();
-                    Assert.Equal(Discriminator.Derived, dependentDerived.GetDiscriminatorValue());
+                    Assert.Equal(Enum1.Two, dependentDerived.GetDiscriminatorValue());
 
                     Assert.Equal(2, dependentDerived.GetDeclaredProperties().Count());
 
@@ -1744,9 +2135,9 @@ namespace TestNamespace
 
                     eb.ToTable("PrincipalDerived");
 
-                    eb.HasDiscriminator<Discriminator>("EnumDiscriminator")
-                        .HasValue(Discriminator.Base)
-                        .HasValue<DependentDerived<byte?>>(Discriminator.Derived);
+                    eb.HasDiscriminator<Enum1>("EnumDiscriminator")
+                        .HasValue(Enum1.One)
+                        .HasValue<DependentDerived<byte?>>(Enum1.Two);
                 });
 
                 modelBuilder.Entity<DependentDerived<byte?>>(eb =>
@@ -1803,22 +2194,16 @@ namespace TestNamespace
             private string Data { get; set; }
         }
 
-        public enum Discriminator
-        {
-            Base,
-            Derived
-        }
-
         public class OwnedType : INotifyPropertyChanged, INotifyPropertyChanging
         {
-            private DbContext _context;
+            private EntityFrameworkCore.DbContext _context;
 
-            public OwnedType(DbContext context)
+            public OwnedType(EntityFrameworkCore.DbContext context)
             {
                 Context = context;
             }
 
-            public DbContext Context
+            public EntityFrameworkCore.DbContext Context
             {
                 get => _context; set
                 {
@@ -1851,23 +2236,18 @@ using Microsoft.EntityFrameworkCore.Scaffolding.Internal;
 namespace TestNamespace
 {
     [DbContext(typeof(CSharpRuntimeModelCodeGeneratorTest.DbFunctionContext))]
-    partial class DbFunctionContextModel : RuntimeModel
+    public partial class DbFunctionContextModel : RuntimeModel
     {
-        private static DbFunctionContextModel _instance;
-        public static IModel Instance
+        static DbFunctionContextModel()
         {
-            get
-            {
-                if (_instance == null)
-                {
-                    _instance = new DbFunctionContextModel();
-                    _instance.Initialize();
-                    _instance.Customize();
-                }
-
-                return _instance;
-            }
+            var model = new DbFunctionContextModel();
+            model.Initialize();
+            model.Customize();
+            _instance = model;
         }
+
+        private static DbFunctionContextModel _instance;
+        public static IModel Instance => _instance;
 
         partial void Initialize();
 
@@ -1891,7 +2271,7 @@ using Microsoft.EntityFrameworkCore.Scaffolding.Internal;
 
 namespace TestNamespace
 {
-    partial class DbFunctionContextModel
+    public partial class DbFunctionContextModel
     {
         partial void Initialize()
         {
@@ -1901,7 +2281,7 @@ namespace TestNamespace
             DataEntityType.CreateAnnotations(data);
             ObjectEntityType.CreateAnnotations(@object);
 
-            var type = this.AddScalarTypeConfiguration(
+            var type = this.AddTypeMappingConfiguration(
                 typeof(string),
                 maxLength: 256);
             type.AddAnnotation(""Relational:IsFixedLength"", true);
@@ -2027,7 +2407,7 @@ using Microsoft.EntityFrameworkCore.Scaffolding.Internal;
 
 namespace TestNamespace
 {
-    partial class DataEntityType
+    internal partial class DataEntityType
     {
         public static RuntimeEntityType Create(RuntimeModel model, RuntimeEntityType baseEntityType = null)
         {
@@ -2075,7 +2455,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace TestNamespace
 {
-    partial class ObjectEntityType
+    internal partial class ObjectEntityType
     {
         public static RuntimeEntityType Create(RuntimeModel model, RuntimeEntityType baseEntityType = null)
         {
@@ -2140,7 +2520,7 @@ namespace TestNamespace
                     Assert.True(getCountParameter1.PropagatesNullability);
                     Assert.Equal(typeof(Guid?), getCountParameter1.ClrType);
                     Assert.Equal("uniqueidentifier", getCountParameter1.TypeMapping.StoreType);
-                    Assert.Single(getCountParameter1.GetAnnotations());
+                    Assert.Single((IEnumerable)getCountParameter1.GetAnnotations());
                     Assert.Equal(new[] { 1L }, getCountParameter1["MyAnnotation"]);
                     Assert.Equal("id", getCountParameter1.StoreFunctionParameter.Name);
                     Assert.Equal("uniqueidentifier", getCountParameter1.StoreFunctionParameter.Type);
@@ -2168,12 +2548,12 @@ namespace TestNamespace
                     Assert.Null(isDate.Translation);
                     Assert.Equal(typeof(bool), isDate.ReturnType);
                     Assert.Equal("IsDateStatic", isDate.MethodInfo.Name);
-                    Assert.Single(isDate.GetAnnotations());
+                    Assert.Single((IEnumerable)isDate.GetAnnotations());
                     Assert.Equal(new Guid(), isDate["MyGuid"]);
                     Assert.Empty(isDate.GetRuntimeAnnotations());
                     Assert.Equal("bit", isDate.StoreFunction.ReturnType);
                     Assert.Empty(isDate.StoreFunction.EntityTypeMappings);
-                    Assert.Single(isDate.Parameters);
+                    Assert.Single((IEnumerable)isDate.Parameters);
 
                     var isDateParameter = isDate.Parameters[0];
                     Assert.Same(isDate, isDateParameter.Function);
@@ -2202,7 +2582,7 @@ namespace TestNamespace
                     Assert.Null(getData.TypeMapping?.StoreType);
                     Assert.Null(getData.StoreFunction.ReturnType);
                     Assert.Equal(typeof(Data), getData.StoreFunction.EntityTypeMappings.Single().EntityType.ClrType);
-                    Assert.Single(getData.Parameters);
+                    Assert.Single((IEnumerable)getData.Parameters);
 
                     var getDataParameter = getData.Parameters[0];
                     Assert.Same(getData, getDataParameter.Function);
@@ -2298,7 +2678,7 @@ namespace TestNamespace
 
             protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
             {
-                configurationBuilder.Scalars<string>().HaveMaxLength(256).AreFixedLength();
+                configurationBuilder.DefaultTypeMapping<string>().HasMaxLength(256).IsFixedLength();
             }
 
             protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -2341,23 +2721,18 @@ using Microsoft.EntityFrameworkCore.Scaffolding.Internal;
 namespace TestNamespace
 {
     [DbContext(typeof(CSharpRuntimeModelCodeGeneratorTest.SequencesContext))]
-    partial class SequencesContextModel : RuntimeModel
+    public partial class SequencesContextModel : RuntimeModel
     {
-        private static SequencesContextModel _instance;
-        public static IModel Instance
+        static SequencesContextModel()
         {
-            get
-            {
-                if (_instance == null)
-                {
-                    _instance = new SequencesContextModel();
-                    _instance.Initialize();
-                    _instance.Customize();
-                }
-
-                return _instance;
-            }
+            var model = new SequencesContextModel();
+            model.Initialize();
+            model.Customize();
+            _instance = model;
         }
+
+        private static SequencesContextModel _instance;
+        public static IModel Instance => _instance;
 
         partial void Initialize();
 
@@ -2378,7 +2753,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace TestNamespace
 {
-    partial class SequencesContextModel
+    public partial class SequencesContextModel
     {
         partial void Initialize()
         {
@@ -2428,7 +2803,7 @@ using Microsoft.EntityFrameworkCore.Scaffolding.Internal;
 
 namespace TestNamespace
 {
-    partial class DataEntityType
+    internal partial class DataEntityType
     {
         public static RuntimeEntityType Create(RuntimeModel model, RuntimeEntityType baseEntityType = null)
         {
@@ -2503,7 +2878,7 @@ namespace TestNamespace
                     Assert.Equal(10, hiLo.IncrementBy);
                     Assert.NotNull(hiLo.ToString());
 
-                    Assert.Single(model.GetEntityTypes());
+                    Assert.Single((IEnumerable)model.GetEntityTypes());
                     var dataEntity = model.FindEntityType(typeof(Data));
                     Assert.Same(hiLo, dataEntity.FindPrimaryKey().Properties.Single().FindHiLoSequence());
                 });
@@ -2549,23 +2924,18 @@ using Microsoft.EntityFrameworkCore.Scaffolding.Internal;
 namespace TestNamespace
 {
     [DbContext(typeof(CSharpRuntimeModelCodeGeneratorTest.ConstraintsContext))]
-    partial class ConstraintsContextModel : RuntimeModel
+    public partial class ConstraintsContextModel : RuntimeModel
     {
-        private static ConstraintsContextModel _instance;
-        public static IModel Instance
+        static ConstraintsContextModel()
         {
-            get
-            {
-                if (_instance == null)
-                {
-                    _instance = new ConstraintsContextModel();
-                    _instance.Initialize();
-                    _instance.Customize();
-                }
-
-                return _instance;
-            }
+            var model = new ConstraintsContextModel();
+            model.Initialize();
+            model.Customize();
+            _instance = model;
         }
+
+        private static ConstraintsContextModel _instance;
+        public static IModel Instance => _instance;
 
         partial void Initialize();
 
@@ -2585,7 +2955,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace TestNamespace
 {
-    partial class ConstraintsContextModel
+    public partial class ConstraintsContextModel
     {
         partial void Initialize()
         {
@@ -2612,7 +2982,7 @@ using Microsoft.EntityFrameworkCore.Scaffolding.Internal;
 
 namespace TestNamespace
 {
-    partial class DataEntityType
+    internal partial class DataEntityType
     {
         public static RuntimeEntityType Create(RuntimeModel model, RuntimeEntityType baseEntityType = null)
         {
@@ -2705,23 +3075,18 @@ using Microsoft.EntityFrameworkCore.Scaffolding.Internal;
 namespace Microsoft.EntityFrameworkCore.Metadata
 {
     [DbContext(typeof(CSharpRuntimeModelCodeGeneratorTest.SqliteContext))]
-    partial class SqliteContextModel : RuntimeModel
+    public partial class SqliteContextModel : RuntimeModel
     {
-        private static SqliteContextModel _instance;
-        public static IModel Instance
+        static SqliteContextModel()
         {
-            get
-            {
-                if (_instance == null)
-                {
-                    _instance = new SqliteContextModel();
-                    _instance.Initialize();
-                    _instance.Customize();
-                }
-
-                return _instance;
-            }
+            var model = new SqliteContextModel();
+            model.Initialize();
+            model.Customize();
+            _instance = model;
         }
+
+        private static SqliteContextModel _instance;
+        public static IModel Instance => _instance;
 
         partial void Initialize();
 
@@ -2739,7 +3104,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace Microsoft.EntityFrameworkCore.Metadata
 {
-    partial class SqliteContextModel
+    public partial class SqliteContextModel
     {
         partial void Initialize()
         {
@@ -2764,7 +3129,7 @@ using NetTopologySuite.Geometries;
 
 namespace Microsoft.EntityFrameworkCore.Metadata
 {
-    partial class DataEntityType
+    internal partial class DataEntityType
     {
         public static RuntimeEntityType Create(RuntimeModel model, RuntimeEntityType baseEntityType = null)
         {
@@ -2817,7 +3182,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
                     c)),
                 model =>
                 {
-                    Assert.Single(model.GetEntityTypes());
+                    Assert.Single((IEnumerable)model.GetEntityTypes());
                     var dataEntity = model.FindEntityType(typeof(Data));
 
                     Assert.Equal(typeof(Data).FullName, dataEntity.Name);
@@ -2844,7 +3209,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
                 typeof(SqliteNetTopologySuiteDesignTimeServices));
         }
 
-        public class SqliteContext : DbContext
+        public class SqliteContext : EntityFrameworkCore.DbContext
         {
             protected override void OnConfiguring(DbContextOptionsBuilder options)
                 => options
@@ -2885,23 +3250,18 @@ using Microsoft.EntityFrameworkCore.Scaffolding.Internal;
 namespace TestNamespace
 {
     [DbContext(typeof(CSharpRuntimeModelCodeGeneratorTest.CosmosContext))]
-    partial class CosmosContextModel : RuntimeModel
+    public partial class CosmosContextModel : RuntimeModel
     {
-        private static CosmosContextModel _instance;
-        public static IModel Instance
+        static CosmosContextModel()
         {
-            get
-            {
-                if (_instance == null)
-                {
-                    _instance = new CosmosContextModel();
-                    _instance.Initialize();
-                    _instance.Customize();
-                }
-
-                return _instance;
-            }
+            var model = new CosmosContextModel();
+            model.Initialize();
+            model.Customize();
+            _instance = model;
         }
+
+        private static CosmosContextModel _instance;
+        public static IModel Instance => _instance;
 
         partial void Initialize();
 
@@ -2921,7 +3281,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace TestNamespace
 {
-    partial class CosmosContextModel
+    public partial class CosmosContextModel
     {
         partial void Initialize()
         {
@@ -2949,7 +3309,7 @@ using Newtonsoft.Json.Linq;
 
 namespace TestNamespace
 {
-    partial class DataEntityType
+    internal partial class DataEntityType
     {
         public static RuntimeEntityType Create(RuntimeModel model, RuntimeEntityType baseEntityType = null)
         {
@@ -3028,7 +3388,7 @@ namespace TestNamespace
                     c)),
                 model =>
                 {
-                    Assert.Single(model.GetEntityTypes());
+                    Assert.Single((IEnumerable)model.GetEntityTypes());
                     var dataEntity = model.FindEntityType(typeof(Data));
                     Assert.Equal(typeof(Data).FullName, dataEntity.Name);
                     Assert.False(dataEntity.HasSharedClrType);
@@ -3139,7 +3499,7 @@ namespace TestNamespace
                 });
         }
 
-        public class CosmosContext : DbContext
+        public class CosmosContext : EntityFrameworkCore.DbContext
         {
             protected override void OnConfiguring(DbContextOptionsBuilder options)
                 => options
@@ -3171,7 +3531,7 @@ namespace TestNamespace
             public byte[] Blob { get; set; }
         }
 
-        public abstract class ContextBase : DbContext
+        public abstract class ContextBase : EntityFrameworkCore.DbContext
         {
             protected override void OnModelCreating(ModelBuilder modelBuilder)
             {
@@ -3184,7 +3544,7 @@ namespace TestNamespace
                     .UseInMemoryDatabase(nameof(CSharpRuntimeModelCodeGeneratorTest));
         }
 
-        public abstract class SqlServerContextBase : DbContext
+        public abstract class SqlServerContextBase : EntityFrameworkCore.DbContext
         {
             protected override void OnModelCreating(ModelBuilder modelBuilder)
             {
@@ -3198,7 +3558,7 @@ namespace TestNamespace
         }
 
         protected void Test(
-            DbContext context,
+            EntityFrameworkCore.DbContext context,
             CompiledModelCodeGenerationOptions options,
             Action<IReadOnlyCollection<ScaffoldedFile>> assertScaffold = null,
             Action<IModel> assertModel = null,
@@ -3235,10 +3595,6 @@ namespace TestNamespace
             var scaffoldedFiles = generator.GenerateModel(
                 model,
                 options);
-            if (assertScaffold != null)
-            {
-                assertScaffold(scaffoldedFiles);
-            }
 
             var build = new BuildSource
             {
@@ -3253,14 +3609,21 @@ namespace TestNamespace
                     BuildReference.ByName("Microsoft.EntityFrameworkCore.Sqlite.NetTopologySuite"),
                     BuildReference.ByName("Microsoft.EntityFrameworkCore.SqlServer"),
                     BuildReference.ByName("Microsoft.EntityFrameworkCore.SqlServer.NetTopologySuite"),
+                    BuildReference.ByName("Microsoft.EntityFrameworkCore.Specification.Tests"),
                     BuildReference.ByName("NetTopologySuite"),
                     BuildReference.ByName("Newtonsoft.Json"),
                     BuildReference.ByName(typeof(CSharpRuntimeModelCodeGeneratorTest).Assembly.GetName().Name)
                 },
-                Sources = scaffoldedFiles.ToDictionary(f => f.Path, f => f.Code)
+                Sources = scaffoldedFiles.ToDictionary(f => f.Path, f => f.Code),
+                NullableReferenceTypes = options.UseNullableReferenceTypes
             };
 
             var assembly = build.BuildInMemory();
+
+            if (assertScaffold != null)
+            {
+                assertScaffold(scaffoldedFiles);
+            }
 
             if (assertModel != null)
             {
@@ -3306,6 +3669,40 @@ namespace TestNamespace
         {
             Assert.Equal(expectedPath, file.Path);
             Assert.Equal(expectedCode, file.Code, ignoreLineEndingDifferences: true);
+        }
+    }
+
+    public class Internal
+    {
+        public long Id { get; set; }
+    }
+
+    public class Index
+    {
+        public Guid Id { get; set; }
+    }
+
+    public class IdentityUser : TestModels.AspNetIdentity.IdentityUser
+    {
+
+    }
+}
+
+namespace Microsoft.EntityFrameworkCore.Scaffolding.TestModel.Internal
+{
+    public class DbContext : ContextBase
+    {
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<Scaffolding.Internal.Index>();
+            modelBuilder.Entity<TestModels.AspNetIdentity.IdentityUser>();
+            modelBuilder.Entity<IdentityUser>(eb =>
+            {
+                eb.HasDiscriminator().HasValue("DerivedIdentityUser");
+            });
+            modelBuilder.Entity<Scaffolding.Internal.Internal>();
         }
     }
 }

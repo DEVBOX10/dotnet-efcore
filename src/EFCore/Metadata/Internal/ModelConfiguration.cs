@@ -1,7 +1,9 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Dynamic;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
@@ -16,7 +18,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
     public partial class ModelConfiguration
     {
         private readonly Dictionary<Type, PropertyConfiguration> _properties = new();
-        private readonly Dictionary<Type, PropertyConfiguration> _scalars = new();
+        private readonly Dictionary<Type, PropertyConfiguration> _typeMappings = new();
         private readonly HashSet<Type> _ignoredTypes = new();
         private readonly Dictionary<Type, TypeConfigurationType?> _configurationTypes = new();
 
@@ -37,7 +39,57 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public virtual bool IsEmpty()
-            => _properties.Count == 0 && _ignoredTypes.Count == 0 && _scalars.Count == 0;
+            => _properties.Count == 0 && _ignoredTypes.Count == 0 && _typeMappings.Count == 0;
+
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
+        public virtual ModelConfiguration Validate()
+        {
+            Type? configuredType = null;
+            var stringType = GetConfigurationType(typeof(string), null, ref configuredType);
+            if (stringType != null
+                && stringType != TypeConfigurationType.Property)
+            {
+                throw new InvalidOperationException(
+                    CoreStrings.UnconfigurableType(
+                        typeof(string).DisplayName(fullName: false),
+                        stringType,
+                        TypeConfigurationType.Property,
+                        configuredType!.DisplayName(fullName: false)));
+            }
+
+            configuredType = null;
+            var intType = GetConfigurationType(typeof(int?), null, ref configuredType);
+            if (intType != null
+                && intType != TypeConfigurationType.Property)
+            {
+                throw new InvalidOperationException(
+                    CoreStrings.UnconfigurableType(
+                        typeof(int?).DisplayName(fullName: false),
+                        intType,
+                        TypeConfigurationType.Property,
+                        configuredType!.DisplayName(fullName: false)));
+            }
+
+            configuredType = null;
+            var propertyBagType = GetConfigurationType(Model.DefaultPropertyBagType, null, ref configuredType);
+            if (propertyBagType != null
+                && !propertyBagType.Value.IsEntityType())
+            {
+                throw new InvalidOperationException(
+                    CoreStrings.UnconfigurableType(
+                        Model.DefaultPropertyBagType.DisplayName(fullName: false),
+                        propertyBagType,
+                        TypeConfigurationType.SharedTypeEntityType,
+                        configuredType!.DisplayName(fullName: false)));
+            }
+
+            return this;
+        }
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -66,6 +118,12 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
             }
 
             Type? configuredType = null;
+
+            if (type.IsNullableValueType())
+            {
+                configurationType = GetConfigurationType(
+                    Nullable.GetUnderlyingType(type)!, configurationType, ref configuredType, getBaseTypes: false);
+            }
 
             if (type.IsConstructedGenericType)
             {
@@ -131,8 +189,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public virtual IEnumerable<IScalarTypeConfiguration> GetScalarTypeConfigurations()
-            => _scalars.Values;
+        public virtual IEnumerable<ITypeMappingConfiguration> GetTypeMappingConfigurations()
+            => _typeMappings.Values;
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -140,10 +198,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public virtual IScalarTypeConfiguration? FindScalarTypeConfiguration(Type scalarType)
-            => _scalars.Count == 0
+        public virtual ITypeMappingConfiguration? FindTypeMappingConfiguration(Type scalarType)
+            => _typeMappings.Count == 0
                 ? null
-                : _scalars.GetValueOrDefault(scalarType);
+                : _typeMappings.GetValueOrDefault(scalarType);
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -176,23 +234,6 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
             var property = FindProperty(type);
             if (property == null)
             {
-                if (type == typeof(object)
-                    || type == typeof(ExpandoObject)
-                    || type == typeof(SortedDictionary<string, object>)
-                    || type == typeof(Dictionary<string, object>)
-                    || type == typeof(IDictionary<string, object>)
-                    || type == typeof(IReadOnlyDictionary<string, object>)
-                    || type == typeof(IDictionary)
-                    || type == typeof(ICollection<KeyValuePair<string, object>>)
-                    || type == typeof(IReadOnlyCollection<KeyValuePair<string, object>>)
-                    || type == typeof(ICollection)
-                    || type == typeof(IEnumerable<KeyValuePair<string, object>>)
-                    || type == typeof(IEnumerable))
-                {
-                    throw new InvalidOperationException(
-                        CoreStrings.UnconfigurableType(type.DisplayName(fullName: false), TypeConfigurationType.Property));
-                }
-
                 RemoveIgnored(type);
 
                 property = new PropertyConfiguration(type);
@@ -228,10 +269,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public virtual PropertyConfiguration GetOrAddScalar(Type type)
+        public virtual PropertyConfiguration GetOrAddTypeMapping(Type type)
         {
-            var scalar = FindScalar(type);
-            if (scalar == null)
+            var typeMappingConfiguration = FindTypeMapping(type);
+            if (typeMappingConfiguration == null)
             {
                 if (type == typeof(object)
                     || type == typeof(ExpandoObject)
@@ -241,14 +282,14 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
                     || !type.IsInstantiable())
                 {
                     throw new InvalidOperationException(
-                        CoreStrings.UnconfigurableType(type.DisplayName(fullName: false), "Scalar"));
+                        CoreStrings.UnconfigurableTypeMapping(type.DisplayName(fullName: false)));
                 }
 
-                scalar = new PropertyConfiguration(type);
-                _scalars.Add(type, scalar);
+                typeMappingConfiguration = new PropertyConfiguration(type);
+                _typeMappings.Add(type, typeMappingConfiguration);
             }
 
-            return scalar;
+            return typeMappingConfiguration;
         }
 
         /// <summary>
@@ -257,8 +298,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public virtual PropertyConfiguration? FindScalar(Type type)
-            => _scalars.TryGetValue(type, out var property)
+        public virtual PropertyConfiguration? FindTypeMapping(Type type)
+            => _typeMappings.TryGetValue(type, out var property)
             ? property
             : null;
 
@@ -270,25 +311,6 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         /// </summary>
         public virtual void AddIgnored(Type type)
         {
-            if (type.UnwrapNullableType() == typeof(int)
-                || type == typeof(string)
-                || type == typeof(object)
-                || type == typeof(ExpandoObject)
-                || type == typeof(SortedDictionary<string, object>)
-                || type == typeof(Dictionary<string, object>)
-                || type == typeof(IDictionary<string, object>)
-                || type == typeof(IReadOnlyDictionary<string, object>)
-                || type == typeof(IDictionary)
-                || type == typeof(ICollection<KeyValuePair<string, object>>)
-                || type == typeof(IReadOnlyCollection<KeyValuePair<string, object>>)
-                || type == typeof(ICollection)
-                || type == typeof(IEnumerable<KeyValuePair<string, object>>)
-                || type == typeof(IEnumerable))
-            {
-                throw new InvalidOperationException(
-                    CoreStrings.UnconfigurableType(type.DisplayName(fullName: false), TypeConfigurationType.Ignored));
-            }
-
             RemoveProperty(type);
             _ignoredTypes.Add(type);
         }

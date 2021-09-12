@@ -1,6 +1,8 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore.TestModels.Northwind;
 using Microsoft.EntityFrameworkCore.TestUtilities;
 using Xunit;
@@ -1394,6 +1396,12 @@ WHERE ((c[""Discriminator""] = ""Customer"") AND c[""CustomerID""] IN (""ALFKI""
         public override Task Contains_over_entityType_with_null_should_rewrite_to_false(bool async)
         {
             return base.Contains_over_entityType_with_null_should_rewrite_to_false(async);
+        }
+
+        [ConditionalTheory(Skip = "Issue#17246 (Contains over subquery is not supported)")]
+        public override Task Contains_over_entityType_with_null_in_projection(bool async)
+        {
+            return base.Contains_over_entityType_with_null_in_projection(async);
         }
 
         public override async Task String_FirstOrDefault_in_projection_does_not_do_client_eval(bool async)

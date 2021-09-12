@@ -1,7 +1,9 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
@@ -261,7 +263,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
         public override CoreTypeMapping? FindMapping(Type type, IModel model)
         {
             type = type.UnwrapNullableType();
-            var typeConfiguration = model.FindScalarTypeConfiguration(type);
+            var typeConfiguration = model.FindTypeMappingConfiguration(type);
             RelationalTypeMappingInfo mappingInfo;
             Type? providerClrType = null;
             ValueConverter? customConverter = null;
@@ -283,7 +285,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
                 string? storeTypeBaseName = null;
                 if (storeTypeName != null)
                 {
-                   storeTypeBaseName = ParseStoreTypeName(
+                    storeTypeBaseName = ParseStoreTypeName(
                         storeTypeName, out var parsedUnicode, out var parsedSize, out var parsedPrecision, out var parsedScale);
 
                     if (size == null)
@@ -341,6 +343,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// <returns> The type mapping, or <see langword="null" /> if none was found. </returns>
         public override CoreTypeMapping? FindMapping(MemberInfo member)
         {
+            // TODO: Remove this, see #11124
             if (member.GetCustomAttribute<ColumnAttribute>(true) is ColumnAttribute attribute)
             {
                 var storeTypeName = attribute.TypeName;

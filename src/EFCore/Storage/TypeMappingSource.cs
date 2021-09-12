@@ -1,7 +1,9 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -25,6 +27,10 @@ namespace Microsoft.EntityFrameworkCore.Storage
     ///         This service cannot depend on services registered as <see cref="ServiceLifetime.Scoped" />.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     for more information.
+    /// </remarks>
     public abstract class TypeMappingSource : TypeMappingSourceBase
     {
         private readonly ConcurrentDictionary<(TypeMappingInfo, Type?, ValueConverter?), CoreTypeMapping?> _explicitMappings = new();
@@ -183,7 +189,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
         public override CoreTypeMapping? FindMapping(Type type, IModel model)
         {
             type = type.UnwrapNullableType();
-            var typeConfiguration = model.FindScalarTypeConfiguration(type);
+            var typeConfiguration = model.FindTypeMappingConfiguration(type);
             TypeMappingInfo mappingInfo;
             Type? providerClrType = null;
             ValueConverter? customConverter = null;

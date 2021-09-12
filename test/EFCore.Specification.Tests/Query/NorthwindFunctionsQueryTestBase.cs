@@ -1,8 +1,12 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore.TestModels.Northwind;
 using Microsoft.EntityFrameworkCore.TestUtilities;
 using Xunit;
@@ -1073,7 +1077,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                     .Where(od => MathF.Ceiling(od.Discount) > 0),
                 entryCount: 51);
         }
-        
+
         [ConditionalTheory]
         [MemberData(nameof(IsAsyncData))]
         public virtual Task Where_mathf_floor(bool async)
@@ -1257,7 +1261,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                 ss => ss.Set<OrderDetail>().Where(od => od.OrderID == 11077).Where(od => MathF.Sign(od.Discount) > 0),
                 entryCount: 13);
         }
-        
+
         [ConditionalTheory]
         [MemberData(nameof(IsAsyncData))]
         public virtual Task Where_guid_newguid(bool async)
@@ -1888,6 +1892,17 @@ namespace Microsoft.EntityFrameworkCore.Query
                 async,
                 ss => ss.Set<Customer>().Where(o => Regex.IsMatch("ALFKI", o.CustomerID)),
                 entryCount: 1);
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Datetime_subtraction_TotalDays(bool async)
+        {
+            var date = new DateTime(1997, 1, 1);
+            return AssertQuery(
+                async,
+                ss => ss.Set<Order>().Where(o => o.OrderDate.HasValue && (o.OrderDate.Value - date).TotalDays > 365),
+                entryCount: 267);
         }
     }
 }

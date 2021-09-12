@@ -9,6 +9,9 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
     ///     An interface implemented by any <see cref="EventData" /> subclass that represents an
     ///     error event with an <see cref="Exception" />.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-diagnostics">Logging, events, and diagnostics</see> for more information.
+    /// </remarks>
     public interface IErrorEventData
     {
         /// <summary>

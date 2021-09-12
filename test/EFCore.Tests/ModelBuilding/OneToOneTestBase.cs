@@ -2572,6 +2572,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 Assert.Equal(navigationToPrincipal.Name, fk.PrincipalToDependent.Name);
                 Assert.Equal(navigationToDependent?.Name, fk.DependentToPrincipal?.Name);
                 Assert.True(fk.IsRequired);
+                Assert.False(fk.IsRequiredDependent);
 
                 Assert.Equal(fk.DeclaringEntityType.GetForeignKeys().Count(), fk.DeclaringEntityType.GetIndexes().Count());
                 Assert.True(fk.DeclaringEntityType.FindIndex(fk.Properties).IsUnique);
@@ -2634,6 +2635,8 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 var entityType = modelBuilder.Model.FindEntityType(typeof(SelfRef));
                 var fk = entityType.GetForeignKeys().Single();
                 Assert.Equal("SelfRef1Id", fk.Properties.Single().Name);
+                Assert.True(fk.IsRequired);
+                Assert.False(fk.IsRequiredDependent);
                 Assert.Equal(fk.PrincipalKey, entityType.FindPrimaryKey());
                 Assert.Equal(nameof(SelfRef.SelfRef2), fk.PrincipalToDependent?.Name);
                 Assert.Equal(nameof(SelfRef.SelfRef1), fk.DependentToPrincipal?.Name);
@@ -4105,6 +4108,21 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 Assert.Equal(
                     CoreStrings.NonConfiguredNavigationToSharedType("Navigation", nameof(ReferenceNavigationToSharedType)),
                     Assert.Throws<InvalidOperationException>(() => modelBuilder.FinalizeModel()).Message);
+            }
+
+            [ConditionalFact]
+            public virtual void Inverse_discovered_after_entity_unignored()
+            {
+                var modelBuilder = CreateModelBuilder();
+
+                modelBuilder.Ignore<Value>();
+                modelBuilder.Entity<QueryResult>();
+                modelBuilder.Entity<Value>();
+
+                var model = modelBuilder.FinalizeModel();
+
+                var queryResult = model.FindEntityType(typeof(QueryResult));
+                Assert.NotNull(queryResult.FindNavigation(nameof(QueryResult.Value)));
             }
         }
     }

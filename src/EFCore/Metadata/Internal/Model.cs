@@ -1,9 +1,12 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -261,12 +264,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public virtual EntityType? FindEntityType(string name)
-        {
-            Check.DebugAssert(!string.IsNullOrEmpty(name), "name is null or empty");
-            return _entityTypes.TryGetValue(name, out var entityType)
+            => !string.IsNullOrEmpty(name) && _entityTypes.TryGetValue(name, out var entityType)
                 ? entityType
                 : null;
-        }
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -653,8 +653,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public virtual IEnumerable<IScalarTypeConfiguration> GetScalarTypeConfigurations()
-            => Configuration?.GetScalarTypeConfigurations() ?? Enumerable.Empty<IScalarTypeConfiguration>();
+        public virtual IEnumerable<ITypeMappingConfiguration> GetTypeMappingConfigurations()
+            => Configuration?.GetTypeMappingConfigurations() ?? Enumerable.Empty<ITypeMappingConfiguration>();
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -662,8 +662,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public virtual IScalarTypeConfiguration? FindScalarTypeConfiguration(Type propertyType)
-            => Configuration?.FindScalarTypeConfiguration(propertyType);
+        public virtual ITypeMappingConfiguration? FindTypeMappingConfiguration(Type propertyType)
+            => Configuration?.FindTypeMappingConfiguration(propertyType);
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to

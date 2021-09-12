@@ -24,6 +24,9 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking
     ///         not designed to be directly constructed in your application code.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-entity-entries">Accessing tracked entities in EF Core</see> for more information.
+    /// </remarks>
     public abstract class MemberEntry : IInfrastructure<InternalEntityEntry>
     {
         /// <summary>
@@ -64,6 +67,9 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking
         ///         be updated in the database  when <see cref="DbContext.SaveChanges()" /> is called.
         ///     </para>
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-entity-entries">Accessing tracked entities in EF Core</see> for more information.
+        /// </remarks>
         public abstract bool IsModified { get; set; }
 
         /// <summary>
@@ -76,6 +82,9 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking
         ///     the change tracker is aware of the change and <see cref="ChangeTracker.DetectChanges" /> is not required
         ///     for the context to detect the change.
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-entity-entries">Accessing tracked entities in EF Core</see> for more information.
+        /// </remarks>
         public virtual object? CurrentValue
         {
             get => InternalEntry[Metadata];
@@ -85,6 +94,9 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking
         /// <summary>
         ///     The <see cref="EntityEntry" /> to which this member belongs.
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-entity-entries">Accessing tracked entities in EF Core</see> for more information.
+        /// </remarks>
         /// <value> An entry for the entity that owns this member. </value>
         public virtual EntityEntry EntityEntry
             => new(InternalEntry);

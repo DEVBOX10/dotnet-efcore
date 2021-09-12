@@ -1,9 +1,12 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Dynamic;
+using System.Linq;
 using System.Text;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -416,14 +419,14 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
             [ConditionalFact]
             public virtual void Int32_cannot_be_ignored()
             {
-                Assert.Equal(CoreStrings.UnconfigurableType("int", "Ignored"),
+                Assert.Equal(CoreStrings.UnconfigurableType("int?", "Ignored", "Property", "int"),
                     Assert.Throws<InvalidOperationException>(() => CreateModelBuilder(c => c.IgnoreAny<int>())).Message);
             }
 
             [ConditionalFact]
             public virtual void Object_cannot_be_ignored()
             {
-                Assert.Equal(CoreStrings.UnconfigurableType("object", "Ignored"),
+                Assert.Equal(CoreStrings.UnconfigurableType("string", "Ignored", "Property", "object"),
                     Assert.Throws<InvalidOperationException>(() => CreateModelBuilder(c => c.IgnoreAny<object>())).Message);
             }
 
@@ -977,6 +980,27 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
             }
 
             [ConditionalFact]
+            public virtual void Value_converter_configured_on_non_nullable_type_is_applied()
+            {
+                var modelBuilder = CreateModelBuilder(c =>
+                {
+                    c.Properties<int>().HaveConversion<NumberToStringConverter<int>>();
+                });
+
+                modelBuilder.Entity<Quarks>(
+                    b =>
+                    {
+                        b.Property<int?>("Wierd");
+                    });
+
+                var model = modelBuilder.FinalizeModel();
+                var entityType = model.FindEntityType(typeof(Quarks));
+
+                Assert.IsType<NumberToStringConverter<int>>(entityType.FindProperty("Id").GetValueConverter());
+                Assert.IsType<NumberToStringConverter<int>>(entityType.FindProperty("Wierd").GetValueConverter());
+            }
+
+            [ConditionalFact]
             public virtual void Value_converter_configured_on_base_type_is_not_applied()
             {
                 var modelBuilder = CreateModelBuilder(c =>
@@ -1407,17 +1431,17 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
             [ConditionalFact]
             public virtual void Object_cannot_be_configured_as_property()
             {
-                Assert.Equal(CoreStrings.UnconfigurableType("object", "Property"),
+                Assert.Equal(CoreStrings.UnconfigurableType("Dictionary<string, object>", "Property", "SharedTypeEntityType", "object"),
                     Assert.Throws<InvalidOperationException>(() => CreateModelBuilder(c => c.Properties<object>())).Message);
             }
 
             [ConditionalFact]
             public virtual void Property_bag_cannot_be_configured_as_property()
             {
-                Assert.Equal(CoreStrings.UnconfigurableType("Dictionary<string, object>", "Property"),
+                Assert.Equal(CoreStrings.UnconfigurableType("Dictionary<string, object>", "Property", "SharedTypeEntityType", "Dictionary<string, object>"),
                     Assert.Throws<InvalidOperationException>(() => CreateModelBuilder(c => c.Properties<Dictionary<string, object>>())).Message);
 
-                Assert.Equal(CoreStrings.UnconfigurableType("IDictionary<string, object>", "Property"),
+                Assert.Equal(CoreStrings.UnconfigurableType("Dictionary<string, object>", "Property", "SharedTypeEntityType", "IDictionary<string, object>"),
                     Assert.Throws<InvalidOperationException>(() => CreateModelBuilder(c => c.Properties<IDictionary<string, object>>())).Message);
             }
 
@@ -1515,6 +1539,24 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 public int Id { get; set; }
 
                 public int[,,] Three { get; set; }
+            }
+
+            [ConditionalFact]
+            protected virtual void Throws_for_int_keyed_dictionary()
+            {
+                var modelBuilder = CreateModelBuilder();
+
+                modelBuilder.Entity<IntDict>();
+
+                Assert.Equal(
+                    CoreStrings.EntityRequiresKey(typeof(Dictionary<int, string>).ShortDisplayName()),
+                    Assert.Throws<InvalidOperationException>(() => modelBuilder.FinalizeModel()).Message);
+            }
+
+            protected class IntDict
+            {
+                public int Id { get; set; }
+                public Dictionary<int, string> Notes { get; set; }
             }
 
             [ConditionalFact]
@@ -1890,7 +1932,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                     c =>
                     {
                         c.HasData(
-                            new Beta { Id = -1 });
+                            new Beta { Id = -1, Name = " -1" });
                         var customers = new List<Beta> { new() { Id = -2 } };
                         c.HasData(customers);
                     });
@@ -1901,6 +1943,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 var data = customer.GetSeedData();
                 Assert.Equal(2, data.Count());
                 Assert.Equal(-1, data.First()[nameof(Beta.Id)]);
+                Assert.Equal(" -1", data.First()[nameof(Beta.Name)]);
                 Assert.Equal(-2, data.Last()[nameof(Beta.Id)]);
 
                 var _ = finalModel.ToDebugString();
@@ -2068,6 +2111,9 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 modelBuilder.SharedTypeEntity<Dictionary<string, object>>("Shared1", b =>
                 {
                     b.IndexerProperty<int>("Key");
+                    b.Property<int>("Keys");
+                    b.Property<byte[]>("Values");
+                    b.Property<string>("Count");
                     b.HasKey("Key");
                 });
 
@@ -2084,6 +2130,9 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 Assert.NotNull(shared1);
                 Assert.True(shared1.HasSharedClrType);
                 Assert.Null(shared1.FindProperty("Id"));
+                Assert.Equal(typeof(int), shared1.FindProperty("Keys").ClrType);
+                Assert.Equal(typeof(byte[]), shared1.FindProperty("Values").ClrType);
+                Assert.Equal(typeof(string), shared1.FindProperty("Count").ClrType);
 
                 var shared2 = model.FindEntityType("Shared2");
                 Assert.NotNull(shared2);

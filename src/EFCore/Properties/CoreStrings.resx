@@ -619,7 +619,7 @@
     <comment>Obsolete</comment>
   </data>
   <data name="InvalidPropertyListOnNavigation" xml:space="preserve">
-    <value>The property list specified using [ForeignKey] attribute on navigation '{1_entityType}.{0_navigation}' is incorrect. Provide a comma-separated list of property names.</value>
+    <value>The property list specified using [ForeignKey("{2_properties}")] attribute on navigation '{1_entityType}.{0_navigation}' is incorrect. Provide a comma-separated list of property names.</value>
   </data>
   <data name="InvalidRelationshipUsingDataAnnotations" xml:space="preserve">
     <value>An invalid relationship has been specified using the [InverseProperty] and [ForeignKey] attributes. The navigations '{1_entityType}.{0_navigation}' and '{3_referencedEntityType}.{2_referencedNavigation}' are related by the [InverseProperty] attribute, but the [ForeignKey] attributes specified for both navigations have different values. Either specify the same properties or remove one of the attributes.</value>
@@ -759,7 +759,7 @@
     <comment>Information CoreEventId.ContextInitialized string string string? string? string</comment>
   </data>
   <data name="LogDetachedLazyLoading" xml:space="preserve">
-    <value>An attempt was made to lazy-load navigation '{navigation}' on a detached entity of type '{entityType}'. Lazy-loading is not supported for detached entities or entities that are loaded with 'AsNoTracking'.</value>
+    <value>An attempt was made to lazy-load navigation '{navigation}' on a detached entity of type '{entityType}'. Lazy loading is not supported for detached entities or entities that are loaded with 'AsNoTracking'.</value>
     <comment>Warning CoreEventId.DetachedLazyLoadingWarning string string</comment>
   </data>
   <data name="LogDetectChangesCompleted" xml:space="preserve">
@@ -972,7 +972,7 @@
   </data>
   <data name="LogShadowForeignKeyPropertyCreated" xml:space="preserve">
     <value>The foreign key property '{entityType}.{property}' was created in shadow state because a conflicting property with the simple name '{baseName}' exists in the entity type, but is either not mapped, is already used for another relationship, or is incompatible with the associated primary key type. See https://aka.ms/efcore-relationships for information on mapping relationships in EF Core.</value>
-    <comment>Warning CoreEventId.ShadowForeignKeyPropertyCreated string string</comment>
+    <comment>Warning CoreEventId.ShadowForeignKeyPropertyCreated string string string</comment>
   </data>
   <data name="LogShadowPropertyCreated" xml:space="preserve">
     <value>The property '{entityType}.{property}' was created in shadow state because there are no eligible CLR members with a matching name.</value>
@@ -1163,7 +1163,7 @@
     <value>Cannot add indexer property '{property}' since there is no indexer on '{entityType}' taking a single argument of type assignable from '{type}'.</value>
   </data>
   <data name="NonNotifyingCollection" xml:space="preserve">
-    <value>The collection type being used for navigation '{1_entityType}.{0_navigation}' does not implement 'INotifyCollectionChanged'. Any entity type configured to use the '{changeTrackingStrategy}' change tracking strategy must use collections that implement 'INotifyCollectionChanged'. Consider using 'ObservableCollection&lt;T&gt;' for this.</value>
+    <value>The collection type '{2_collectionType}' being used for navigation '{1_entityType}.{0_navigation}' does not implement 'INotifyCollectionChanged'. Any entity type configured to use the '{changeTrackingStrategy}' change tracking strategy must use collections that implement 'INotifyCollectionChanged'. Consider using 'ObservableCollection&lt;T&gt;' for this.</value>
   </data>
   <data name="NonShadowBaseType" xml:space="preserve">
     <value>The entity type '{entityType}' cannot inherit from '{baseEntityType}' because '{entityType}' is a shadow state entity type while '{baseEntityType}' is not.</value>
@@ -1195,6 +1195,9 @@
   </data>
   <data name="NotAnEFService" xml:space="preserve">
     <value>The database provider attempted to register an implementation of the '{service}' service. This is not a service defined by Entity Framework and as such must be registered as a provider-specific service using the 'TryAddProviderSpecificServices' method.</value>
+  </data>
+  <data name="NotAProviderService" xml:space="preserve">
+    <value>The database provider attempted to register an implementation of the '{service}' service. This is a service defined by Entity Framework and as such must not be registered using the 'TryAddProviderSpecificServices' method.</value>
   </data>
   <data name="NotAssignableClrBaseType" xml:space="preserve">
     <value>The entity type '{entityType}' cannot inherit from '{baseEntityType}' because '{clrType}' is not a descendant of '{baseClrType}'.</value>
@@ -1309,6 +1312,12 @@
   </data>
   <data name="QueryInvalidMaterializationType" xml:space="preserve">
     <value>The query contains a projection '{projection}' of type '{queryableType}'. Collections in the final projection must be an 'IEnumerable&lt;T&gt;' type such as 'List&lt;T&gt;'. Consider using 'ToList' or some other mechanism to convert the 'IQueryable&lt;T&gt;' or 'IOrderedEnumerable&lt;T&gt;' into an 'IEnumerable&lt;T&gt;'.</value>
+  </data>
+  <data name="QueryRootDifferentEntityType" xml:space="preserve">
+    <value>The replacement entity type: {entityType} does not have same name and CLR type as entity type this query root represents.</value>
+  </data>
+  <data name="QuerySelectContainsGrouping" xml:space="preserve">
+    <value>Translation of 'Select' which contains grouping parameter without composition is not supported.</value>
   </data>
   <data name="QueryUnableToTranslateEFProperty" xml:space="preserve">
     <value>Translation of '{expression}' failed. Either the query source is not an entity type, or the specified property does not exist on the entity type.</value>
@@ -1498,7 +1507,10 @@
     <value>Unable to set 'IsUnique' to '{isUnique}' on the relationship associated with the navigation '{2_entityType}.{1_navigationName}' because the navigation has the opposite multiplicity.</value>
   </data>
   <data name="UnconfigurableType" xml:space="preserve">
-    <value>The type '{type}' cannot be configured as '{configuration}'. The current model building logic is unable to honor this configuration.</value>
+    <value>The type '{type}' cannot be configured as '{configuration}' since model building assumes that it is configured as '{expectedConfiguration}'. Remove the unsupported configuration for '{configurationType}'.</value>
+  </data>
+  <data name="UnconfigurableTypeMapping" xml:space="preserve">
+    <value>Default type mapping cannot be configured for the type '{type}' since it's not a valid scalar type. Remove the unsupported configuration.</value>
   </data>
   <data name="UnhandledExpressionNode" xml:space="preserve">
     <value>Unhandled expression node type '{nodeType}'.</value>
@@ -1514,6 +1526,9 @@
   </data>
   <data name="UnknownKeyValue" xml:space="preserve">
     <value>The value of '{entityType}.{property}' is unknown when attempting to save changes. This is because the property is also part of a foreign key for which the principal entity in the relationship is not known.</value>
+  </data>
+  <data name="UnknownShadowKeyValue" xml:space="preserve">
+    <value>The value of shadow key property '{entityType}.{property}' is unknown when attempting to save changes. This is because shadow property values cannot be preserved when the entity is not being tracked. Consider adding the property to the entity's .NET type. See https://aka.ms/efcore-docs-owned-collections for more information.</value>
   </data>
   <data name="UnnamedIndexDefinedOnIgnoredProperty" xml:space="preserve">
     <value>The unnamed index specified via [Index] attribute on the entity type '{entityType}' with properties {indexProperties} is invalid. The property '{propertyName}' was marked as unmapped by [NotMapped] attribute or 'Ignore()' in 'OnModelCreating'. An index cannot use unmapped properties.</value>

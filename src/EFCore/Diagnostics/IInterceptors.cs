@@ -21,6 +21,9 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
     ///         The implementation does not need to be thread-safe.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-interceptors">EF Core interceptors</see> for more information.
+    /// </remarks>
     public interface IInterceptors
     {
         /// <summary>

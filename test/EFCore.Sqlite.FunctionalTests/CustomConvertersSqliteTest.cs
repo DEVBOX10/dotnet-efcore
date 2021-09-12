@@ -27,7 +27,7 @@ namespace Microsoft.EntityFrameworkCore
             base.Value_conversion_is_appropriately_used_for_join_condition();
 
             AssertSql(
-                @"@__blogId_0='1' (DbType = String)
+                @"@__blogId_0='1'
 
 SELECT ""b"".""Url""
 FROM ""Blog"" AS ""b""
@@ -41,7 +41,7 @@ WHERE ""b"".""IsVisible"" = 'Y'");
             base.Value_conversion_is_appropriately_used_for_left_join_condition();
 
             AssertSql(
-                @"@__blogId_0='1' (DbType = String)
+                @"@__blogId_0='1'
 
 SELECT ""b"".""Url""
 FROM ""Blog"" AS ""b""
@@ -119,7 +119,7 @@ WHERE ""b"".""IndexerVisible"" = 'Nay'");
         public override void Value_conversion_on_enum_collection_contains()
         {
             Assert.Contains(
-                CoreStrings.TranslationFailed("").Substring(47),
+                CoreStrings.TranslationFailed("")[47..],
                 Assert.Throws<InvalidOperationException>(() => base.Value_conversion_on_enum_collection_contains()).Message);
         }
 

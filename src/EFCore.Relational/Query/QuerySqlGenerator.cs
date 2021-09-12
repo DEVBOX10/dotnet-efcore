@@ -115,10 +115,9 @@ namespace Microsoft.EntityFrameworkCore.Query
             {
                 foreach (var tag in selectExpression.Tags)
                 {
-                    _relationalCommandBuilder
-                        .AppendLines(_sqlGenerationHelper.GenerateComment(tag))
-                        .AppendLine();
+                    _relationalCommandBuilder.AppendLines(_sqlGenerationHelper.GenerateComment(tag));
                 }
+                _relationalCommandBuilder.AppendLine();
             }
         }
 
@@ -556,7 +555,12 @@ namespace Microsoft.EntityFrameworkCore.Query
         }
 
         private static bool RequiresBrackets(SqlExpression expression)
-            => expression is SqlBinaryExpression || expression is LikeExpression;
+            => expression is SqlBinaryExpression
+                || expression is LikeExpression
+                || (expression is SqlUnaryExpression unary
+                    && unary.Operand.Type == typeof(bool)
+                    && (unary.OperatorType == ExpressionType.Equal
+                        || unary.OperatorType == ExpressionType.NotEqual));
 
         /// <inheritdoc />
         protected override Expression VisitSqlConstant(SqlConstantExpression sqlConstantExpression)

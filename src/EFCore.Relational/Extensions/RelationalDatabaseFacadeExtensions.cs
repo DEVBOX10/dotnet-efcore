@@ -131,7 +131,7 @@ namespace Microsoft.EntityFrameworkCore
         ///     </para>
         ///     <code>
         ///         var userSuppliedSearchTerm = ".NET";
-        ///         context.Database.ExecuteSqlRaw("UPDATE [dbo].[SearchBlogs] SET [Rank] = 50 WHERE [Name] = {0}", userSuppliedSearchTerm);
+        ///         context.Database.ExecuteSqlRaw("UPDATE Blogs SET Rank = 50 WHERE Name = {0}", userSuppliedSearchTerm);
         ///     </code>
         ///     <para>
         ///         However, <b>never</b> pass a concatenated or interpolated string (<c>$""</c>) with non-validated user-provided values
@@ -170,7 +170,7 @@ namespace Microsoft.EntityFrameworkCore
         ///     </para>
         ///     <code>
         ///         var userSuppliedSearchTerm = ".NET";
-        ///         context.Database.ExecuteSqlInterpolated($"UPDATE [dbo].[SearchBlogs] SET [Rank] = 50 WHERE [Name] = {userSuppliedSearchTerm})");
+        ///         context.Database.ExecuteSqlInterpolated($"UPDATE Blogs SET Rank = 50 WHERE Name = {userSuppliedSearchTerm})");
         ///     </code>
         /// </summary>
         /// <param name="databaseFacade"> The <see cref="DatabaseFacade" /> for the context. </param>
@@ -202,7 +202,7 @@ namespace Microsoft.EntityFrameworkCore
         ///     </para>
         ///     <code>
         ///         var userSuppliedSearchTerm = ".NET";
-        ///         context.Database.ExecuteSqlRaw("UPDATE [dbo].[SearchBlogs] SET [Rank] = 50 WHERE [Name] = {0}", userSuppliedSearchTerm);
+        ///         context.Database.ExecuteSqlRaw("UPDATE Blogs SET Rank = 50 WHERE Name = {0}", userSuppliedSearchTerm);
         ///     </code>
         ///     <para>
         ///         However, <b>never</b> pass a concatenated or interpolated string (<c>$""</c>) with non-validated user-provided values
@@ -273,7 +273,7 @@ namespace Microsoft.EntityFrameworkCore
         ///     </para>
         ///     <code>
         ///         var userSuppliedSearchTerm = ".NET";
-        ///         context.Database.ExecuteSqlInterpolatedAsync($"UPDATE [dbo].[SearchBlogs] SET [Rank] = 50 WHERE [Name] = {userSuppliedSearchTerm})");
+        ///         context.Database.ExecuteSqlInterpolatedAsync($"UPDATE Blogs SET Rank = 50 WHERE Name = {userSuppliedSearchTerm})");
         ///     </code>
         /// </summary>
         /// <param name="databaseFacade"> The <see cref="DatabaseFacade" /> for the context. </param>
@@ -305,7 +305,7 @@ namespace Microsoft.EntityFrameworkCore
         ///     </para>
         ///     <code>
         ///         var userSuppliedSearchTerm = ".NET";
-        ///         context.Database.ExecuteSqlRawAsync("UPDATE [dbo].[SearchBlogs] SET [Rank] = 50 WHERE [Name] = {0}", userSuppliedSearchTerm);
+        ///         context.Database.ExecuteSqlRawAsync("UPDATE Blogs SET Rank = 50 WHERE Name = {0}", userSuppliedSearchTerm);
         ///     </code>
         ///     <para>
         ///         <b>Never</b> pass a concatenated or interpolated string (<c>$""</c>) with non-validated user-provided values
@@ -346,7 +346,7 @@ namespace Microsoft.EntityFrameworkCore
         ///     </para>
         ///     <code>
         ///         var userSuppliedSearchTerm = ".NET";
-        ///         context.Database.ExecuteSqlRawAsync("UPDATE [dbo].[SearchBlogs] SET [Rank] = 50 WHERE [Name] = {0}", userSuppliedSearchTerm);
+        ///         context.Database.ExecuteSqlRawAsync("UPDATE Blogs SET Rank = 50 WHERE Name = {0}", userSuppliedSearchTerm);
         ///     </code>
         ///     <para>
         ///         However, <b>never</b> pass a concatenated or interpolated string (<c>$""</c>) with non-validated user-provided values
@@ -387,7 +387,7 @@ namespace Microsoft.EntityFrameworkCore
         ///     </para>
         ///     <code>
         ///         var userSuppliedSearchTerm = ".NET";
-        ///         context.Database.ExecuteSqlRawAsync("UPDATE [dbo].[SearchBlogs] SET [Rank] = 50 WHERE [Name] = {0}", userSuppliedSearchTerm);
+        ///         context.Database.ExecuteSqlRawAsync("UPDATE Blogs SET Rank = 50 WHERE Name = {0}", userSuppliedSearchTerm);
         ///     </code>
         ///     <para>
         ///         However, <b>never</b> pass a concatenated or interpolated string (<c>$""</c>) with non-validated user-provided values
@@ -502,9 +502,8 @@ namespace Microsoft.EntityFrameworkCore
         /// </summary>
         /// <param name="databaseFacade"> The <see cref="DatabaseFacade" /> for the context. </param>
         public static void OpenConnection(this DatabaseFacade databaseFacade)
-            => databaseFacade.CreateExecutionStrategy().Execute(
-                databaseFacade, database
-                    => GetFacadeDependencies(database).RelationalConnection.Open());
+            => ((IDatabaseFacadeDependenciesAccessor)databaseFacade).Dependencies.ExecutionStrategy
+                .Execute(databaseFacade, database => GetFacadeDependencies(database).RelationalConnection.Open(), null);
 
         /// <summary>
         ///     Opens the underlying <see cref="DbConnection" />.
@@ -516,9 +515,8 @@ namespace Microsoft.EntityFrameworkCore
         public static Task OpenConnectionAsync(
             this DatabaseFacade databaseFacade,
             CancellationToken cancellationToken = default)
-            => databaseFacade.CreateExecutionStrategy().ExecuteAsync(
-                databaseFacade, (database, ct) =>
-                    GetFacadeDependencies(database).RelationalConnection.OpenAsync(ct), cancellationToken);
+            => ((IDatabaseFacadeDependenciesAccessor)databaseFacade).Dependencies.ExecutionStrategy
+                .ExecuteAsync(databaseFacade, (database, ct) => GetFacadeDependencies(database).RelationalConnection.OpenAsync(ct), null, cancellationToken);
 
         /// <summary>
         ///     Closes the underlying <see cref="DbConnection" />.
@@ -542,7 +540,7 @@ namespace Microsoft.EntityFrameworkCore
         /// <param name="isolationLevel"> The <see cref="IsolationLevel" /> to use. </param>
         /// <returns> A <see cref="IDbContextTransaction" /> that represents the started transaction. </returns>
         public static IDbContextTransaction BeginTransaction(this DatabaseFacade databaseFacade, IsolationLevel isolationLevel)
-            => databaseFacade.CreateExecutionStrategy().Execute(
+            => ((IDatabaseFacadeDependenciesAccessor)databaseFacade).Dependencies.ExecutionStrategy.Execute(
                 databaseFacade, database =>
                 {
                     var transactionManager = database.GetTransactionManager();
@@ -550,7 +548,8 @@ namespace Microsoft.EntityFrameworkCore
                     return transactionManager is IRelationalTransactionManager relationalTransactionManager
                         ? relationalTransactionManager.BeginTransaction(isolationLevel)
                         : transactionManager.BeginTransaction();
-                });
+                },
+                null);
 
         /// <summary>
         ///     Asynchronously starts a new transaction with a given <see cref="IsolationLevel" />.
@@ -567,7 +566,7 @@ namespace Microsoft.EntityFrameworkCore
             this DatabaseFacade databaseFacade,
             IsolationLevel isolationLevel,
             CancellationToken cancellationToken = default)
-            => databaseFacade.CreateExecutionStrategy().ExecuteAsync(
+            => ((IDatabaseFacadeDependenciesAccessor)databaseFacade).Dependencies.ExecutionStrategy.ExecuteAsync(
                 databaseFacade, (database, ct) =>
                 {
                     var transactionManager = database.GetTransactionManager();
@@ -575,7 +574,7 @@ namespace Microsoft.EntityFrameworkCore
                     return transactionManager is IRelationalTransactionManager relationalTransactionManager
                         ? relationalTransactionManager.BeginTransactionAsync(isolationLevel, ct)
                         : transactionManager.BeginTransactionAsync(ct);
-                }, cancellationToken);
+                }, null, cancellationToken);
 
         /// <summary>
         ///     Sets the <see cref="DbTransaction" /> to be used by database operations on the <see cref="DbContext" />.
@@ -599,16 +598,9 @@ namespace Microsoft.EntityFrameworkCore
             this DatabaseFacade databaseFacade,
             DbTransaction? transaction,
             Guid transactionId)
-        {
-            var transactionManager = GetTransactionManager(databaseFacade);
-
-            if (!(transactionManager is IRelationalTransactionManager relationalTransactionManager))
-            {
-                throw new InvalidOperationException(RelationalStrings.RelationalNotInUse);
-            }
-
-            return relationalTransactionManager.UseTransaction(transaction, transactionId);
-        }
+            => GetTransactionManager(databaseFacade) is IRelationalTransactionManager relationalTransactionManager
+                ? relationalTransactionManager.UseTransaction(transaction, transactionId)
+                : throw new InvalidOperationException(RelationalStrings.RelationalNotInUse);
 
         /// <summary>
         ///     Sets the <see cref="DbTransaction" /> to be used by database operations on the <see cref="DbContext" />.
@@ -638,16 +630,9 @@ namespace Microsoft.EntityFrameworkCore
             DbTransaction? transaction,
             Guid transactionId,
             CancellationToken cancellationToken = default)
-        {
-            var transactionManager = GetTransactionManager(databaseFacade);
-
-            if (!(transactionManager is IRelationalTransactionManager relationalTransactionManager))
-            {
-                throw new InvalidOperationException(RelationalStrings.RelationalNotInUse);
-            }
-
-            return relationalTransactionManager.UseTransactionAsync(transaction, transactionId, cancellationToken);
-        }
+            => GetTransactionManager(databaseFacade) is IRelationalTransactionManager relationalTransactionManager
+                ? relationalTransactionManager.UseTransactionAsync(transaction, transactionId, cancellationToken)
+                : throw new InvalidOperationException(RelationalStrings.RelationalNotInUse);
 
         /// <summary>
         ///     <para>

@@ -9,7 +9,7 @@ using Xunit.Abstractions;
 
 namespace Microsoft.EntityFrameworkCore.Query
 {
-    public class ComplexNavigationsSharedTypeQuerySqliteTest : ComplexNavigationsSharedQueryTypeRelationalTestBase<
+    public class ComplexNavigationsSharedTypeQuerySqliteTest : ComplexNavigationsSharedTypeQueryRelationalTestBase<
         ComplexNavigationsSharedTypeQuerySqliteFixture>
     {
         public ComplexNavigationsSharedTypeQuerySqliteTest(ComplexNavigationsSharedTypeQuerySqliteFixture fixture, ITestOutputHelper testOutputHelper)
@@ -22,5 +22,11 @@ namespace Microsoft.EntityFrameworkCore.Query
                 SqliteStrings.ApplyNotSupported,
                 (await Assert.ThrowsAsync<InvalidOperationException>(
                     () => base.Let_let_contains_from_outer_let(async))).Message);
+
+        public override async Task Prune_does_not_throw_null_ref(bool async)
+            => Assert.Equal(
+                SqliteStrings.ApplyNotSupported,
+                (await Assert.ThrowsAsync<InvalidOperationException>(
+                    () => base.Prune_does_not_throw_null_ref(async))).Message);
     }
 }

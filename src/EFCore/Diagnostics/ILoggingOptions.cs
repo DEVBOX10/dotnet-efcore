@@ -18,6 +18,9 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
     ///         This service cannot depend on services registered as <see cref="ServiceLifetime.Scoped" />.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-diagnostics">Logging, events, and diagnostics</see> for more information.
+    /// </remarks>
     public interface ILoggingOptions : ISingletonOptions
     {
         /// <summary>

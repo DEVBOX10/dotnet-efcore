@@ -35,10 +35,6 @@ namespace Microsoft.EntityFrameworkCore.Query
         public override Task Group_by_on_StartsWith_with_null_parameter_as_argument(bool async)
             => base.Group_by_on_StartsWith_with_null_parameter_as_argument(async);
 
-        [ConditionalTheory(Skip = "issue #19584")]
-        public override Task Cast_to_derived_followed_by_include_and_FirstOrDefault(bool async)
-            => base.Cast_to_derived_followed_by_include_and_FirstOrDefault(async);
-
         [ConditionalTheory(Skip = "issue #24325")]
         public override Task Projecting_entity_as_well_as_correlated_collection_followed_by_Distinct(bool async)
             => base.Projecting_entity_as_well_as_correlated_collection_followed_by_Distinct(async);
@@ -69,6 +65,12 @@ namespace Microsoft.EntityFrameworkCore.Query
                 () => base.Projecting_some_properties_as_well_as_correlated_collection_followed_by_Distinct(async))).Message;
 
             Assert.Equal(InMemoryStrings.DistinctOnSubqueryNotSupported, message);
+        }
+
+        [ConditionalTheory(Skip = "Issue #25735")]
+        public override Task Project_navigation_defined_on_derived_from_entity_with_inheritance_using_soft_cast(bool async)
+        {
+            return base.Project_navigation_defined_on_derived_from_entity_with_inheritance_using_soft_cast(async);
         }
     }
 }

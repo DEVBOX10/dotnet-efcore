@@ -24,6 +24,11 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking
     ///         not designed to be directly constructed in your application code.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-entity-entries">Accessing tracked entities in EF Core</see>,
+    ///     <see href="https://aka.ms/efcore-docs-changing-relationships">Changing foreign keys and navigations</see>,
+    ///     and <see href="https://aka.ms/efcore-docs-load-related-data">Loading related entities</see> for more information.
+    /// </remarks>
     public class CollectionEntry : NavigationEntry
     {
         private ICollectionLoader? _loader;
@@ -80,6 +85,11 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking
         ///     the change tracker is aware of the change and <see cref="ChangeTracker.DetectChanges" /> is not required
         ///     for the context to detect the change.
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-entity-entries">Accessing tracked entities in EF Core</see>
+        ///     and <see href="https://aka.ms/efcore-docs-changing-relationships">Changing foreign keys and navigations</see>
+        ///     for more information.
+        /// </remarks>
         public new virtual IEnumerable? CurrentValue
         {
             get => (IEnumerable?)base.CurrentValue;
@@ -91,6 +101,11 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking
         ///     with this navigation property have been modified and should be updated in the database
         ///     when <see cref="DbContext.SaveChanges()" /> is called.
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-entity-entries">Accessing tracked entities in EF Core</see>
+        ///     and <see href="https://aka.ms/efcore-docs-changing-relationships">Changing foreign keys and navigations</see>
+        ///     for more information.
+        /// </remarks>
         public override bool IsModified
         {
             get
@@ -200,6 +215,10 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking
         ///         Note that entities that are already being tracked are not overwritten with new data from the database.
         ///     </para>
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-entity-entries">Accessing tracked entities in EF Core</see>
+        ///     and <see href="https://aka.ms/efcore-docs-load-related-data">Loading related entities</see> for more information.
+        /// </remarks>
         public override void Load()
         {
             EnsureInitialized();
@@ -219,10 +238,14 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking
         ///         Note that entities that are already being tracked are not overwritten with new data from the database.
         ///     </para>
         ///     <para>
-        ///         Multiple active operations on the same context instance are not supported.  Use <see langword="await" /> to ensure
+        ///         Multiple active operations on the same context instance are not supported. Use <see langword="await" /> to ensure
         ///         that any asynchronous operations have completed before calling another method on this context.
         ///     </para>
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-entity-entries">Accessing tracked entities in EF Core</see>
+        ///     and <see href="https://aka.ms/efcore-docs-load-related-data">Loading related entities</see> for more information.
+        /// </remarks>
         /// <param name="cancellationToken"> A <see cref="CancellationToken" /> to observe while waiting for the task to complete. </param>
         /// <returns> A task that represents the asynchronous save operation. </returns>
         /// <exception cref="OperationCanceledException"> If the <see cref="CancellationToken"/> is canceled. </exception>
@@ -245,6 +268,10 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking
         ///         actually loading all entities from the database.
         ///     </para>
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-entity-entries">Accessing tracked entities in EF Core</see>
+        ///     and <see href="https://aka.ms/efcore-docs-load-related-data">Loading related entities</see> for more information.
+        /// </remarks>
         public override IQueryable Query()
         {
             EnsureInitialized();
@@ -258,6 +285,9 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking
         /// <summary>
         ///     The <see cref="EntityEntry" /> of an entity this navigation targets.
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-entity-entries">Accessing tracked entities in EF Core</see> for more information.
+        /// </remarks>
         /// <param name="entity"> The entity to get the entry for. </param>
         /// <value> An entry for an entity that this navigation targets. </value>
         public virtual EntityEntry? FindEntry(object entity)

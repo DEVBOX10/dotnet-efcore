@@ -1,6 +1,8 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore.TestModels.Northwind;
 using Microsoft.EntityFrameworkCore.TestUtilities;
@@ -1361,6 +1363,42 @@ WHERE ((c[""Discriminator""] = ""Customer"") AND STRINGEQUALS(c[""CustomerID""],
                 @"SELECT c
 FROM root c
 WHERE ((c[""Discriminator""] = ""Customer"") AND STRINGEQUALS(c[""CustomerID""], ""alFkI"", true))");
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual async Task Case_sensitive_string_comparison_instance(bool async)
+        {
+            await AssertQuery(
+                async,
+                ss => ss.Set<Customer>().Where(c => c.CustomerID.Equals("ALFKI", StringComparison.Ordinal)),
+                entryCount: 1);
+
+            AssertSql(
+                @"SELECT c
+FROM root c
+WHERE ((c[""Discriminator""] = ""Customer"") AND STRINGEQUALS(c[""CustomerID""], ""ALFKI""))");
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual async Task Case_sensitive_string_comparison_static(bool async)
+        {
+            await AssertQuery(
+                async,
+                ss => ss.Set<Customer>().Where(c => string.Equals(c.CustomerID, "ALFKI", StringComparison.Ordinal)),
+            entryCount: 1);
+
+            AssertSql(
+                @"SELECT c
+FROM root c
+WHERE ((c[""Discriminator""] = ""Customer"") AND STRINGEQUALS(c[""CustomerID""], ""ALFKI""))");
+        }
+
+        [ConditionalTheory(Skip = "Issue #17246")]
+        public override Task Datetime_subtraction_TotalDays(bool async)
+        {
+            return base.Datetime_subtraction_TotalDays(async);
         }
 
         private void AssertSql(params string[] expected)

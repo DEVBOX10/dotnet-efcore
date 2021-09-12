@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore.Cosmos.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure;
 
@@ -12,6 +13,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
     ///     A convention that creates an optimized copy of the mutable model. This convention is typically
     ///     implemented by database providers to update provider annotations when creating a read-only model.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-conventions">Model building conventions</see>, and
+    ///     <see href="https://aka.ms/efcore-docs-cosmos">Accessing Azure Cosmos DB with EF Core</see> for more information.
+    /// </remarks>
     public class CosmosRuntimeModelConvention : RuntimeModelConvention
     {
         /// <summary>

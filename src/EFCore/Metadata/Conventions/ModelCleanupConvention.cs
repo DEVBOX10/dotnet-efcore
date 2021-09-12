@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Utilities;
 
 namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
@@ -13,6 +12,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
     /// <summary>
     ///     A convention that removes any state that is only used during model building.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-conventions">Model building conventions</see> for more information.
+    /// </remarks>
     public class ModelCleanupConvention : IModelFinalizingConvention
     {
         /// <summary>
@@ -36,7 +38,6 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         {
             RemoveEntityTypesUnreachableByNavigations(modelBuilder, context);
             RemoveNavigationlessForeignKeys(modelBuilder);
-            RemoveModelBuildingAnnotations(modelBuilder);
         }
 
         private void RemoveEntityTypesUnreachableByNavigations(
@@ -81,16 +82,6 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
                         entityType.Builder.HasNoRelationship(foreignKey, fromDataAnnotation: true);
                     }
                 }
-            }
-        }
-
-        private void RemoveModelBuildingAnnotations(IConventionModelBuilder modelBuilder)
-        {
-            modelBuilder.Metadata.RemoveAnnotation(CoreAnnotationNames.DerivedTypes);
-            foreach (var entityType in modelBuilder.Metadata.GetEntityTypes())
-            {
-                entityType.RemoveAnnotation(CoreAnnotationNames.AmbiguousNavigations);
-                entityType.RemoveAnnotation(CoreAnnotationNames.NavigationCandidates);
             }
         }
 

@@ -1,8 +1,12 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Serialization.HybridRow;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
@@ -452,6 +456,59 @@ namespace Microsoft.EntityFrameworkCore.Cosmos
             }
         }
 
+        [ConditionalFact]
+        public async Task Can_add_update_delete_end_to_end_with_DateTime_async()
+        {
+            var options = Fixture.CreateOptions();
+
+            var customer = new CustomerDateTime
+            {
+                Id = DateTime.MinValue,
+                Name = "Theon/\\#\\\\?",
+                PartitionKey = 42
+            };
+
+            using (var context = new CustomerContextDateTime(options))
+            {
+                await context.Database.EnsureCreatedAsync();
+
+                var entry = context.Add(customer);
+
+                Assert.Equal("CustomerDateTime|0001-01-01T00:00:00.0000000|Theon^2F^5C^23^5C^5C^3F", entry.CurrentValues["__id"]);
+
+                await context.SaveChangesAsync();
+            }
+
+            using (var context = new CustomerContextDateTime(options))
+            {
+                var customerFromStore = await context.Set<CustomerDateTime>().SingleAsync();
+
+                Assert.Equal(customer.Id, customerFromStore.Id);
+                Assert.Equal("Theon/\\#\\\\?", customerFromStore.Name);
+
+                customerFromStore.Value = 23;
+
+                await context.SaveChangesAsync();
+            }
+
+            using (var context = new CustomerContextDateTime(options))
+            {
+                var customerFromStore = await context.Set<CustomerDateTime>().SingleAsync();
+
+                Assert.Equal(customer.Id, customerFromStore.Id);
+                Assert.Equal(23, customerFromStore.Value);
+
+                context.Remove(customerFromStore);
+
+                await context.SaveChangesAsync();
+            }
+
+            using (var context = new CustomerContextDateTime(options))
+            {
+                Assert.Empty(await context.Set<CustomerDateTime>().ToListAsync());
+            }
+        }
+
         private class Customer
         {
             public int Id { get; set; }
@@ -471,6 +528,14 @@ namespace Microsoft.EntityFrameworkCore.Cosmos
             public Guid Id { get; set; }
             public string Name { get; set; }
             public int PartitionKey { get; set; }
+        }
+
+        private class CustomerDateTime
+        {
+            public DateTime Id { get; set; }
+            public string Name { get; set; }
+            public int PartitionKey { get; set; }
+            public int Value { get; set; }
         }
 
         private class CustomerNoPartitionKey
@@ -504,10 +569,81 @@ namespace Microsoft.EntityFrameworkCore.Cosmos
                 modelBuilder.Entity<CustomerGuid>(
                     cb =>
                     {
-                        cb.Property(c => c.Id).HasConversion<string>().ToJsonProperty("id");
+                        cb.Property(c => c.Id).ToJsonProperty("id");
                         cb.Property(c => c.PartitionKey).HasConversion<string>().ToJsonProperty("pk");
                         cb.HasPartitionKey(c => c.PartitionKey);
                     });
+            }
+        }
+
+        private class CustomerContextDateTime : DbContext
+        {
+            public CustomerContextDateTime(DbContextOptions dbContextOptions)
+                : base(dbContextOptions)
+            {
+            }
+
+            protected override void OnModelCreating(ModelBuilder modelBuilder)
+            {
+                modelBuilder.Entity<CustomerDateTime>(
+                    cb =>
+                    {
+                        cb.Property(c => c.Id);
+                        cb.Property(c => c.PartitionKey).HasConversion<string>();
+                        cb.HasPartitionKey(c => c.PartitionKey);
+                        cb.HasKey(c => new { c.Id, c.Name });
+                    });
+            }
+        }
+
+        [ConditionalFact]
+        public async Task Can_add_update_delete_with_dateTime_string_end_to_end_async()
+        {
+            var options = Fixture.CreateOptions();
+
+            var customer = new Customer { Id = 42, Name = "2021-08-23T06:23:40+00:00" };
+
+            using (var context = new CustomerContext(options))
+            {
+                await context.Database.EnsureCreatedAsync();
+
+                context.Add(customer);
+
+                await context.SaveChangesAsync();
+            }
+
+            using (var context = new CustomerContext(options))
+            {
+                var customerFromStore = await context.Set<Customer>().SingleAsync();
+
+                var logEntry = TestSqlLoggerFactory.Log.Last();
+                Assert.Equal(LogLevel.Information, logEntry.Level);
+                Assert.Contains("ReadNext", logEntry.Message);
+                TestSqlLoggerFactory.Clear();
+
+                Assert.Equal(42, customerFromStore.Id);
+                Assert.Equal("2021-08-23T06:23:40+00:00", customerFromStore.Name);
+
+                customerFromStore.Name = "2021-08-23T06:23:40+02:00";
+
+                await context.SaveChangesAsync();
+            }
+
+            using (var context = new CustomerContext(options))
+            {
+                var customerFromStore = await context.FindAsync<Customer>(42);
+
+                Assert.Equal(42, customerFromStore.Id);
+                Assert.Equal("2021-08-23T06:23:40+02:00", customerFromStore.Name);
+
+                context.Remove(customerFromStore);
+
+                await context.SaveChangesAsync();
+            }
+
+            using (var context = new CustomerContext(options))
+            {
+                Assert.Empty(await context.Set<Customer>().ToListAsync());
             }
         }
 
@@ -602,14 +738,13 @@ namespace Microsoft.EntityFrameworkCore.Cosmos
         public async Task Can_add_update_delete_with_nested_collections()
         {
             await Can_add_update_delete_with_collection(
-                new List<List<short>> { new List<short> { 1, 2 } },
+                new List<List<short>> { new() { 1, 2 } },
                 c =>
                 {
                     c.Collection.Clear();
                     c.Collection.Add(new List<short> { 3 });
                 },
-                new List<List<short>> { new List<short> { 3 } });
-
+                new List<List<short>> { new() { 3 } });
             await Can_add_update_delete_with_collection<IList<byte?[]>>(
                 new List<byte?[]>(),
                 c =>
@@ -618,30 +753,29 @@ namespace Microsoft.EntityFrameworkCore.Cosmos
                     c.Collection.Add(null);
                 },
                 new List<byte?[]> { new byte?[] { 3, null }, null });
-
             await Can_add_update_delete_with_collection<IReadOnlyList<Dictionary<string, string>>>(
-                new Dictionary<string, string>[] { new Dictionary<string, string> { { "1", null } } },
+                new Dictionary<string, string>[] { new() { { "1", null } } },
                 c =>
                 {
                     var dictionary = c.Collection[0]["3"] = "2";
                 },
-                new List<Dictionary<string, string>> { new Dictionary<string, string> { { "1", null }, { "3", "2" } } });
+                new List<Dictionary<string, string>> { new() { { "1", null }, { "3", "2" } } });
 
             await Can_add_update_delete_with_collection(
-                new List<float>[] { new List<float> { 1f }, new List<float> { 2 } },
+                new List<float>[] { new() { 1f }, new() { 2 } },
                 c =>
                 {
                     c.Collection[1][0] = 3f;
                 },
-                new List<float>[] { new List<float> { 1f }, new List<float> { 3f } });
+                new List<float>[] { new() { 1f }, new() { 3f } });
 
             await Can_add_update_delete_with_collection(
-                new decimal?[][] { new decimal?[] { 1, null } },
+                new[] { new decimal?[] { 1, null } },
                 c =>
                 {
                     c.Collection[0][1] = 3;
                 },
-                new decimal?[][] { new decimal?[] { 1, 3 } });
+                new[] { new decimal?[] { 1, 3 } });
 
             await Can_add_update_delete_with_collection(
                 new Dictionary<string, List<int>> { { "1", new List<int> { 1 } } },
@@ -1493,7 +1627,7 @@ OFFSET 0 LIMIT 1");
 
                 Assert.StartsWith(
                     "Response status code does not indicate success: NotFound (404); Substatus: 0",
-                    (await Assert.ThrowsAsync<CosmosException>(() => context.SaveChangesAsync())).Message);
+                    (await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync())).InnerException!.Message);
             }
 
             using (var context = new CustomerContext(options))
@@ -1502,7 +1636,7 @@ OFFSET 0 LIMIT 1");
 
                 Assert.StartsWith(
                     "Response status code does not indicate success: NotFound (404); Substatus: 0",
-                    (await Assert.ThrowsAsync<CosmosException>(() => context.SaveChangesAsync())).Message);
+                    (await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync())).InnerException!.Message);
             }
 
             using (var context = new CustomerContext(options))
@@ -1511,7 +1645,7 @@ OFFSET 0 LIMIT 1");
 
                 Assert.StartsWith(
                     "Response status code does not indicate success: NotFound (404); Substatus: 0",
-                    (await Assert.ThrowsAsync<CosmosException>(() => context.SaveChangesAsync())).Message);
+                    (await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync())).InnerException!.Message);
             }
 
             using (var context = new CustomerContext(options))

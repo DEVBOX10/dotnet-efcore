@@ -29,6 +29,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure
     ///         The implementation does not need to be thread-safe.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-conventions">Model building conventions</see> for more information.
+    /// </remarks>
     public class ProviderConventionSetBuilder : IProviderConventionSetBuilder
     {
         /// <summary>
@@ -58,6 +61,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure
             var propertyDiscoveryConvention = new PropertyDiscoveryConvention(Dependencies);
             var keyDiscoveryConvention = new KeyDiscoveryConvention(Dependencies);
             var inversePropertyAttributeConvention = new InversePropertyAttributeConvention(Dependencies);
+            var foreignKeyAttributeConvention = new ForeignKeyAttributeConvention(Dependencies);
             var relationshipDiscoveryConvention = new RelationshipDiscoveryConvention(Dependencies);
             var servicePropertyDiscoveryConvention = new ServicePropertyDiscoveryConvention(Dependencies);
             var indexAttributeConvention = new IndexAttributeConvention(Dependencies);
@@ -73,6 +77,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure
             conventionSet.EntityTypeAddedConventions.Add(keyDiscoveryConvention);
             conventionSet.EntityTypeAddedConventions.Add(indexAttributeConvention);
             conventionSet.EntityTypeAddedConventions.Add(inversePropertyAttributeConvention);
+            conventionSet.EntityTypeAddedConventions.Add(foreignKeyAttributeConvention);
             conventionSet.EntityTypeAddedConventions.Add(relationshipDiscoveryConvention);
 
             conventionSet.EntityTypeIgnoredConventions.Add(relationshipDiscoveryConvention);
@@ -140,7 +145,6 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure
             conventionSet.KeyRemovedConventions.Add(keyDiscoveryConvention);
 
             var cascadeDeleteConvention = new CascadeDeleteConvention(Dependencies);
-            var foreignKeyAttributeConvention = new ForeignKeyAttributeConvention(Dependencies);
 
             conventionSet.ForeignKeyAddedConventions.Add(foreignKeyAttributeConvention);
             conventionSet.ForeignKeyAddedConventions.Add(foreignKeyPropertyDiscoveryConvention);

@@ -776,6 +776,23 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         }
 
         [ConditionalFact]
+        public virtual void Passes_on_duplicate_column_names_within_hierarchy_with_same_column_nullability()
+        {
+            var modelBuilder = CreateConventionalModelBuilder();
+            modelBuilder.Entity<Animal>();
+            modelBuilder.Entity<Cat>().Property<int>("OtherId").HasColumnName("OtherId");
+            modelBuilder.Entity<Dog>().Property<int?>("OtherId").HasColumnName("OtherId");
+
+            var model = Validate(modelBuilder);
+
+            var column = model.FindEntityType(typeof(Cat)).FindProperty("OtherId").GetTableColumnMappings().Single().Column;
+
+            Assert.Equal(2, column.PropertyMappings.Count());
+            Assert.True(column.IsNullable);
+            Assert.Null(column.DefaultValue);
+        }
+
+        [ConditionalFact]
         public virtual void Detects_duplicate_column_names_within_hierarchy_with_different_comments()
         {
             var modelBuilder = CreateConventionalModelBuilder();
@@ -1275,6 +1292,23 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                     "{'" + nameof(Dog.Name) + "'}", nameof(Dog),
                     "{'" + nameof(Cat.Name) + "'}", nameof(Cat),
                     nameof(Animal), "IX_Animal_Name"),
+                modelBuilder);
+        }
+
+        [ConditionalFact]
+        public virtual void Detects_duplicate_index_names_within_hierarchy_with_different_filters()
+        {
+            var modelBuilder = CreateConventionalModelBuilder();
+            modelBuilder.Entity<Animal>();
+            modelBuilder.Entity<Cat>().HasIndex(c => c.Name).HasFilter("Foo").HasDatabaseName("IX_Animal_Name");
+            modelBuilder.Entity<Dog>().HasIndex(d => d.Name).HasFilter("Bar").HasDatabaseName("IX_Animal_Name");
+
+            VerifyError(
+                RelationalStrings.DuplicateIndexFiltersMismatch(
+                    "{'" + nameof(Dog.Name) + "'}", nameof(Dog),
+                    "{'" + nameof(Cat.Name) + "'}", nameof(Cat),
+                    nameof(Animal), "IX_Animal_Name",
+                    "Bar", "Foo"),
                 modelBuilder);
         }
 
@@ -1913,8 +1947,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                 definition.GenerateMessage(
                     nameof(Animal),
                     "{'Id', 'Name'}"),
-                modelBuilder,
-                LogLevel.Information);
+                modelBuilder);
         }
 
         [ConditionalFact]
@@ -1936,8 +1969,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                     "IX_AllPropertiesNotMapped",
                     nameof(Animal),
                     "{'Id', 'Name'}"),
-                modelBuilder,
-                LogLevel.Information);
+                modelBuilder);
         }
 
         [ConditionalFact]

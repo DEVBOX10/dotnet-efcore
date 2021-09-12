@@ -1,6 +1,9 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure;
@@ -17,6 +20,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
     ///     A convention that creates an optimized copy of the mutable model. This convention is typically
     ///     implemented by database providers to update provider annotations when creating a read-only model.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-conventions">Model building conventions</see> for more information.
+    /// </remarks>
     public class RuntimeModelConvention : IModelFinalizedConvention
     {
         /// <summary>
@@ -53,7 +59,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
             ((IModel)runtimeModel).ModelDependencies = model.ModelDependencies!;
 
             var entityTypes = model.GetEntityTypesInHierarchicalOrder();
-            var entityTypePairs = new List<(IEntityType Source, RuntimeEntityType Target)>(entityTypes.Count);
+            var entityTypePairs = new List<(IEntityType Source, RuntimeEntityType Target)>();
 
             foreach (var entityType in entityTypes)
             {
@@ -148,11 +154,11 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
                     convention.ProcessEntityTypeAnnotations(annotations, source, target, runtime));
             }
 
-            foreach (var typeConfiguration in model.GetScalarTypeConfigurations())
+            foreach (var typeConfiguration in model.GetTypeMappingConfigurations())
             {
                 var runtimeTypeConfiguration = Create(typeConfiguration, runtimeModel);
                 CreateAnnotations(typeConfiguration, runtimeTypeConfiguration, static (convention, annotations, source, target, runtime) =>
-                    convention.ProcessScalarTypeConfigurationAnnotations(annotations, source, target, runtime));
+                    convention.ProcessTypeMappingConfigurationAnnotations(annotations, source, target, runtime));
             }
 
             CreateAnnotations(model, runtimeModel, static (convention, annotations, source, target, runtime) =>
@@ -192,7 +198,15 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         {
             if (!runtime)
             {
-                annotations.Remove(CoreAnnotationNames.PropertyAccessMode);
+                foreach (var annotation in annotations)
+                {
+                    if (CoreAnnotationNames.AllNames.Contains(annotation.Key)
+                        && annotation.Key != CoreAnnotationNames.ProductVersion
+                        && annotation.Key != CoreAnnotationNames.FullChangeTrackingNotificationsRequired)
+                    {
+                        annotations.Remove(annotation.Key);
+                    }
+                }
             }
             else
             {
@@ -236,9 +250,18 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         {
             if (!runtime)
             {
-                annotations.Remove(CoreAnnotationNames.PropertyAccessMode);
-                annotations.Remove(CoreAnnotationNames.NavigationAccessMode);
-                annotations.Remove(CoreAnnotationNames.DiscriminatorProperty);
+#pragma warning disable CS0612 // Type or member is obsolete
+                foreach (var annotation in annotations)
+                {
+                    if (CoreAnnotationNames.AllNames.Contains(annotation.Key)
+                        && annotation.Key != CoreAnnotationNames.QueryFilter
+                        && annotation.Key != CoreAnnotationNames.DefiningQuery
+                        && annotation.Key != CoreAnnotationNames.DiscriminatorValue
+                        && annotation.Key != CoreAnnotationNames.DiscriminatorMappingComplete)
+                    {
+                        annotations.Remove(annotation.Key);
+                    }
+                }
 
                 if (annotations.TryGetValue(CoreAnnotationNames.QueryFilter, out var queryFilter))
                 {
@@ -246,7 +269,6 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
                         new QueryRootRewritingExpressionVisitor(runtimeEntityType.Model).Rewrite((Expression)queryFilter!);
                 }
 
-#pragma warning disable CS0612 // Type or member is obsolete
                 if (annotations.TryGetValue(CoreAnnotationNames.DefiningQuery, out var definingQuery))
                 {
                     annotations[CoreAnnotationNames.DefiningQuery] =
@@ -256,14 +278,14 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
             }
         }
 
-        private RuntimeScalarTypeConfiguration Create(IScalarTypeConfiguration typeConfiguration, RuntimeModel model)
+        private RuntimeTypeMappingConfiguration Create(ITypeMappingConfiguration typeConfiguration, RuntimeModel model)
         {
             var valueConverterType = (Type?)typeConfiguration[CoreAnnotationNames.ValueConverterType];
             var valueConverter = valueConverterType == null
                 ? null
                 : (ValueConverter?)Activator.CreateInstance(valueConverterType);
 
-            return model.AddScalarTypeConfiguration(
+            return model.AddTypeMappingConfiguration(
                            typeConfiguration.ClrType,
                            typeConfiguration.GetMaxLength(),
                            typeConfiguration.IsUnicode(),
@@ -280,10 +302,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <param name="typeConfiguration"> The source property. </param>
         /// <param name="runtimeTypeConfiguration"> The target property that will contain the annotations. </param>
         /// <param name="runtime"> Indicates whether the given annotations are runtime annotations. </param>
-        protected virtual void ProcessScalarTypeConfigurationAnnotations(
+        protected virtual void ProcessTypeMappingConfigurationAnnotations(
             Dictionary<string, object?> annotations,
-            IScalarTypeConfiguration typeConfiguration,
-            RuntimeScalarTypeConfiguration runtimeTypeConfiguration,
+            ITypeMappingConfiguration typeConfiguration,
+            RuntimeTypeMappingConfiguration runtimeTypeConfiguration,
             bool runtime)
         {
             if (!runtime)
@@ -610,7 +632,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
             /// <inheritdoc />
             protected override Expression VisitExtension(Expression extensionExpression)
                 => extensionExpression is QueryRootExpression queryRootExpression
-                    ? new QueryRootExpression(_model.FindEntityType(queryRootExpression.EntityType.Name)!)
+                    ? queryRootExpression.UpdateEntityType(_model.FindEntityType(queryRootExpression.EntityType.Name)!)
                     : base.VisitExtension(extensionExpression);
         }
     }

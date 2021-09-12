@@ -37,13 +37,13 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal
             = new SqlServerFloatTypeMapping("placeholder", storeTypePostfix: StoreTypePostfix.None);
 
         private readonly ByteTypeMapping _byte
-            = new SqlServerByteTypeMapping("tinyint", DbType.Byte);
+            = new SqlServerByteTypeMapping("tinyint");
 
         private readonly ShortTypeMapping _short
-            = new SqlServerShortTypeMapping("smallint", DbType.Int16);
+            = new SqlServerShortTypeMapping("smallint");
 
         private readonly LongTypeMapping _long
-            = new SqlServerLongTypeMapping("bigint", DbType.Int64);
+            = new SqlServerLongTypeMapping("bigint");
 
         private readonly SqlServerByteArrayTypeMapping _rowversion
             = new(
@@ -52,11 +52,11 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal
                 comparer: new ValueComparer<byte[]>(
                     (v1, v2) => StructuralComparisons.StructuralEqualityComparer.Equals(v1, v2),
                     v => StructuralComparisons.StructuralEqualityComparer.GetHashCode(v),
-                    v => v == null ? null : v.ToArray()),
+                    v => v.ToArray()),
                 storeTypePostfix: StoreTypePostfix.None);
 
         private readonly IntTypeMapping _int
-            = new("int", DbType.Int32);
+            = new("int");
 
         private readonly BoolTypeMapping _bool
             = new SqlServerBoolTypeMapping("bit");
@@ -116,13 +116,13 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal
             = new SqlServerDoubleTypeMapping("placeholder", storeTypePostfix: StoreTypePostfix.None);
 
         private readonly SqlServerDateTimeOffsetTypeMapping _datetimeoffset
-            = new("datetimeoffset", DbType.DateTimeOffset);
+            = new("datetimeoffset");
 
         private readonly SqlServerDateTimeOffsetTypeMapping _datetimeoffsetAlias
             = new("placeholder", DbType.DateTimeOffset, StoreTypePostfix.None);
 
         private readonly GuidTypeMapping _uniqueidentifier
-            = new("uniqueidentifier", DbType.Guid);
+            = new("uniqueidentifier");
 
         private readonly DecimalTypeMapping _decimal
             = new SqlServerDecimalTypeMapping("decimal");

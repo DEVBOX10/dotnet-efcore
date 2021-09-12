@@ -12,6 +12,10 @@ namespace Microsoft.EntityFrameworkCore.Design
     /// <summary>
     ///     Represents a call to a method.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     for more information.
+    /// </remarks>
     public class MethodCallCodeFragment
     {
         private readonly List<object?> _arguments;
@@ -69,10 +73,18 @@ namespace Microsoft.EntityFrameworkCore.Design
         /// <param name="methodInfo"> The method's <see cref="MethodInfo" />. </param>
         /// <param name="arguments"> The method call's arguments.  Can be <see cref="NestedClosureCodeFragment" />. </param>
         /// <param name="chainedCall"> The next method call to chain after this. </param>
+        [Obsolete("Use the constructor without a chained call, and then invoke Chain() on the result", error: true)]
         public MethodCallCodeFragment(
             MethodInfo methodInfo,
             object?[] arguments,
             MethodCallCodeFragment chainedCall)
+            : this(methodInfo, arguments)
+            => throw new NotSupportedException();
+
+        private MethodCallCodeFragment(
+            MethodInfo methodInfo,
+            MethodCallCodeFragment chainedCall,
+            object?[] arguments)
             : this(methodInfo, arguments)
         {
             Check.NotNull(chainedCall, nameof(chainedCall));
@@ -86,7 +98,7 @@ namespace Microsoft.EntityFrameworkCore.Design
         /// <param name="method"> The method's name. </param>
         /// <param name="arguments"> The method call's arguments.  Can be <see cref="NestedClosureCodeFragment" />. </param>
         /// <param name="chainedCall"> The next method call to chain after this. </param>
-        [Obsolete("Use the overload accepting a MethodInfo")]
+        [Obsolete("Use the overload accepting a MethodInfo, and then invoke Chain on the instance for the chained call")]
         public MethodCallCodeFragment(
             string method,
             object?[] arguments,
@@ -167,6 +179,6 @@ namespace Microsoft.EntityFrameworkCore.Design
 #pragma warning disable 618
                 ? new(_method!, _arguments.ToArray(), ChainedCall?.Chain(call) ?? call)
 #pragma warning restore 618
-                : new(MethodInfo, _arguments.ToArray(), ChainedCall?.Chain(call) ?? call);
+                : new(MethodInfo, ChainedCall?.Chain(call) ?? call, _arguments.ToArray());
     }
 }

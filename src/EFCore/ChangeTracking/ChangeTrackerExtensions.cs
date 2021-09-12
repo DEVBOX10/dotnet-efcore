@@ -16,6 +16,9 @@ namespace Microsoft.EntityFrameworkCore
     /// <summary>
     ///     Extension methods for <see cref="ChangeTracker" />.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-change-tracking">EF Core change tracking</see> for more information.
+    /// </remarks>
     public static class ChangeTrackerExtensions
     {
         /// <summary>
@@ -27,6 +30,9 @@ namespace Microsoft.EntityFrameworkCore
         ///         It is designed for debugging only and may change arbitrarily between releases.
         ///     </para>
         /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-change-tracking">EF Core change tracking</see> for more information.
+        /// </remarks>
         /// <param name="changeTracker"> The metadata item. </param>
         /// <param name="options"> Options for generating the string. </param>
         /// <param name="indent"> The number of indent spaces to use before each new line. </param>

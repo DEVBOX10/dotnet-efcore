@@ -33,6 +33,11 @@ namespace Microsoft.EntityFrameworkCore.Migrations
     ///         The implementation does not need to be thread-safe.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-migrations">Database migrations</see>, and
+    ///     <see href="https://aka.ms/efcore-docs-sqlserver">Accessing SQL Server and SQL Azure databases with EF Core</see>
+    ///     for more information.
+    /// </remarks>
     public class SqlServerMigrationsSqlGenerator : MigrationsSqlGenerator
     {
         private IReadOnlyList<MigrationOperation> _operations = null!;
@@ -539,8 +544,9 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             MigrationCommandListBuilder builder,
             bool terminate = true)
         {
-            if (!terminate
-                && operation.Comment != null)
+            var hasComments = operation.Comment != null || operation.Columns.Any(c => c.Comment != null);
+
+            if (!terminate && hasComments)
             {
                 throw new ArgumentException(SqlServerStrings.CannotProduceUnterminatedSQLWithComments(nameof(CreateTableOperation)));
             }
@@ -548,12 +554,6 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             if (operation[SqlServerAnnotationNames.IsTemporal] as bool? == true)
             {
                 var historyTableSchema = operation[SqlServerAnnotationNames.TemporalHistoryTableSchema] as string ?? model?.GetDefaultSchema();
-
-                if (historyTableSchema != operation.Schema && historyTableSchema != null)
-                {
-                    Generate(new EnsureSchemaOperation { Name = historyTableSchema }, model, builder);
-                }
-
                 var needsExec = historyTableSchema == null;
                 var subBuilder = needsExec
                     ? new MigrationCommandListBuilder(Dependencies)
@@ -621,34 +621,45 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                 }
             }
 
-            builder.AppendLine(Dependencies.SqlGenerationHelper.StatementTerminator);
-
-            var firstDescription = true;
-            if (operation.Comment != null)
+            if (hasComments)
             {
-                AddDescription(builder, operation.Comment, operation.Schema, operation.Name);
+                Check.DebugAssert(terminate, "terminate is false but there are comments");
 
-                firstDescription = false;
-            }
+                builder.AppendLine(Dependencies.SqlGenerationHelper.StatementTerminator);
 
-            foreach (var column in operation.Columns)
-            {
-                if (column.Comment == null)
+                var firstDescription = true;
+                if (operation.Comment != null)
                 {
-                    continue;
+                    AddDescription(builder, operation.Comment, operation.Schema, operation.Name);
+
+                    firstDescription = false;
                 }
 
-                AddDescription(
-                    builder, column.Comment,
-                    operation.Schema,
-                    operation.Name,
-                    column.Name,
-                    omitVariableDeclarations: !firstDescription);
+                foreach (var column in operation.Columns)
+                {
+                    if (column.Comment == null)
+                    {
+                        continue;
+                    }
 
-                firstDescription = false;
+                    AddDescription(
+                        builder, column.Comment,
+                        operation.Schema,
+                        operation.Name,
+                        column.Name,
+                        omitVariableDeclarations: !firstDescription);
+
+                    firstDescription = false;
+                }
+
+                builder.EndCommand(suppressTransaction: memoryOptimized);
             }
-
-            builder.EndCommand(suppressTransaction: memoryOptimized);
+            else if (terminate)
+            {
+                builder
+                    .AppendLine(Dependencies.SqlGenerationHelper.StatementTerminator)
+                    .EndCommand(suppressTransaction: memoryOptimized);
+            }
         }
 
         /// <summary>
@@ -2332,9 +2343,15 @@ namespace Microsoft.EntityFrameworkCore.Migrations
 
             var versioningMap = new Dictionary<(string?, string?), (string, string?)>();
             var periodMap = new Dictionary<(string?, string?), (string, string)>();
+            var availbleSchemas = new List<string>();
 
             foreach (var operation in migrationOperations)
             {
+                if (operation is EnsureSchemaOperation ensureSchemaOperation)
+                {
+                    availbleSchemas.Add(ensureSchemaOperation.Name);
+                }
+
                 var isTemporal = operation[SqlServerAnnotationNames.IsTemporal] as bool? == true;
                 if (isTemporal)
                 {
@@ -2355,6 +2372,18 @@ namespace Microsoft.EntityFrameworkCore.Migrations
 
                     switch (operation)
                     {
+                        case CreateTableOperation createTableOperation:
+                            if (historyTableSchema != createTableOperation.Schema
+                                && historyTableSchema != null
+                                && !availbleSchemas.Contains(historyTableSchema))
+                            {
+                                operations.Add(new EnsureSchemaOperation { Name = historyTableSchema });
+                                availbleSchemas.Add(historyTableSchema);
+                            }
+
+                            operations.Add(operation);
+                            break;
+
                         case DropTableOperation dropTableOperation:
                             DisableVersioning(table!, schema, historyTableName!, historyTableSchema);
                             operations.Add(operation);
@@ -2398,9 +2427,11 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                                 if (oldHistoryTableName != historyTableName
                                     || oldHistoryTableSchema != historyTableSchema)
                                 {
-                                    if (historyTableSchema != null)
+                                    if (historyTableSchema != null
+                                        && !availbleSchemas.Contains(historyTableSchema))
                                     {
                                         operations.Add(new EnsureSchemaOperation { Name = historyTableSchema });
+                                        availbleSchemas.Add(historyTableSchema);
                                     }
 
                                     operations.Add(new RenameTableOperation

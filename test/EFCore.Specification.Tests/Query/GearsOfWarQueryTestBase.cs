@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Net;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Diagnostics.Internal;
@@ -5841,46 +5842,6 @@ namespace Microsoft.EntityFrameworkCore.Query
                 assertOrder: true);
         }
 
-        [ConditionalTheory(Skip = "issue #16752")]
-        [MemberData(nameof(IsAsyncData))]
-        public virtual Task Group_by_entity_key_with_include_on_that_entity_with_key_in_result_selector(bool async)
-        {
-            return AssertQuery(
-                async,
-                ss => ss.Set<Gear>()
-                    .GroupBy(g => g.CityOfBirth)
-                    .OrderBy(g => g.Key.Name)
-                    .Select(g => g.Key)
-                    .Include(c => c.BornGears).ThenInclude(g => g.Weapons),
-                assertOrder: true,
-                elementAsserter: (e, a) =>
-                {
-                    Assert.Equal(e.Name, a.Name);
-                    Assert.Equal(e.BornGears == null, a.BornGears == null);
-                    Assert.Equal(e.BornGears.Count(), a.BornGears.Count());
-                });
-        }
-
-        [ConditionalTheory(Skip = "issue #16752")]
-        [MemberData(nameof(IsAsyncData))]
-        public virtual Task Group_by_entity_key_with_include_on_that_entity_with_key_in_result_selector_using_EF_Property(bool async)
-        {
-            return AssertQuery(
-                async,
-                ss => ss.Set<Gear>()
-                    .GroupBy(g => g.CityOfBirth)
-                    .OrderBy(g => g.Key.Name)
-                    .Select(g => EF.Property<City>(g, "Key"))
-                    .Include(c => c.BornGears).ThenInclude(g => g.Weapons),
-                assertOrder: true,
-                elementAsserter: (e, a) =>
-                {
-                    Assert.Equal(e.Name, a.Name);
-                    Assert.Equal(e.BornGears == null, a.BornGears == null);
-                    Assert.Equal(e.BornGears.Count(), a.BornGears.Count());
-                });
-        }
-
         [ConditionalTheory]
         [MemberData(nameof(IsAsyncData))]
         public virtual Task Group_by_with_include_with_entity_in_result_selector(bool async)
@@ -8994,6 +8955,166 @@ namespace Microsoft.EntityFrameworkCore.Query
                 {
                     AssertEqual(e.Nickname, a.Nickname);
                     AssertEqual(e.IsOfficer, a.IsOfficer);
+                });
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Comparison_with_value_converted_subclass(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => ss.Set<Faction>().Where(f => f.ServerAddress == IPAddress.Loopback));
+        }
+
+        private static readonly IEnumerable<AmmunitionType?> _weaponTypes = new AmmunitionType?[] { AmmunitionType.Cartridge };
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Contains_on_readonly_enumerable(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => ss.Set<Weapon>().Where(w => _weaponTypes.Contains(w.AmmunitionType)));
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Project_navigation_defined_on_base_from_entity_with_inheritance_using_soft_cast(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => ss.Set<Gear>().Select(g => new
+                {
+                    Gear = g,
+                    Tag = (g as Officer).Tag,
+                    IsNull = (g as Officer).Tag == null,
+                    Property = (g as Officer).Nickname,
+                    PropertyAfterNavigation = (g as Officer).Tag.Id,
+                    NestedOuter = new
+                    {
+                        CityOfBirth = (g as Officer).CityOfBirth,
+                        IsNull = (g as Officer).CityOfBirth == null,
+                        Property = (g as Officer).Nickname,
+                        PropertyAfterNavigation = (g as Officer).CityOfBirth.Name,
+                        NestedInner = new
+                        {
+                            Squad = (g as Officer).Squad,
+                            IsNull = (g as Officer).Squad == null,
+                            Property = (g as Officer).Nickname,
+                            PropertyAfterNavigation = (g as Officer).Squad.Id
+                        }
+                    }
+                }),
+                ss => ss.Set<Gear>().Select(g => new
+                {
+                    Gear = g,
+                    Tag = g.Tag,
+                    IsNull = g.Tag == null,
+                    Property = g.Nickname,
+                    PropertyAfterNavigation = g.Tag.Id,
+                    NestedOuter = new
+                    {
+                        CityOfBirth = g.CityOfBirth,
+                        IsNull = g.CityOfBirth == null,
+                        Property = g.Nickname,
+                        PropertyAfterNavigation = g.CityOfBirth.Name,
+                        NestedInner = new
+                        {
+                            Squad = g.Squad,
+                            IsNull = g.Squad == null,
+                            Property = g.Nickname,
+                            PropertyAfterNavigation = g.Squad.Id
+                        }
+                    }
+                }),
+                elementSorter: e => e.Gear.Nickname,
+                elementAsserter: (e, a) =>
+                {
+                    AssertEqual(e.Gear, a.Gear);
+                    AssertEqual(e.Tag, a.Tag);
+                    AssertEqual(e.IsNull, a.IsNull);
+                    AssertEqual(e.Property, a.Property);
+                    AssertEqual(e.PropertyAfterNavigation, a.PropertyAfterNavigation);
+
+                    AssertEqual(e.NestedOuter.CityOfBirth, a.NestedOuter.CityOfBirth);
+                    AssertEqual(e.NestedOuter.IsNull, a.NestedOuter.IsNull);
+                    AssertEqual(e.NestedOuter.Property, a.NestedOuter.Property);
+                    AssertEqual(e.NestedOuter.PropertyAfterNavigation, a.NestedOuter.PropertyAfterNavigation);
+
+                    AssertEqual(e.NestedOuter.NestedInner.Squad, a.NestedOuter.NestedInner.Squad);
+                    AssertEqual(e.NestedOuter.NestedInner.IsNull, a.NestedOuter.NestedInner.IsNull);
+                    AssertEqual(e.NestedOuter.NestedInner.Property, a.NestedOuter.NestedInner.Property);
+                    AssertEqual(e.NestedOuter.NestedInner.PropertyAfterNavigation, a.NestedOuter.NestedInner.PropertyAfterNavigation);
+                });
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Project_navigation_defined_on_derived_from_entity_with_inheritance_using_soft_cast(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => ss.Set<LocustLeader>().Select(l => new
+                {
+                    Leader = l,
+                    DefeatedBy = (l as LocustCommander).DefeatedBy,
+                    IsNull = (l as LocustCommander).DefeatedBy == null,
+                    Property = (l as LocustCommander).DefeatedByNickname,
+                    PropertyAfterNavigation = (bool?)(l as LocustCommander).DefeatedBy.HasSoulPatch,
+                    NestedOuter = new
+                    {
+                        CommandingFaction = (l as LocustCommander).CommandingFaction,
+                        IsNull = (l as LocustCommander).CommandingFaction == null,
+                        Property = (int?)(l as LocustCommander).HighCommandId,
+                        PropertyAfterNavigation = (l as LocustCommander).CommandingFaction.Eradicated,
+                        NestedInner = new
+                        {
+                            HighCommand = (l as LocustCommander).HighCommand,
+                            IsNull = (l as LocustCommander).HighCommand == null,
+                            Property = (l as LocustCommander).DefeatedBySquadId,
+                            PropertyAfterNavigation = (l as LocustCommander).HighCommand.Name
+                        }
+                    }
+                }),
+                ss => ss.Set<LocustLeader>().Select(l => new
+                {
+                    Leader = l,
+                    DefeatedBy = (l as LocustCommander).DefeatedBy,
+                    IsNull = (l as LocustCommander).DefeatedBy == null,
+                    Property = (l as LocustCommander).DefeatedByNickname,
+                    PropertyAfterNavigation = (bool?)(l as LocustCommander).DefeatedBy.HasSoulPatch,
+                    NestedOuter = new
+                    {
+                        CommandingFaction = (l as LocustCommander).CommandingFaction,
+                        IsNull = (l as LocustCommander).CommandingFaction == null,
+                        Property = (int?)(l as LocustCommander).HighCommandId,
+                        PropertyAfterNavigation = (l as LocustCommander).CommandingFaction.MaybeScalar(x => x.Eradicated),
+                        NestedInner = new
+                        {
+                            HighCommand = (l as LocustCommander).HighCommand,
+                            IsNull = (l as LocustCommander).HighCommand == null,
+                            Property = (l as LocustCommander).MaybeScalar(x => x.DefeatedBySquadId),
+                            PropertyAfterNavigation = (l as LocustCommander).HighCommand.Name
+                        }
+                    }
+                }),
+                elementSorter: e => e.Leader.Name,
+                elementAsserter: (e, a) =>
+                {
+                    AssertEqual(e.Leader, a.Leader);
+                    AssertEqual(e.DefeatedBy, a.DefeatedBy);
+                    AssertEqual(e.IsNull, a.IsNull);
+                    AssertEqual(e.Property, a.Property);
+                    AssertEqual(e.PropertyAfterNavigation, a.PropertyAfterNavigation);
+                    AssertEqual(e.NestedOuter.CommandingFaction, a.NestedOuter.CommandingFaction);
+                    AssertEqual(e.NestedOuter.IsNull, a.NestedOuter.IsNull);
+                    AssertEqual(e.NestedOuter.Property, a.NestedOuter.Property);
+                    AssertEqual(e.NestedOuter.PropertyAfterNavigation, a.NestedOuter.PropertyAfterNavigation);
+                    AssertEqual(e.NestedOuter.NestedInner.HighCommand, a.NestedOuter.NestedInner.HighCommand);
+                    AssertEqual(e.NestedOuter.NestedInner.IsNull, a.NestedOuter.NestedInner.IsNull);
+                    AssertEqual(e.NestedOuter.NestedInner.Property, a.NestedOuter.NestedInner.Property);
+                    AssertEqual(e.NestedOuter.NestedInner.PropertyAfterNavigation, a.NestedOuter.NestedInner.PropertyAfterNavigation);
                 });
         }
 

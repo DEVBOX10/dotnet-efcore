@@ -1352,10 +1352,10 @@ FROM [Customers] AS [c]
 LEFT JOIN (
     SELECT [t].[Address], [t].[City], [t].[CompanyName], [t].[ContactName], [t].[ContactTitle]
     FROM (
-        SELECT [c0].[Address], [c0].[City], [c0].[CompanyName], [c0].[ContactName], [c0].[ContactTitle], ROW_NUMBER() OVER(PARTITION BY [c0].[CompanyName] ORDER BY (SELECT 1)) AS [row]
+        SELECT [m].[Address], [m].[City], [m].[CompanyName], [m].[ContactName], [m].[ContactTitle], ROW_NUMBER() OVER(PARTITION BY [m].[CompanyName] ORDER BY (SELECT 1)) AS [row]
         FROM (
             SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region] FROM [Customers] AS [c]
-        ) AS [c0]
+        ) AS [m]
     ) AS [t]
     WHERE [t].[row] <= 1
 ) AS [t0] ON [c].[CompanyName] = [t0].[CompanyName]");
@@ -1473,6 +1473,17 @@ ORDER BY [c].[CustomerID]");
     FROM [Orders] AS [o]
     WHERE [c].[CustomerID] = [o].[CustomerID])
 FROM [Customers] AS [c]
+ORDER BY [c].[CustomerID]");
+        }
+
+        public override async Task Projecting_count_of_navigation_which_is_generic_collection_using_convert(bool async)
+        {
+            await base.Projecting_count_of_navigation_which_is_generic_collection_using_convert(async);
+
+            AssertSql(
+                @"SELECT [c].[CustomerID], [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate]
+FROM [Customers] AS [c]
+LEFT JOIN [Orders] AS [o] ON [c].[CustomerID] = [o].[CustomerID]
 ORDER BY [c].[CustomerID]");
         }
 
@@ -1840,6 +1851,19 @@ FROM (
 ) AS [t]
 LEFT JOIN [Orders] AS [o0] ON [t].[CustomerID] = [o0].[CustomerID]
 ORDER BY [t].[CustomerID]");
+        }
+
+        public override async Task Client_projection_with_string_initialization_with_scalar_subquery(bool async)
+        {
+            await base.Client_projection_with_string_initialization_with_scalar_subquery(async);
+
+            AssertSql(
+                @"SELECT [c].[CustomerID], (
+    SELECT TOP(1) [o].[OrderDate]
+    FROM [Orders] AS [o]
+    WHERE ([c].[CustomerID] = [o].[CustomerID]) AND ([o].[OrderID] < 11000)), [c].[City], N'test' + COALESCE([c].[City], N'')
+FROM [Customers] AS [c]
+WHERE [c].[CustomerID] LIKE N'F%'");
         }
 
         private void AssertSql(params string[] expected)

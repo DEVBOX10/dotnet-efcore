@@ -1204,7 +1204,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                 ss =>
                     from c in ss.Set<Customer>()
                     from e in ss.Set<Employee>()
-                    // ReSharper disable ArrangeRedundantParentheses
+                        // ReSharper disable ArrangeRedundantParentheses
 #pragma warning disable RCS1032 // Remove redundant parentheses.
                     where (c.City == "London" && c.Country == "UK")
                         && (e.City == "London" && e.Country == "UK")
@@ -2222,7 +2222,7 @@ namespace Microsoft.EntityFrameworkCore.Query
             return AssertQuery(
                 async,
                 ss => ss.Set<Customer>()
-                    .Select(c => c.Orders.ToList())
+                    .Select(c => c.Orders.OrderBy(o => o.OrderID).ToList())
                     .Where(e => e.Contains(order)),
                 entryCount: 5);
         }
@@ -2251,7 +2251,7 @@ namespace Microsoft.EntityFrameworkCore.Query
             return AssertQuery(
                 async,
                 ss => ss.Set<Customer>()
-                    .Select(c => c.Orders.AsEnumerable().ToArray())
+                    .Select(c => c.Orders.AsEnumerable().OrderBy(o => o.OrderID).ToArray())
                     .Where(e => e.Contains(order)),
                 entryCount: 5);
         }
@@ -2280,7 +2280,7 @@ namespace Microsoft.EntityFrameworkCore.Query
             return AssertQuery(
                 async,
                 ss => ss.Set<Customer>()
-                    .Select(c => c.Orders.AsEnumerable())
+                    .Select(c => c.Orders.OrderBy(o => o.OrderID).AsEnumerable())
                     .Where(e => e.Contains(order)),
                 entryCount: 5);
         }
@@ -2520,6 +2520,154 @@ namespace Microsoft.EntityFrameworkCore.Query
                 async,
                 ss => ss.Set<Customer>().Where(c => EF.Property<string>(c, StringMethod("CustomerID")) == "ALFKI"),
                 entryCount: 1);
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task FirstOrDefault_over_scalar_projection_compared_to_null(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => ss.Set<Customer>().Where(c => c.Orders.Select(o => (int?)o.OrderID).FirstOrDefault() == null),
+                entryCount: 2);
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task FirstOrDefault_over_scalar_projection_compared_to_not_null(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => ss.Set<Customer>().Where(c => c.Orders.Select(o => (int?)o.OrderID).FirstOrDefault() != null),
+                entryCount: 89);
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task FirstOrDefault_over_custom_projection_compared_to_null(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => ss.Set<Customer>().Where(c => c.Orders.Select(o => new { o.OrderID }).FirstOrDefault() == null),
+                entryCount: 2);
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task FirstOrDefault_over_custom_projection_compared_to_not_null(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => ss.Set<Customer>().Where(c => c.Orders.Select(o => new { o.OrderID }).FirstOrDefault() != null),
+                entryCount: 89);
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task SingleOrDefault_over_custom_projection_compared_to_null(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => ss.Set<Customer>().Where(c => c.Orders.Select(o => new { o.OrderID }).SingleOrDefault() == null),
+                ss => ss.Set<Customer>().Where(c => c.Orders.Select(o => new { o.OrderID }).FirstOrDefault() == null),
+                entryCount: 2);
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task SingleOrDefault_over_custom_projection_compared_to_not_null(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => ss.Set<Customer>().Where(c => c.Orders.Select(o => new { o.OrderID }).SingleOrDefault() != null),
+                ss => ss.Set<Customer>().Where(c => c.Orders.Select(o => new { o.OrderID }).FirstOrDefault() != null),
+                entryCount: 89);
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task LastOrDefault_over_custom_projection_compared_to_null(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => ss.Set<Customer>().Where(c => c.Orders.Select(o => new { o.OrderID }).LastOrDefault() == null),
+                entryCount: 2);
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task LastOrDefault_over_custom_projection_compared_to_not_null(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => ss.Set<Customer>().Where(c => c.Orders.Select(o => new { o.OrderID }).LastOrDefault() != null),
+                entryCount: 89);
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task First_over_custom_projection_compared_to_null(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => ss.Set<Customer>().Where(c => c.Orders.Select(o => new { o.OrderID }).First() == null),
+                ss => ss.Set<Customer>().Where(c => c.Orders.Select(o => new { o.OrderID }).FirstOrDefault() == null),
+                entryCount: 2);
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task First_over_custom_projection_compared_to_not_null(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => ss.Set<Customer>().Where(c => c.Orders.Select(o => new { o.OrderID }).First() != null),
+                ss => ss.Set<Customer>().Where(c => c.Orders.Select(o => new { o.OrderID }).FirstOrDefault() != null),
+                entryCount: 89);
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Single_over_custom_projection_compared_to_null(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => ss.Set<Customer>().Where(c => c.Orders.Select(o => new { o.OrderID }).Single() == null),
+                ss => ss.Set<Customer>().Where(c => c.Orders.Select(o => new { o.OrderID }).FirstOrDefault() == null),
+                entryCount: 2);
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Single_over_custom_projection_compared_to_not_null(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => ss.Set<Customer>().Where(c => c.Orders.Select(o => new { o.OrderID }).Single() != null),
+                ss => ss.Set<Customer>().Where(c => c.Orders.Select(o => new { o.OrderID }).FirstOrDefault() != null),
+                entryCount: 89);
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Last_over_custom_projection_compared_to_null(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => ss.Set<Customer>().Where(c => c.Orders.Select(o => new { o.OrderID }).Last() == null),
+                ss => ss.Set<Customer>().Where(c => c.Orders.Select(o => new { o.OrderID }).LastOrDefault() == null),
+                entryCount: 2);
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Last_over_custom_projection_compared_to_not_null(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => ss.Set<Customer>().Where(c => c.Orders.Select(o => new { o.OrderID }).Last() != null),
+                ss => ss.Set<Customer>().Where(c => c.Orders.Select(o => new { o.OrderID }).LastOrDefault() != null),
+                entryCount: 89);
         }
 
         private string StringMethod(string arg)

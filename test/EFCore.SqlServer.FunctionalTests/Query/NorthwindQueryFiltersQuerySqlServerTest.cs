@@ -122,15 +122,15 @@ WHERE (@__ef_filter__TenantPrefix_0 = N'') OR ([c].[CompanyName] IS NOT NULL AND
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region], [t0].[OrderID], [t0].[CustomerID], [t0].[EmployeeID], [t0].[OrderDate], [t0].[CustomerID0]
 FROM [Customers] AS [c]
 LEFT JOIN (
-    SELECT [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate], [t].[CustomerID] AS [CustomerID0]
+    SELECT [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate], [t].[CustomerID] AS [CustomerID0], [t].[CompanyName]
     FROM [Orders] AS [o]
     LEFT JOIN (
         SELECT [c0].[CustomerID], [c0].[CompanyName]
         FROM [Customers] AS [c0]
         WHERE (@__ef_filter__TenantPrefix_0 = N'') OR ([c0].[CompanyName] IS NOT NULL AND (LEFT([c0].[CompanyName], LEN(@__ef_filter__TenantPrefix_0)) = @__ef_filter__TenantPrefix_0))
     ) AS [t] ON [o].[CustomerID] = [t].[CustomerID]
-    WHERE [t].[CustomerID] IS NOT NULL AND [t].[CompanyName] IS NOT NULL
-) AS [t0] ON [c].[CustomerID] = [t0].[CustomerID]
+    WHERE [t].[CustomerID] IS NOT NULL
+) AS [t0] ON [t0].[CompanyName] IS NOT NULL AND ([c].[CustomerID] = [t0].[CustomerID])
 WHERE (@__ef_filter__TenantPrefix_0 = N'') OR ([c].[CompanyName] IS NOT NULL AND (LEFT([c].[CompanyName], LEN(@__ef_filter__TenantPrefix_0)) = @__ef_filter__TenantPrefix_0))
 ORDER BY [c].[CustomerID], [t0].[OrderID]");
         }
@@ -197,15 +197,15 @@ WHERE [o].[Quantity] > @__ef_filter___quantity_0");
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
 INNER JOIN (
-    SELECT [o].[OrderID], [o].[CustomerID]
+    SELECT [o].[OrderID], [o].[CustomerID], [t].[CompanyName]
     FROM [Orders] AS [o]
     LEFT JOIN (
         SELECT [c0].[CustomerID], [c0].[CompanyName]
         FROM [Customers] AS [c0]
         WHERE (@__ef_filter__TenantPrefix_0 = N'') OR ([c0].[CompanyName] IS NOT NULL AND (LEFT([c0].[CompanyName], LEN(@__ef_filter__TenantPrefix_0)) = @__ef_filter__TenantPrefix_0))
     ) AS [t] ON [o].[CustomerID] = [t].[CustomerID]
-    WHERE [t].[CustomerID] IS NOT NULL AND [t].[CompanyName] IS NOT NULL
-) AS [t0] ON [c].[CustomerID] = [t0].[CustomerID]
+    WHERE [t].[CustomerID] IS NOT NULL
+) AS [t0] ON [t0].[CompanyName] IS NOT NULL AND ([c].[CustomerID] = [t0].[CustomerID])
 INNER JOIN (
     SELECT [o0].[OrderID], [o0].[Discount]
     FROM [Order Details] AS [o0]
@@ -237,11 +237,11 @@ WHERE ((@__ef_filter__TenantPrefix_0 = N'') OR ([c].[CompanyName] IS NOT NULL AN
             AssertSql(
                 @"@__ef_filter__TenantPrefix_0='B' (Size = 4000)
 
-SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+SELECT [m].[CustomerID], [m].[Address], [m].[City], [m].[CompanyName], [m].[ContactName], [m].[ContactTitle], [m].[Country], [m].[Fax], [m].[Phone], [m].[PostalCode], [m].[Region]
 FROM (
     select * from Customers
-) AS [c]
-WHERE (@__ef_filter__TenantPrefix_0 = N'') OR ([c].[CompanyName] IS NOT NULL AND (LEFT([c].[CompanyName], LEN(@__ef_filter__TenantPrefix_0)) = @__ef_filter__TenantPrefix_0))");
+) AS [m]
+WHERE (@__ef_filter__TenantPrefix_0 = N'') OR ([m].[CompanyName] IS NOT NULL AND (LEFT([m].[CompanyName], LEN(@__ef_filter__TenantPrefix_0)) = @__ef_filter__TenantPrefix_0))");
         }
 
         [ConditionalFact]
@@ -257,15 +257,15 @@ WHERE (@__ef_filter__TenantPrefix_0 = N'') OR ([c].[CompanyName] IS NOT NULL AND
             AssertSql(
                 @"@__ef_filter__TenantPrefix_0='B' (Size = 4000)
 
-SELECT [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate]
+SELECT [m].[OrderID], [m].[CustomerID], [m].[EmployeeID], [m].[OrderDate]
 FROM (
     select * from Orders
-) AS [o]
+) AS [m]
 LEFT JOIN (
     SELECT [c].[CustomerID], [c].[CompanyName]
     FROM [Customers] AS [c]
     WHERE (@__ef_filter__TenantPrefix_0 = N'') OR ([c].[CompanyName] IS NOT NULL AND (LEFT([c].[CompanyName], LEN(@__ef_filter__TenantPrefix_0)) = @__ef_filter__TenantPrefix_0))
-) AS [t] ON [o].[CustomerID] = [t].[CustomerID]
+) AS [t] ON [m].[CustomerID] = [t].[CustomerID]
 WHERE [t].[CustomerID] IS NOT NULL AND [t].[CompanyName] IS NOT NULL");
         }
 

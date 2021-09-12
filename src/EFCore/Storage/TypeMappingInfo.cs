@@ -1,6 +1,8 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using System.Collections.Generic;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -11,6 +13,10 @@ namespace Microsoft.EntityFrameworkCore.Storage
     /// <summary>
     ///     Describes metadata needed to decide on a type mapping for a property or type.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     for more information.
+    /// </remarks>
     public readonly record struct TypeMappingInfo : IEquatable<TypeMappingInfo>
     {
         /// <summary>

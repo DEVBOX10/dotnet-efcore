@@ -2038,7 +2038,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                 assertOrder: true);
         }
 
-        [ConditionalTheory(Skip = "issue #22701")]
+        [ConditionalTheory]
         [MemberData(nameof(IsAsyncData))]
         public virtual Task Projecting_count_of_navigation_which_is_generic_collection_using_convert(bool async)
         {
@@ -2240,7 +2240,7 @@ namespace Microsoft.EntityFrameworkCore.Query
               elementSorter: e => e.c.CustomerID,
               elementAsserter: (e, a) =>
               {
-                  AssertInclude(e, a,
+                  AssertInclude(e.c, a.c,
                       new ExpectedInclude<Customer>(c => c.Orders),
                       new ExpectedInclude<Order>(o => o.OrderDetails, "Orders"));
                   AssertInclude(e.SingleOrder, a.SingleOrder, new ExpectedInclude<Order>(o => o.OrderDetails));
@@ -2373,5 +2373,53 @@ namespace Microsoft.EntityFrameworkCore.Query
             public DateTime? OrderDate { get; }
         }
 
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Client_projection_with_string_initialization_with_scalar_subquery(bool async)
+        {
+            return AssertQuery(
+              async,
+              ss => ss.Set<Customer>()
+                    .Where(c => c.CustomerID.StartsWith("F"))
+                    .Select(c => new
+                    {
+                        c.CustomerID,
+                        Order = c.Orders.FirstOrDefault(o => o.OrderID < 11000).OrderDate,
+                        InterpolatedString = $"test{c.City}",
+                        NonInterpolatedString = "test" + c.City,
+                        Collection = new List<string>
+                        {
+                            $"{c.CustomerID}@test1.com",
+                            $"{c.CustomerID}@test2.com",
+                            $"{c.CustomerID}@test3.com",
+                            $"{c.CustomerID}@test4.com"
+                        }
+                    }),
+              ss => ss.Set<Customer>()
+                    .Where(c => c.CustomerID.StartsWith("F"))
+                    .Select(c => new
+                    {
+                        c.CustomerID,
+                        Order = c.Orders.FirstOrDefault(o => o.OrderID < 11000).MaybeScalar(e => e.OrderDate),
+                        InterpolatedString = $"test{c.City}",
+                        NonInterpolatedString = "test" + c.City,
+                        Collection = new List<string>
+                        {
+                            $"{c.CustomerID}@test1.com",
+                            $"{c.CustomerID}@test2.com",
+                            $"{c.CustomerID}@test3.com",
+                            $"{c.CustomerID}@test4.com"
+                        }
+                    }),
+              elementSorter: e => e.CustomerID,
+              elementAsserter: (e, a) =>
+              {
+                  AssertEqual(e.CustomerID, a.CustomerID);
+                  AssertEqual(e.Order, a.Order);
+                  AssertEqual(e.InterpolatedString, a.InterpolatedString);
+                  AssertEqual(e.NonInterpolatedString, a.NonInterpolatedString);
+                  AssertCollection(e.Collection, a.Collection, ordered: true);
+              });
+        }
     }
 }

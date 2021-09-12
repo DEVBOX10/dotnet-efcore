@@ -217,7 +217,7 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
 
                 var filePath = methodCallExpression.Arguments[1].GetConstantValue<string>();
                 var lineNumber = methodCallExpression.Arguments[2].GetConstantValue<int>();
-                _queryCompilationContext.AddTag($"file: {filePath}:{lineNumber}");
+                _queryCompilationContext.AddTag($"File: {filePath}:{lineNumber}");
 
                 return visitedExpression;
             }
@@ -345,6 +345,13 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
                         if (innerQueryableElementType == null
                             || innerQueryableElementType != genericType)
                         {
+                            while (innerArgument is UnaryExpression {
+                                    NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked or ExpressionType.TypeAs } unaryExpression
+                                && unaryExpression.Type.TryGetElementType(typeof(IEnumerable<>)) != null)
+                            {
+                                innerArgument = unaryExpression.Operand;
+                            }
+
                             arguments[i] = Expression.Call(
                                 QueryableMethods.AsQueryable.MakeGenericMethod(genericType),
                                 innerArgument);
