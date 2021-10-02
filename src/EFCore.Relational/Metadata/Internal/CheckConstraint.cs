@@ -56,15 +56,17 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
 
             if (constraints.ContainsKey(name))
             {
-                throw new InvalidOperationException(RelationalStrings.DuplicateCheckConstraint(
-                    name, EntityType.DisplayName(), EntityType.DisplayName()));
+                throw new InvalidOperationException(
+                    RelationalStrings.DuplicateCheckConstraint(
+                        name, EntityType.DisplayName(), EntityType.DisplayName()));
             }
 
             var baseCheckConstraint = entityType.BaseType?.FindCheckConstraint(name);
             if (baseCheckConstraint != null)
             {
-                throw new InvalidOperationException(RelationalStrings.DuplicateCheckConstraint(
-                    name, EntityType.DisplayName(), baseCheckConstraint.EntityType.DisplayName()));
+                throw new InvalidOperationException(
+                    RelationalStrings.DuplicateCheckConstraint(
+                        name, EntityType.DisplayName(), baseCheckConstraint.EntityType.DisplayName()));
             }
 
             foreach (var derivedType in entityType.GetDerivedTypes())
@@ -72,8 +74,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
                 var derivedCheckConstraint = FindCheckConstraint(derivedType, name);
                 if (derivedCheckConstraint != null)
                 {
-                    throw new InvalidOperationException(RelationalStrings.DuplicateCheckConstraint(
-                        name, EntityType.DisplayName(), derivedCheckConstraint.EntityType.DisplayName()));
+                    throw new InvalidOperationException(
+                        RelationalStrings.DuplicateCheckConstraint(
+                            name, EntityType.DisplayName(), derivedCheckConstraint.EntityType.DisplayName()));
                 }
             }
 
@@ -172,6 +175,23 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
+        public static void Attach(IConventionEntityType entityType, IConventionCheckConstraint detachedCheckConstraint)
+        {
+            var newCheckConstraint = new CheckConstraint(
+                (IMutableEntityType)entityType,
+                detachedCheckConstraint.ModelName,
+                detachedCheckConstraint.Sql,
+                detachedCheckConstraint.GetConfigurationSource());
+
+            Attach(detachedCheckConstraint, newCheckConstraint);
+        }
+
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
         public static void Attach(IConventionCheckConstraint detachedCheckConstraint, IConventionCheckConstraint existingCheckConstraint)
         {
             var nameConfigurationSource = detachedCheckConstraint.GetNameConfigurationSource();
@@ -180,6 +200,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
                 ((InternalCheckConstraintBuilder)existingCheckConstraint.Builder).HasName(
                     detachedCheckConstraint.Name, nameConfigurationSource.Value);
             }
+
+            ((InternalCheckConstraintBuilder)existingCheckConstraint.Builder).MergeAnnotationsFrom(
+                (CheckConstraint)detachedCheckConstraint);
         }
 
         /// <summary>
@@ -254,7 +277,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         /// <summary>
         ///     Indicates whether the check constraint is read-only.
         /// </summary>
-        public override bool IsReadOnly => ((Annotatable)EntityType.Model).IsReadOnly;
+        public override bool IsReadOnly
+            => ((Annotatable)EntityType.Model).IsReadOnly;
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -276,7 +300,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
             set => SetName(value, ConfigurationSource.Explicit);
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         public virtual string? GetName(in StoreObjectIdentifier storeObject)
             => _name ?? ((IReadOnlyCheckConstraint)this).GetDefaultName(storeObject) ?? ModelName;
 

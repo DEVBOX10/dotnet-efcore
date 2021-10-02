@@ -5,7 +5,6 @@ using System;
 using System.Diagnostics;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace Microsoft.EntityFrameworkCore.Metadata
 {
@@ -40,7 +39,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         Type ClrType { get; }
 
         /// <summary>
-        ///     Gets a value indicating whether this entity type is mapped to a <see cref="Type"/> that
+        ///     Gets a value indicating whether this entity type is mapped to a <see cref="Type" /> that
         ///     other entity types are also mapped to.
         /// </summary>
         bool HasSharedClrType { get; }
@@ -54,16 +53,28 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         /// <summary>
         ///     Gets a value indicating whether this entity type represents an abstract type.
         /// </summary>
-        /// <returns> <see langword="true" /> if the type is abstract, <see langword="false" /> otherwise. </returns>
+        /// <returns><see langword="true" /> if the type is abstract, <see langword="false" /> otherwise.</returns>
         [DebuggerStepThrough]
-        bool IsAbstract() => ClrType.IsAbstract;
+        bool IsAbstract()
+            => ClrType.IsAbstract;
 
         /// <summary>
         ///     Gets the friendly display name for the given <see cref="IReadOnlyTypeBase" />.
         /// </summary>
-        /// <returns> The display name. </returns>
+        /// <returns>The display name.</returns>
         [DebuggerStepThrough]
         string DisplayName()
+            => DisplayName(omitSharedType: false);
+
+        /// <summary>
+        ///     Gets the friendly display name for the given <see cref="IReadOnlyTypeBase" />.
+        /// </summary>
+        /// <param name="omitSharedType">
+        ///     A value indicating whether the name of the type for shared type entity types should be omitted from the returned value.
+        /// </param>
+        /// <returns>The display name.</returns>
+        [DebuggerStepThrough]
+        string DisplayName(bool omitSharedType)
         {
             if (!HasSharedClrType)
             {
@@ -97,14 +108,14 @@ namespace Microsoft.EntityFrameworkCore.Metadata
             }
 
             return shortName == Name
-                       ? shortName + " (" + ClrType.ShortDisplayName() + ")"
-                       : shortName;
+                ? shortName + " (" + ClrType.ShortDisplayName() + ")"
+                : shortName;
         }
 
         /// <summary>
         ///     Gets a short name for the given <see cref="IReadOnlyTypeBase" /> that can be used in other identifiers.
         /// </summary>
-        /// <returns> The short name. </returns>
+        /// <returns>The short name.</returns>
         [DebuggerStepThrough]
         string ShortName()
         {
@@ -121,8 +132,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata
                 {
                     var dotIndex = Name.LastIndexOf(".", StringComparison.Ordinal);
                     return dotIndex == -1
-                            ? Name
-                            : Name[(dotIndex + 1)..];
+                        ? Name
+                        : Name[(dotIndex + 1)..];
                 }
 
                 return Name[(plusIndex + 1)..];
@@ -140,7 +151,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         ///         be used for any property or navigation for which no override has been specified.
         ///     </para>
         /// </summary>
-        /// <returns> The access mode being used. </returns>
+        /// <returns>The access mode being used.</returns>
         PropertyAccessMode GetPropertyAccessMode();
 
         /// <summary>
@@ -152,13 +163,13 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         ///         be used for any navigation for which no override has been specified.
         ///     </para>
         /// </summary>
-        /// <returns> The access mode being used. </returns>
+        /// <returns>The access mode being used.</returns>
         PropertyAccessMode GetNavigationAccessMode();
 
         /// <summary>
-        ///     Returns the <see cref="PropertyInfo"/> for the indexer on the associated CLR type if one exists.
+        ///     Returns the <see cref="PropertyInfo" /> for the indexer on the associated CLR type if one exists.
         /// </summary>
-        /// <returns> The <see cref="PropertyInfo"/> for the indexer on the associated CLR type if one exists. </returns>
+        /// <returns>The <see cref="PropertyInfo" /> for the indexer on the associated CLR type if one exists.</returns>
         PropertyInfo? FindIndexerPropertyInfo();
     }
 }

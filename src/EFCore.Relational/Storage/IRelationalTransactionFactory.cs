@@ -21,19 +21,23 @@ namespace Microsoft.EntityFrameworkCore.Storage
     ///         This service cannot depend on services registered as <see cref="ServiceLifetime.Scoped" />.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     for more information.
+    /// </remarks>
     public interface IRelationalTransactionFactory
     {
         /// <summary>
         ///     Creates a <see cref="RelationalTransaction" /> instance.
         /// </summary>
-        /// <param name="connection"> The connection to the database. </param>
-        /// <param name="transaction"> The underlying <see cref="DbTransaction" />. </param>
-        /// <param name="transactionId"> The unique correlation ID for this transaction. </param>
-        /// <param name="logger"> The logger to write to. </param>
+        /// <param name="connection">The connection to the database.</param>
+        /// <param name="transaction">The underlying <see cref="DbTransaction" />.</param>
+        /// <param name="transactionId">The unique correlation ID for this transaction.</param>
+        /// <param name="logger">The logger to write to.</param>
         /// <param name="transactionOwned">
         ///     A value indicating whether the transaction is owned by this class (i.e. if it can be disposed when this class is disposed).
         /// </param>
-        /// <returns> A new <see cref="RelationalTransaction" /> instance. </returns>
+        /// <returns>A new <see cref="RelationalTransaction" /> instance.</returns>
         RelationalTransaction Create(
             IRelationalConnection connection,
             DbTransaction transaction,

@@ -16,13 +16,17 @@ namespace Microsoft.EntityFrameworkCore.Storage
     ///         This service cannot depend on services registered as <see cref="ServiceLifetime.Scoped" />.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     for more information.
+    /// </remarks>
     public interface IRelationalTypeMappingSourcePlugin
     {
         /// <summary>
         ///     Finds a type mapping for the given info.
         /// </summary>
-        /// <param name="mappingInfo"> The mapping info to use to create the mapping. </param>
-        /// <returns> The type mapping, or <see langword="null" /> if none could be found. </returns>
+        /// <param name="mappingInfo">The mapping info to use to create the mapping.</param>
+        /// <returns>The type mapping, or <see langword="null" /> if none could be found.</returns>
         RelationalTypeMapping? FindMapping(in RelationalTypeMappingInfo mappingInfo);
     }
 }

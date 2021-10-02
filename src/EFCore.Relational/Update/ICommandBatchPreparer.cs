@@ -21,15 +21,19 @@ namespace Microsoft.EntityFrameworkCore.Update
     ///         The implementation does not need to be thread-safe.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     for more information.
+    /// </remarks>
     public interface ICommandBatchPreparer
     {
         /// <summary>
         ///     Creates the command batches needed to insert/update/delete the entities represented by the given
         ///     list of <see cref="IUpdateEntry" />s.
         /// </summary>
-        /// <param name="entries"> The entries that represent the entities to be modified. </param>
-        /// <param name="updateAdapter"> The model data. </param>
-        /// <returns> The list of batches to execute. </returns>
+        /// <param name="entries">The entries that represent the entities to be modified.</param>
+        /// <param name="updateAdapter">The model data.</param>
+        /// <returns>The list of batches to execute.</returns>
         IEnumerable<ModificationCommandBatch> BatchCommands(
             IList<IUpdateEntry> entries,
             IUpdateAdapter updateAdapter);

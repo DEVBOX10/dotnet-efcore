@@ -310,6 +310,46 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         }
 
         [ConditionalFact]
+        public virtual void Model_Fluent_APIs_are_properly_generated()
+        {
+            Test(
+                builder =>
+                {
+                    builder.UseHiLo();
+                    builder.Entity<EntityWithOneProperty>();
+                    builder.Ignore<EntityWithTwoProperties>();
+                },
+                AddBoilerPlate(
+                    @"
+            modelBuilder.HasAnnotation(""Relational:MaxIdentifierLength"", 128);
+
+            SqlServerModelBuilderExtensions.UseHiLo(modelBuilder, ""EntityFrameworkHiLoSequence"");
+
+            modelBuilder.HasSequence(""EntityFrameworkHiLoSequence"")
+                .IncrementsBy(10);
+
+            modelBuilder.Entity(""Microsoft.EntityFrameworkCore.Migrations.ModelSnapshotSqlServerTest+EntityWithOneProperty"", b =>
+                {
+                    b.Property<int>(""Id"")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType(""int"");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>(""Id""));
+
+                    b.HasKey(""Id"");
+
+                    b.ToTable(""EntityWithOneProperty"");
+                });"),
+                o =>
+                {
+                    Assert.Equal(SqlServerValueGenerationStrategy.SequenceHiLo, o.GetValueGenerationStrategy());
+                    Assert.Equal(
+                        SqlServerValueGenerationStrategy.SequenceHiLo,
+                        o.GetEntityTypes().Single().GetProperty("Id").GetValueGenerationStrategy());
+                });
+        }
+
+        [ConditionalFact]
         public virtual void Model_default_schema_annotation_is_stored_in_snapshot_as_fluent_api()
         {
             Test(
@@ -875,6 +915,37 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         }
 
         [ConditionalFact]
+        public virtual void EntityType_Fluent_APIs_are_properly_generated()
+        {
+            Test(
+                builder =>
+                {
+                    builder.Entity<EntityWithOneProperty>().IsMemoryOptimized();
+                    builder.Ignore<EntityWithTwoProperties>();
+                },
+                AddBoilerPlate(
+                    GetHeading()
+                    + @"
+            modelBuilder.Entity(""Microsoft.EntityFrameworkCore.Migrations.ModelSnapshotSqlServerTest+EntityWithOneProperty"", b =>
+                {
+                    b.Property<int>(""Id"")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType(""int"");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>(""Id""), 1L, 1);
+
+                    b.HasKey(""Id"");
+
+                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey(""Id""), false);
+
+                    b.ToTable(""EntityWithOneProperty"");
+
+                    SqlServerEntityTypeBuilderExtensions.IsMemoryOptimized(b);
+                });"),
+                o => Assert.True(o.GetEntityTypes().Single().IsMemoryOptimized()));
+        }
+
+        [ConditionalFact]
         public virtual void BaseType_is_stored_in_snapshot()
         {
             Test(
@@ -1297,8 +1368,13 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                 {
                     builder
                         .Entity<ManyToManyLeft>()
+                        .ToTable("ManyToManyLeft", "schema")
                         .HasMany(l => l.Rights)
                         .WithMany(r => r.Lefts);
+
+                    builder
+                        .Entity<ManyToManyRight>()
+                        .ToTable("ManyToManyRight", "schema");
                 },
                 AddBoilerPlate(
                     GetHeading()
@@ -1315,7 +1391,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
 
                     b.HasIndex(""RightsId"");
 
-                    b.ToTable(""ManyToManyLeftManyToManyRight"");
+                    b.ToTable(""ManyToManyLeftManyToManyRight"", ""schema"");
                 });
 
             modelBuilder.Entity(""Microsoft.EntityFrameworkCore.Migrations.ModelSnapshotSqlServerTest+ManyToManyLeft"", b =>
@@ -1331,7 +1407,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
 
                     b.HasKey(""Id"");
 
-                    b.ToTable(""ManyToManyLeft"");
+                    b.ToTable(""ManyToManyLeft"", ""schema"");
                 });
 
             modelBuilder.Entity(""Microsoft.EntityFrameworkCore.Migrations.ModelSnapshotSqlServerTest+ManyToManyRight"", b =>
@@ -1347,7 +1423,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
 
                     b.HasKey(""Id"");
 
-                    b.ToTable(""ManyToManyRight"");
+                    b.ToTable(""ManyToManyRight"", ""schema"");
                 });
 
             modelBuilder.Entity(""ManyToManyLeftManyToManyRight"", b =>
@@ -1428,6 +1504,9 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                                     Assert.Equal("RightsId", p.Name);
                                 });
                         });
+
+                    Assert.Equal("ManyToManyLeftManyToManyRight", joinEntity.GetTableName());
+                    Assert.Equal("schema", joinEntity.GetSchema());
                 });
         }
 
@@ -3763,6 +3842,81 @@ namespace RootNamespace
                 });
         }
 
+        [ConditionalFact]
+        public virtual void Property_column_order_annotation_is_stored_in_snapshot_as_fluent_api()
+        {
+            Test(
+                builder =>
+                {
+                    builder.Entity<EntityWithTwoProperties>().Property<int>("AlternateId").HasColumnOrder(1);
+                    builder.Ignore<EntityWithOneProperty>();
+                },
+                AddBoilerPlate(
+                    GetHeading()
+                    + @"
+            modelBuilder.Entity(""Microsoft.EntityFrameworkCore.Migrations.ModelSnapshotSqlServerTest+EntityWithTwoProperties"", b =>
+                {
+                    b.Property<int>(""Id"")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType(""int"");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>(""Id""), 1L, 1);
+
+                    b.Property<int>(""AlternateId"")
+                        .HasColumnType(""int"")
+                        .HasColumnOrder(1);
+
+                    b.HasKey(""Id"");
+
+                    b.ToTable(""EntityWithTwoProperties"");
+                });"),
+                o => Assert.Equal(1, o.GetEntityTypes().First().FindProperty("AlternateId").GetColumnOrder()));
+        }
+
+        [ConditionalFact]
+        public virtual void SQLServer_model_legacy_identity_seed_int_annotation()
+        {
+            Test(
+                builder => builder.HasAnnotation(SqlServerAnnotationNames.IdentitySeed, 8),
+                AddBoilerPlate(
+                    @"
+            modelBuilder.HasAnnotation(""Relational:MaxIdentifierLength"", 128);
+
+            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder, 8L, 1);"),
+                o => Assert.Equal(8L, o.GetIdentitySeed()));
+        }
+
+        [ConditionalFact]
+        public virtual void SQLServer_property_legacy_identity_seed_int_annotation()
+        {
+            Test(
+                builder =>
+                {
+                    builder.Entity<EntityWithTwoProperties>().Property(e => e.Id)
+                        .HasAnnotation(SqlServerAnnotationNames.IdentitySeed, 8);
+                    builder.Ignore<EntityWithOneProperty>();
+                },
+                AddBoilerPlate(
+                    GetHeading()
+                    + @"
+            modelBuilder.Entity(""Microsoft.EntityFrameworkCore.Migrations.ModelSnapshotSqlServerTest+EntityWithTwoProperties"", b =>
+                {
+                    b.Property<int>(""Id"")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType(""int"");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>(""Id""), 8L, 1);
+
+                    b.Property<int>(""AlternateId"")
+                        .HasColumnType(""int"");
+
+                    b.HasKey(""Id"");
+
+                    b.ToTable(""EntityWithTwoProperties"");
+                });"),
+                o => Assert.Equal(8L, o.GetEntityTypes().First().FindProperty("Id").GetIdentitySeed()));
+        }
+
         #endregion
 
         #region HasKey
@@ -3800,6 +3954,35 @@ namespace RootNamespace
                 });"),
                 o => Assert.Equal(
                     "AnnotationValue", o.GetEntityTypes().First().GetKeys().Where(k => !k.IsPrimaryKey()).First()["AnnotationName"]));
+        }
+
+        [ConditionalFact]
+        public virtual void Key_Fluent_APIs_are_properly_generated()
+        {
+            Test(
+                builder =>
+                {
+                    builder.Entity<EntityWithOneProperty>().HasKey(t => t.Id).IsClustered();
+                    builder.Ignore<EntityWithTwoProperties>();
+                },
+                AddBoilerPlate(
+                    GetHeading()
+                    + @"
+            modelBuilder.Entity(""Microsoft.EntityFrameworkCore.Migrations.ModelSnapshotSqlServerTest+EntityWithOneProperty"", b =>
+                {
+                    b.Property<int>(""Id"")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType(""int"");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>(""Id""), 1L, 1);
+
+                    b.HasKey(""Id"");
+
+                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey(""Id""));
+
+                    b.ToTable(""EntityWithOneProperty"");
+                });"),
+                o => Assert.True(o.GetEntityTypes().First().GetKeys().Single(k => k.IsPrimaryKey()).IsClustered()));
         }
 
         [ConditionalFact]
@@ -3913,6 +4096,40 @@ namespace RootNamespace
                     b.ToTable(""EntityWithTwoProperties"");
                 });"),
                 o => Assert.Equal("AnnotationValue", o.GetEntityTypes().First().GetIndexes().First()["AnnotationName"]));
+        }
+
+        [ConditionalFact]
+        public virtual void Index_Fluent_APIs_are_properly_generated()
+        {
+            Test(
+                builder =>
+                {
+                    builder.Entity<EntityWithTwoProperties>().HasIndex(t => t.AlternateId).IsClustered();
+                    builder.Ignore<EntityWithOneProperty>();
+                },
+                AddBoilerPlate(
+                    GetHeading()
+                    + @"
+            modelBuilder.Entity(""Microsoft.EntityFrameworkCore.Migrations.ModelSnapshotSqlServerTest+EntityWithTwoProperties"", b =>
+                {
+                    b.Property<int>(""Id"")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType(""int"");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>(""Id""), 1L, 1);
+
+                    b.Property<int>(""AlternateId"")
+                        .HasColumnType(""int"");
+
+                    b.HasKey(""Id"");
+
+                    b.HasIndex(""AlternateId"");
+
+                    SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(""AlternateId""));
+
+                    b.ToTable(""EntityWithTwoProperties"");
+                });"),
+                o => Assert.True(o.GetEntityTypes().Single().GetIndexes().Single().IsClustered()));
         }
 
         [ConditionalFact]
@@ -5767,7 +5984,7 @@ namespace RootNamespace
                 Activator.CreateInstance(factoryType),
                 new object[] { builder });
 
-            var services = TestHelpers.CreateContextServices();
+            var services = TestHelpers.CreateContextServices(new ServiceCollection().AddEntityFrameworkSqlServerNetTopologySuite());
 
             var processor = new SnapshotModelProcessor(new TestOperationReporter(), services.GetService<IModelRuntimeInitializer>());
             return processor.Process(builder.Model);

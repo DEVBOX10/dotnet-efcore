@@ -14,6 +14,10 @@ namespace Microsoft.EntityFrameworkCore.Update
     ///         This type is typically used by database providers; it is generally not used in application code.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     for more information.
+    /// </remarks>
     public interface IReadOnlyModificationCommand
     {
         /// <summary>
@@ -55,7 +59,7 @@ namespace Microsoft.EntityFrameworkCore.Update
         ///     propagates them back to into the appropriate <see cref="IColumnModification" />
         ///     from which the values can be propagated on to tracked entities.
         /// </summary>
-        /// <param name="valueBuffer"> The buffer containing the values read from the database. </param>
+        /// <param name="valueBuffer">The buffer containing the values read from the database.</param>
         public void PropagateResults(ValueBuffer valueBuffer);
     }
 }

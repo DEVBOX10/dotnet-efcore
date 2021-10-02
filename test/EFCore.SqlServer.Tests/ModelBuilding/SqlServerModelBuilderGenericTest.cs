@@ -510,15 +510,25 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
             public virtual void Owned_types_use_table_splitting_by_default()
             {
                 var modelBuilder = CreateModelBuilder();
-                var model = modelBuilder.Model;
 
-                modelBuilder.Entity<Book>().OwnsOne(b => b.AlternateLabel)
-                    .Ignore(l => l.Book)
-                    .OwnsOne(l => l.AnotherBookLabel)
-                    .Ignore(l => l.Book)
-                    .OwnsOne(s => s.SpecialBookLabel)
-                    .Ignore(l => l.Book)
-                    .Ignore(l => l.BookLabel);
+                modelBuilder.Entity<Book>().OwnsOne(b => b.AlternateLabel,
+                    b =>
+                    {
+                        b.Ignore(l => l.Book);
+                        b.OwnsOne(l => l.AnotherBookLabel,
+                            ab =>
+                            {
+                                ab.Property(l => l.BookId).HasColumnName("BookId2");
+                                ab.Ignore(l => l.Book);
+                                ab.OwnsOne(s => s.SpecialBookLabel,
+                                    s =>
+                                    {
+                                        s.Property(l => l.BookId).HasColumnName("BookId2");
+                                        s.Ignore(l => l.Book);
+                                        s.Ignore(l => l.BookLabel);
+                                    });
+                            });
+                    });
 
                 modelBuilder.Entity<Book>().OwnsOne(b => b.Label)
                     .Ignore(l => l.Book)
@@ -534,12 +544,25 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                     .Ignore(l => l.Book)
                     .Ignore(l => l.BookLabel);
 
-                modelBuilder.Entity<Book>().OwnsOne(b => b.AlternateLabel)
-                    .OwnsOne(l => l.SpecialBookLabel)
-                    .Ignore(l => l.Book)
-                    .OwnsOne(s => s.AnotherBookLabel)
-                    .Ignore(l => l.Book);
+                modelBuilder.Entity<Book>().OwnsOne(b => b.AlternateLabel,
+                    b =>
+                    {
+                        b.Ignore(l => l.Book);
+                        b.OwnsOne(l => l.SpecialBookLabel,
+                            ab =>
+                            {
+                                ab.Property(l => l.BookId).HasColumnName("BookId2");
+                                ab.Ignore(l => l.Book);
+                                ab.OwnsOne(s => s.AnotherBookLabel,
+                                    s =>
+                                    {
+                                        s.Property(l => l.BookId).HasColumnName("BookId2");
+                                        s.Ignore(l => l.Book);
+                                    });
+                            });
+                    });
 
+                IModel model = (IModel)modelBuilder.Model;
                 var book = model.FindEntityType(typeof(Book));
                 var bookOwnership1 = book.FindNavigation(nameof(Book.Label)).ForeignKey;
                 var bookOwnership2 = book.FindNavigation(nameof(Book.AlternateLabel)).ForeignKey;
@@ -580,7 +603,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 modelBuilder.Entity<Book>().OwnsOne(b => b.Label).ToTable("Label");
                 modelBuilder.Entity<Book>().OwnsOne(b => b.AlternateLabel).ToTable("AlternateLabel");
 
-                modelBuilder.FinalizeModel();
+                model = modelBuilder.FinalizeModel();
 
                 Assert.Equal(
                     nameof(BookLabel.Id),
@@ -590,6 +613,12 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                     nameof(BookLabel.AnotherBookLabel) + "_" + nameof(BookLabel.Id),
                     bookLabel2Ownership1.DeclaringEntityType.FindProperty(nameof(BookLabel.Id))
                         .GetColumnName(StoreObjectIdentifier.Table("AlternateLabel", null)));
+
+                var alternateTable = model.GetRelationalModel().FindTable("AlternateLabel", null);
+                var bookId = alternateTable.FindColumn("BookId2");
+
+                Assert.Equal(4, bookId.PropertyMappings.Count());
+                Assert.All(bookId.PropertyMappings, m => Assert.Equal(ValueGenerated.OnUpdateSometimes, m.Property.ValueGenerated));
             }
 
             [ConditionalFact]
@@ -813,37 +842,62 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
             {
                 var modelBuilder = CreateModelBuilder();
 
-                var ownedBuilder = modelBuilder.Entity<Customer>().OwnsOne(c => c.Details)
-                    .ToTable("CustomerDetails")
+                modelBuilder.Ignore<Customer>();
+                modelBuilder.Ignore<Product>();
+
+                var ownedBuilder = modelBuilder.Entity<OtherCustomer>().OwnsOne(c => c.Details)
+                    .ToTable("OtherCustomerDetails")
                     .HasCheckConstraint("CK_CustomerDetails_T", "AlternateKey <> 0", c => c.HasName("CK_Guid"));
                 ownedBuilder.Property(d => d.CustomerId);
                 ownedBuilder.HasIndex(d => d.CustomerId);
-                ownedBuilder.WithOwner(d => d.Customer)
+                ownedBuilder.WithOwner(d => (OtherCustomer)d.Customer)
                     .HasPrincipalKey(c => c.AlternateKey);
+
+                modelBuilder.Entity<SpecialCustomer>().OwnsOne(c => c.Details, b =>
+                {
+                    b.ToTable("SpecialCustomerDetails");
+                    b.HasCheckConstraint("CK_CustomerDetails_T", "AlternateKey <> 0", c => c.HasName("CK_Guid"));
+                    b.Property(d => d.CustomerId);
+                    b.HasIndex(d => d.CustomerId);
+                    b.WithOwner(d => (SpecialCustomer)d.Customer)
+                        .HasPrincipalKey(c => c.AlternateKey);
+                });
 
                 var model = modelBuilder.FinalizeModel();
 
-                var owner = model.FindEntityType(typeof(Customer));
-                Assert.Equal(typeof(Customer).FullName, owner.Name);
-                var ownership = owner.FindNavigation(nameof(Customer.Details)).ForeignKey;
-                Assert.True(ownership.IsOwnership);
-                Assert.Equal(nameof(Customer.Details), ownership.PrincipalToDependent.Name);
-                Assert.Equal("CustomerAlternateKey", ownership.Properties.Single().Name);
-                Assert.Equal(nameof(Customer.AlternateKey), ownership.PrincipalKey.Properties.Single().Name);
-                var owned = ownership.DeclaringEntityType;
-                Assert.Same(ownedBuilder.OwnedEntityType, owned);
-                Assert.Equal("CustomerDetails", owned.GetTableName());
-                var checkConstraint = owned.GetCheckConstraints().Single();
-                Assert.Equal("CK_CustomerDetails_T", checkConstraint.ModelName);
-                Assert.Equal("AlternateKey <> 0", checkConstraint.Sql);
-                Assert.Equal("CK_Guid", checkConstraint.Name);
-                Assert.Single(owned.GetForeignKeys());
-                Assert.Equal(nameof(CustomerDetails.CustomerId), owned.GetIndexes().Single().Properties.Single().Name);
-                Assert.Equal(
-                    new[] { "CustomerAlternateKey", nameof(CustomerDetails.CustomerId), nameof(CustomerDetails.Id) },
-                    owned.GetProperties().Select(p => p.Name));
-                Assert.NotNull(model.FindEntityType(typeof(CustomerDetails)));
-                Assert.Equal(1, model.GetEntityTypes().Count(e => e.ClrType == typeof(CustomerDetails)));
+                var owner1 = model.FindEntityType(typeof(OtherCustomer));
+                Assert.Equal(typeof(OtherCustomer).FullName, owner1.Name);
+                AssertOwnership(owner1);
+
+                var owner2 = model.FindEntityType(typeof(SpecialCustomer));
+                Assert.Equal(typeof(SpecialCustomer).FullName, owner2.Name);
+                AssertOwnership(owner2);
+
+                Assert.Null(model.FindEntityType(typeof(CustomerDetails)));
+                Assert.Equal(2, model.GetEntityTypes().Count(e => e.ClrType == typeof(CustomerDetails)));
+
+                static void AssertOwnership(IEntityType owner)
+                {
+                    var ownership1 = owner.FindNavigation(nameof(Customer.Details)).ForeignKey;
+                    Assert.True(ownership1.IsOwnership);
+                    Assert.Equal(nameof(Customer.Details), ownership1.PrincipalToDependent.Name);
+                    Assert.Equal("CustomerAlternateKey", ownership1.Properties.Single().Name);
+                    Assert.Equal(nameof(Customer.AlternateKey), ownership1.PrincipalKey.Properties.Single().Name);
+                    var owned = ownership1.DeclaringEntityType;
+                    Assert.Equal(owner.ShortName() + "Details", owned.GetTableName());
+                    var checkConstraint = owned.GetCheckConstraints().Single();
+                    Assert.Same(owned, checkConstraint.EntityType);
+                    Assert.Equal("CK_CustomerDetails_T", checkConstraint.ModelName);
+                    Assert.Equal("AlternateKey <> 0", checkConstraint.Sql);
+                    Assert.Equal("CK_Guid", checkConstraint.Name);
+                    Assert.Single(owned.GetForeignKeys());
+                    var index = owned.GetIndexes().Single();
+                    Assert.Same(owned, index.DeclaringEntityType);
+                    Assert.Equal(nameof(CustomerDetails.CustomerId), index.Properties.Single().Name);
+                    Assert.Equal(
+                        new[] { "CustomerAlternateKey", nameof(CustomerDetails.CustomerId), nameof(CustomerDetails.Id) },
+                        owned.GetProperties().Select(p => p.Name));
+                }
             }
 
             [ConditionalFact]

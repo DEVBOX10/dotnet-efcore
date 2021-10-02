@@ -19,12 +19,16 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
     ///         This service cannot depend on services registered as <see cref="ServiceLifetime.Scoped" />.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     for more information.
+    /// </remarks>
     public class RelationalModelCustomizer : ModelCustomizer
     {
         /// <summary>
         ///     Initializes a new instance of the <see cref="RelationalModelCustomizer" /> class.
         /// </summary>
-        /// <param name="dependencies"> Parameter object containing dependencies for this service. </param>
+        /// <param name="dependencies">Parameter object containing dependencies for this service.</param>
         public RelationalModelCustomizer(ModelCustomizerDependencies dependencies)
             : base(dependencies)
         {

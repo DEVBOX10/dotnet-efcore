@@ -11,13 +11,13 @@ namespace Microsoft.EntityFrameworkCore
     /// <remarks>
     ///     See <see href="https://aka.ms/efcore-docs-modeling">Modeling entity types and relationships</see> for more information.
     /// </remarks>
-    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false)]
+    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
     public sealed class UnicodeAttribute : Attribute
     {
         /// <summary>
         ///     Initializes a new instance of the <see cref="UnicodeAttribute" /> class.
         /// </summary>
-        /// <param name="unicode"> A value indicating whether the property can contain unicode characters or not. </param>
+        /// <param name="unicode">A value indicating whether the property can contain unicode characters or not.</param>
         public UnicodeAttribute(bool unicode = true)
         {
             IsUnicode = unicode;

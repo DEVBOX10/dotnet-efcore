@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -11,7 +12,6 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Utilities;
-using NotNullWhenAttribute = System.Diagnostics.CodeAnalysis.NotNullWhenAttribute;
 
 #pragma warning disable EF1001 // Accessing annotation names (internal)
 
@@ -27,6 +27,10 @@ namespace Microsoft.EntityFrameworkCore.Design
     ///         annotations that they understand.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     for more information.
+    /// </remarks>
     public class AnnotationCodeGenerator : IAnnotationCodeGenerator
     {
         private static readonly ISet<string> _ignoredRelationalAnnotations = new HashSet<string>
@@ -54,6 +58,10 @@ namespace Microsoft.EntityFrameworkCore.Design
         private static readonly MethodInfo _propertyHasColumnNameMethodInfo
             = typeof(RelationalPropertyBuilderExtensions).GetRequiredRuntimeMethod(
                 nameof(RelationalPropertyBuilderExtensions.HasColumnName), typeof(PropertyBuilder), typeof(string));
+
+        private static readonly MethodInfo _propertyHasColumnOrderMethodInfo
+            = typeof(RelationalPropertyBuilderExtensions).GetRequiredRuntimeMethod(
+                nameof(RelationalPropertyBuilderExtensions.HasColumnOrder), typeof(PropertyBuilder), typeof(int?));
 
         private static readonly MethodInfo _propertyHasDefaultValueSqlMethodInfo1
             = typeof(RelationalPropertyBuilderExtensions).GetRequiredRuntimeMethod(
@@ -112,7 +120,7 @@ namespace Microsoft.EntityFrameworkCore.Design
         /// <summary>
         ///     Initializes a new instance of this class.
         /// </summary>
-        /// <param name="dependencies"> Parameter object containing dependencies for this service. </param>
+        /// <param name="dependencies">Parameter object containing dependencies for this service.</param>
         public AnnotationCodeGenerator(AnnotationCodeGeneratorDependencies dependencies)
         {
             Check.NotNull(dependencies, nameof(dependencies));
@@ -221,6 +229,10 @@ namespace Microsoft.EntityFrameworkCore.Design
                 annotations,
                 RelationalAnnotationNames.ColumnName, _propertyHasColumnNameMethodInfo, methodCallCodeFragments);
 
+            GenerateSimpleFluentApiCall(
+                annotations,
+                RelationalAnnotationNames.ColumnOrder, _propertyHasColumnOrderMethodInfo, methodCallCodeFragments);
+
             if (TryGetAndRemove(annotations, RelationalAnnotationNames.DefaultValueSql, out string? defaultValueSql))
             {
                 methodCallCodeFragments.Add(
@@ -242,7 +254,7 @@ namespace Microsoft.EntityFrameworkCore.Design
             if (TryGetAndRemove(annotations, RelationalAnnotationNames.IsFixedLength, out bool isFixedLength))
             {
                 methodCallCodeFragments.Add(
-                        isFixedLength
+                    isFixedLength
                         ? new MethodCallCodeFragment(_propertyIsFixedLengthMethodInfo)
                         : new MethodCallCodeFragment(_propertyIsFixedLengthMethodInfo, isFixedLength));
             }
@@ -376,8 +388,8 @@ namespace Microsoft.EntityFrameworkCore.Design
         ///         The default implementation always returns <see langword="false" />.
         ///     </para>
         /// </summary>
-        /// <param name="model"> The <see cref="IModel" />. </param>
-        /// <param name="annotation"> The <see cref="IAnnotation" />. </param>
+        /// <param name="model">The <see cref="IModel" />.</param>
+        /// <param name="annotation">The <see cref="IAnnotation" />.</param>
         /// <returns>
         ///     <see langword="true" /> if the annotation is handled by convention;
         ///     <see langword="false" /> if code must be generated.
@@ -399,9 +411,9 @@ namespace Microsoft.EntityFrameworkCore.Design
         ///         The default implementation always returns <see langword="false" />.
         ///     </para>
         /// </summary>
-        /// <param name="entityType"> The <see cref="IEntityType" />. </param>
-        /// <param name="annotation"> The <see cref="IAnnotation" />. </param>
-        /// <returns> <see langword="false" />. </returns>
+        /// <param name="entityType">The <see cref="IEntityType" />.</param>
+        /// <param name="annotation">The <see cref="IAnnotation" />.</param>
+        /// <returns><see langword="false" />.</returns>
         protected virtual bool IsHandledByConvention(IEntityType entityType, IAnnotation annotation)
         {
             Check.NotNull(entityType, nameof(entityType));
@@ -419,9 +431,9 @@ namespace Microsoft.EntityFrameworkCore.Design
         ///         The default implementation always returns <see langword="false" />.
         ///     </para>
         /// </summary>
-        /// <param name="key"> The <see cref="IKey" />. </param>
-        /// <param name="annotation"> The <see cref="IAnnotation" />. </param>
-        /// <returns> <see langword="false" />. </returns>
+        /// <param name="key">The <see cref="IKey" />.</param>
+        /// <param name="annotation">The <see cref="IAnnotation" />.</param>
+        /// <returns><see langword="false" />.</returns>
         protected virtual bool IsHandledByConvention(IKey key, IAnnotation annotation)
         {
             Check.NotNull(key, nameof(key));
@@ -439,9 +451,9 @@ namespace Microsoft.EntityFrameworkCore.Design
         ///         The default implementation always returns <see langword="false" />.
         ///     </para>
         /// </summary>
-        /// <param name="property"> The <see cref="IProperty" />. </param>
-        /// <param name="annotation"> The <see cref="IAnnotation" />. </param>
-        /// <returns> <see langword="false" />. </returns>
+        /// <param name="property">The <see cref="IProperty" />.</param>
+        /// <param name="annotation">The <see cref="IAnnotation" />.</param>
+        /// <returns><see langword="false" />.</returns>
         protected virtual bool IsHandledByConvention(IProperty property, IAnnotation annotation)
         {
             Check.NotNull(property, nameof(property));
@@ -459,9 +471,9 @@ namespace Microsoft.EntityFrameworkCore.Design
         ///         The default implementation always returns <see langword="false" />.
         ///     </para>
         /// </summary>
-        /// <param name="foreignKey"> The <see cref="IForeignKey" />. </param>
-        /// <param name="annotation"> The <see cref="IAnnotation" />. </param>
-        /// <returns> <see langword="false" />. </returns>
+        /// <param name="foreignKey">The <see cref="IForeignKey" />.</param>
+        /// <param name="annotation">The <see cref="IAnnotation" />.</param>
+        /// <returns><see langword="false" />.</returns>
         protected virtual bool IsHandledByConvention(IForeignKey foreignKey, IAnnotation annotation)
         {
             Check.NotNull(foreignKey, nameof(foreignKey));
@@ -479,9 +491,9 @@ namespace Microsoft.EntityFrameworkCore.Design
         ///         The default implementation always returns <see langword="false" />.
         ///     </para>
         /// </summary>
-        /// <param name="index"> The <see cref="IIndex" />. </param>
-        /// <param name="annotation"> The <see cref="IAnnotation" />. </param>
-        /// <returns> <see langword="false" />. </returns>
+        /// <param name="index">The <see cref="IIndex" />.</param>
+        /// <param name="annotation">The <see cref="IAnnotation" />.</param>
+        /// <returns><see langword="false" />.</returns>
         protected virtual bool IsHandledByConvention(IIndex index, IAnnotation annotation)
         {
             Check.NotNull(index, nameof(index));
@@ -499,9 +511,9 @@ namespace Microsoft.EntityFrameworkCore.Design
         ///         The default implementation always returns <see langword="null" />.
         ///     </para>
         /// </summary>
-        /// <param name="model"> The <see cref="IModel" />. </param>
-        /// <param name="annotation"> The <see cref="IAnnotation" />. </param>
-        /// <returns> <see langword="null" />. </returns>
+        /// <param name="model">The <see cref="IModel" />.</param>
+        /// <param name="annotation">The <see cref="IAnnotation" />.</param>
+        /// <returns><see langword="null" />.</returns>
         protected virtual MethodCallCodeFragment? GenerateFluentApi(IModel model, IAnnotation annotation)
         {
             Check.NotNull(model, nameof(model));
@@ -519,9 +531,9 @@ namespace Microsoft.EntityFrameworkCore.Design
         ///         The default implementation always returns <see langword="null" />.
         ///     </para>
         /// </summary>
-        /// <param name="entityType"> The <see cref="IEntityType" />. </param>
-        /// <param name="annotation"> The <see cref="IAnnotation" />. </param>
-        /// <returns> <see langword="null" />. </returns>
+        /// <param name="entityType">The <see cref="IEntityType" />.</param>
+        /// <param name="annotation">The <see cref="IAnnotation" />.</param>
+        /// <returns><see langword="null" />.</returns>
         protected virtual MethodCallCodeFragment? GenerateFluentApi(IEntityType entityType, IAnnotation annotation)
         {
             Check.NotNull(entityType, nameof(entityType));
@@ -539,9 +551,9 @@ namespace Microsoft.EntityFrameworkCore.Design
         ///         The default implementation always returns <see langword="null" />.
         ///     </para>
         /// </summary>
-        /// <param name="key"> The <see cref="IKey" />. </param>
-        /// <param name="annotation"> The <see cref="IAnnotation" />. </param>
-        /// <returns> <see langword="null" />. </returns>
+        /// <param name="key">The <see cref="IKey" />.</param>
+        /// <param name="annotation">The <see cref="IAnnotation" />.</param>
+        /// <returns><see langword="null" />.</returns>
         protected virtual MethodCallCodeFragment? GenerateFluentApi(IKey key, IAnnotation annotation)
         {
             Check.NotNull(key, nameof(key));
@@ -559,9 +571,9 @@ namespace Microsoft.EntityFrameworkCore.Design
         ///         The default implementation always returns <see langword="null" />.
         ///     </para>
         /// </summary>
-        /// <param name="property"> The <see cref="IProperty" />. </param>
-        /// <param name="annotation"> The <see cref="IAnnotation" />. </param>
-        /// <returns> <see langword="null" />. </returns>
+        /// <param name="property">The <see cref="IProperty" />.</param>
+        /// <param name="annotation">The <see cref="IAnnotation" />.</param>
+        /// <returns><see langword="null" />.</returns>
         protected virtual MethodCallCodeFragment? GenerateFluentApi(IProperty property, IAnnotation annotation)
         {
             Check.NotNull(property, nameof(property));
@@ -579,9 +591,9 @@ namespace Microsoft.EntityFrameworkCore.Design
         ///         The default implementation always returns <see langword="null" />.
         ///     </para>
         /// </summary>
-        /// <param name="foreignKey"> The <see cref="IForeignKey" />. </param>
-        /// <param name="annotation"> The <see cref="IAnnotation" />. </param>
-        /// <returns> <see langword="null" />. </returns>
+        /// <param name="foreignKey">The <see cref="IForeignKey" />.</param>
+        /// <param name="annotation">The <see cref="IAnnotation" />.</param>
+        /// <returns><see langword="null" />.</returns>
         protected virtual MethodCallCodeFragment? GenerateFluentApi(IForeignKey foreignKey, IAnnotation annotation)
         {
             Check.NotNull(foreignKey, nameof(foreignKey));
@@ -599,9 +611,9 @@ namespace Microsoft.EntityFrameworkCore.Design
         ///         The default implementation always returns <see langword="null" />.
         ///     </para>
         /// </summary>
-        /// <param name="navigation"> The <see cref="INavigation" />. </param>
-        /// <param name="annotation"> The <see cref="IAnnotation" />. </param>
-        /// <returns> <see langword="null" />. </returns>
+        /// <param name="navigation">The <see cref="INavigation" />.</param>
+        /// <param name="annotation">The <see cref="IAnnotation" />.</param>
+        /// <returns><see langword="null" />.</returns>
         protected virtual MethodCallCodeFragment? GenerateFluentApi(INavigation navigation, IAnnotation annotation)
         {
             Check.NotNull(navigation, nameof(navigation));
@@ -619,9 +631,9 @@ namespace Microsoft.EntityFrameworkCore.Design
         ///         The default implementation always returns <see langword="null" />.
         ///     </para>
         /// </summary>
-        /// <param name="navigation"> The <see cref="ISkipNavigation" />. </param>
-        /// <param name="annotation"> The <see cref="IAnnotation" />. </param>
-        /// <returns> <see langword="null" />. </returns>
+        /// <param name="navigation">The <see cref="ISkipNavigation" />.</param>
+        /// <param name="annotation">The <see cref="IAnnotation" />.</param>
+        /// <returns><see langword="null" />.</returns>
         protected virtual MethodCallCodeFragment? GenerateFluentApi(ISkipNavigation navigation, IAnnotation annotation)
         {
             Check.NotNull(navigation, nameof(navigation));
@@ -639,9 +651,9 @@ namespace Microsoft.EntityFrameworkCore.Design
         ///         The default implementation always returns <see langword="null" />.
         ///     </para>
         /// </summary>
-        /// <param name="index"> The <see cref="IIndex" />. </param>
-        /// <param name="annotation"> The <see cref="IAnnotation" />. </param>
-        /// <returns> <see langword="null" />. </returns>
+        /// <param name="index">The <see cref="IIndex" />.</param>
+        /// <param name="annotation">The <see cref="IAnnotation" />.</param>
+        /// <returns><see langword="null" />.</returns>
         protected virtual MethodCallCodeFragment? GenerateFluentApi(IIndex index, IAnnotation annotation)
         {
             Check.NotNull(index, nameof(index));
@@ -659,9 +671,9 @@ namespace Microsoft.EntityFrameworkCore.Design
         ///         The default implementation always returns <see langword="null" />.
         ///     </para>
         /// </summary>
-        /// <param name="entityType"> The <see cref="IEntityType" />. </param>
-        /// <param name="annotation"> The <see cref="IAnnotation" />. </param>
-        /// <returns> <see langword="null" />. </returns>
+        /// <param name="entityType">The <see cref="IEntityType" />.</param>
+        /// <param name="annotation">The <see cref="IAnnotation" />.</param>
+        /// <returns><see langword="null" />.</returns>
         protected virtual AttributeCodeFragment? GenerateDataAnnotation(IEntityType entityType, IAnnotation annotation)
         {
             Check.NotNull(entityType, nameof(entityType));
@@ -679,9 +691,9 @@ namespace Microsoft.EntityFrameworkCore.Design
         ///         The default implementation always returns <see langword="null" />.
         ///     </para>
         /// </summary>
-        /// <param name="property"> The <see cref="IProperty" />. </param>
-        /// <param name="annotation"> The <see cref="IAnnotation" />. </param>
-        /// <returns> <see langword="null" />. </returns>
+        /// <param name="property">The <see cref="IProperty" />.</param>
+        /// <param name="annotation">The <see cref="IAnnotation" />.</param>
+        /// <returns><see langword="null" />.</returns>
         protected virtual AttributeCodeFragment? GenerateDataAnnotation(IProperty property, IAnnotation annotation)
         {
             Check.NotNull(property, nameof(property));
@@ -722,7 +734,9 @@ namespace Microsoft.EntityFrameworkCore.Design
         }
 
         private static bool TryGetAndRemove<T>(
-            IDictionary<string, IAnnotation> annotations, string annotationName, [NotNullWhen(true)] out T? annotationValue)
+            IDictionary<string, IAnnotation> annotations,
+            string annotationName,
+            [NotNullWhen(true)] out T? annotationValue)
         {
             if (annotations.TryGetValue(annotationName, out var annotation)
                 && annotation.Value != null)

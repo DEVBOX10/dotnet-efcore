@@ -129,129 +129,129 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         [EntityFrameworkInternal]
         public virtual DebugView DebugView
             => new(
-                () => ((IReadOnlyForeignKey)this).ToDebugString(MetadataDebugStringOptions.ShortDefault),
+                () => ((IReadOnlyForeignKey)this).ToDebugString(),
                 () => ((IReadOnlyForeignKey)this).ToDebugString(MetadataDebugStringOptions.LongDefault));
 
         /// <summary>
         ///     Returns a string that represents the current object.
         /// </summary>
-        /// <returns> A string that represents the current object. </returns>
+        /// <returns>A string that represents the current object.</returns>
         public override string ToString()
             => ((IReadOnlyForeignKey)this).ToDebugString(MetadataDebugStringOptions.SingleLineDefault);
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         IReadOnlyList<IReadOnlyProperty> IReadOnlyForeignKey.Properties
         {
             [DebuggerStepThrough]
             get => Properties;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         IReadOnlyList<IProperty> IForeignKey.Properties
         {
             [DebuggerStepThrough]
             get => Properties;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         IReadOnlyKey IReadOnlyForeignKey.PrincipalKey
         {
             [DebuggerStepThrough]
             get => PrincipalKey;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         IKey IForeignKey.PrincipalKey
         {
             [DebuggerStepThrough]
             get => PrincipalKey;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         IReadOnlyEntityType IReadOnlyForeignKey.DeclaringEntityType
         {
             [DebuggerStepThrough]
             get => DeclaringEntityType;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         IEntityType IForeignKey.DeclaringEntityType
         {
             [DebuggerStepThrough]
             get => DeclaringEntityType;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         IReadOnlyEntityType IReadOnlyForeignKey.PrincipalEntityType
         {
             [DebuggerStepThrough]
             get => PrincipalEntityType;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         IEntityType IForeignKey.PrincipalEntityType
         {
             [DebuggerStepThrough]
             get => PrincipalEntityType;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         IReadOnlyNavigation? IReadOnlyForeignKey.DependentToPrincipal
         {
             [DebuggerStepThrough]
             get => DependentToPrincipal;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         INavigation? IForeignKey.DependentToPrincipal
         {
             [DebuggerStepThrough]
             get => DependentToPrincipal;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         IReadOnlyNavigation? IReadOnlyForeignKey.PrincipalToDependent
         {
             [DebuggerStepThrough]
             get => PrincipalToDependent;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         INavigation? IForeignKey.PrincipalToDependent
         {
             [DebuggerStepThrough]
             get => PrincipalToDependent;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         bool IReadOnlyForeignKey.IsUnique
         {
             [DebuggerStepThrough]
             get => _isUnique;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         bool IReadOnlyForeignKey.IsRequired
         {
             [DebuggerStepThrough]
             get => _isRequired;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         bool IReadOnlyForeignKey.IsRequiredDependent
         {
             [DebuggerStepThrough]
             get => _isRequiredDependent;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         DeleteBehavior IReadOnlyForeignKey.DeleteBehavior
         {
             [DebuggerStepThrough]
             get => _deleteBehavior;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         bool IReadOnlyForeignKey.IsOwnership
         {
             [DebuggerStepThrough]
@@ -269,7 +269,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
             => (IDependentKeyValueFactory<TKey>?)((IRuntimeForeignKey)this).DependentKeyValueFactory;
 
         // Note: This is set and used only by IdentityMapFactoryFactory, which ensures thread-safety
-        /// <inheritdoc/>
+        /// <inheritdoc />
         object IRuntimeForeignKey.DependentKeyValueFactory
         {
             [DebuggerStepThrough]
@@ -280,7 +280,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         }
 
         // Note: This is set and used only by IdentityMapFactoryFactory, which ensures thread-safety
-        /// <inheritdoc/>
+        /// <inheritdoc />
         Func<IDependentsMap> IRuntimeForeignKey.DependentsMapFactory
         {
             [DebuggerStepThrough]

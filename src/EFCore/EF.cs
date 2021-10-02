@@ -14,7 +14,7 @@ namespace Microsoft.EntityFrameworkCore
     /// </summary>
     /// <remarks>
     ///     See <see href="https://aka.ms/efcore-docs-database-functions">Database functions</see> and
-    ///     <see href="https://aka.ms/efcore-docs-efproperty">Using EF.Property in EF Core queries</see> for more information. 
+    ///     <see href="https://aka.ms/efcore-docs-efproperty">Using EF.Property in EF Core queries</see> for more information.
     /// </remarks>
     // ReSharper disable once InconsistentNaming
     public static partial class EF
@@ -33,7 +33,7 @@ namespace Microsoft.EntityFrameworkCore
         ///     </para>
         /// </summary>
         /// <remarks>
-        ///     See <see href="https://aka.ms/efcore-docs-efproperty">Using EF.Property in EF Core queries</see> for more information. 
+        ///     See <see href="https://aka.ms/efcore-docs-efproperty">Using EF.Property in EF Core queries</see> for more information.
         /// </remarks>
         /// <example>
         ///     <para>
@@ -44,10 +44,10 @@ namespace Microsoft.EntityFrameworkCore
         ///     .Where(b =&gt; EF.Property&lt;DateTime&gt;(b, "LastUpdated") > DateTime.Now.AddDays(-5));
         ///     </code>
         /// </example>
-        /// <typeparam name="TProperty"> The type of the property being referenced. </typeparam>
-        /// <param name="entity"> The entity to access the property on. </param>
-        /// <param name="propertyName"> The name of the property. </param>
-        /// <returns> The value assigned to the property. </returns>
+        /// <typeparam name="TProperty">The type of the property being referenced.</typeparam>
+        /// <param name="entity">The entity to access the property on.</param>
+        /// <param name="propertyName">The name of the property.</param>
+        /// <returns>The value assigned to the property.</returns>
         public static TProperty Property<TProperty>(
             object entity,
             [NotParameterized] string propertyName)

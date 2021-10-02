@@ -12,7 +12,6 @@ using Microsoft.EntityFrameworkCore.Migrations.Internal;
 using Microsoft.EntityFrameworkCore.Scaffolding;
 using Microsoft.EntityFrameworkCore.Scaffolding.Internal;
 using Microsoft.EntityFrameworkCore.Storage;
-using Microsoft.EntityFrameworkCore.Storage.Internal;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -22,15 +21,21 @@ namespace Microsoft.EntityFrameworkCore.Design
     ///     Extension methods for adding Entity Framework Core design-time services to an
     ///     <see cref="IServiceCollection" />.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-design-time-services">EF Core design-time services</see> for more information.
+    /// </remarks>
     public static class DesignTimeServiceCollectionExtensions
     {
         /// <summary>
         ///     Adds the Entity Framework Core design-time services.
         /// </summary>
-        /// <param name="services"> The <see cref="IServiceCollection" /> the services will be added to. </param>
-        /// <param name="reporter"> Used to report design-time messages. </param>
-        /// <param name="applicationServiceProviderAccessor"> An accessor to the application service provider. </param>
-        /// <returns> The <paramref name="services" />. This enables chaining additional method calls. </returns>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-design-time-services">EF Core design-time services</see> for more information.
+        /// </remarks>
+        /// <param name="services">The <see cref="IServiceCollection" /> the services will be added to.</param>
+        /// <param name="reporter">Used to report design-time messages.</param>
+        /// <param name="applicationServiceProviderAccessor">An accessor to the application service provider.</param>
+        /// <returns>The <paramref name="services" />. This enables chaining additional method calls.</returns>
         public static IServiceCollection AddEntityFrameworkDesignTimeServices(
             this IServiceCollection services,
             IOperationReporter? reporter = null,
@@ -42,47 +47,51 @@ namespace Microsoft.EntityFrameworkCore.Design
             }
 
             new EntityFrameworkRelationalDesignServicesBuilder(services)
-                .TryAddProviderSpecificServices(services => services
-                    .TryAddSingleton<CSharpMigrationOperationGeneratorDependencies, CSharpMigrationOperationGeneratorDependencies>()
-                    .TryAddSingleton<CSharpMigrationsGeneratorDependencies, CSharpMigrationsGeneratorDependencies>()
-                    .TryAddSingleton<CSharpSnapshotGeneratorDependencies, CSharpSnapshotGeneratorDependencies>()
-                    .TryAddSingleton<ICandidateNamingService, CandidateNamingService>()
-                    .TryAddSingleton<ICSharpDbContextGenerator, CSharpDbContextGenerator>()
-                    .TryAddSingleton<ICSharpEntityTypeGenerator, CSharpEntityTypeGenerator>()
-                    .TryAddSingleton<ICSharpHelper, CSharpHelper>()
-                    .TryAddSingleton<ICSharpMigrationOperationGenerator, CSharpMigrationOperationGenerator>()
-                    .TryAddSingleton<ICSharpSnapshotGenerator, CSharpSnapshotGenerator>()
-                    .TryAddSingleton<ICSharpUtilities, CSharpUtilities>()
-                    .TryAddSingleton(reporter)
-                    .TryAddSingleton<IMigrationsCodeGenerator, CSharpMigrationsGenerator>()
-                    .TryAddSingleton<IMigrationsCodeGeneratorSelector, MigrationsCodeGeneratorSelector>()
-                    .TryAddSingleton<IModelCodeGenerator, CSharpModelGenerator>()
-                    .TryAddSingleton<IModelCodeGeneratorSelector, ModelCodeGeneratorSelector>()
-                    .TryAddSingleton<ICompiledModelCodeGenerator, CSharpRuntimeModelCodeGenerator>()
-                    .TryAddSingleton<ICompiledModelCodeGeneratorSelector, CompiledModelCodeGeneratorSelector>()
-                    .TryAddSingleton<ICompiledModelScaffolder, CompiledModelScaffolder>()
-                    .TryAddSingleton<INamedConnectionStringResolver>(
-                        new DesignTimeConnectionStringResolver(applicationServiceProviderAccessor))
-                    .TryAddSingleton<IPluralizer, HumanizerPluralizer>()
-                    .TryAddSingleton<IScaffoldingModelFactory, RelationalScaffoldingModelFactory>()
-                    .TryAddSingleton<IScaffoldingTypeMapper, ScaffoldingTypeMapper>()
-                    .TryAddSingleton<MigrationsCodeGeneratorDependencies, MigrationsCodeGeneratorDependencies>()
-                    .TryAddSingleton<ModelCodeGeneratorDependencies, ModelCodeGeneratorDependencies>()
-                    .TryAddScoped<IReverseEngineerScaffolder, ReverseEngineerScaffolder>()
-                    .TryAddScoped<MigrationsScaffolderDependencies, MigrationsScaffolderDependencies>()
-                    .TryAddScoped<IMigrationsScaffolder, MigrationsScaffolder>()
-                    .TryAddScoped<ISnapshotModelProcessor, SnapshotModelProcessor>());
+                .TryAddProviderSpecificServices(
+                    services => services
+                        .TryAddSingleton<CSharpMigrationOperationGeneratorDependencies, CSharpMigrationOperationGeneratorDependencies>()
+                        .TryAddSingleton<CSharpMigrationsGeneratorDependencies, CSharpMigrationsGeneratorDependencies>()
+                        .TryAddSingleton<CSharpSnapshotGeneratorDependencies, CSharpSnapshotGeneratorDependencies>()
+                        .TryAddSingleton<ICandidateNamingService, CandidateNamingService>()
+                        .TryAddSingleton<ICSharpDbContextGenerator, CSharpDbContextGenerator>()
+                        .TryAddSingleton<ICSharpEntityTypeGenerator, CSharpEntityTypeGenerator>()
+                        .TryAddSingleton<ICSharpHelper, CSharpHelper>()
+                        .TryAddSingleton<ICSharpMigrationOperationGenerator, CSharpMigrationOperationGenerator>()
+                        .TryAddSingleton<ICSharpSnapshotGenerator, CSharpSnapshotGenerator>()
+                        .TryAddSingleton<ICSharpUtilities, CSharpUtilities>()
+                        .TryAddSingleton(reporter)
+                        .TryAddSingleton<IMigrationsCodeGenerator, CSharpMigrationsGenerator>()
+                        .TryAddSingleton<IMigrationsCodeGeneratorSelector, MigrationsCodeGeneratorSelector>()
+                        .TryAddSingleton<IModelCodeGenerator, CSharpModelGenerator>()
+                        .TryAddSingleton<IModelCodeGeneratorSelector, ModelCodeGeneratorSelector>()
+                        .TryAddSingleton<ICompiledModelCodeGenerator, CSharpRuntimeModelCodeGenerator>()
+                        .TryAddSingleton<ICompiledModelCodeGeneratorSelector, CompiledModelCodeGeneratorSelector>()
+                        .TryAddSingleton<ICompiledModelScaffolder, CompiledModelScaffolder>()
+                        .TryAddSingleton<IDesignTimeConnectionStringResolver>(
+                            new DesignTimeConnectionStringResolver(applicationServiceProviderAccessor))
+                        .TryAddSingleton<IPluralizer, HumanizerPluralizer>()
+                        .TryAddSingleton<IScaffoldingModelFactory, RelationalScaffoldingModelFactory>()
+                        .TryAddSingleton<IScaffoldingTypeMapper, ScaffoldingTypeMapper>()
+                        .TryAddSingleton<MigrationsCodeGeneratorDependencies, MigrationsCodeGeneratorDependencies>()
+                        .TryAddSingleton<ModelCodeGeneratorDependencies, ModelCodeGeneratorDependencies>()
+                        .TryAddScoped<IReverseEngineerScaffolder, ReverseEngineerScaffolder>()
+                        .TryAddScoped<MigrationsScaffolderDependencies, MigrationsScaffolderDependencies>()
+                        .TryAddScoped<IMigrationsScaffolder, MigrationsScaffolder>()
+                        .TryAddScoped<ISnapshotModelProcessor, SnapshotModelProcessor>());
 
             return services
-                    .AddLogging(b => b.SetMinimumLevel(LogLevel.Debug).AddProvider(new OperationLoggerProvider(reporter)));
+                .AddLogging(b => b.SetMinimumLevel(LogLevel.Debug).AddProvider(new OperationLoggerProvider(reporter)));
         }
 
         /// <summary>
         ///     Adds services from the <see cref="DbContext" /> which are used at design time.
         /// </summary>
-        /// <param name="services"> The <see cref="IServiceCollection" /> the services will be added to. </param>
-        /// <param name="context"> The <see cref="DbContext" /> the services will be added from. </param>
-        /// <returns> The <paramref name="services" />. This enables chaining additional method calls. </returns>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-design-time-services">EF Core design-time services</see> for more information.
+        /// </remarks>
+        /// <param name="services">The <see cref="IServiceCollection" /> the services will be added to.</param>
+        /// <param name="context">The <see cref="DbContext" /> the services will be added from.</param>
+        /// <returns>The <paramref name="services" />. This enables chaining additional method calls.</returns>
         public static IServiceCollection AddDbContextDesignTimeServices(
             this IServiceCollection services,
             DbContext context)

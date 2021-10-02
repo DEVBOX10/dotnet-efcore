@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -52,6 +51,10 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Design.Internal
             = typeof(RelationalEntityTypeBuilderExtensions).GetRequiredRuntimeMethod(
                 nameof(RelationalEntityTypeBuilderExtensions.ToTable), typeof(EntityTypeBuilder), typeof(string));
 
+        private static readonly MethodInfo _entityTypeIsMemoryOptimizedMethodInfo
+            = typeof(SqlServerEntityTypeBuilderExtensions).GetRequiredRuntimeMethod(
+                nameof(SqlServerEntityTypeBuilderExtensions.IsMemoryOptimized), typeof(EntityTypeBuilder), typeof(bool));
+
         private static readonly MethodInfo _propertyIsSparseMethodInfo
             = typeof(SqlServerPropertyBuilderExtensions).GetRequiredRuntimeMethod(
                 nameof(SqlServerPropertyBuilderExtensions.IsSparse), typeof(PropertyBuilder), typeof(bool));
@@ -59,6 +62,10 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Design.Internal
         private static readonly MethodInfo _propertyUseIdentityColumnsMethodInfo
             = typeof(SqlServerPropertyBuilderExtensions).GetRequiredRuntimeMethod(
                 nameof(SqlServerPropertyBuilderExtensions.UseIdentityColumn), typeof(PropertyBuilder), typeof(long), typeof(int));
+
+        private static readonly MethodInfo _propertyUseHiLoMethodInfo
+            = typeof(SqlServerPropertyBuilderExtensions).GetRequiredRuntimeMethod(
+                nameof(SqlServerPropertyBuilderExtensions.UseHiLo), typeof(PropertyBuilder), typeof(string), typeof(string));
 
         private static readonly MethodInfo _indexIsClusteredMethodInfo
             = typeof(SqlServerIndexBuilderExtensions).GetRequiredRuntimeMethod(
@@ -184,7 +191,15 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Design.Internal
             IEntityType entityType,
             IDictionary<string, IAnnotation> annotations)
         {
-            var result = base.GenerateFluentApiCalls(entityType, annotations);
+            var fragments = new List<MethodCallCodeFragment>(base.GenerateFluentApiCalls(entityType, annotations));
+
+            if (GetAndRemove<bool?>(annotations, SqlServerAnnotationNames.MemoryOptimized) is bool isMemoryOptimized)
+            {
+                fragments.Add(
+                    isMemoryOptimized
+                        ? new(_entityTypeIsMemoryOptimizedMethodInfo)
+                        : new(_entityTypeIsMemoryOptimizedMethodInfo, false));
+            }
 
             if (annotations.TryGetValue(SqlServerAnnotationNames.IsTemporal, out var isTemporalAnnotation)
                 && isTemporalAnnotation.Value as bool? == true)
@@ -197,10 +212,23 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Design.Internal
                     ? annotations[SqlServerAnnotationNames.TemporalHistoryTableSchema].Value as string
                     : null;
 
-                var periodStartProperty = entityType.GetProperty(entityType.GetPeriodStartPropertyName()!);
-                var periodEndProperty = entityType.GetProperty(entityType.GetPeriodEndPropertyName()!);
-                var periodStartColumnName = periodStartProperty[RelationalAnnotationNames.ColumnName] as string;
-                var periodEndColumnName = periodEndProperty[RelationalAnnotationNames.ColumnName] as string;
+                // for the RevEng path, we avoid adding period properties to the entity
+                // because we don't want code for them to be generated - they need to be in shadow state
+                // so if we don't find property on the entity, we know it's this scenario
+                // and in that case period column name is actually the same as the period property name annotation
+                // since in RevEng scenario there can't be custom column mapping
+                // see #26007
+                var periodStartPropertyName = entityType.GetPeriodStartPropertyName();
+                var periodStartProperty = entityType.FindProperty(periodStartPropertyName!);
+                var periodStartColumnName = periodStartProperty != null
+                    ? periodStartProperty[RelationalAnnotationNames.ColumnName] as string
+                    : periodStartPropertyName;
+
+                var periodEndPropertyName = entityType.GetPeriodEndPropertyName();
+                var periodEndProperty = entityType.FindProperty(periodEndPropertyName!);
+                var periodEndColumnName = periodEndProperty != null
+                    ? periodEndProperty[RelationalAnnotationNames.ColumnName] as string
+                    : periodEndPropertyName;
 
                 // ttb => ttb.UseHistoryTable("HistoryTable", "schema")
                 var temporalTableBuilderCalls = new List<MethodCallCodeFragment>();
@@ -215,16 +243,16 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Design.Internal
                 // ttb => ttb.HasPeriodStart("Start").HasColumnName("ColumnStart")
                 temporalTableBuilderCalls.Add(
                     periodStartColumnName != null
-                    ? new MethodCallCodeFragment(_temporalTableHasPeriodStartMethodInfo, periodStartProperty.Name)
-                        .Chain(new MethodCallCodeFragment(_temporalPropertyHasColumnNameMethodInfo, periodStartColumnName))
-                    : new MethodCallCodeFragment(_temporalTableHasPeriodStartMethodInfo, periodStartProperty.Name));
+                        ? new MethodCallCodeFragment(_temporalTableHasPeriodStartMethodInfo, periodStartPropertyName)
+                            .Chain(new MethodCallCodeFragment(_temporalPropertyHasColumnNameMethodInfo, periodStartColumnName))
+                        : new MethodCallCodeFragment(_temporalTableHasPeriodStartMethodInfo, periodStartPropertyName));
 
                 // ttb => ttb.HasPeriodEnd("End").HasColumnName("ColumnEnd")
                 temporalTableBuilderCalls.Add(
                     periodEndColumnName != null
-                        ? new MethodCallCodeFragment(_temporalTableHasPeriodEndMethodInfo, periodEndProperty.Name)
+                        ? new MethodCallCodeFragment(_temporalTableHasPeriodEndMethodInfo, periodEndPropertyName)
                             .Chain(new MethodCallCodeFragment(_temporalPropertyHasColumnNameMethodInfo, periodEndColumnName))
-                        : new MethodCallCodeFragment(_temporalTableHasPeriodEndMethodInfo, periodEndProperty.Name));
+                        : new MethodCallCodeFragment(_temporalTableHasPeriodEndMethodInfo, periodEndPropertyName));
 
                 // ToTable(tb => tb.IsTemporal(ttb => { ... }))
                 var toTemporalTableCall = new MethodCallCodeFragment(
@@ -237,16 +265,16 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Design.Internal
                                 "ttb",
                                 temporalTableBuilderCalls))));
 
+                fragments.Add(toTemporalTableCall);
+
                 annotations.Remove(SqlServerAnnotationNames.IsTemporal);
                 annotations.Remove(SqlServerAnnotationNames.TemporalHistoryTableName);
                 annotations.Remove(SqlServerAnnotationNames.TemporalHistoryTableSchema);
                 annotations.Remove(SqlServerAnnotationNames.TemporalPeriodStartPropertyName);
                 annotations.Remove(SqlServerAnnotationNames.TemporalPeriodEndPropertyName);
-
-                return result.Concat(new[] { toTemporalTableCall }).ToList();
             }
 
-            return result;
+            return fragments;
         }
 
         /// <summary>
@@ -321,9 +349,23 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Design.Internal
             switch (strategy)
             {
                 case SqlServerValueGenerationStrategy.IdentityColumn:
-                    var seed = GetAndRemove<long?>(annotations, SqlServerAnnotationNames.IdentitySeed)
-                        ?? model.FindAnnotation(SqlServerAnnotationNames.IdentitySeed)?.Value as long?
-                        ?? 1;
+                    // Support pre-6.0 IdentitySeed annotations, which contained an int rather than a long
+                    if (annotations.TryGetValue(SqlServerAnnotationNames.IdentitySeed, out var seedAnnotation)
+                        && seedAnnotation.Value != null)
+                    {
+                        annotations.Remove(SqlServerAnnotationNames.IdentitySeed);
+                    }
+                    else
+                    {
+                        seedAnnotation = model.FindAnnotation(SqlServerAnnotationNames.IdentitySeed);
+                    }
+
+                    var seed = seedAnnotation is null
+                        ? 1
+                        : seedAnnotation.Value is int intValue
+                            ? intValue
+                            : (long?)seedAnnotation.Value ?? 1;
+
                     var increment = GetAndRemove<int?>(annotations, SqlServerAnnotationNames.IdentityIncrement)
                         ?? model.FindAnnotation(SqlServerAnnotationNames.IdentityIncrement)?.Value as int?
                         ?? 1;
@@ -336,7 +378,7 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Design.Internal
                     var name = GetAndRemove<string>(annotations, SqlServerAnnotationNames.HiLoSequenceName);
                     var schema = GetAndRemove<string>(annotations, SqlServerAnnotationNames.HiLoSequenceSchema);
                     return new(
-                        _modelUseHiLoMethodInfo,
+                        onModel ? _modelUseHiLoMethodInfo : _propertyUseHiLoMethodInfo,
                         (name, schema) switch
                         {
                             (null, null) => Array.Empty<object>(),

@@ -44,7 +44,6 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         private Dictionary<IKey, IIdentityMap>? _identityMaps;
         private bool _needsUnsubscribe;
         private IChangeDetector? _changeDetector;
-        private bool _changeDetectorInitialized;
 
         private readonly IDiagnosticsLogger<DbLoggerCategory.ChangeTracking> _changeTrackingLogger;
         private readonly IInternalEntityEntrySubscriber _internalEntityEntrySubscriber;
@@ -82,8 +81,8 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
             UpdateLogger = dependencies.UpdateLogger;
             _changeTrackingLogger = dependencies.ChangeTrackingLogger;
-            _changeDetectorInitialized = false;
         }
+
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
         ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
@@ -193,6 +192,25 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public virtual IEntityMaterializerSource EntityMaterializerSource { get; }
+
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
+        public IChangeDetector ChangeDetector
+        {
+            get
+            {
+                if (_changeDetector == null)
+                {
+                    _changeDetector = Context.GetDependencies().ChangeDetector;
+                }
+
+                return _changeDetector;
+            }
+        }
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -415,7 +433,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                     ? throwOnTypeMismatch
                         ? throw new InvalidOperationException(
                             CoreStrings.TrackingTypeMismatch(entry.EntityType.DisplayName(), entityType.DisplayName()))
-                        : (InternalEntityEntry?)null
+                        : null
                     : entry
                 : null;
 
@@ -496,8 +514,9 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             bool added = false,
             bool modified = false,
             bool deleted = false,
-            bool unchanged = false)
-            => _entityReferenceMap.GetCountForState(added, modified, deleted, unchanged);
+            bool unchanged = false,
+            bool countDeletedSharedIdentity = false)
+            => _entityReferenceMap.GetCountForState(added, modified, deleted, unchanged, countDeletedSharedIdentity);
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -506,7 +525,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public virtual int Count
-            => GetCountForState(added: true, modified: true, deleted: true, unchanged: true);
+            => GetCountForState(added: true, modified: true, deleted: true, unchanged: true, countDeletedSharedIdentity: true);
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -518,8 +537,9 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             bool added = false,
             bool modified = false,
             bool deleted = false,
-            bool unchanged = false)
-            => _entityReferenceMap.GetEntriesForState(added, modified, deleted, unchanged);
+            bool unchanged = false,
+            bool returnDeletedSharedIdentity = false)
+            => _entityReferenceMap.GetEntriesForState(added, modified, deleted, unchanged, returnDeletedSharedIdentity);
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -528,7 +548,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public virtual IEnumerable<InternalEntityEntry> Entries
-            => GetEntriesForState(added: true, modified: true, deleted: true, unchanged: true);
+            => GetEntriesForState(added: true, modified: true, deleted: true, unchanged: true, returnDeletedSharedIdentity: true);
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -686,8 +706,8 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        /// <param name="cancellationToken"> A <see cref="CancellationToken" /> to observe while waiting for the task to complete. </param>
-        /// <exception cref="OperationCanceledException"> If the <see cref="CancellationToken" /> is canceled. </exception>
+        /// <param name="cancellationToken">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+        /// <exception cref="OperationCanceledException">If the <see cref="CancellationToken" /> is canceled.</exception>
         public virtual Task ResetStateAsync(CancellationToken cancellationToken = default)
         {
             ResetState();
@@ -712,7 +732,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         /// </summary>
         public virtual void CompleteAttachGraph()
             => Dependencies.NavigationFixer.CompleteAttachGraph();
-        
+
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
         ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
@@ -1010,14 +1030,6 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         {
             var doCascadeDelete = force || CascadeDeleteTiming != CascadeTiming.Never;
             var principalIsDetached = entry.EntityState == EntityState.Detached;
-            if (!_changeDetectorInitialized)
-            {
-                _changeDetector = Context.ChangeTracker.AutoDetectChangesEnabled
-                    && !((IRuntimeModel)Context.Model).SkipDetectChanges
-                        ? Context.GetDependencies().ChangeDetector
-                        : null;
-                _changeDetectorInitialized = true;
-            }
 
             foreignKeys ??= entry.EntityType.GetReferencingForeignKeys();
             foreach (var fk in foreignKeys)
@@ -1035,7 +1047,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                         continue;
                     }
 
-                    _changeDetector?.DetectChanges(dependent);
+                    ChangeDetector.DetectChanges(dependent);
 
                     if (dependent.EntityState != EntityState.Deleted
                         && dependent.EntityState != EntityState.Detached
@@ -1164,9 +1176,10 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         public virtual int SaveChanges(bool acceptAllChangesOnSuccess)
             => !Context.Database.AutoTransactionsEnabled
                 ? SaveChanges(this, acceptAllChangesOnSuccess)
-                : Dependencies.ExecutionStrategy.Execute((StateManager: this, AcceptAllChangesOnSuccess: acceptAllChangesOnSuccess),
-                static (_, t) => SaveChanges(t.StateManager, t.AcceptAllChangesOnSuccess),
-                null);
+                : Dependencies.ExecutionStrategy.Execute(
+                    (StateManager: this, AcceptAllChangesOnSuccess: acceptAllChangesOnSuccess),
+                    static (_, t) => SaveChanges(t.StateManager, t.AcceptAllChangesOnSuccess),
+                    null);
 
         private static int SaveChanges(StateManager stateManager, bool acceptAllChangesOnSuccess)
         {

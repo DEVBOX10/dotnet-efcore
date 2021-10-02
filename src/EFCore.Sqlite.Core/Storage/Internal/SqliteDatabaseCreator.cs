@@ -148,6 +148,8 @@ namespace Microsoft.EntityFrameworkCore.Sqlite.Storage.Internal
             if (!string.IsNullOrEmpty(path))
             {
                 SqliteConnection.ClearPool(new SqliteConnection(Dependencies.Connection.ConnectionString));
+                // See issues #25797 and #26016
+                // SqliteConnection.ClearAllPools();
                 File.Delete(path);
             }
         }

@@ -10,7 +10,6 @@ using Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using Microsoft.EntityFrameworkCore.Utilities;
 
 #nullable enable
 
@@ -28,7 +27,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <summary>
         ///     Creates a new instance of <see cref="RuntimeModelConvention" />.
         /// </summary>
-        /// <param name="dependencies"> Parameter object containing dependencies for this convention. </param>
+        /// <param name="dependencies">Parameter object containing dependencies for this convention.</param>
         public RuntimeModelConvention(
             ProviderConventionSetBuilderDependencies dependencies)
         {
@@ -43,15 +42,15 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <summary>
         ///     Called after a model is finalized and can no longer be mutated.
         /// </summary>
-        /// <param name="model"> The model. </param>
+        /// <param name="model">The model.</param>
         public virtual IModel ProcessModelFinalized(IModel model)
             => Create(model);
 
         /// <summary>
         ///     Creates an optimized model base on the supplied one.
         /// </summary>
-        /// <param name="model"> The source model. </param>
-        /// <returns> An optimized model. </returns>
+        /// <param name="model">The source model.</param>
+        /// <returns>An optimized model.</returns>
         protected virtual RuntimeModel Create(IModel model)
         {
             var runtimeModel = new RuntimeModel();
@@ -69,15 +68,17 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
                 foreach (var property in entityType.GetDeclaredProperties())
                 {
                     var runtimeProperty = Create(property, runtimeEntityType);
-                    CreateAnnotations(property, runtimeProperty, static (convention, annotations, source, target, runtime) =>
-                        convention.ProcessPropertyAnnotations(annotations, source, target, runtime));
+                    CreateAnnotations(
+                        property, runtimeProperty, static (convention, annotations, source, target, runtime) =>
+                            convention.ProcessPropertyAnnotations(annotations, source, target, runtime));
                 }
 
                 foreach (var serviceProperty in entityType.GetDeclaredServiceProperties())
                 {
                     var runtimeServiceProperty = Create(serviceProperty, runtimeEntityType);
-                    CreateAnnotations(serviceProperty, runtimeServiceProperty, static (convention, annotations, source, target, runtime) =>
-                        convention.ProcessServicePropertyAnnotations(annotations, source, target, runtime));
+                    CreateAnnotations(
+                        serviceProperty, runtimeServiceProperty, static (convention, annotations, source, target, runtime) =>
+                            convention.ProcessServicePropertyAnnotations(annotations, source, target, runtime));
                     runtimeServiceProperty.ParameterBinding =
                         (ServiceParameterBinding)Create(serviceProperty.ParameterBinding, runtimeEntityType);
                 }
@@ -90,15 +91,17 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
                         runtimeEntityType.SetPrimaryKey(runtimeKey);
                     }
 
-                    CreateAnnotations(key, runtimeKey, static (convention, annotations, source, target, runtime) =>
-                        convention.ProcessKeyAnnotations(annotations, source, target, runtime));
+                    CreateAnnotations(
+                        key, runtimeKey, static (convention, annotations, source, target, runtime) =>
+                            convention.ProcessKeyAnnotations(annotations, source, target, runtime));
                 }
 
                 foreach (var index in entityType.GetDeclaredIndexes())
                 {
                     var runtimeIndex = Create(index, runtimeEntityType);
-                    CreateAnnotations(index, runtimeIndex, static (convention, annotations, source, target, runtime) =>
-                        convention.ProcessIndexAnnotations(annotations, source, target, runtime));
+                    CreateAnnotations(
+                        index, runtimeIndex, static (convention, annotations, source, target, runtime) =>
+                            convention.ProcessIndexAnnotations(annotations, source, target, runtime));
                 }
 
                 runtimeEntityType.ConstructorBinding = Create(entityType.ConstructorBinding, runtimeEntityType);
@@ -116,20 +119,23 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
                     if (navigation != null)
                     {
                         var runtimeNavigation = Create(navigation, runtimeForeignKey);
-                        CreateAnnotations(navigation, runtimeNavigation, static (convention, annotations, source, target, runtime) =>
-                            convention.ProcessNavigationAnnotations(annotations, source, target, runtime));
+                        CreateAnnotations(
+                            navigation, runtimeNavigation, static (convention, annotations, source, target, runtime) =>
+                                convention.ProcessNavigationAnnotations(annotations, source, target, runtime));
                     }
 
                     navigation = foreignKey.PrincipalToDependent;
                     if (navigation != null)
                     {
                         var runtimeNavigation = Create(navigation, runtimeForeignKey);
-                        CreateAnnotations(navigation, runtimeNavigation, static (convention, annotations, source, target, runtime) =>
-                            convention.ProcessNavigationAnnotations(annotations, source, target, runtime));
+                        CreateAnnotations(
+                            navigation, runtimeNavigation, static (convention, annotations, source, target, runtime) =>
+                                convention.ProcessNavigationAnnotations(annotations, source, target, runtime));
                     }
 
-                    CreateAnnotations(foreignKey, runtimeForeignKey, static (convention, annotations, source, target, runtime) =>
-                        convention.ProcessForeignKeyAnnotations(annotations, source, target, runtime));
+                    CreateAnnotations(
+                        foreignKey, runtimeForeignKey, static (convention, annotations, source, target, runtime) =>
+                            convention.ProcessForeignKeyAnnotations(annotations, source, target, runtime));
                 }
             }
 
@@ -146,23 +152,27 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
                         inverse.Inverse = runtimeNavigation;
                     }
 
-                    CreateAnnotations(navigation, runtimeNavigation, static (convention, annotations, source, target, runtime) =>
-                        convention.ProcessSkipNavigationAnnotations(annotations, source, target, runtime));
+                    CreateAnnotations(
+                        navigation, runtimeNavigation, static (convention, annotations, source, target, runtime) =>
+                            convention.ProcessSkipNavigationAnnotations(annotations, source, target, runtime));
                 }
 
-                CreateAnnotations(entityType, runtimeEntityType, static (convention, annotations, source, target, runtime) =>
-                    convention.ProcessEntityTypeAnnotations(annotations, source, target, runtime));
+                CreateAnnotations(
+                    entityType, runtimeEntityType, static (convention, annotations, source, target, runtime) =>
+                        convention.ProcessEntityTypeAnnotations(annotations, source, target, runtime));
             }
 
             foreach (var typeConfiguration in model.GetTypeMappingConfigurations())
             {
                 var runtimeTypeConfiguration = Create(typeConfiguration, runtimeModel);
-                CreateAnnotations(typeConfiguration, runtimeTypeConfiguration, static (convention, annotations, source, target, runtime) =>
-                    convention.ProcessTypeMappingConfigurationAnnotations(annotations, source, target, runtime));
+                CreateAnnotations(
+                    typeConfiguration, runtimeTypeConfiguration, static (convention, annotations, source, target, runtime) =>
+                        convention.ProcessTypeMappingConfigurationAnnotations(annotations, source, target, runtime));
             }
 
-            CreateAnnotations(model, runtimeModel, static (convention, annotations, source, target, runtime) =>
-                convention.ProcessModelAnnotations(annotations, source, target, runtime));
+            CreateAnnotations(
+                model, runtimeModel, static (convention, annotations, source, target, runtime) =>
+                    convention.ProcessModelAnnotations(annotations, source, target, runtime));
 
             return runtimeModel;
         }
@@ -186,10 +196,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <summary>
         ///     Updates the model annotations that will be set on the read-only object.
         /// </summary>
-        /// <param name="annotations"> The annotations to be processed. </param>
-        /// <param name="model"> The source model. </param>
-        /// <param name="runtimeModel"> The target model that will contain the annotations. </param>
-        /// <param name="runtime"> Indicates whether the given annotations are runtime annotations. </param>
+        /// <param name="annotations">The annotations to be processed.</param>
+        /// <param name="model">The source model.</param>
+        /// <param name="runtimeModel">The target model that will contain the annotations.</param>
+        /// <param name="runtime">Indicates whether the given annotations are runtime annotations.</param>
         protected virtual void ProcessModelAnnotations(
             Dictionary<string, object?> annotations,
             IModel model,
@@ -216,21 +226,25 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         }
 
         private RuntimeEntityType Create(IEntityType entityType, RuntimeModel model)
-            => model.AddEntityType(entityType.Name,
+            => model.AddEntityType(
+                entityType.Name,
                 entityType.ClrType,
                 entityType.BaseType == null ? null : model.FindEntityType(entityType.BaseType.Name)!,
                 entityType.HasSharedClrType,
                 entityType.GetDiscriminatorPropertyName(),
                 entityType.GetChangeTrackingStrategy(),
                 entityType.FindIndexerPropertyInfo(),
-                entityType.IsPropertyBag);
+                entityType.IsPropertyBag,
+                entityType.GetDiscriminatorValue());
 
         private ParameterBinding Create(ParameterBinding parameterBinding, RuntimeEntityType entityType)
-            => parameterBinding.With(parameterBinding.ConsumedProperties.Select(property =>
-            (entityType.FindProperty(property.Name)
-                ?? entityType.FindServiceProperty(property.Name)
-                ?? entityType.FindNavigation(property.Name)
-                ?? (IPropertyBase?)entityType.FindSkipNavigation(property.Name))!).ToArray());
+            => parameterBinding.With(
+                parameterBinding.ConsumedProperties.Select(
+                    property =>
+                        (entityType.FindProperty(property.Name)
+                            ?? entityType.FindServiceProperty(property.Name)
+                            ?? entityType.FindNavigation(property.Name)
+                            ?? (IPropertyBase?)entityType.FindSkipNavigation(property.Name))!).ToArray());
 
         private InstantiationBinding? Create(InstantiationBinding? instantiationBinding, RuntimeEntityType entityType)
             => instantiationBinding?.With(instantiationBinding.ParameterBindings.Select(binding => Create(binding, entityType)).ToList());
@@ -238,10 +252,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <summary>
         ///     Updates the entity type annotations that will be set on the read-only object.
         /// </summary>
-        /// <param name="annotations"> The annotations to be processed. </param>
-        /// <param name="entityType"> The source entity type. </param>
-        /// <param name="runtimeEntityType"> The target entity type that will contain the annotations. </param>
-        /// <param name="runtime"> Indicates whether the given annotations are runtime annotations. </param>
+        /// <param name="annotations">The annotations to be processed.</param>
+        /// <param name="entityType">The source entity type.</param>
+        /// <param name="runtimeEntityType">The target entity type that will contain the annotations.</param>
+        /// <param name="runtime">Indicates whether the given annotations are runtime annotations.</param>
         protected virtual void ProcessEntityTypeAnnotations(
             IDictionary<string, object?> annotations,
             IEntityType entityType,
@@ -256,7 +270,6 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
                     if (CoreAnnotationNames.AllNames.Contains(annotation.Key)
                         && annotation.Key != CoreAnnotationNames.QueryFilter
                         && annotation.Key != CoreAnnotationNames.DefiningQuery
-                        && annotation.Key != CoreAnnotationNames.DiscriminatorValue
                         && annotation.Key != CoreAnnotationNames.DiscriminatorMappingComplete)
                     {
                         annotations.Remove(annotation.Key);
@@ -286,22 +299,22 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
                 : (ValueConverter?)Activator.CreateInstance(valueConverterType);
 
             return model.AddTypeMappingConfiguration(
-                           typeConfiguration.ClrType,
-                           typeConfiguration.GetMaxLength(),
-                           typeConfiguration.IsUnicode(),
-                           typeConfiguration.GetPrecision(),
-                           typeConfiguration.GetScale(),
-                           typeConfiguration.GetProviderClrType(),
-                           valueConverter);
+                typeConfiguration.ClrType,
+                typeConfiguration.GetMaxLength(),
+                typeConfiguration.IsUnicode(),
+                typeConfiguration.GetPrecision(),
+                typeConfiguration.GetScale(),
+                typeConfiguration.GetProviderClrType(),
+                valueConverter);
         }
 
         /// <summary>
         ///     Updates the property annotations that will be set on the read-only object.
         /// </summary>
-        /// <param name="annotations"> The annotations to be processed. </param>
-        /// <param name="typeConfiguration"> The source property. </param>
-        /// <param name="runtimeTypeConfiguration"> The target property that will contain the annotations. </param>
-        /// <param name="runtime"> Indicates whether the given annotations are runtime annotations. </param>
+        /// <param name="annotations">The annotations to be processed.</param>
+        /// <param name="typeConfiguration">The source property.</param>
+        /// <param name="runtimeTypeConfiguration">The target property that will contain the annotations.</param>
+        /// <param name="runtime">Indicates whether the given annotations are runtime annotations.</param>
         protected virtual void ProcessTypeMappingConfigurationAnnotations(
             Dictionary<string, object?> annotations,
             ITypeMappingConfiguration typeConfiguration,
@@ -346,10 +359,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <summary>
         ///     Updates the property annotations that will be set on the read-only object.
         /// </summary>
-        /// <param name="annotations"> The annotations to be processed. </param>
-        /// <param name="property"> The source property. </param>
-        /// <param name="runtimeProperty"> The target property that will contain the annotations. </param>
-        /// <param name="runtime"> Indicates whether the given annotations are runtime annotations. </param>
+        /// <param name="annotations">The annotations to be processed.</param>
+        /// <param name="property">The source property.</param>
+        /// <param name="runtimeProperty">The target property that will contain the annotations.</param>
+        /// <param name="runtime">Indicates whether the given annotations are runtime annotations.</param>
         protected virtual void ProcessPropertyAnnotations(
             Dictionary<string, object?> annotations,
             IProperty property,
@@ -378,10 +391,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <summary>
         ///     Updates the service property annotations that will be set on the read-only object.
         /// </summary>
-        /// <param name="annotations"> The annotations to be processed. </param>
-        /// <param name="property"> The source service property. </param>
-        /// <param name="runtimeProperty"> The target service property that will contain the annotations. </param>
-        /// <param name="runtime"> Indicates whether the given annotations are runtime annotations. </param>
+        /// <param name="annotations">The annotations to be processed.</param>
+        /// <param name="property">The source service property.</param>
+        /// <param name="runtimeProperty">The target service property that will contain the annotations.</param>
+        /// <param name="runtime">Indicates whether the given annotations are runtime annotations.</param>
         protected virtual void ProcessServicePropertyAnnotations(
             Dictionary<string, object?> annotations,
             IServiceProperty property,
@@ -406,10 +419,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <summary>
         ///     Updates the key annotations that will be set on the read-only object.
         /// </summary>
-        /// <param name="annotations"> The annotations to be processed. </param>
-        /// <param name="key"> The source key. </param>
-        /// <param name="runtimeKey"> The target key that will contain the annotations. </param>
-        /// <param name="runtime"> Indicates whether the given annotations are runtime annotations. </param>
+        /// <param name="annotations">The annotations to be processed.</param>
+        /// <param name="key">The source key.</param>
+        /// <param name="runtimeKey">The target key that will contain the annotations.</param>
+        /// <param name="runtime">Indicates whether the given annotations are runtime annotations.</param>
         protected virtual void ProcessKeyAnnotations(
             IDictionary<string, object?> annotations,
             IKey key,
@@ -437,10 +450,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <summary>
         ///     Updates the index annotations that will be set on the read-only object.
         /// </summary>
-        /// <param name="annotations"> The annotations to be processed. </param>
-        /// <param name="index"> The source index. </param>
-        /// <param name="runtimeIndex"> The target index that will contain the annotations. </param>
-        /// <param name="runtime"> Indicates whether the given annotations are runtime annotations. </param>
+        /// <param name="annotations">The annotations to be processed.</param>
+        /// <param name="index">The source index.</param>
+        /// <param name="runtimeIndex">The target index that will contain the annotations.</param>
+        /// <param name="runtime">Indicates whether the given annotations are runtime annotations.</param>
         protected virtual void ProcessIndexAnnotations(
             Dictionary<string, object?> annotations,
             IIndex index,
@@ -476,10 +489,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <summary>
         ///     Updates the foreign key annotations that will be set on the read-only object.
         /// </summary>
-        /// <param name="annotations"> The annotations to be processed. </param>
-        /// <param name="foreignKey"> The source foreign key. </param>
-        /// <param name="runtimeForeignKey"> The target foreign key that will contain the annotations. </param>
-        /// <param name="runtime"> Indicates whether the given annotations are runtime annotations. </param>
+        /// <param name="annotations">The annotations to be processed.</param>
+        /// <param name="foreignKey">The source foreign key.</param>
+        /// <param name="runtimeForeignKey">The target foreign key that will contain the annotations.</param>
+        /// <param name="runtime">Indicates whether the given annotations are runtime annotations.</param>
         protected virtual void ProcessForeignKeyAnnotations(
             Dictionary<string, object?> annotations,
             IForeignKey foreignKey,
@@ -513,10 +526,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <summary>
         ///     Updates the navigation annotations that will be set on the read-only object.
         /// </summary>
-        /// <param name="annotations"> The annotations to be processed. </param>
-        /// <param name="navigation"> The source navigation. </param>
-        /// <param name="runtimeNavigation"> The target navigation that will contain the annotations. </param>
-        /// <param name="runtime"> Indicates whether the given annotations are runtime annotations. </param>
+        /// <param name="annotations">The annotations to be processed.</param>
+        /// <param name="navigation">The source navigation.</param>
+        /// <param name="runtimeNavigation">The target navigation that will contain the annotations.</param>
+        /// <param name="runtime">Indicates whether the given annotations are runtime annotations.</param>
         protected virtual void ProcessNavigationAnnotations(
             Dictionary<string, object?> annotations,
             INavigation navigation,
@@ -539,7 +552,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
             => runtimeEntityType.AddSkipNavigation(
                 navigation.Name,
                 runtimeEntityType.Model.FindEntityType(navigation.TargetEntityType.Name)!,
-                GetForeignKey(navigation.ForeignKey, runtimeEntityType.Model.FindEntityType(navigation.ForeignKey.DeclaringEntityType.Name)!),
+                GetForeignKey(
+                    navigation.ForeignKey, runtimeEntityType.Model.FindEntityType(navigation.ForeignKey.DeclaringEntityType.Name)!),
                 navigation.IsCollection,
                 navigation.IsOnDependent,
                 navigation.ClrType,
@@ -551,43 +565,44 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <summary>
         ///     Gets the corresponding foreign key in the read-optimized model.
         /// </summary>
-        /// <param name="foreignKey"> The original foreign key. </param>
-        /// <param name="entityType"> The declaring entity type. </param>
-        /// <returns> The corresponding read-optimized foreign key. </returns>
+        /// <param name="foreignKey">The original foreign key.</param>
+        /// <param name="entityType">The declaring entity type.</param>
+        /// <returns>The corresponding read-optimized foreign key.</returns>
         protected virtual RuntimeForeignKey GetForeignKey(IForeignKey foreignKey, RuntimeEntityType entityType)
             => entityType.FindDeclaredForeignKeys(
-                entityType.FindProperties(foreignKey.Properties.Select(p => p.Name))!)
-                .Single(fk => fk.PrincipalEntityType.Name == foreignKey.PrincipalEntityType.Name
-                && fk.PrincipalKey.Properties.Select(p => p.Name).SequenceEqual(
-                    foreignKey.PrincipalKey.Properties.Select(p => p.Name)));
+                    entityType.FindProperties(foreignKey.Properties.Select(p => p.Name))!)
+                .Single(
+                    fk => fk.PrincipalEntityType.Name == foreignKey.PrincipalEntityType.Name
+                        && fk.PrincipalKey.Properties.Select(p => p.Name).SequenceEqual(
+                            foreignKey.PrincipalKey.Properties.Select(p => p.Name)));
 
         /// <summary>
         ///     Gets the corresponding key in the read-optimized model.
         /// </summary>
-        /// <param name="key"> The original key. </param>
-        /// <param name="entityType"> The declaring entity type. </param>
-        /// <returns> The corresponding read-optimized key. </returns>
+        /// <param name="key">The original key.</param>
+        /// <param name="entityType">The declaring entity type.</param>
+        /// <returns>The corresponding read-optimized key.</returns>
         protected virtual RuntimeKey GetKey(IKey key, RuntimeEntityType entityType)
             => entityType.FindKey(entityType.FindProperties(key.Properties.Select(p => p.Name))!)!;
 
         /// <summary>
         ///     Gets the corresponding index in the read-optimized model.
         /// </summary>
-        /// <param name="index"> The original index. </param>
-        /// <param name="entityType"> The declaring entity type. </param>
-        /// <returns> The corresponding read-optimized index. </returns>
+        /// <param name="index">The original index.</param>
+        /// <param name="entityType">The declaring entity type.</param>
+        /// <returns>The corresponding read-optimized index.</returns>
         protected virtual RuntimeIndex GetIndex(IIndex index, RuntimeEntityType entityType)
             => index.Name == null
-            ? entityType.FindIndex(entityType.FindProperties(index.Properties.Select(p => p.Name))!)!
-            : entityType.FindIndex(index.Name)!;
+                ? entityType.FindIndex(entityType.FindProperties(index.Properties.Select(p => p.Name))!)!
+                : entityType.FindIndex(index.Name)!;
 
         /// <summary>
         ///     Updates the skip navigation annotations that will be set on the read-only object.
         /// </summary>
-        /// <param name="annotations"> The annotations to be processed. </param>
-        /// <param name="skipNavigation"> The source skip navigation. </param>
-        /// <param name="runtimeSkipNavigation"> The target skip navigation that will contain the annotations. </param>
-        /// <param name="runtime"> Indicates whether the given annotations are runtime annotations. </param>
+        /// <param name="annotations">The annotations to be processed.</param>
+        /// <param name="skipNavigation">The source skip navigation.</param>
+        /// <param name="runtimeSkipNavigation">The target skip navigation that will contain the annotations.</param>
+        /// <param name="runtime">Indicates whether the given annotations are runtime annotations.</param>
         protected virtual void ProcessSkipNavigationAnnotations(
             Dictionary<string, object?> annotations,
             ISkipNavigation skipNavigation,
@@ -616,7 +631,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
             /// <summary>
             ///     Creates a new instance of <see cref="QueryRootRewritingExpressionVisitor" />.
             /// </summary>
-            /// <param name="model"> The model to look for entity types. </param>
+            /// <param name="model">The model to look for entity types.</param>
             public QueryRootRewritingExpressionVisitor(IModel model)
             {
                 _model = model;
@@ -625,7 +640,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
             /// <summary>
             ///     Rewrites <see cref="QueryRootExpression" /> encountered in an expression to use a different entity type.
             /// </summary>
-            /// <param name="expression"> The query expression to rewrite. </param>
+            /// <param name="expression">The query expression to rewrite.</param>
             public Expression Rewrite(Expression expression)
                 => Visit(expression);
 

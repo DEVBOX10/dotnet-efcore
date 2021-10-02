@@ -17,6 +17,10 @@ namespace Microsoft.EntityFrameworkCore.Storage
     ///         not used in application code.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     for more information.
+    /// </remarks>
     public interface IRelationalCommandTemplate
     {
         /// <summary>
@@ -28,7 +32,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
         ///     Gets the parameters to be copied to the destination command.
         /// </summary>
         IReadOnlyList<IRelationalParameter> Parameters { get; }
-        
+
         /// <summary>
         ///     <para>
         ///         Called by the execute methods to create a <see cref="DbCommand" /> for the given <see cref="DbConnection" />
@@ -39,10 +43,10 @@ namespace Microsoft.EntityFrameworkCore.Storage
         ///         not used in application code.
         ///     </para>
         /// </summary>
-        /// <param name="parameterObject"> Parameters for this method. </param>
-        /// <param name="commandId"> The command correlation ID. </param>
-        /// <param name="commandMethod"> The method that will be called on the created command. </param>
-        /// <returns> The created command. </returns>
+        /// <param name="parameterObject">Parameters for this method.</param>
+        /// <param name="commandId">The command correlation ID.</param>
+        /// <param name="commandMethod">The method that will be called on the created command.</param>
+        /// <returns>The created command.</returns>
         DbCommand CreateDbCommand(
             RelationalCommandParameterObject parameterObject,
             Guid commandId,

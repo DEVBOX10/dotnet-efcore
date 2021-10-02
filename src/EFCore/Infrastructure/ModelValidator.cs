@@ -38,7 +38,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// <summary>
         ///     Creates a new instance of <see cref="ModelValidator" />.
         /// </summary>
-        /// <param name="dependencies"> Parameter object containing dependencies for this service. </param>
+        /// <param name="dependencies">Parameter object containing dependencies for this service.</param>
         public ModelValidator(ModelValidatorDependencies dependencies)
         {
             Check.NotNull(dependencies, nameof(dependencies));
@@ -79,8 +79,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// <summary>
         ///     Validates relationships.
         /// </summary>
-        /// <param name="model"> The model. </param>
-        /// <param name="logger"> The logger to use. </param>
+        /// <param name="model">The model.</param>
+        /// <param name="logger">The logger to use.</param>
         protected virtual void ValidateRelationships(
             IModel model,
             IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
@@ -130,6 +130,16 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                             CoreStrings.SkipNavigationNoInverse(
                                 skipNavigation.Name, skipNavigation.DeclaringEntityType.DisplayName()));
                     }
+
+                    if (skipNavigation.IsShadowProperty())
+                    {
+                        throw new InvalidOperationException(
+                            CoreStrings.ShadowManyToManyNavigation(
+                                skipNavigation.DeclaringEntityType.DisplayName(),
+                                skipNavigation.Name,
+                                skipNavigation.Inverse.DeclaringEntityType.DisplayName(),
+                                skipNavigation.Inverse.Name));
+                    }
                 }
             }
         }
@@ -137,8 +147,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// <summary>
         ///     Validates property mappings.
         /// </summary>
-        /// <param name="model"> The model. </param>
-        /// <param name="logger"> The logger to use. </param>
+        /// <param name="model">The model.</param>
+        /// <param name="logger">The logger to use.</param>
         protected virtual void ValidatePropertyMapping(
             IModel model,
             IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
@@ -280,9 +290,9 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// <summary>
         ///     Returns a value indicating whether that target CLR type would correspond to an owned entity type.
         /// </summary>
-        /// <param name="targetType"> The target CLR type. </param>
-        /// <param name="conventionModel"> The model. </param>
-        /// <returns> <see langword="true"/> if the given CLR type corresponds to an owned entity type. </returns>
+        /// <param name="targetType">The target CLR type.</param>
+        /// <param name="conventionModel">The model.</param>
+        /// <returns><see langword="true" /> if the given CLR type corresponds to an owned entity type.</returns>
         protected virtual bool IsOwned(Type targetType, IConventionModel conventionModel)
             => conventionModel.FindIsOwnedConfigurationSource(targetType) != null
                 || conventionModel.FindEntityTypes(targetType).Any(t => t.IsOwned());
@@ -290,8 +300,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// <summary>
         ///     Validates that no attempt is made to ignore inherited properties.
         /// </summary>
-        /// <param name="model"> The model. </param>
-        /// <param name="logger"> The logger to use. </param>
+        /// <param name="model">The model.</param>
+        /// <param name="logger">The logger to use.</param>
         protected virtual void ValidateIgnoredMembers(
             IModel model,
             IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
@@ -370,8 +380,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// <summary>
         ///     Validates that the model does not contain any entity types without a corresponding CLR type.
         /// </summary>
-        /// <param name="model"> The model to validate. </param>
-        /// <param name="logger"> The logger to use. </param>
+        /// <param name="model">The model to validate.</param>
+        /// <param name="logger">The logger to use.</param>
         [Obsolete("Shadow entity types cannot be created anymore")]
         protected virtual void ValidateNoShadowEntities(
             IModel model,
@@ -382,8 +392,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// <summary>
         ///     Validates the mapping/configuration of shadow keys in the model.
         /// </summary>
-        /// <param name="model"> The model to validate. </param>
-        /// <param name="logger"> The logger to use. </param>
+        /// <param name="model">The model to validate.</param>
+        /// <param name="logger">The logger to use.</param>
         protected virtual void ValidateNoShadowKeys(
             IModel model,
             IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
@@ -423,8 +433,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// <summary>
         ///     Validates the mapping/configuration of mutable in the model.
         /// </summary>
-        /// <param name="model"> The model to validate. </param>
-        /// <param name="logger"> The logger to use. </param>
+        /// <param name="model">The model to validate.</param>
+        /// <param name="logger">The logger to use.</param>
         protected virtual void ValidateNoMutableKeys(
             IModel model,
             IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
@@ -447,8 +457,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// <summary>
         ///     Validates the mapping/configuration of the model for cycles.
         /// </summary>
-        /// <param name="model"> The model to validate. </param>
-        /// <param name="logger"> The logger to use. </param>
+        /// <param name="model">The model to validate.</param>
+        /// <param name="logger">The logger to use.</param>
         protected virtual void ValidateNoCycles(
             IModel model,
             IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
@@ -489,8 +499,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// <summary>
         ///     Validates the mapping/configuration of primary key nullability in the model.
         /// </summary>
-        /// <param name="model"> The model to validate. </param>
-        /// <param name="logger"> The logger to use. </param>
+        /// <param name="model">The model to validate.</param>
+        /// <param name="logger">The logger to use.</param>
         protected virtual void ValidateNonNullPrimaryKeys(
             IModel model,
             IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
@@ -511,8 +521,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// <summary>
         ///     Validates the mapping/configuration of inheritance in the model.
         /// </summary>
-        /// <param name="model"> The model to validate. </param>
-        /// <param name="logger"> The logger to use. </param>
+        /// <param name="model">The model to validate.</param>
+        /// <param name="logger">The logger to use.</param>
         protected virtual void ValidateClrInheritance(
             IModel model,
             IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
@@ -582,8 +592,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// <summary>
         ///     Validates the mapping/configuration of inheritance in the model.
         /// </summary>
-        /// <param name="model"> The model to validate. </param>
-        /// <param name="logger"> The logger to use. </param>
+        /// <param name="model">The model to validate.</param>
+        /// <param name="logger">The logger to use.</param>
         [Obsolete("Use ValidateInheritanceMapping")]
         protected virtual void ValidateDiscriminatorValues(
             IModel model,
@@ -598,8 +608,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// <summary>
         ///     Validates the mapping of inheritance in the model.
         /// </summary>
-        /// <param name="model"> The model to validate. </param>
-        /// <param name="logger"> The logger to use. </param>
+        /// <param name="model">The model to validate.</param>
+        /// <param name="logger">The logger to use.</param>
         protected virtual void ValidateInheritanceMapping(
             IModel model,
             IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
@@ -612,7 +622,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// <summary>
         ///     Validates the discriminator and values for all entity types derived from the given one.
         /// </summary>
-        /// <param name="rootEntityType"> The entity type to validate. </param>
+        /// <param name="rootEntityType">The entity type to validate.</param>
         protected virtual void ValidateDiscriminatorValues(IEntityType rootEntityType)
         {
             var derivedTypes = rootEntityType.GetDerivedTypesInclusive().ToList();
@@ -658,8 +668,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// <summary>
         ///     Validates the mapping/configuration of change tracking in the model.
         /// </summary>
-        /// <param name="model"> The model to validate. </param>
-        /// <param name="logger"> The logger to use. </param>
+        /// <param name="model">The model to validate.</param>
+        /// <param name="logger">The logger to use.</param>
         protected virtual void ValidateChangeTrackingStrategy(
             IModel model,
             IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
@@ -682,8 +692,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// <summary>
         ///     Validates the mapping/configuration of ownership in the model.
         /// </summary>
-        /// <param name="model"> The model to validate. </param>
-        /// <param name="logger"> The logger to use. </param>
+        /// <param name="model">The model to validate.</param>
+        /// <param name="logger">The logger to use.</param>
         protected virtual void ValidateOwnership(
             IModel model,
             IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
@@ -695,10 +705,12 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                 var ownerships = entityType.GetForeignKeys().Where(fk => fk.IsOwnership).ToList();
                 if (ownerships.Count > 1)
                 {
-                    throw new InvalidOperationException(CoreStrings.MultipleOwnerships(
-                        entityType.DisplayName(),
-                        string.Join(", ",
-                            ownerships.Select(o => $"'{o.PrincipalEntityType.DisplayName()}.{o.PrincipalToDependent?.Name}'"))));
+                    throw new InvalidOperationException(
+                        CoreStrings.MultipleOwnerships(
+                            entityType.DisplayName(),
+                            string.Join(
+                                ", ",
+                                ownerships.Select(o => $"'{o.PrincipalEntityType.DisplayName()}.{o.PrincipalToDependent?.Name}'"))));
                 }
 
                 if (ownerships.Count == 1)
@@ -757,8 +769,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// <summary>
         ///     Validates the mapping/configuration of foreign keys in the model.
         /// </summary>
-        /// <param name="model"> The model to validate. </param>
-        /// <param name="logger"> The logger to use. </param>
+        /// <param name="model">The model to validate.</param>
+        /// <param name="logger">The logger to use.</param>
         protected virtual void ValidateForeignKeys(
             IModel model,
             IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
@@ -809,15 +821,16 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
             static bool ContainedInForeignKeyForAllConcreteTypes(IEntityType entityType, IProperty property)
                 => entityType.ClrType.IsAbstract
                     && entityType.GetDerivedTypes().Where(t => !t.ClrType.IsAbstract)
-                        .All(d => d.GetForeignKeys()
-                            .Any(fk => fk.Properties.Contains(property)));
+                        .All(
+                            d => d.GetForeignKeys()
+                                .Any(fk => fk.Properties.Contains(property)));
         }
 
         /// <summary>
         ///     Validates the mapping/configuration of defining navigations in the model.
         /// </summary>
-        /// <param name="model"> The model to validate. </param>
-        /// <param name="logger"> The logger to use. </param>
+        /// <param name="model">The model to validate.</param>
+        /// <param name="logger">The logger to use.</param>
         [Obsolete]
         protected virtual void ValidateDefiningNavigations(
             IModel model,
@@ -828,8 +841,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// <summary>
         ///     Validates the mapping/configuration of properties mapped to fields in the model.
         /// </summary>
-        /// <param name="model"> The model to validate. </param>
-        /// <param name="logger"> The logger to use. </param>
+        /// <param name="model">The model to validate.</param>
+        /// <param name="logger">The logger to use.</param>
         protected virtual void ValidateFieldMapping(
             IModel model,
             IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
@@ -889,8 +902,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// <summary>
         ///     Validates the type mapping of properties the model.
         /// </summary>
-        /// <param name="model"> The model to validate. </param>
-        /// <param name="logger"> The logger to use. </param>
+        /// <param name="model">The model to validate.</param>
+        /// <param name="logger">The logger to use.</param>
         protected virtual void ValidateTypeMappings(
             IModel model,
             IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
@@ -928,8 +941,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// <summary>
         ///     Validates the mapping/configuration of query filters in the model.
         /// </summary>
-        /// <param name="model"> The model to validate. </param>
-        /// <param name="logger"> The logger to use. </param>
+        /// <param name="model">The model to validate.</param>
+        /// <param name="logger">The logger to use.</param>
         protected virtual void ValidateQueryFilters(
             IModel model,
             IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
@@ -975,8 +988,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// <summary>
         ///     Validates the mapping/configuration of data (e.g. seed data) in the model.
         /// </summary>
-        /// <param name="model"> The model to validate. </param>
-        /// <param name="logger"> The logger to use. </param>
+        /// <param name="model">The model to validate.</param>
+        /// <param name="logger">The logger to use.</param>
         protected virtual void ValidateData(IModel model, IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
         {
             Check.NotNull(model, nameof(model));
@@ -993,6 +1006,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                     {
                         throw new InvalidOperationException(CoreStrings.SeedKeylessEntity(entityType.DisplayName()));
                     }
+
                     continue;
                 }
 
@@ -1102,7 +1116,6 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                                 entityType.DisplayName(), key.Properties.Format()));
                     }
 
-
                     entry = new InternalEntityEntry(null!, entityType, seedDatum);
                     identityMap.Add(keyValues, entry);
                 }
@@ -1112,8 +1125,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// <summary>
         ///     Logs all shadow properties that were created because there was no matching CLR member.
         /// </summary>
-        /// <param name="model"> The model to validate. </param>
-        /// <param name="logger"> The logger to use. </param>
+        /// <param name="model">The model to validate.</param>
+        /// <param name="logger">The logger to use.</param>
         protected virtual void LogShadowProperties(
             IModel model,
             IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)

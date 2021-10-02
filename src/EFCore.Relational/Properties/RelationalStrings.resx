@@ -267,6 +267,9 @@
   <data name="DuplicateColumnNameNullabilityMismatch" xml:space="preserve">
     <value>'{entityType1}.{property1}' and '{entityType2}.{property2}' are both mapped to column '{columnName}' in '{table}', but are configured with different nullability settings.</value>
   </data>
+  <data name="DuplicateColumnNameOrderMismatch" xml:space="preserve">
+    <value>'{entityType1}.{property1}' and '{entityType2}.{property2}' are both mapped to column '{columnName}' in '{table}', but are configured to use different column orders ('{columnOrder1}' and '{columnOrder2}').</value>
+  </data>
   <data name="DuplicateColumnNamePrecisionMismatch" xml:space="preserve">
     <value>'{entityType1}.{property1}' and '{entityType2}.{property2}' are both mapped to column '{columnName}' in '{table}', but are configured with different precisions ('{precision1}' and '{precision2}').</value>
   </data>
@@ -297,14 +300,14 @@
   <data name="DuplicateIndexColumnMismatch" xml:space="preserve">
     <value>The indexes {indexProperties1} on '{entityType1}' and {indexProperties2} on '{entityType2}' are both mapped to '{table}.{indexName}', but with different columns ({columnNames1} and {columnNames2}).</value>
   </data>
+  <data name="DuplicateIndexFiltersMismatch" xml:space="preserve">
+    <value>The indexes {indexProperties1} on '{entityType1}' and {indexProperties2} on '{entityType2}' are both mapped to '{table}.{indexName}', but with different filters ('{filter1}' and '{filter2}').</value>
+  </data>
   <data name="DuplicateIndexTableMismatch" xml:space="preserve">
     <value>The indexes {indexProperties1} on '{entityType1}' and {indexProperties2} on '{entityType2}' are both mapped to '{indexName}', but are declared on different tables ('{table1}' and '{table2}').</value>
   </data>
   <data name="DuplicateIndexUniquenessMismatch" xml:space="preserve">
     <value>The indexes {indexProperties1} on '{entityType1}' and {indexProperties2} on '{entityType2}' are both mapped to '{table}.{indexName}', but with different uniqueness configurations.</value>
-  </data>
-  <data name="DuplicateIndexFiltersMismatch" xml:space="preserve">
-    <value>The indexes {indexProperties1} on '{entityType1}' and {indexProperties2} on '{entityType2}' are both mapped to '{table}.{indexName}', but with different filters ('{filter1}' and '{filter2}').</value>
   </data>
   <data name="DuplicateKeyColumnMismatch" xml:space="preserve">
     <value>The keys {keyProperties1} on '{entityType1}' and {keyProperties2} on '{entityType2}' are both mapped to '{table}.{keyName}', but with different columns ({columnNames1} and {columnNames2}).</value>
@@ -372,8 +375,8 @@
   <data name="InsertDataOperationValuesCountMismatch" xml:space="preserve">
     <value>The number of values ({valuesCount}) doesn't match the number of columns ({columnsCount}) for the data insertion operation on '{table}'. Provide the same number of values and columns.</value>
   </data>
-  <data name="InsufficientInformationToIdentifyOuterElementOfCollectionJoin" xml:space="preserve">
-    <value>Unable to translate a collection subquery in a projection since the parent query doesn't project the key columns of all tables required to generate results on the client side. This can happen when trying to correlate on keyless entity or when using 'Distinct' or 'GroupBy' operations without projecting all of the key columns.</value>
+  <data name="InsufficientInformationToIdentifyElementOfCollectionJoin" xml:space="preserve">
+    <value>Unable to translate a collection subquery in a projection since either parent or the subquery doesn't project necessary information required to uniquely identify it and correctly generate results on the client side. This can happen when trying to correlate on keyless entity type. This can also happen for some cases of projection before 'Distinct' or some shapes of grouping key in case of 'GroupBy'. These should either contain all key properties of the entity that the operation is applied on, or only contain simple property access expressions.</value>
   </data>
   <data name="InvalidCommandTimeout" xml:space="preserve">
     <value>The specified 'CommandTimeout' value '{value}' is not valid. It must be a positive number.</value>
@@ -456,6 +459,10 @@
     <value>Closing connection to database '{database}' on server '{server}'.</value>
     <comment>Debug RelationalEventId.ConnectionClosing string string</comment>
   </data>
+  <data name="LogColumnOrderIgnoredWarning" xml:space="preserve">
+    <value>The order of column '{table}.{column}' was ignored. Column orders are only used when the table is first created.</value>
+    <comment>Warning RelationalEventId.ColumnOrderIgnoredWarning string string</comment>
+  </data>
   <data name="LogCommandCreated" xml:space="preserve">
     <value>Created DbCommand for '{executionType}' ({elapsed}ms).</value>
     <comment>Debug RelationalEventId.CommandCreated string int</comment>
@@ -499,6 +506,10 @@
   <data name="LogDisposingTransaction" xml:space="preserve">
     <value>Disposing transaction.</value>
     <comment>Debug RelationalEventId.TransactionDisposed</comment>
+  </data>
+  <data name="LogDuplicateColumnOrders" xml:space="preserve">
+    <value>The configured column orders for the table '{table}' contains duplicates. Ensure the specified column order values are distinct. Conflicting columns: {columns}</value>
+    <comment>Error RelationalEventId.DuplicateColumnOrders string string</comment>
   </data>
   <data name="LogExecutedCommand" xml:space="preserve">
     <value>Executed DbCommand ({elapsed}ms) [Parameters=[{parameters}], CommandType='{commandType}', CommandTimeout='{commandTimeout}']{newLine}{commandText}</value>

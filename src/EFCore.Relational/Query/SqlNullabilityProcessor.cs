@@ -27,14 +27,15 @@ namespace Microsoft.EntityFrameworkCore.Query
     public class SqlNullabilityProcessor
     {
         private readonly List<ColumnExpression> _nonNullableColumns;
+        private readonly List<ColumnExpression> _nullValueColumns;
         private readonly ISqlExpressionFactory _sqlExpressionFactory;
         private bool _canCache;
 
         /// <summary>
         ///     Creates a new instance of the <see cref="SqlNullabilityProcessor" /> class.
         /// </summary>
-        /// <param name="dependencies"> Parameter object containing dependencies for this class. </param>
-        /// <param name="useRelationalNulls"> A bool value indicating whether relational null semantics are in use. </param>
+        /// <param name="dependencies">Parameter object containing dependencies for this class.</param>
+        /// <param name="useRelationalNulls">A bool value indicating whether relational null semantics are in use.</param>
         public SqlNullabilityProcessor(
             RelationalParameterBasedSqlProcessorDependencies dependencies,
             bool useRelationalNulls)
@@ -42,10 +43,11 @@ namespace Microsoft.EntityFrameworkCore.Query
             Check.NotNull(dependencies, nameof(dependencies));
 
             Dependencies = dependencies;
-            
+
             _sqlExpressionFactory = dependencies.SqlExpressionFactory;
             UseRelationalNulls = useRelationalNulls;
             _nonNullableColumns = new List<ColumnExpression>();
+            _nullValueColumns = new List<ColumnExpression>();
             ParameterValues = null!;
         }
 
@@ -67,10 +69,10 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <summary>
         ///     Processes a <see cref="SelectExpression" /> to apply null semantics and optimize it.
         /// </summary>
-        /// <param name="selectExpression"> A select expression to process. </param>
-        /// <param name="parameterValues"> A dictionary of parameter values in use. </param>
-        /// <param name="canCache"> A bool value indicating whether the select expression can be cached. </param>
-        /// <returns> An optimized select expression. </returns>
+        /// <param name="selectExpression">A select expression to process.</param>
+        /// <param name="parameterValues">A dictionary of parameter values in use.</param>
+        /// <param name="canCache">A bool value indicating whether the select expression can be cached.</param>
+        /// <returns>An optimized select expression.</returns>
         public virtual SelectExpression Process(
             SelectExpression selectExpression,
             IReadOnlyDictionary<string, object?> parameterValues,
@@ -81,6 +83,7 @@ namespace Microsoft.EntityFrameworkCore.Query
 
             _canCache = true;
             _nonNullableColumns.Clear();
+            _nullValueColumns.Clear();
             ParameterValues = parameterValues;
 
             var result = Visit(selectExpression);
@@ -98,15 +101,15 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <summary>
         ///     Adds a column to non nullable columns list to further optimizations can take the column as non-nullable.
         /// </summary>
-        /// <param name="columnExpression"> A column expression to add. </param>
+        /// <param name="columnExpression">A column expression to add.</param>
         protected virtual void AddNonNullableColumn(ColumnExpression columnExpression)
             => _nonNullableColumns.Add(Check.NotNull(columnExpression, nameof(columnExpression)));
 
         /// <summary>
         ///     Visits a <see cref="TableExpressionBase" />.
         /// </summary>
-        /// <param name="tableExpressionBase"> A table expression base to visit. </param>
-        /// <returns> An optimized table expression base. </returns>
+        /// <param name="tableExpressionBase">A table expression base to visit.</param>
+        /// <returns>An optimized table expression base.</returns>
         protected virtual TableExpressionBase Visit(TableExpressionBase tableExpressionBase)
         {
             Check.NotNull(tableExpressionBase, nameof(tableExpressionBase));
@@ -136,7 +139,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                     var newJoinPredicate = ProcessJoinPredicate(innerJoinExpression.JoinPredicate);
 
                     return TryGetBoolConstantValue(newJoinPredicate) == true
-                        ? (TableExpressionBase)new CrossJoinExpression(newTable)
+                        ? new CrossJoinExpression(newTable)
                         : innerJoinExpression.Update(newTable, newJoinPredicate);
                 }
 
@@ -194,8 +197,8 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <summary>
         ///     Visits a <see cref="SelectExpression" />.
         /// </summary>
-        /// <param name="selectExpression"> A select expression to visit. </param>
-        /// <returns> An optimized select expression. </returns>
+        /// <param name="selectExpression">A select expression to visit.</param>
+        /// <returns>An optimized select expression.</returns>
         protected virtual SelectExpression Visit(SelectExpression selectExpression)
         {
             Check.NotNull(selectExpression, nameof(selectExpression));
@@ -326,9 +329,9 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <summary>
         ///     Visits a <see cref="SqlExpression" /> and computes its nullability.
         /// </summary>
-        /// <param name="sqlExpression"> A sql expression to visit. </param>
-        /// <param name="nullable"> A bool value indicating whether the sql expression is nullable. </param>
-        /// <returns> An optimized sql expression. </returns>
+        /// <param name="sqlExpression">A sql expression to visit.</param>
+        /// <param name="nullable">A bool value indicating whether the sql expression is nullable.</param>
+        /// <returns>An optimized sql expression.</returns>
         [return: NotNullIfNotNull("sqlExpression")]
         protected virtual SqlExpression? Visit(SqlExpression? sqlExpression, out bool nullable)
             => Visit(sqlExpression, allowOptimizedExpansion: false, out nullable);
@@ -336,19 +339,19 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <summary>
         ///     Visits a <see cref="SqlExpression" /> and computes its nullability.
         /// </summary>
-        /// <param name="sqlExpression"> A sql expression to visit. </param>
-        /// <param name="allowOptimizedExpansion"> A bool value indicating if optimized expansion which considers null value as false value is allowed. </param>
-        /// <param name="nullable"> A bool value indicating whether the sql expression is nullable. </param>
-        /// <returns> An optimized sql expression. </returns>
+        /// <param name="sqlExpression">A sql expression to visit.</param>
+        /// <param name="allowOptimizedExpansion">A bool value indicating if optimized expansion which considers null value as false value is allowed.</param>
+        /// <param name="nullable">A bool value indicating whether the sql expression is nullable.</param>
+        /// <returns>An optimized sql expression.</returns>
         [return: NotNullIfNotNull("sqlExpression")]
         protected virtual SqlExpression? Visit(SqlExpression? sqlExpression, bool allowOptimizedExpansion, out bool nullable)
-            => Visit(sqlExpression, allowOptimizedExpansion, preserveNonNullableColumns: false, out nullable);
+            => Visit(sqlExpression, allowOptimizedExpansion, preserveColumnNullabilityInformation: false, out nullable);
 
         [return: NotNullIfNotNull("sqlExpression")]
         private SqlExpression? Visit(
             SqlExpression? sqlExpression,
             bool allowOptimizedExpansion,
-            bool preserveNonNullableColumns,
+            bool preserveColumnNullabilityInformation,
             out bool nullable)
         {
             if (sqlExpression == null)
@@ -358,44 +361,46 @@ namespace Microsoft.EntityFrameworkCore.Query
             }
 
             var nonNullableColumnsCount = _nonNullableColumns.Count;
+            var nullValueColumnsCount = _nullValueColumns.Count;
             var result = sqlExpression switch
             {
                 CaseExpression caseExpression
-                => VisitCase(caseExpression, allowOptimizedExpansion, out nullable),
+                    => VisitCase(caseExpression, allowOptimizedExpansion, out nullable),
                 CollateExpression collateExpression
-                => VisitCollate(collateExpression, allowOptimizedExpansion, out nullable),
+                    => VisitCollate(collateExpression, allowOptimizedExpansion, out nullable),
                 ColumnExpression columnExpression
-                => VisitColumn(columnExpression, allowOptimizedExpansion, out nullable),
+                    => VisitColumn(columnExpression, allowOptimizedExpansion, out nullable),
                 DistinctExpression distinctExpression
-                => VisitDistinct(distinctExpression, allowOptimizedExpansion, out nullable),
+                    => VisitDistinct(distinctExpression, allowOptimizedExpansion, out nullable),
                 ExistsExpression existsExpression
-                => VisitExists(existsExpression, allowOptimizedExpansion, out nullable),
+                    => VisitExists(existsExpression, allowOptimizedExpansion, out nullable),
                 InExpression inExpression
-                => VisitIn(inExpression, allowOptimizedExpansion, out nullable),
+                    => VisitIn(inExpression, allowOptimizedExpansion, out nullable),
                 LikeExpression likeExpression
-                => VisitLike(likeExpression, allowOptimizedExpansion, out nullable),
+                    => VisitLike(likeExpression, allowOptimizedExpansion, out nullable),
                 RowNumberExpression rowNumberExpression
-                => VisitRowNumber(rowNumberExpression, allowOptimizedExpansion, out nullable),
+                    => VisitRowNumber(rowNumberExpression, allowOptimizedExpansion, out nullable),
                 ScalarSubqueryExpression scalarSubqueryExpression
-                => VisitScalarSubquery(scalarSubqueryExpression, allowOptimizedExpansion, out nullable),
+                    => VisitScalarSubquery(scalarSubqueryExpression, allowOptimizedExpansion, out nullable),
                 SqlBinaryExpression sqlBinaryExpression
-                => VisitSqlBinary(sqlBinaryExpression, allowOptimizedExpansion, out nullable),
+                    => VisitSqlBinary(sqlBinaryExpression, allowOptimizedExpansion, out nullable),
                 SqlConstantExpression sqlConstantExpression
-                => VisitSqlConstant(sqlConstantExpression, allowOptimizedExpansion, out nullable),
+                    => VisitSqlConstant(sqlConstantExpression, allowOptimizedExpansion, out nullable),
                 SqlFragmentExpression sqlFragmentExpression
-                => VisitSqlFragment(sqlFragmentExpression, allowOptimizedExpansion, out nullable),
+                    => VisitSqlFragment(sqlFragmentExpression, allowOptimizedExpansion, out nullable),
                 SqlFunctionExpression sqlFunctionExpression
-                => VisitSqlFunction(sqlFunctionExpression, allowOptimizedExpansion, out nullable),
+                    => VisitSqlFunction(sqlFunctionExpression, allowOptimizedExpansion, out nullable),
                 SqlParameterExpression sqlParameterExpression
-                => VisitSqlParameter(sqlParameterExpression, allowOptimizedExpansion, out nullable),
+                    => VisitSqlParameter(sqlParameterExpression, allowOptimizedExpansion, out nullable),
                 SqlUnaryExpression sqlUnaryExpression
-                => VisitSqlUnary(sqlUnaryExpression, allowOptimizedExpansion, out nullable),
+                    => VisitSqlUnary(sqlUnaryExpression, allowOptimizedExpansion, out nullable),
                 _ => VisitCustomSqlExpression(sqlExpression, allowOptimizedExpansion, out nullable)
             };
 
-            if (!preserveNonNullableColumns)
+            if (!preserveColumnNullabilityInformation)
             {
                 RestoreNonNullableColumnsList(nonNullableColumnsCount);
+                RestoreNullValueColumnsList(nullValueColumnsCount);
             }
 
             return result;
@@ -404,10 +409,10 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <summary>
         ///     Visits a custom <see cref="SqlExpression" /> added by providers and computes its nullability.
         /// </summary>
-        /// <param name="sqlExpression"> A sql expression to visit. </param>
-        /// <param name="allowOptimizedExpansion"> A bool value indicating if optimized expansion which considers null value as false value is allowed. </param>
-        /// <param name="nullable"> A bool value indicating whether the sql expression is nullable. </param>
-        /// <returns> An optimized sql expression. </returns>
+        /// <param name="sqlExpression">A sql expression to visit.</param>
+        /// <param name="allowOptimizedExpansion">A bool value indicating if optimized expansion which considers null value as false value is allowed.</param>
+        /// <param name="nullable">A bool value indicating whether the sql expression is nullable.</param>
+        /// <returns>An optimized sql expression.</returns>
         protected virtual SqlExpression VisitCustomSqlExpression(
             SqlExpression sqlExpression,
             bool allowOptimizedExpansion,
@@ -418,10 +423,10 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <summary>
         ///     Visits a <see cref="CaseExpression" /> and computes its nullability.
         /// </summary>
-        /// <param name="caseExpression"> A case expression to visit. </param>
-        /// <param name="allowOptimizedExpansion"> A bool value indicating if optimized expansion which considers null value as false value is allowed. </param>
-        /// <param name="nullable"> A bool value indicating whether the sql expression is nullable. </param>
-        /// <returns> An optimized sql expression. </returns>
+        /// <param name="caseExpression">A case expression to visit.</param>
+        /// <param name="allowOptimizedExpansion">A bool value indicating if optimized expansion which considers null value as false value is allowed.</param>
+        /// <param name="nullable">A bool value indicating whether the sql expression is nullable.</param>
+        /// <returns>An optimized sql expression.</returns>
         protected virtual SqlExpression VisitCase(CaseExpression caseExpression, bool allowOptimizedExpansion, out bool nullable)
         {
             Check.NotNull(caseExpression, nameof(caseExpression));
@@ -430,6 +435,7 @@ namespace Microsoft.EntityFrameworkCore.Query
             // otherwise the result is nullable if any of the WhenClause results OR ElseResult is nullable
             nullable = caseExpression.ElseResult == null;
             var currentNonNullableColumnsCount = _nonNullableColumns.Count;
+            var currentNullValueColumnsCount = _nullValueColumns.Count;
 
             var operand = Visit(caseExpression.Operand, out _);
             var whenClauses = new List<CaseWhenClause>();
@@ -438,8 +444,9 @@ namespace Microsoft.EntityFrameworkCore.Query
             var testEvaluatesToTrue = false;
             foreach (var whenClause in caseExpression.WhenClauses)
             {
-                // we can use non-nullable column information we got from visiting Test, in the Result
-                var test = Visit(whenClause.Test, allowOptimizedExpansion: testIsCondition, preserveNonNullableColumns: true, out _);
+                // we can use column nullability information we got from visiting Test, in the Result
+                var test = Visit(
+                    whenClause.Test, allowOptimizedExpansion: testIsCondition, preserveColumnNullabilityInformation: true, out _);
 
                 if (TryGetBoolConstantValue(test) is bool testConstantBool)
                 {
@@ -451,6 +458,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                     {
                         // if test evaluates to 'false' we can remove the WhenClause
                         RestoreNonNullableColumnsList(currentNonNullableColumnsCount);
+                        RestoreNullValueColumnsList(currentNullValueColumnsCount);
 
                         continue;
                     }
@@ -461,6 +469,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                 nullable |= resultNullable;
                 whenClauses.Add(new CaseWhenClause(test, newResult));
                 RestoreNonNullableColumnsList(currentNonNullableColumnsCount);
+                RestoreNullValueColumnsList(currentNonNullableColumnsCount);
 
                 // if test evaluates to 'true' we can remove every condition that comes after, including ElseResult
                 if (testEvaluatesToTrue)
@@ -475,6 +484,9 @@ namespace Microsoft.EntityFrameworkCore.Query
                 elseResult = Visit(caseExpression.ElseResult, out var elseResultNullable);
                 nullable |= elseResultNullable;
             }
+
+            RestoreNonNullableColumnsList(currentNonNullableColumnsCount);
+            RestoreNullValueColumnsList(currentNullValueColumnsCount);
 
             // if there are no whenClauses left (e.g. their tests evaluated to false):
             // - if there is Else block, return it
@@ -495,10 +507,10 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <summary>
         ///     Visits a <see cref="CollateExpression" /> and computes its nullability.
         /// </summary>
-        /// <param name="collateExpression"> A collate expression to visit. </param>
-        /// <param name="allowOptimizedExpansion"> A bool value indicating if optimized expansion which considers null value as false value is allowed. </param>
-        /// <param name="nullable"> A bool value indicating whether the sql expression is nullable. </param>
-        /// <returns> An optimized sql expression. </returns>
+        /// <param name="collateExpression">A collate expression to visit.</param>
+        /// <param name="allowOptimizedExpansion">A bool value indicating if optimized expansion which considers null value as false value is allowed.</param>
+        /// <param name="nullable">A bool value indicating whether the sql expression is nullable.</param>
+        /// <returns>An optimized sql expression.</returns>
         protected virtual SqlExpression VisitCollate(
             CollateExpression collateExpression,
             bool allowOptimizedExpansion,
@@ -512,10 +524,10 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <summary>
         ///     Visits a <see cref="ColumnExpression" /> and computes its nullability.
         /// </summary>
-        /// <param name="columnExpression"> A column expression to visit. </param>
-        /// <param name="allowOptimizedExpansion"> A bool value indicating if optimized expansion which considers null value as false value is allowed. </param>
-        /// <param name="nullable"> A bool value indicating whether the sql expression is nullable. </param>
-        /// <returns> An optimized sql expression. </returns>
+        /// <param name="columnExpression">A column expression to visit.</param>
+        /// <param name="allowOptimizedExpansion">A bool value indicating if optimized expansion which considers null value as false value is allowed.</param>
+        /// <param name="nullable">A bool value indicating whether the sql expression is nullable.</param>
+        /// <returns>An optimized sql expression.</returns>
         protected virtual SqlExpression VisitColumn(
             ColumnExpression columnExpression,
             bool allowOptimizedExpansion,
@@ -531,10 +543,10 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <summary>
         ///     Visits a <see cref="DistinctExpression" /> and computes its nullability.
         /// </summary>
-        /// <param name="distinctExpression"> A collate expression to visit. </param>
-        /// <param name="allowOptimizedExpansion"> A bool value indicating if optimized expansion which considers null value as false value is allowed. </param>
-        /// <param name="nullable"> A bool value indicating whether the sql expression is nullable. </param>
-        /// <returns> An optimized sql expression. </returns>
+        /// <param name="distinctExpression">A collate expression to visit.</param>
+        /// <param name="allowOptimizedExpansion">A bool value indicating if optimized expansion which considers null value as false value is allowed.</param>
+        /// <param name="nullable">A bool value indicating whether the sql expression is nullable.</param>
+        /// <returns>An optimized sql expression.</returns>
         protected virtual SqlExpression VisitDistinct(
             DistinctExpression distinctExpression,
             bool allowOptimizedExpansion,
@@ -548,10 +560,10 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <summary>
         ///     Visits an <see cref="ExistsExpression" /> and computes its nullability.
         /// </summary>
-        /// <param name="existsExpression"> An exists expression to visit. </param>
-        /// <param name="allowOptimizedExpansion"> A bool value indicating if optimized expansion which considers null value as false value is allowed. </param>
-        /// <param name="nullable"> A bool value indicating whether the sql expression is nullable. </param>
-        /// <returns> An optimized sql expression. </returns>
+        /// <param name="existsExpression">An exists expression to visit.</param>
+        /// <param name="allowOptimizedExpansion">A bool value indicating if optimized expansion which considers null value as false value is allowed.</param>
+        /// <param name="nullable">A bool value indicating whether the sql expression is nullable.</param>
+        /// <returns>An optimized sql expression.</returns>
         protected virtual SqlExpression VisitExists(
             ExistsExpression existsExpression,
             bool allowOptimizedExpansion,
@@ -566,16 +578,16 @@ namespace Microsoft.EntityFrameworkCore.Query
             // if the exisits is negated we need to return true instead
             return TryGetBoolConstantValue(subquery.Predicate) == false
                 ? _sqlExpressionFactory.Constant(existsExpression.IsNegated, existsExpression.TypeMapping)
-                : (SqlExpression)existsExpression.Update(subquery);
+                : existsExpression.Update(subquery);
         }
 
         /// <summary>
         ///     Visits an <see cref="InExpression" /> and computes its nullability.
         /// </summary>
-        /// <param name="inExpression"> An in expression to visit. </param>
-        /// <param name="allowOptimizedExpansion"> A bool value indicating if optimized expansion which considers null value as false value is allowed. </param>
-        /// <param name="nullable"> A bool value indicating whether the sql expression is nullable. </param>
-        /// <returns> An optimized sql expression. </returns>
+        /// <param name="inExpression">An in expression to visit.</param>
+        /// <param name="allowOptimizedExpansion">A bool value indicating if optimized expansion which considers null value as false value is allowed.</param>
+        /// <param name="nullable">A bool value indicating whether the sql expression is nullable.</param>
+        /// <returns>An optimized sql expression.</returns>
         protected virtual SqlExpression VisitIn(InExpression inExpression, bool allowOptimizedExpansion, out bool nullable)
         {
             Check.NotNull(inExpression, nameof(inExpression));
@@ -635,7 +647,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                 // nullable IN (NULL) -> nullable IS NULL
                 // nullable NOT IN (NULL) -> nullable IS NOT NULL
                 return !hasNullValue || !itemNullable
-                    ? (SqlExpression)_sqlExpressionFactory.Constant(
+                    ? _sqlExpressionFactory.Constant(
                         inExpression.IsNegated,
                         inExpression.TypeMapping)
                     : inExpression.IsNegated
@@ -735,10 +747,10 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <summary>
         ///     Visits a <see cref="LikeExpression" /> and computes its nullability.
         /// </summary>
-        /// <param name="likeExpression"> A like expression to visit. </param>
-        /// <param name="allowOptimizedExpansion"> A bool value indicating if optimized expansion which considers null value as false value is allowed. </param>
-        /// <param name="nullable"> A bool value indicating whether the sql expression is nullable. </param>
-        /// <returns> An optimized sql expression. </returns>
+        /// <param name="likeExpression">A like expression to visit.</param>
+        /// <param name="allowOptimizedExpansion">A bool value indicating if optimized expansion which considers null value as false value is allowed.</param>
+        /// <param name="nullable">A bool value indicating whether the sql expression is nullable.</param>
+        /// <returns>An optimized sql expression.</returns>
         protected virtual SqlExpression VisitLike(LikeExpression likeExpression, bool allowOptimizedExpansion, out bool nullable)
         {
             Check.NotNull(likeExpression, nameof(likeExpression));
@@ -755,10 +767,10 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <summary>
         ///     Visits a <see cref="RowNumberExpression" /> and computes its nullability.
         /// </summary>
-        /// <param name="rowNumberExpression"> A row number expression to visit. </param>
-        /// <param name="allowOptimizedExpansion"> A bool value indicating if optimized expansion which considers null value as false value is allowed. </param>
-        /// <param name="nullable"> A bool value indicating whether the sql expression is nullable. </param>
-        /// <returns> An optimized sql expression. </returns>
+        /// <param name="rowNumberExpression">A row number expression to visit.</param>
+        /// <param name="allowOptimizedExpansion">A bool value indicating if optimized expansion which considers null value as false value is allowed.</param>
+        /// <param name="nullable">A bool value indicating whether the sql expression is nullable.</param>
+        /// <returns>An optimized sql expression.</returns>
         protected virtual SqlExpression VisitRowNumber(
             RowNumberExpression rowNumberExpression,
             bool allowOptimizedExpansion,
@@ -793,10 +805,10 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <summary>
         ///     Visits a <see cref="ScalarSubqueryExpression" /> and computes its nullability.
         /// </summary>
-        /// <param name="scalarSubqueryExpression"> A scalar subquery expression to visit. </param>
-        /// <param name="allowOptimizedExpansion"> A bool value indicating if optimized expansion which considers null value as false value is allowed. </param>
-        /// <param name="nullable"> A bool value indicating whether the sql expression is nullable. </param>
-        /// <returns> An optimized sql expression. </returns>
+        /// <param name="scalarSubqueryExpression">A scalar subquery expression to visit.</param>
+        /// <param name="allowOptimizedExpansion">A bool value indicating if optimized expansion which considers null value as false value is allowed.</param>
+        /// <param name="nullable">A bool value indicating whether the sql expression is nullable.</param>
+        /// <returns>An optimized sql expression.</returns>
         protected virtual SqlExpression VisitScalarSubquery(
             ScalarSubqueryExpression scalarSubqueryExpression,
             bool allowOptimizedExpansion,
@@ -812,10 +824,10 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <summary>
         ///     Visits a <see cref="SqlBinaryExpression" /> and computes its nullability.
         /// </summary>
-        /// <param name="sqlBinaryExpression"> A sql binary expression to visit. </param>
-        /// <param name="allowOptimizedExpansion"> A bool value indicating if optimized expansion which considers null value as false value is allowed. </param>
-        /// <param name="nullable"> A bool value indicating whether the sql expression is nullable. </param>
-        /// <returns> An optimized sql expression. </returns>
+        /// <param name="sqlBinaryExpression">A sql binary expression to visit.</param>
+        /// <param name="allowOptimizedExpansion">A bool value indicating if optimized expansion which considers null value as false value is allowed.</param>
+        /// <param name="nullable">A bool value indicating whether the sql expression is nullable.</param>
+        /// <returns>An optimized sql expression.</returns>
         protected virtual SqlExpression VisitSqlBinary(
             SqlBinaryExpression sqlBinaryExpression,
             bool allowOptimizedExpansion,
@@ -830,16 +842,32 @@ namespace Microsoft.EntityFrameworkCore.Query
                     || sqlBinaryExpression.OperatorType == ExpressionType.OrElse);
 
             var currentNonNullableColumnsCount = _nonNullableColumns.Count;
+            var currentNullValueColumnsCount = _nullValueColumns.Count;
 
-            var left = Visit(sqlBinaryExpression.Left, allowOptimizedExpansion, preserveNonNullableColumns: true, out var leftNullable);
+            var left = Visit(
+                sqlBinaryExpression.Left, allowOptimizedExpansion, preserveColumnNullabilityInformation: true, out var leftNullable);
 
             var leftNonNullableColumns = _nonNullableColumns.Skip(currentNonNullableColumnsCount).ToList();
+            var leftNullValueColumns = _nullValueColumns.Skip(currentNullValueColumnsCount).ToList();
             if (sqlBinaryExpression.OperatorType != ExpressionType.AndAlso)
             {
                 RestoreNonNullableColumnsList(currentNonNullableColumnsCount);
             }
 
-            var right = Visit(sqlBinaryExpression.Right, allowOptimizedExpansion, preserveNonNullableColumns: true, out var rightNullable);
+            if (sqlBinaryExpression.OperatorType == ExpressionType.OrElse)
+            {
+                // in case of OrElse, we can assume all null value columns on the left side can be treated as non-nullable on the right
+                // e.g. (a == null || b == null) || f(a, b)
+                // f(a, b) will only be executed if a != null and b != null
+                _nonNullableColumns.AddRange(_nullValueColumns.Skip(currentNullValueColumnsCount).ToList());
+            }
+            else
+            {
+                RestoreNullValueColumnsList(currentNullValueColumnsCount);
+            }
+
+            var right = Visit(
+                sqlBinaryExpression.Right, allowOptimizedExpansion, preserveColumnNullabilityInformation: true, out var rightNullable);
 
             if (sqlBinaryExpression.OperatorType == ExpressionType.OrElse)
             {
@@ -851,6 +879,17 @@ namespace Microsoft.EntityFrameworkCore.Query
             {
                 // in case of AndAlso we already have what we need as the column information propagates from left to right
                 RestoreNonNullableColumnsList(currentNonNullableColumnsCount);
+            }
+
+            if (sqlBinaryExpression.OperatorType == ExpressionType.AndAlso)
+            {
+                var intersect = leftNullValueColumns.Intersect(_nullValueColumns.Skip(currentNullValueColumnsCount)).ToList();
+                RestoreNullValueColumnsList(currentNullValueColumnsCount);
+                _nullValueColumns.AddRange(intersect);
+            }
+            else if (sqlBinaryExpression.OperatorType != ExpressionType.OrElse)
+            {
+                RestoreNullValueColumnsList(currentNullValueColumnsCount);
             }
 
             // nullableStringColumn + a -> COALESCE(nullableStringColumn, "") + a
@@ -886,10 +925,16 @@ namespace Microsoft.EntityFrameworkCore.Query
                     out nullable);
 
                 if (optimized is SqlUnaryExpression optimizedUnary
-                    && optimizedUnary.OperatorType == ExpressionType.NotEqual
                     && optimizedUnary.Operand is ColumnExpression optimizedUnaryColumnOperand)
                 {
-                    _nonNullableColumns.Add(optimizedUnaryColumnOperand);
+                    if (optimizedUnary.OperatorType == ExpressionType.NotEqual)
+                    {
+                        _nonNullableColumns.Add(optimizedUnaryColumnOperand);
+                    }
+                    else if (optimizedUnary.OperatorType == ExpressionType.Equal)
+                    {
+                        _nullValueColumns.Add(optimizedUnaryColumnOperand);
+                    }
                 }
 
                 // we assume that NullSemantics rewrite is only needed (on the current level)
@@ -931,17 +976,17 @@ namespace Microsoft.EntityFrameworkCore.Query
 
             SqlExpression AddNullConcatenationProtection(SqlExpression argument, RelationalTypeMapping typeMapping)
                 => argument is SqlConstantExpression || argument is SqlParameterExpression
-                    ? (SqlExpression)_sqlExpressionFactory.Constant(string.Empty, typeMapping)
+                    ? _sqlExpressionFactory.Constant(string.Empty, typeMapping)
                     : _sqlExpressionFactory.Coalesce(argument, _sqlExpressionFactory.Constant(string.Empty, typeMapping));
         }
 
         /// <summary>
         ///     Visits a <see cref="SqlConstantExpression" /> and computes its nullability.
         /// </summary>
-        /// <param name="sqlConstantExpression"> A sql constant expression to visit. </param>
-        /// <param name="allowOptimizedExpansion"> A bool value indicating if optimized expansion which considers null value as false value is allowed. </param>
-        /// <param name="nullable"> A bool value indicating whether the sql expression is nullable. </param>
-        /// <returns> An optimized sql expression. </returns>
+        /// <param name="sqlConstantExpression">A sql constant expression to visit.</param>
+        /// <param name="allowOptimizedExpansion">A bool value indicating if optimized expansion which considers null value as false value is allowed.</param>
+        /// <param name="nullable">A bool value indicating whether the sql expression is nullable.</param>
+        /// <returns>An optimized sql expression.</returns>
         protected virtual SqlExpression VisitSqlConstant(
             SqlConstantExpression sqlConstantExpression,
             bool allowOptimizedExpansion,
@@ -957,10 +1002,10 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <summary>
         ///     Visits a <see cref="SqlFragmentExpression" /> and computes its nullability.
         /// </summary>
-        /// <param name="sqlFragmentExpression"> A sql fragment expression to visit. </param>
-        /// <param name="allowOptimizedExpansion"> A bool value indicating if optimized expansion which considers null value as false value is allowed. </param>
-        /// <param name="nullable"> A bool value indicating whether the sql expression is nullable. </param>
-        /// <returns> An optimized sql expression. </returns>
+        /// <param name="sqlFragmentExpression">A sql fragment expression to visit.</param>
+        /// <param name="allowOptimizedExpansion">A bool value indicating if optimized expansion which considers null value as false value is allowed.</param>
+        /// <param name="nullable">A bool value indicating whether the sql expression is nullable.</param>
+        /// <returns>An optimized sql expression.</returns>
         protected virtual SqlExpression VisitSqlFragment(
             SqlFragmentExpression sqlFragmentExpression,
             bool allowOptimizedExpansion,
@@ -976,10 +1021,10 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <summary>
         ///     Visits a <see cref="SqlFunctionExpression" /> and computes its nullability.
         /// </summary>
-        /// <param name="sqlFunctionExpression"> A sql function expression to visit. </param>
-        /// <param name="allowOptimizedExpansion"> A bool value indicating if optimized expansion which considers null value as false value is allowed. </param>
-        /// <param name="nullable"> A bool value indicating whether the sql expression is nullable. </param>
-        /// <returns> An optimized sql expression. </returns>
+        /// <param name="sqlFunctionExpression">A sql function expression to visit.</param>
+        /// <param name="allowOptimizedExpansion">A bool value indicating if optimized expansion which considers null value as false value is allowed.</param>
+        /// <param name="nullable">A bool value indicating whether the sql expression is nullable.</param>
+        /// <returns>An optimized sql expression.</returns>
         protected virtual SqlExpression VisitSqlFunction(
             SqlFunctionExpression sqlFunctionExpression,
             bool allowOptimizedExpansion,
@@ -1025,10 +1070,10 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <summary>
         ///     Visits a <see cref="SqlParameterExpression" /> and computes its nullability.
         /// </summary>
-        /// <param name="sqlParameterExpression"> A sql parameter expression to visit. </param>
-        /// <param name="allowOptimizedExpansion"> A bool value indicating if optimized expansion which considers null value as false value is allowed. </param>
-        /// <param name="nullable"> A bool value indicating whether the sql expression is nullable. </param>
-        /// <returns> An optimized sql expression. </returns>
+        /// <param name="sqlParameterExpression">A sql parameter expression to visit.</param>
+        /// <param name="allowOptimizedExpansion">A bool value indicating if optimized expansion which considers null value as false value is allowed.</param>
+        /// <param name="nullable">A bool value indicating whether the sql expression is nullable.</param>
+        /// <returns>An optimized sql expression.</returns>
         protected virtual SqlExpression VisitSqlParameter(
             SqlParameterExpression sqlParameterExpression,
             bool allowOptimizedExpansion,
@@ -1040,16 +1085,16 @@ namespace Microsoft.EntityFrameworkCore.Query
 
             return nullable
                 ? _sqlExpressionFactory.Constant(null, sqlParameterExpression.TypeMapping)
-                : (SqlExpression)sqlParameterExpression;
+                : sqlParameterExpression;
         }
 
         /// <summary>
         ///     Visits a <see cref="SqlUnaryExpression" /> and computes its nullability.
         /// </summary>
-        /// <param name="sqlUnaryExpression"> A sql unary expression to visit. </param>
-        /// <param name="allowOptimizedExpansion"> A bool value indicating if optimized expansion which considers null value as false value is allowed. </param>
-        /// <param name="nullable"> A bool value indicating whether the sql expression is nullable. </param>
-        /// <returns> An optimized sql expression. </returns>
+        /// <param name="sqlUnaryExpression">A sql unary expression to visit.</param>
+        /// <param name="allowOptimizedExpansion">A bool value indicating if optimized expansion which considers null value as false value is allowed.</param>
+        /// <param name="nullable">A bool value indicating whether the sql expression is nullable.</param>
+        /// <returns>An optimized sql expression.</returns>
         protected virtual SqlExpression VisitSqlUnary(
             SqlUnaryExpression sqlUnaryExpression,
             bool allowOptimizedExpansion,
@@ -1069,10 +1114,16 @@ namespace Microsoft.EntityFrameworkCore.Query
                 nullable = false;
 
                 if (result is SqlUnaryExpression resultUnary
-                    && resultUnary.OperatorType == ExpressionType.NotEqual
                     && resultUnary.Operand is ColumnExpression resultColumnOperand)
                 {
-                    _nonNullableColumns.Add(resultColumnOperand);
+                    if (resultUnary.OperatorType == ExpressionType.NotEqual)
+                    {
+                        _nonNullableColumns.Add(resultColumnOperand);
+                    }
+                    else if (resultUnary.OperatorType == ExpressionType.Equal)
+                    {
+                        _nullValueColumns.Add(resultColumnOperand);
+                    }
                 }
 
                 return result;
@@ -1089,13 +1140,21 @@ namespace Microsoft.EntityFrameworkCore.Query
             => expression is SqlConstantExpression constantExpression
                 && constantExpression.Value is bool boolValue
                     ? boolValue
-                    : (bool?)null;
+                    : null;
 
         private void RestoreNonNullableColumnsList(int counter)
         {
             if (counter < _nonNullableColumns.Count)
             {
                 _nonNullableColumns.RemoveRange(counter, _nonNullableColumns.Count - counter);
+            }
+        }
+
+        private void RestoreNullValueColumnsList(int counter)
+        {
+            if (counter < _nullValueColumns.Count)
+            {
+                _nullValueColumns.RemoveRange(counter, _nullValueColumns.Count - counter);
             }
         }
 
@@ -1393,7 +1452,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                 // a is null || a is not null -> true
                 // a is null && a is not null -> false
                 return leftUnary.OperatorType == rightUnary.OperatorType
-                    ? (SqlExpression)leftUnary
+                    ? leftUnary
                     : _sqlExpressionFactory.Constant(
                         sqlBinaryExpression.OperatorType == ExpressionType.OrElse, sqlBinaryExpression.TypeMapping);
             }
@@ -1753,7 +1812,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                         return result;
                     }
                 }
-                break;
+                    break;
             }
 
             return sqlUnaryExpression;

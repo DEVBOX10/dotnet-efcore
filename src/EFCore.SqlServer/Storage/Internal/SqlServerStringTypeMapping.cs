@@ -94,8 +94,8 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal
         /// <summary>
         ///     Creates a copy of this mapping.
         /// </summary>
-        /// <param name="parameters"> The parameters for this mapping. </param>
-        /// <returns> The newly created mapping. </returns>
+        /// <param name="parameters">The parameters for this mapping.</param>
+        /// <returns>The newly created mapping.</returns>
         protected override RelationalTypeMapping Clone(RelationalTypeMappingParameters parameters)
             => new SqlServerStringTypeMapping(parameters, _sqlDbType);
 
@@ -234,11 +234,14 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal
                             builder.Append('\'');
                             openApostrophe = true;
                         }
+
                         builder.Append("''");
                     }
+
                     start = i + 1;
                 }
             }
+
             length = i - start;
             if (length != 0)
             {
@@ -269,6 +272,7 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal
                 {
                     builder.Insert(concatStartList[j], "CAST(");
                 }
+
                 builder.Insert(concatStartList[j], "CONCAT(");
                 builder.Append(')');
             }
@@ -296,6 +300,7 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal
                         {
                             builder.Append("n");
                         }
+
                         builder.Append("varchar(max))");
                         castApplied = true;
                     }

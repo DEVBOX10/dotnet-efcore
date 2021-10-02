@@ -1162,5 +1162,28 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
         protected class DreJr : Dre
         {
         }
+
+        protected class Store
+        {
+            public int StoreId { get; set; }
+        }
+
+        protected class KeylessCollectionNavigation
+        {
+            public List<Store>? Stores { get; set; }
+            [NotMapped]
+            public KeylessReferenceNavigation? Reference { get; set; }
+        }
+
+        protected class KeylessReferenceNavigation
+        {
+            public List<KeylessCollectionNavigation>? Collection { get; set; }
+        }
+
+        protected class Discount
+        {
+            public int? StoreId { get; set; }
+            public Store? Store { get; set; }
+        }
     }
 }

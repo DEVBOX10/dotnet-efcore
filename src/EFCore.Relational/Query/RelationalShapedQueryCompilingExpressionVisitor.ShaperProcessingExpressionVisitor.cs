@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
@@ -1815,15 +1814,15 @@ namespace Microsoft.EntityFrameworkCore.Query
                         var relationalCommand = relationalCommandCache.RentAndPopulateRelationalCommand(queryContext);
 
                         return await relationalCommand.ExecuteReaderAsync(
-                            new RelationalCommandParameterObject(
-                                queryContext.Connection,
-                                queryContext.ParameterValues,
-                                relationalCommandCache.ReaderColumns,
-                                queryContext.Context,
-                                queryContext.CommandLogger,
-                                detailedErrorsEnabled, 
-                                CommandSource.LinqQuery),
-                            cancellationToken)
+                                new RelationalCommandParameterObject(
+                                    queryContext.Connection,
+                                    queryContext.ParameterValues,
+                                    relationalCommandCache.ReaderColumns,
+                                    queryContext.Context,
+                                    queryContext.CommandLogger,
+                                    detailedErrorsEnabled,
+                                    CommandSource.LinqQuery),
+                                cancellationToken)
                             .ConfigureAwait(false);
                     }
 
@@ -1877,23 +1876,16 @@ namespace Microsoft.EntityFrameworkCore.Query
 
             private static bool CompareIdentifiers(IReadOnlyList<ValueComparer> valueComparers, object[] left, object[] right)
             {
-                if (valueComparers != null)
+                // Ignoring size check on all for perf as they should be same unless bug in code.
+                for (var i = 0; i < left.Length; i++)
                 {
-                    // Ignoring size check on all for perf as they should be same unless bug in code.
-                    for (var i = 0; i < left.Length; i++)
+                    if (!valueComparers[i].Equals(left[i], right[i]))
                     {
-                        if (valueComparers[i] != null
-                            ? !valueComparers[i].Equals(left[i], right[i])
-                            : !Equals(left[i], right[i]))
-                        {
-                            return false;
-                        }
+                        return false;
                     }
-
-                    return true;
                 }
 
-                return StructuralComparisons.StructuralEqualityComparer.Equals(left, right);
+                return true;
             }
 
             private sealed class CollectionShaperFindingExpressionVisitor : ExpressionVisitor

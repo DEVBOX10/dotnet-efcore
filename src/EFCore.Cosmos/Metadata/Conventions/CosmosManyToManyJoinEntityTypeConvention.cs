@@ -6,7 +6,6 @@ using System.Linq;
 using Microsoft.EntityFrameworkCore.Cosmos.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Utilities;
 
 namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
@@ -26,7 +25,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <summary>
         ///     Creates a new instance of <see cref="CosmosManyToManyJoinEntityTypeConvention" />.
         /// </summary>
-        /// <param name="dependencies"> Parameter object containing dependencies for this convention. </param>
+        /// <param name="dependencies">Parameter object containing dependencies for this convention.</param>
         public CosmosManyToManyJoinEntityTypeConvention(ProviderConventionSetBuilderDependencies dependencies)
             : base(dependencies)
         {
@@ -35,11 +34,11 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <summary>
         ///     Called after an annotation is changed on an entity type.
         /// </summary>
-        /// <param name="entityTypeBuilder"> The builder for the entity type. </param>
-        /// <param name="name"> The annotation name. </param>
-        /// <param name="annotation"> The new annotation. </param>
-        /// <param name="oldAnnotation"> The old annotation.  </param>
-        /// <param name="context"> Additional information associated with convention execution. </param>
+        /// <param name="entityTypeBuilder">The builder for the entity type.</param>
+        /// <param name="name">The annotation name.</param>
+        /// <param name="annotation">The new annotation.</param>
+        /// <param name="oldAnnotation">The old annotation.</param>
+        /// <param name="context">Additional information associated with convention execution.</param>
         public virtual void ProcessEntityTypeAnnotationChanged(
             IConventionEntityTypeBuilder entityTypeBuilder,
             string name,
@@ -91,7 +90,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
             }
         }
 
-        private void ConfigurePartitionKeyJoinEntityType(IConventionSkipNavigation skipNavigation, IConventionEntityTypeBuilder joinEntityTypeBuilder)
+        private void ConfigurePartitionKeyJoinEntityType(
+            IConventionSkipNavigation skipNavigation,
+            IConventionEntityTypeBuilder joinEntityTypeBuilder)
         {
             var principalPartitionKey = skipNavigation.DeclaringEntityType.GetPartitionKeyProperty()!;
             var partitionKey = joinEntityTypeBuilder.Property(principalPartitionKey.ClrType, principalPartitionKey.Name)!.Metadata;
@@ -152,10 +153,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         {
             var inverseSkipNavigation = skipNavigation.Inverse;
             if (skipNavigation.JoinEntityType != null
-                    && skipNavigation.IsCollection
-                    && inverseSkipNavigation != null
-                    && inverseSkipNavigation.IsCollection
-                    && inverseSkipNavigation.JoinEntityType == skipNavigation.JoinEntityType)
+                && skipNavigation.IsCollection
+                && inverseSkipNavigation != null
+                && inverseSkipNavigation.IsCollection
+                && inverseSkipNavigation.JoinEntityType == skipNavigation.JoinEntityType)
             {
                 var joinEntityType = skipNavigation.JoinEntityType;
                 var joinEntityTypeBuilder = joinEntityType.Builder;
@@ -164,9 +165,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
                     var principalPartitionKey = skipNavigation.DeclaringEntityType.GetPartitionKeyProperty()!;
                     var partitionKey = joinEntityType.GetPartitionKeyProperty();
                     if ((partitionKey != null
-                        && (!joinEntityTypeBuilder.CanSetPartitionKey(principalPartitionKey.Name)
-                            || (skipNavigation.ForeignKey!.Properties.Contains(partitionKey)
-                                && inverseSkipNavigation.ForeignKey!.Properties.Contains(partitionKey))))
+                            && (!joinEntityTypeBuilder.CanSetPartitionKey(principalPartitionKey.Name)
+                                || (skipNavigation.ForeignKey!.Properties.Contains(partitionKey)
+                                    && inverseSkipNavigation.ForeignKey!.Properties.Contains(partitionKey))))
                         || !skipNavigation.Builder.CanSetForeignKey(null)
                         || !inverseSkipNavigation.Builder.CanSetForeignKey(null))
                     {
@@ -181,7 +182,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
                     if (partitionKey != null
                         && joinEntityTypeBuilder.HasPartitionKey(null) != null
                         && ((skipNavigation.ForeignKey!.Properties.Contains(partitionKey)
-                            && skipNavigation.Builder.CanSetForeignKey(null))
+                                && skipNavigation.Builder.CanSetForeignKey(null))
                             || (inverseSkipNavigation.ForeignKey!.Properties.Contains(partitionKey)
                                 && inverseSkipNavigation.Builder.CanSetForeignKey(null))))
                     {
@@ -196,6 +197,6 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
             => skipNavigation.DeclaringEntityType.GetContainer() == skipNavigation.TargetEntityType.GetContainer()
                 && skipNavigation.DeclaringEntityType.GetPartitionKeyPropertyName() != null
                 && skipNavigation.Inverse?.DeclaringEntityType.GetPartitionKeyPropertyName()
-                    == skipNavigation.DeclaringEntityType.GetPartitionKeyPropertyName();
+                == skipNavigation.DeclaringEntityType.GetPartitionKeyPropertyName();
     }
 }

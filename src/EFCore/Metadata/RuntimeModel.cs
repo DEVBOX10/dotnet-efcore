@@ -41,13 +41,6 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         private readonly ConcurrentDictionary<Type, string> _clrTypeNameMap = new();
 
         /// <summary>
-        ///     Creates a new instance of <see cref="RuntimeModel"/>
-        /// </summary>
-        public RuntimeModel()
-        {
-        }
-
-        /// <summary>
         ///     Sets a value indicating whether <see cref="ChangeTracker.DetectChanges" /> should be called.
         /// </summary>
         public virtual void SetSkipDetectChanges(bool skipDetectChanges)
@@ -58,18 +51,19 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         /// <summary>
         ///     Adds an entity type with a defining navigation to the model.
         /// </summary>
-        /// <param name="name"> The name of the entity type to be added. </param>
-        /// <param name="type"> The CLR class that is used to represent instances of this type. </param>
-        /// <param name="sharedClrType"> Whether this entity type can share its ClrType with other entities. </param>
-        /// <param name="baseType"> The base type of this entity type. </param>
-        /// <param name="discriminatorProperty"> The name of the property that will be used for storing a discriminator value. </param>
-        /// <param name="changeTrackingStrategy"> The change tracking strategy for this entity type </param>
-        /// <param name="indexerPropertyInfo"> The <see cref="PropertyInfo"/> for the indexer on the associated CLR type if one exists. </param>
+        /// <param name="name">The name of the entity type to be added.</param>
+        /// <param name="type">The CLR class that is used to represent instances of this type.</param>
+        /// <param name="sharedClrType">Whether this entity type can share its ClrType with other entities.</param>
+        /// <param name="baseType">The base type of this entity type.</param>
+        /// <param name="discriminatorProperty">The name of the property that will be used for storing a discriminator value.</param>
+        /// <param name="changeTrackingStrategy">The change tracking strategy for this entity type</param>
+        /// <param name="indexerPropertyInfo">The <see cref="PropertyInfo" /> for the indexer on the associated CLR type if one exists.</param>
         /// <param name="propertyBag">
         ///     A value indicating whether this entity type has an indexer which is able to contain arbitrary properties
         ///     and a method that can be used to determine whether a given indexer property contains a value.
         /// </param>
-        /// <returns> The new entity type. </returns>
+        /// <param name="discriminatorValue">The discriminator value for this entity type.</param>
+        /// <returns>The new entity type.</returns>
         public virtual RuntimeEntityType AddEntityType(
             string name,
             Type type,
@@ -78,7 +72,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata
             string? discriminatorProperty = null,
             ChangeTrackingStrategy changeTrackingStrategy = ChangeTrackingStrategy.Snapshot,
             PropertyInfo? indexerPropertyInfo = null,
-            bool propertyBag = false)
+            bool propertyBag = false,
+            object? discriminatorValue = null)
         {
             var entityType = new RuntimeEntityType(
                 name,
@@ -89,7 +84,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata
                 discriminatorProperty,
                 changeTrackingStrategy,
                 indexerPropertyInfo,
-                propertyBag);
+                propertyBag,
+                discriminatorValue);
 
             if (sharedClrType)
             {
@@ -110,12 +106,12 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         }
 
         /// <summary>
-        ///     Gets the entity type with the given name. Returns <see langword="null"/> if no entity type with the given name is found
+        ///     Gets the entity type with the given name. Returns <see langword="null" /> if no entity type with the given name is found
         ///     or the given CLR type is being used by shared type entity type
         ///     or the entity type has a defining navigation.
         /// </summary>
-        /// <param name="name"> The name of the entity type to find. </param>
-        /// <returns> The entity type, or <see langword="null"/> if none is found. </returns>
+        /// <param name="name">The name of the entity type to find.</param>
+        /// <returns>The entity type, or <see langword="null" /> if none is found.</returns>
         public virtual RuntimeEntityType? FindEntityType(string name)
             => _entityTypes.TryGetValue(name, out var entityType)
                 ? entityType
@@ -145,16 +141,16 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         /// <summary>
         ///     Adds configuration for a scalar type.
         /// </summary>
-        /// <param name="clrType"> The type of value the property will hold. </param>
-        /// <param name="maxLength"> The maximum length of data that is allowed in this property type. </param>
-        /// <param name="unicode"> A value indicating whether or not the property can persist Unicode characters. </param>
-        /// <param name="precision"> The precision of data that is allowed in this property type. </param>
-        /// <param name="scale"> The scale of data that is allowed in this property type. </param>
+        /// <param name="clrType">The type of value the property will hold.</param>
+        /// <param name="maxLength">The maximum length of data that is allowed in this property type.</param>
+        /// <param name="unicode">A value indicating whether or not the property can persist Unicode characters.</param>
+        /// <param name="precision">The precision of data that is allowed in this property type.</param>
+        /// <param name="scale">The scale of data that is allowed in this property type.</param>
         /// <param name="providerPropertyType">
         ///     The type that the property value will be converted to before being sent to the database provider.
         /// </param>
-        /// <param name="valueConverter"> The custom <see cref="ValueConverter" /> for this type. </param>
-        /// <returns> The newly created property. </returns>
+        /// <param name="valueConverter">The custom <see cref="ValueConverter" /> for this type.</param>
+        /// <returns>The newly created property.</returns>
         public virtual RuntimeTypeMappingConfiguration AddTypeMappingConfiguration(
             Type clrType,
             int? maxLength = null,
@@ -202,27 +198,27 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         [EntityFrameworkInternal]
         public virtual DebugView DebugView
             => new(
-                () => ((IReadOnlyModel)this).ToDebugString(MetadataDebugStringOptions.ShortDefault),
+                () => ((IReadOnlyModel)this).ToDebugString(),
                 () => ((IReadOnlyModel)this).ToDebugString(MetadataDebugStringOptions.LongDefault));
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         bool IRuntimeModel.SkipDetectChanges
         {
             [DebuggerStepThrough]
             get => _skipDetectChanges;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         [DebuggerStepThrough]
         PropertyAccessMode IReadOnlyModel.GetPropertyAccessMode()
             => throw new InvalidOperationException(CoreStrings.RuntimeModelMissingData);
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         [DebuggerStepThrough]
         ChangeTrackingStrategy IReadOnlyModel.GetChangeTrackingStrategy()
             => throw new InvalidOperationException(CoreStrings.RuntimeModelMissingData);
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         [DebuggerStepThrough]
         bool IModel.IsIndexerMethod(MethodInfo methodInfo)
             => !methodInfo.IsStatic
@@ -231,32 +227,35 @@ namespace Microsoft.EntityFrameworkCore.Metadata
                 && FindIndexerPropertyInfo(methodInfo.DeclaringType) is PropertyInfo indexerProperty
                 && (methodInfo == indexerProperty.GetMethod || methodInfo == indexerProperty.SetMethod);
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         [DebuggerStepThrough]
         IReadOnlyEntityType? IReadOnlyModel.FindEntityType(string name)
             => FindEntityType(name);
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         [DebuggerStepThrough]
         IEntityType? IModel.FindEntityType(string name)
             => FindEntityType(name);
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         [DebuggerStepThrough]
         IReadOnlyEntityType? IReadOnlyModel.FindEntityType(Type type)
             => FindEntityType(type);
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         [DebuggerStepThrough]
         IEntityType? IModel.FindEntityType(Type type)
             => FindEntityType(type);
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         [DebuggerStepThrough]
-        IReadOnlyEntityType? IReadOnlyModel.FindEntityType(string name, string definingNavigationName, IReadOnlyEntityType definingEntityType)
+        IReadOnlyEntityType? IReadOnlyModel.FindEntityType(
+            string name,
+            string definingNavigationName,
+            IReadOnlyEntityType definingEntityType)
             => FindEntityType(name, definingNavigationName, (RuntimeEntityType)definingEntityType);
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         [DebuggerStepThrough]
         IEntityType? IModel.FindEntityType(
             string name,
@@ -264,7 +263,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
             IEntityType definingEntityType)
             => FindEntityType(name, definingNavigationName, (RuntimeEntityType)definingEntityType);
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         [DebuggerStepThrough]
         IReadOnlyEntityType? IReadOnlyModel.FindEntityType(
             Type type,
@@ -272,36 +271,36 @@ namespace Microsoft.EntityFrameworkCore.Metadata
             IReadOnlyEntityType definingEntityType)
             => FindEntityType(type.ShortDisplayName(), definingNavigationName, definingEntityType);
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         [DebuggerStepThrough]
         IEnumerable<IReadOnlyEntityType> IReadOnlyModel.GetEntityTypes()
             => _entityTypes.Values;
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         [DebuggerStepThrough]
         IEnumerable<IEntityType> IModel.GetEntityTypes()
             => _entityTypes.Values;
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         [DebuggerStepThrough]
         IEnumerable<IReadOnlyEntityType> IReadOnlyModel.FindEntityTypes(Type type)
             => FindEntityTypes(type);
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         [DebuggerStepThrough]
         IEnumerable<IEntityType> IModel.FindEntityTypes(Type type)
             => FindEntityTypes(type);
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         [DebuggerStepThrough]
         bool IReadOnlyModel.IsShared(Type type)
             => _sharedTypes.ContainsKey(type);
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         IEnumerable<ITypeMappingConfiguration> IModel.GetTypeMappingConfigurations()
             => _typeConfigurations.Values;
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         ITypeMappingConfiguration? IModel.FindTypeMappingConfiguration(Type propertyType)
             => _typeConfigurations.Count == 0
                 ? null

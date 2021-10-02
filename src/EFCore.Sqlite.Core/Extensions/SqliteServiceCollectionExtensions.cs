@@ -37,7 +37,7 @@ namespace Microsoft.Extensions.DependencyInjection
         ///     </para>
         ///     <para>
         ///         This method is a shortcut for configuring a <see cref="DbContext" /> to use SQLite. It does not support all options.
-        ///         Use <see cref="M:EntityFrameworkServiceCollectionExtensions.AddDbContext"/> and related methods for full control of
+        ///         Use <see cref="M:EntityFrameworkServiceCollectionExtensions.AddDbContext" /> and related methods for full control of
         ///         this process.
         ///     </para>
         ///     <para>
@@ -48,8 +48,8 @@ namespace Microsoft.Extensions.DependencyInjection
         ///     </para>
         ///     <para>
         ///         To configure the <see cref="DbContextOptions{TContext}" /> for the context, either override the
-        ///         <see cref="DbContext.OnConfiguring" /> method in your derived context, or supply 
-        ///         an optional action to configure the <see cref="DbContextOptions" /> for the context. 
+        ///         <see cref="DbContext.OnConfiguring" /> method in your derived context, or supply
+        ///         an optional action to configure the <see cref="DbContextOptions" /> for the context.
         ///     </para>
         ///     <para>
         ///         See <see href="https://aka.ms/efcore-docs-di">Using DbContext with dependency injection</see> for more information.
@@ -59,12 +59,12 @@ namespace Microsoft.Extensions.DependencyInjection
         ///     See <see href="https://aka.ms/efcore-docs-dbcontext-options">Using DbContextOptions</see>, and
         ///     <see href="https://aka.ms/efcore-docs-sqlite">Accessing SQLite databases with EF Core</see> for more information.
         /// </remarks>
-        /// <typeparam name="TContext"> The type of context to be registered. </typeparam>
-        /// <param name="serviceCollection"> The <see cref="IServiceCollection" /> to add services to. </param>
-        /// <param name="connectionString"> The connection string of the database to connect to. </param>
-        /// <param name="sqliteOptionsAction"> An optional action to allow additional SQLite specific configuration. </param>
-        /// <param name="optionsAction"> An optional action to configure the <see cref="DbContextOptions" /> for the context. </param>
-        /// <returns> The same service collection so that multiple calls can be chained. </returns>
+        /// <typeparam name="TContext">The type of context to be registered.</typeparam>
+        /// <param name="serviceCollection">The <see cref="IServiceCollection" /> to add services to.</param>
+        /// <param name="connectionString">The connection string of the database to connect to.</param>
+        /// <param name="sqliteOptionsAction">An optional action to allow additional SQLite specific configuration.</param>
+        /// <param name="optionsAction">An optional action to configure the <see cref="DbContextOptions" /> for the context.</param>
+        /// <returns>The same service collection so that multiple calls can be chained.</returns>
         public static IServiceCollection AddSqlite<TContext>(
             this IServiceCollection serviceCollection,
             string connectionString,
@@ -77,10 +77,10 @@ namespace Microsoft.Extensions.DependencyInjection
 
             return serviceCollection.AddDbContext<TContext>(
                 (serviceProvider, options) =>
-                {
-                    optionsAction?.Invoke(options);
-                    options.UseSqlite(connectionString, sqliteOptionsAction);
-                });
+                    {
+                        optionsAction?.Invoke(options);
+                        options.UseSqlite(connectionString, sqliteOptionsAction);
+                    });
         }
 
         /// <summary>
@@ -100,7 +100,7 @@ namespace Microsoft.Extensions.DependencyInjection
         ///         This is not recommend other than for some advanced scenarios.
         ///     </para>
         /// </summary>
-        /// <param name="serviceCollection"> The <see cref="IServiceCollection" /> to add services to. </param>
+        /// <param name="serviceCollection">The <see cref="IServiceCollection" /> to add services to.</param>
         /// <returns>
         ///     The same service collection so that multiple calls can be chained.
         /// </returns>

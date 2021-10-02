@@ -9,13 +9,16 @@ namespace Microsoft.EntityFrameworkCore.Migrations
     /// <summary>
     ///     Indicates that a class is a <see cref="Migration" /> and provides its identifier.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-migrations">Database migrations</see> for more information.
+    /// </remarks>
     [AttributeUsage(AttributeTargets.Class)]
     public sealed class MigrationAttribute : Attribute
     {
         /// <summary>
         ///     Creates a new instance of this attribute.
         /// </summary>
-        /// <param name="id"> The migration identifier. </param>
+        /// <param name="id">The migration identifier.</param>
         public MigrationAttribute(string id)
         {
             Check.NotEmpty(id, nameof(id));

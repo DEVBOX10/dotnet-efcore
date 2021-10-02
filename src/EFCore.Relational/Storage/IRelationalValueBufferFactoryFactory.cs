@@ -22,13 +22,17 @@ namespace Microsoft.EntityFrameworkCore.Storage
     ///         This service cannot depend on services registered as <see cref="ServiceLifetime.Scoped" />.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     for more information.
+    /// </remarks>
     public interface IRelationalValueBufferFactoryFactory
     {
         /// <summary>
         ///     Creates a new <see cref="IRelationalValueBufferFactory" />.
         /// </summary>
-        /// <param name="types"> Types and mapping for the values to be read. </param>
-        /// <returns> The newly created <see cref="IRelationalValueBufferFactoryFactory" />. </returns>
+        /// <param name="types">Types and mapping for the values to be read.</param>
+        /// <returns>The newly created <see cref="IRelationalValueBufferFactoryFactory" />.</returns>
         IRelationalValueBufferFactory Create(IReadOnlyList<TypeMaterializationInfo> types);
     }
 }

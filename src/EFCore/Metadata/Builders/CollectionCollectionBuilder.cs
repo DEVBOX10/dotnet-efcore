@@ -3,6 +3,7 @@
 
 using System;
 using System.ComponentModel;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Utilities;
@@ -40,6 +41,12 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
             Check.DebugAssert(((IConventionEntityType)rightEntityType).IsInModel, "Not in model");
             Check.DebugAssert(((IConventionSkipNavigation)leftNavigation).IsInModel, "Not in model");
             Check.DebugAssert(((IConventionSkipNavigation)rightNavigation).IsInModel, "Not in model");
+
+            if (leftNavigation == rightNavigation)
+            {
+                throw new InvalidOperationException(
+                    CoreStrings.ManyToManyOneNav(leftEntityType.DisplayName(), leftNavigation.Name));
+            }
 
             LeftEntityType = leftEntityType;
             RightEntityType = rightEntityType;
@@ -98,8 +105,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
         /// <summary>
         ///     Configures the join entity type implementing the many-to-many relationship.
         /// </summary>
-        /// <param name="joinEntityType"> The CLR type of the join entity. </param>
-        /// <returns> The builder for the join entity type. </returns>
+        /// <param name="joinEntityType">The CLR type of the join entity.</param>
+        /// <returns>The builder for the join entity type.</returns>
         public virtual EntityTypeBuilder UsingEntity(
             Type joinEntityType)
         {
@@ -111,8 +118,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
         /// <summary>
         ///     Configures the join entity type implementing the many-to-many relationship.
         /// </summary>
-        /// <param name="joinEntityName"> The name of the join entity. </param>
-        /// <returns> The builder for the join entity type. </returns>
+        /// <param name="joinEntityName">The name of the join entity.</param>
+        /// <returns>The builder for the join entity type.</returns>
         public virtual EntityTypeBuilder UsingEntity(
             string joinEntityName)
         {
@@ -124,9 +131,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
         /// <summary>
         ///     Configures the join entity type implementing the many-to-many relationship.
         /// </summary>
-        /// <param name="joinEntityName"> The name of the join entity. </param>
-        /// <param name="joinEntityType"> The CLR type of the join entity. </param>
-        /// <returns> The builder for the join entity type. </returns>
+        /// <param name="joinEntityName">The name of the join entity.</param>
+        /// <param name="joinEntityType">The CLR type of the join entity.</param>
+        /// <returns>The builder for the join entity type.</returns>
         public virtual EntityTypeBuilder UsingEntity(
             string joinEntityName,
             Type joinEntityType)
@@ -140,8 +147,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
         /// <summary>
         ///     Configures the join entity type implementing the many-to-many relationship.
         /// </summary>
-        /// <param name="configureJoinEntityType"> The configuration of the join entity type. </param>
-        /// <returns> The builder for the originating entity type so that multiple configuration calls can be chained. </returns>
+        /// <param name="configureJoinEntityType">The configuration of the join entity type.</param>
+        /// <returns>The builder for the originating entity type so that multiple configuration calls can be chained.</returns>
         public virtual EntityTypeBuilder UsingEntity(
             Action<EntityTypeBuilder> configureJoinEntityType)
         {
@@ -160,9 +167,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
         /// <summary>
         ///     Configures the join entity type implementing the many-to-many relationship.
         /// </summary>
-        /// <param name="joinEntityType"> The CLR type of the join entity. </param>
-        /// <param name="configureJoinEntityType"> The configuration of the join entity type. </param>
-        /// <returns> The builder for the originating entity type so that multiple configuration calls can be chained. </returns>
+        /// <param name="joinEntityType">The CLR type of the join entity.</param>
+        /// <param name="configureJoinEntityType">The configuration of the join entity type.</param>
+        /// <returns>The builder for the originating entity type so that multiple configuration calls can be chained.</returns>
         public virtual EntityTypeBuilder UsingEntity(
             Type joinEntityType,
             Action<EntityTypeBuilder> configureJoinEntityType)
@@ -177,9 +184,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
         /// <summary>
         ///     Configures the join entity type implementing the many-to-many relationship.
         /// </summary>
-        /// <param name="joinEntityName"> The name of the join entity. </param>
-        /// <param name="configureJoinEntityType"> The configuration of the join entity type. </param>
-        /// <returns> The builder for the originating entity type so that multiple configuration calls can be chained. </returns>
+        /// <param name="joinEntityName">The name of the join entity.</param>
+        /// <param name="configureJoinEntityType">The configuration of the join entity type.</param>
+        /// <returns>The builder for the originating entity type so that multiple configuration calls can be chained.</returns>
         public virtual EntityTypeBuilder UsingEntity(
             string joinEntityName,
             Action<EntityTypeBuilder> configureJoinEntityType)
@@ -194,10 +201,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
         /// <summary>
         ///     Configures the join entity type implementing the many-to-many relationship.
         /// </summary>
-        /// <param name="joinEntityName"> The name of the join entity. </param>
-        /// <param name="joinEntityType"> The CLR type of the join entity. </param>
-        /// <param name="configureJoinEntityType"> The configuration of the join entity type. </param>
-        /// <returns> The builder for the originating entity type so that multiple configuration calls can be chained. </returns>
+        /// <param name="joinEntityName">The name of the join entity.</param>
+        /// <param name="joinEntityType">The CLR type of the join entity.</param>
+        /// <param name="configureJoinEntityType">The configuration of the join entity type.</param>
+        /// <returns>The builder for the originating entity type so that multiple configuration calls can be chained.</returns>
         public virtual EntityTypeBuilder UsingEntity(
             string joinEntityName,
             Type joinEntityType,
@@ -213,9 +220,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
         /// <summary>
         ///     Configures the relationships to the entity types participating in the many-to-many relationship.
         /// </summary>
-        /// <param name="configureRight"> The configuration for the relationship to the right entity type. </param>
-        /// <param name="configureLeft"> The configuration for the relationship to the left entity type. </param>
-        /// <returns> The builder for the join entity type. </returns>
+        /// <param name="configureRight">The configuration for the relationship to the right entity type.</param>
+        /// <param name="configureLeft">The configuration for the relationship to the left entity type.</param>
+        /// <returns>The builder for the join entity type.</returns>
         public virtual EntityTypeBuilder UsingEntity(
             Func<EntityTypeBuilder, ReferenceCollectionBuilder> configureRight,
             Func<EntityTypeBuilder, ReferenceCollectionBuilder> configureLeft)
@@ -229,10 +236,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
         /// <summary>
         ///     Configures the relationships to the entity types participating in the many-to-many relationship.
         /// </summary>
-        /// <param name="joinEntityType"> The CLR type of the join entity. </param>
-        /// <param name="configureRight"> The configuration for the relationship to the right entity type. </param>
-        /// <param name="configureLeft"> The configuration for the relationship to the left entity type. </param>
-        /// <returns> The builder for the join entity type. </returns>
+        /// <param name="joinEntityType">The CLR type of the join entity.</param>
+        /// <param name="configureRight">The configuration for the relationship to the right entity type.</param>
+        /// <param name="configureLeft">The configuration for the relationship to the left entity type.</param>
+        /// <returns>The builder for the join entity type.</returns>
         public virtual EntityTypeBuilder UsingEntity(
             Type joinEntityType,
             Func<EntityTypeBuilder, ReferenceCollectionBuilder> configureRight,
@@ -248,10 +255,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
         /// <summary>
         ///     Configures the relationships to the entity types participating in the many-to-many relationship.
         /// </summary>
-        /// <param name="joinEntityName"> The name of the join entity. </param>
-        /// <param name="configureRight"> The configuration for the relationship to the right entity type. </param>
-        /// <param name="configureLeft"> The configuration for the relationship to the left entity type. </param>
-        /// <returns> The builder for the join entity type. </returns>
+        /// <param name="joinEntityName">The name of the join entity.</param>
+        /// <param name="configureRight">The configuration for the relationship to the right entity type.</param>
+        /// <param name="configureLeft">The configuration for the relationship to the left entity type.</param>
+        /// <returns>The builder for the join entity type.</returns>
         public virtual EntityTypeBuilder UsingEntity(
             string joinEntityName,
             Func<EntityTypeBuilder, ReferenceCollectionBuilder> configureRight,
@@ -267,11 +274,11 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
         /// <summary>
         ///     Configures the relationships to the entity types participating in the many-to-many relationship.
         /// </summary>
-        /// <param name="joinEntityName"> The name of the join entity. </param>
-        /// <param name="joinEntityType"> The CLR type of the join entity. </param>
-        /// <param name="configureRight"> The configuration for the relationship to the right entity type. </param>
-        /// <param name="configureLeft"> The configuration for the relationship to the left entity type. </param>
-        /// <returns> The builder for the join entity type. </returns>
+        /// <param name="joinEntityName">The name of the join entity.</param>
+        /// <param name="joinEntityType">The CLR type of the join entity.</param>
+        /// <param name="configureRight">The configuration for the relationship to the right entity type.</param>
+        /// <param name="configureLeft">The configuration for the relationship to the left entity type.</param>
+        /// <returns>The builder for the join entity type.</returns>
         public virtual EntityTypeBuilder UsingEntity(
             string joinEntityName,
             Type joinEntityType,
@@ -289,10 +296,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
         /// <summary>
         ///     Configures the relationships to the entity types participating in the many-to-many relationship.
         /// </summary>
-        /// <param name="configureRight"> The configuration for the relationship to the right entity type. </param>
-        /// <param name="configureLeft"> The configuration for the relationship to the left entity type. </param>
-        /// <param name="configureJoinEntityType"> The configuration of the join entity type. </param>
-        /// <returns> The builder for the originating entity type so that multiple configuration calls can be chained. </returns>
+        /// <param name="configureRight">The configuration for the relationship to the right entity type.</param>
+        /// <param name="configureLeft">The configuration for the relationship to the left entity type.</param>
+        /// <param name="configureJoinEntityType">The configuration of the join entity type.</param>
+        /// <returns>The builder for the originating entity type so that multiple configuration calls can be chained.</returns>
         public virtual EntityTypeBuilder UsingEntity(
             Func<EntityTypeBuilder, ReferenceCollectionBuilder> configureRight,
             Func<EntityTypeBuilder, ReferenceCollectionBuilder> configureLeft,
@@ -308,11 +315,11 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
         /// <summary>
         ///     Configures the relationships to the entity types participating in the many-to-many relationship.
         /// </summary>
-        /// <param name="joinEntityType"> The CLR type of the join entity. </param>
-        /// <param name="configureRight"> The configuration for the relationship to the right entity type. </param>
-        /// <param name="configureLeft"> The configuration for the relationship to the left entity type. </param>
-        /// <param name="configureJoinEntityType"> The configuration of the join entity type. </param>
-        /// <returns> The builder for the originating entity type so that multiple configuration calls can be chained. </returns>
+        /// <param name="joinEntityType">The CLR type of the join entity.</param>
+        /// <param name="configureRight">The configuration for the relationship to the right entity type.</param>
+        /// <param name="configureLeft">The configuration for the relationship to the left entity type.</param>
+        /// <param name="configureJoinEntityType">The configuration of the join entity type.</param>
+        /// <returns>The builder for the originating entity type so that multiple configuration calls can be chained.</returns>
         public virtual EntityTypeBuilder UsingEntity(
             Type joinEntityType,
             Func<EntityTypeBuilder, ReferenceCollectionBuilder> configureRight,
@@ -329,11 +336,11 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
         /// <summary>
         ///     Configures the relationships to the entity types participating in the many-to-many relationship.
         /// </summary>
-        /// <param name="joinEntityName"> The name of the join entity. </param>
-        /// <param name="configureRight"> The configuration for the relationship to the right entity type. </param>
-        /// <param name="configureLeft"> The configuration for the relationship to the left entity type. </param>
-        /// <param name="configureJoinEntityType"> The configuration of the join entity type. </param>
-        /// <returns> The builder for the originating entity type so that multiple configuration calls can be chained. </returns>
+        /// <param name="joinEntityName">The name of the join entity.</param>
+        /// <param name="configureRight">The configuration for the relationship to the right entity type.</param>
+        /// <param name="configureLeft">The configuration for the relationship to the left entity type.</param>
+        /// <param name="configureJoinEntityType">The configuration of the join entity type.</param>
+        /// <returns>The builder for the originating entity type so that multiple configuration calls can be chained.</returns>
         public virtual EntityTypeBuilder UsingEntity(
             string joinEntityName,
             Func<EntityTypeBuilder, ReferenceCollectionBuilder> configureRight,
@@ -350,12 +357,12 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
         /// <summary>
         ///     Configures the relationships to the entity types participating in the many-to-many relationship.
         /// </summary>
-        /// <param name="joinEntityName"> The name of the join entity. </param>
-        /// <param name="joinEntityType"> The CLR type of the join entity. </param>
-        /// <param name="configureRight"> The configuration for the relationship to the right entity type. </param>
-        /// <param name="configureLeft"> The configuration for the relationship to the left entity type. </param>
-        /// <param name="configureJoinEntityType"> The configuration of the join entity type. </param>
-        /// <returns> The builder for the originating entity type so that multiple configuration calls can be chained. </returns>
+        /// <param name="joinEntityName">The name of the join entity.</param>
+        /// <param name="joinEntityType">The CLR type of the join entity.</param>
+        /// <param name="configureRight">The configuration for the relationship to the right entity type.</param>
+        /// <param name="configureLeft">The configuration for the relationship to the left entity type.</param>
+        /// <param name="configureJoinEntityType">The configuration of the join entity type.</param>
+        /// <returns>The builder for the originating entity type so that multiple configuration calls can be chained.</returns>
         public virtual EntityTypeBuilder UsingEntity(
             string joinEntityName,
             Type joinEntityType,
@@ -375,15 +382,16 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders
             Type? joinEntityType,
             Func<EntityTypeBuilder, ReferenceCollectionBuilder>? configureRight,
             Func<EntityTypeBuilder, ReferenceCollectionBuilder>? configureLeft)
-            => new(UsingEntity(
-                joinEntityName,
-                joinEntityType,
-                configureRight != null
-                    ? e => configureRight(new EntityTypeBuilder(e)).Metadata
-                    : null,
-                configureLeft != null
-                    ? e => configureLeft(new EntityTypeBuilder(e)).Metadata
-                    : null));
+            => new(
+                UsingEntity(
+                    joinEntityName,
+                    joinEntityType,
+                    configureRight != null
+                        ? e => configureRight(new EntityTypeBuilder(e)).Metadata
+                        : null,
+                    configureLeft != null
+                        ? e => configureLeft(new EntityTypeBuilder(e)).Metadata
+                        : null));
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to

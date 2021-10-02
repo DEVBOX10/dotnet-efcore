@@ -65,7 +65,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         /// <summary>
         ///     Returns a string that represents the current object.
         /// </summary>
-        /// <returns> A string that represents the current object. </returns>
+        /// <returns>A string that represents the current object.</returns>
         public override string ToString()
             => ((IReadOnlyKey)this).ToDebugString(MetadataDebugStringOptions.SingleLineDefault);
 
@@ -78,60 +78,60 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         [EntityFrameworkInternal]
         public virtual DebugView DebugView
             => new(
-                () => ((IReadOnlyKey)this).ToDebugString(MetadataDebugStringOptions.ShortDefault),
+                () => ((IReadOnlyKey)this).ToDebugString(),
                 () => ((IReadOnlyKey)this).ToDebugString(MetadataDebugStringOptions.LongDefault));
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         IReadOnlyList<IReadOnlyProperty> IReadOnlyKey.Properties
         {
             [DebuggerStepThrough]
             get => Properties;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         IReadOnlyList<IProperty> IKey.Properties
         {
             [DebuggerStepThrough]
             get => Properties;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         IReadOnlyEntityType IReadOnlyKey.DeclaringEntityType
         {
             [DebuggerStepThrough]
             get => DeclaringEntityType;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         IEntityType IKey.DeclaringEntityType
         {
             [DebuggerStepThrough]
             get => DeclaringEntityType;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         [DebuggerStepThrough]
         IEnumerable<IReadOnlyForeignKey> IReadOnlyKey.GetReferencingForeignKeys()
             => ReferencingForeignKeys ?? Enumerable.Empty<IReadOnlyForeignKey>();
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         [DebuggerStepThrough]
         IPrincipalKeyValueFactory<TKey> IKey.GetPrincipalKeyValueFactory<TKey>()
             => (IPrincipalKeyValueFactory<TKey>)NonCapturingLazyInitializer.EnsureInitialized(
                 ref _principalKeyValueFactory, this, static key =>
-                {
-                    key.EnsureReadOnly();
-                    return new KeyValueFactoryFactory().Create<TKey>(key);
-                });
+                    {
+                        key.EnsureReadOnly();
+                        return new KeyValueFactoryFactory().Create<TKey>(key);
+                    });
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         [DebuggerStepThrough]
         Func<bool, IIdentityMap> IRuntimeKey.GetIdentityMapFactory()
             => NonCapturingLazyInitializer.EnsureInitialized(
                 ref _identityMapFactory, this, static key =>
-                {
-                    key.EnsureReadOnly();
-                    return new IdentityMapFactoryFactory().Create(key);
-                });
+                    {
+                        key.EnsureReadOnly();
+                        return new IdentityMapFactoryFactory().Create(key);
+                    });
     }
 }

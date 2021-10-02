@@ -9,50 +9,53 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
     ///     Enum used by <see cref="CommandEventData" />, and subclasses to indicate the
     ///     source of the <see cref="DbCommand" /> being used to execute the command.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-diagnostics">Logging, events, and diagnostics</see> for more information.
+    /// </remarks>
     public enum CommandSource
     {
         /// <summary>
-        /// Unknown
+        ///     Unknown
         /// </summary>
         Unknown,
 
         /// <summary>
-        /// Linq Query
+        ///     Linq Query
         /// </summary>
         LinqQuery,
 
         /// <summary>
-        /// Save Changes
+        ///     Save Changes
         /// </summary>
         SaveChanges,
 
         /// <summary>
-        /// Migrations
+        ///     Migrations
         /// </summary>
         Migrations,
 
         /// <summary>
-        /// FromSqlQuery
+        ///     FromSqlQuery
         /// </summary>
         FromSqlQuery,
 
         /// <summary>
-        /// ExecuteSqlRaw
+        ///     ExecuteSqlRaw
         /// </summary>
         ExecuteSqlRaw,
 
         /// <summary>
-        /// ValueGenerator
+        ///     ValueGenerator
         /// </summary>
         ValueGenerator,
 
         /// <summary>
-        /// Scaffolding
+        ///     Scaffolding
         /// </summary>
         Scaffolding,
 
         /// <summary>
-        /// BulkUpdate
+        ///     BulkUpdate
         /// </summary>
         BulkUpdate
     }

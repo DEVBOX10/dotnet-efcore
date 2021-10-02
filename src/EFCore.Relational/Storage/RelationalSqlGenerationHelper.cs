@@ -23,19 +23,23 @@ namespace Microsoft.EntityFrameworkCore.Storage
     ///         This service cannot depend on services registered as <see cref="ServiceLifetime.Scoped" />.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     for more information.
+    /// </remarks>
     public class RelationalSqlGenerationHelper : ISqlGenerationHelper
     {
         /// <summary>
         ///     Initializes a new instance of the this class.
         /// </summary>
-        /// <param name="dependencies"> Parameter object containing dependencies for this service. </param>
+        /// <param name="dependencies">Parameter object containing dependencies for this service.</param>
         public RelationalSqlGenerationHelper(RelationalSqlGenerationHelperDependencies dependencies)
         {
             Check.NotNull(dependencies, nameof(dependencies));
 
             Dependencies = dependencies;
         }
-        
+
         /// <summary>
         ///     Relational provider-specific dependencies for this service.
         /// </summary>
@@ -187,8 +191,8 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// <summary>
         ///     Generates a SQL comment.
         /// </summary>
-        /// <param name="text"> The comment text. </param>
-        /// <returns> The generated SQL. </returns>
+        /// <param name="text">The comment text.</param>
+        /// <returns>The generated SQL.</returns>
         public virtual string GenerateComment(string text)
         {
             Check.NotEmpty(text, nameof(text));
@@ -209,24 +213,24 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// <summary>
         ///     Generates an SQL statement which creates a savepoint with the given name.
         /// </summary>
-        /// <param name="name"> The name of the savepoint to be created. </param>
-        /// <returns> An SQL string to create the savepoint. </returns>
+        /// <param name="name">The name of the savepoint to be created.</param>
+        /// <returns>An SQL string to create the savepoint.</returns>
         public virtual string GenerateCreateSavepointStatement(string name)
             => "SAVEPOINT " + DelimitIdentifier(name) + StatementTerminator;
 
         /// <summary>
         ///     Generates an SQL statement which rolls back to a savepoint with the given name.
         /// </summary>
-        /// <param name="name"> The name of the savepoint to be rolled back to. </param>
-        /// <returns> An SQL string to roll back the savepoint. </returns>
+        /// <param name="name">The name of the savepoint to be rolled back to.</param>
+        /// <returns>An SQL string to roll back the savepoint.</returns>
         public virtual string GenerateRollbackToSavepointStatement(string name)
             => "ROLLBACK TO " + DelimitIdentifier(name) + StatementTerminator;
 
         /// <summary>
         ///     Generates an SQL statement which releases a savepoint with the given name.
         /// </summary>
-        /// <param name="name"> The name of the savepoint to be released. </param>
-        /// <returns> An SQL string to release the savepoint. </returns>
+        /// <param name="name">The name of the savepoint to be released.</param>
+        /// <returns>An SQL string to release the savepoint.</returns>
         public virtual string GenerateReleaseSavepointStatement(string name)
             => "RELEASE SAVEPOINT " + DelimitIdentifier(name) + StatementTerminator;
     }

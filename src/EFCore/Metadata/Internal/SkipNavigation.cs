@@ -335,10 +335,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         /// <summary>
         ///     Runs the conventions when an annotation was set or removed.
         /// </summary>
-        /// <param name="name"> The key of the set annotation. </param>
-        /// <param name="annotation"> The annotation set. </param>
-        /// <param name="oldAnnotation"> The old annotation. </param>
-        /// <returns> The annotation that was set. </returns>
+        /// <param name="name">The key of the set annotation.</param>
+        /// <param name="annotation">The annotation set.</param>
+        /// <param name="oldAnnotation">The old annotation.</param>
+        /// <returns>The annotation that was set.</returns>
         protected override IConventionAnnotation? OnAnnotationSet(
             string name,
             IConventionAnnotation? annotation,
@@ -358,10 +358,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
                 ref _collectionAccessorInitialized,
                 this,
                 static navigation =>
-                {
-                    navigation.EnsureReadOnly();
-                    return new ClrCollectionAccessorFactory().Create(navigation);
-                });
+                    {
+                        navigation.EnsureReadOnly();
+                        return new ClrCollectionAccessorFactory().Create(navigation);
+                    });
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -372,10 +372,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         public virtual ICollectionLoader ManyToManyLoader
             => NonCapturingLazyInitializer.EnsureInitialized(
                 ref _manyToManyLoader, this, static navigation =>
-                {
-                    navigation.EnsureReadOnly();
-                    return new ManyToManyLoaderFactory().Create(navigation);
-                });
+                    {
+                        navigation.EnsureReadOnly();
+                        return new ManyToManyLoaderFactory().Create(navigation);
+                    });
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -395,7 +395,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         /// </summary>
         public virtual DebugView DebugView
             => new(
-                () => ((IReadOnlySkipNavigation)this).ToDebugString(MetadataDebugStringOptions.ShortDefault),
+                () => ((IReadOnlySkipNavigation)this).ToDebugString(),
                 () => ((IReadOnlySkipNavigation)this).ToDebugString(MetadataDebugStringOptions.LongDefault));
 
         /// <inheritdoc />

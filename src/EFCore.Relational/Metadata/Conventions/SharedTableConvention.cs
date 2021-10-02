@@ -16,13 +16,16 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
     /// <summary>
     ///     A convention that manipulates names of database objects for entity types that share a table to avoid clashes.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-conventions">Model building conventions</see> for more information.
+    /// </remarks>
     public class SharedTableConvention : IModelFinalizingConvention
     {
         /// <summary>
         ///     Creates a new instance of <see cref="SharedTableConvention" />.
         /// </summary>
-        /// <param name="dependencies"> Parameter object containing dependencies for this convention. </param>
-        /// <param name="relationalDependencies">  Parameter object containing relational dependencies for this convention. </param>
+        /// <param name="dependencies">Parameter object containing dependencies for this convention.</param>
+        /// <param name="relationalDependencies"> Parameter object containing relational dependencies for this convention.</param>
         public SharedTableConvention(
             ProviderConventionSetBuilderDependencies dependencies,
             RelationalConventionSetBuilderDependencies relationalDependencies)
@@ -103,8 +106,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
             Dictionary<(string Name, string? Schema), List<IConventionEntityType>> tables,
             int maxLength)
         {
-            Dictionary<(string Name, string? Schema), Dictionary<(string Name, string? Schema), List<IConventionEntityType>>>? clashingTables
-                = null;
+            Dictionary<(string Name, string? Schema), Dictionary<(string Name, string? Schema), List<IConventionEntityType>>>?
+                clashingTables
+                    = null;
             foreach (var entityType in model.GetEntityTypes())
             {
                 var tableName = entityType.GetTableName();
@@ -212,8 +216,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
                 {
                     if (property.GetAfterSaveBehavior() == PropertySaveBehavior.Save
                         && otherProperty.GetAfterSaveBehavior() == PropertySaveBehavior.Save
-                        && property.ValueGenerated == ValueGenerated.Never
-                        && otherProperty.ValueGenerated == ValueGenerated.Never)
+                        && (property.ValueGenerated == ValueGenerated.Never
+                            || property.ValueGenerated == ValueGenerated.OnUpdateSometimes)
+                        && (otherProperty.ValueGenerated == ValueGenerated.Never
+                            || otherProperty.ValueGenerated == ValueGenerated.OnUpdateSometimes))
                     {
                         // Handle this with a default value convention #9329
                         property.Builder.ValueGenerated(ValueGenerated.OnUpdateSometimes);
@@ -329,10 +335,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <summary>
         ///     Gets a value indicating whether two key mapped to the same constraint are compatible.
         /// </summary>
-        /// <param name="key"> A key. </param>
-        /// <param name="duplicateKey"> Another key. </param>
-        /// <param name="storeObject"> The identifier of the store object. </param>
-        /// <returns> <see langword="true" /> if compatible </returns>
+        /// <param name="key">A key.</param>
+        /// <param name="duplicateKey">Another key.</param>
+        /// <param name="storeObject">The identifier of the store object.</param>
+        /// <returns><see langword="true" /> if compatible</returns>
         protected virtual bool AreCompatible(
             IReadOnlyKey key,
             IReadOnlyKey duplicateKey,
@@ -399,10 +405,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <summary>
         ///     Gets a value indicating whether two indexes mapped to the same table index are compatible.
         /// </summary>
-        /// <param name="index"> An index. </param>
-        /// <param name="duplicateIndex"> Another index. </param>
-        /// <param name="storeObject"> The identifier of the store object. </param>
-        /// <returns> <see langword="true" /> if compatible </returns>
+        /// <param name="index">An index.</param>
+        /// <param name="duplicateIndex">Another index.</param>
+        /// <param name="storeObject">The identifier of the store object.</param>
+        /// <returns><see langword="true" /> if compatible</returns>
         protected virtual bool AreCompatible(
             IReadOnlyIndex index,
             IReadOnlyIndex duplicateIndex,
@@ -490,10 +496,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <summary>
         ///     Gets a value indicating whether two foreign keys mapped to the same foreign key constraint are compatible.
         /// </summary>
-        /// <param name="foreignKey"> A foreign key. </param>
-        /// <param name="duplicateForeignKey"> Another foreign key. </param>
-        /// <param name="storeObject"> The identifier of the store object. </param>
-        /// <returns> <see langword="true" /> if compatible </returns>
+        /// <param name="foreignKey">A foreign key.</param>
+        /// <param name="duplicateForeignKey">Another foreign key.</param>
+        /// <param name="storeObject">The identifier of the store object.</param>
+        /// <returns><see langword="true" /> if compatible</returns>
         protected virtual bool AreCompatible(
             IReadOnlyForeignKey foreignKey,
             IReadOnlyForeignKey duplicateForeignKey,
@@ -548,7 +554,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
                     continue;
                 }
 
-                var newOtherConstraintName = TryUniquify(otherCheckConstraint, constraintName, storeObject.Schema, checkConstraints, maxLength);
+                var newOtherConstraintName = TryUniquify(
+                    otherCheckConstraint, constraintName, storeObject.Schema, checkConstraints, maxLength);
                 if (newOtherConstraintName != null)
                 {
                     checkConstraints[(constraintName, storeObject.Schema)] = checkConstraint;
@@ -560,10 +567,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <summary>
         ///     Gets a value indicating whether two check constraints with the same name are compatible.
         /// </summary>
-        /// <param name="checkConstraint"> An check constraints. </param>
-        /// <param name="duplicateCheckConstraint"> Another check constraints. </param>
-        /// <param name="storeObject"> The identifier of the store object. </param>
-        /// <returns> <see langword="true" /> if compatible </returns>
+        /// <param name="checkConstraint">An check constraints.</param>
+        /// <param name="duplicateCheckConstraint">Another check constraints.</param>
+        /// <param name="storeObject">The identifier of the store object.</param>
+        /// <returns><see langword="true" /> if compatible</returns>
         protected virtual bool AreCompatible(
             IReadOnlyCheckConstraint checkConstraint,
             IReadOnlyCheckConstraint duplicateCheckConstraint,

@@ -44,13 +44,13 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
             typeof(InMemoryExpressionTranslatingExpressionVisitor).GetRequiredDeclaredMethod(nameof(GetParameterValue));
 
         private static readonly MethodInfo _likeMethodInfo = typeof(DbFunctionsExtensions).GetRequiredRuntimeMethod(
-            nameof(DbFunctionsExtensions.Like), new[] { typeof(DbFunctions), typeof(string), typeof(string) });
+            nameof(DbFunctionsExtensions.Like), typeof(DbFunctions), typeof(string), typeof(string));
 
         private static readonly MethodInfo _likeMethodInfoWithEscape = typeof(DbFunctionsExtensions).GetRequiredRuntimeMethod(
-            nameof(DbFunctionsExtensions.Like), new[] { typeof(DbFunctions), typeof(string), typeof(string), typeof(string) });
+            nameof(DbFunctionsExtensions.Like), typeof(DbFunctions), typeof(string), typeof(string), typeof(string));
 
         private static readonly MethodInfo _randomMethodInfo = typeof(DbFunctionsExtensions).GetRequiredRuntimeMethod(
-            nameof(DbFunctionsExtensions.Random), new[] { typeof(DbFunctions) });
+            nameof(DbFunctionsExtensions.Random), typeof(DbFunctions));
 
         private static readonly MethodInfo _randomNextDoubleMethodInfo = typeof(Random).GetRequiredRuntimeMethod(
             nameof(Random.NextDouble), Array.Empty<Type>());
@@ -140,8 +140,8 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
 
             return result == QueryCompilationContext.NotTranslatedExpression
                 || _entityReferenceFindingExpressionVisitor.Find(result)
-                ? null
-                : result;
+                    ? null
+                    : result;
         }
 
         /// <summary>
@@ -171,7 +171,7 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
             }
 
             if ((binaryExpression.NodeType == ExpressionType.Equal
-                || binaryExpression.NodeType == ExpressionType.NotEqual)
+                    || binaryExpression.NodeType == ExpressionType.NotEqual)
                 // Visited expression could be null, We need to pass MemberInitExpression
                 && TryRewriteEntityEquality(
                     binaryExpression.NodeType,
@@ -276,9 +276,9 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
                 case EntityShaperExpression entityShaperExpression:
                     return new EntityReferenceExpression(entityShaperExpression);
 
-                case ProjectionBindingExpression projectionBindingExpression
-                    when projectionBindingExpression.ProjectionMember != null:
-                    return ((InMemoryQueryExpression)projectionBindingExpression.QueryExpression).GetProjection(projectionBindingExpression);
+                case ProjectionBindingExpression projectionBindingExpression:
+                    return ((InMemoryQueryExpression)projectionBindingExpression.QueryExpression)
+                        .GetProjection(projectionBindingExpression);
 
                 default:
                     return QueryCompilationContext.NotTranslatedExpression;
@@ -596,7 +596,8 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
                 var enumerable = Visit(methodCallExpression.Arguments[0])!;
                 var item = Visit(methodCallExpression.Arguments[1])!;
 
-                if (TryRewriteContainsEntity(enumerable,
+                if (TryRewriteContainsEntity(
+                    enumerable,
                     item == QueryCompilationContext.NotTranslatedExpression ? methodCallExpression.Arguments[1] : item,
                     out var result))
                 {
@@ -617,7 +618,8 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
                 var enumerable = Visit(methodCallExpression.Object);
                 var item = Visit(methodCallExpression.Arguments[0])!;
 
-                if (TryRewriteContainsEntity(enumerable,
+                if (TryRewriteContainsEntity(
+                    enumerable,
                     item == QueryCompilationContext.NotTranslatedExpression ? methodCallExpression.Arguments[0] : item,
                     out var result))
                 {
@@ -946,8 +948,8 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
                     && !(result.Type.IsNullableType()
                         && !type.IsNullableType()
                         && result.Type.UnwrapNullableType() == type)
-                    ? Expression.Convert(result, type)
-                    : (Expression)result;
+                        ? Expression.Convert(result, type)
+                        : result;
             }
 
             if (entityReferenceExpression.SubqueryEntity != null)
@@ -980,10 +982,11 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
                 // The terminating operator is not applied
                 // It is of FirstOrDefault kind
                 // So we change to single column projection and then apply it.
-                inMemoryQueryExpression.ReplaceProjection(new Dictionary<ProjectionMember, Expression>
-                {
-                    { new ProjectionMember(), readValueExpression }
-                });
+                inMemoryQueryExpression.ReplaceProjection(
+                    new Dictionary<ProjectionMember, Expression>
+                    {
+                        { new ProjectionMember(), readValueExpression }
+                    });
                 inMemoryQueryExpression.ApplyProjection();
             }
 
@@ -1059,14 +1062,16 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
             var primaryKeyProperties = entityType.FindPrimaryKey()?.Properties;
             if (primaryKeyProperties == null)
             {
-                throw new InvalidOperationException(CoreStrings.EntityEqualityOnKeylessEntityNotSupported(
-                    nameof(Queryable.Contains), entityType.DisplayName()));
+                throw new InvalidOperationException(
+                    CoreStrings.EntityEqualityOnKeylessEntityNotSupported(
+                        nameof(Queryable.Contains), entityType.DisplayName()));
             }
 
             if (primaryKeyProperties.Count > 1)
             {
                 throw new InvalidOperationException(
-                    CoreStrings.EntityEqualityOnCompositeKeyEntitySubqueryNotSupported(nameof(Queryable.Contains), entityType.DisplayName()));
+                    CoreStrings.EntityEqualityOnCompositeKeyEntitySubqueryNotSupported(
+                        nameof(Queryable.Contains), entityType.DisplayName()));
             }
 
             var property = primaryKeyProperties[0];
@@ -1120,7 +1125,11 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
         }
 
         private bool TryRewriteEntityEquality(
-            ExpressionType nodeType, Expression left, Expression right, bool equalsMethod, [NotNullWhen(true)] out Expression? result)
+            ExpressionType nodeType,
+            Expression left,
+            Expression right,
+            bool equalsMethod,
+            [NotNullWhen(true)] out Expression? result)
         {
             var leftEntityReference = left as EntityReferenceExpression;
             var rightEntityReference = right as EntityReferenceExpression;
@@ -1140,11 +1149,14 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
                 var primaryKeyProperties1 = entityType1.FindPrimaryKey()?.Properties;
                 if (primaryKeyProperties1 == null)
                 {
-                    throw new InvalidOperationException(CoreStrings.EntityEqualityOnKeylessEntityNotSupported(
-                        nodeType == ExpressionType.Equal
-                            ? equalsMethod ? nameof(object.Equals) : "=="
-                            : equalsMethod ? "!" + nameof(object.Equals) : "!=",
-                        entityType1.DisplayName()));
+                    throw new InvalidOperationException(
+                        CoreStrings.EntityEqualityOnKeylessEntityNotSupported(
+                            nodeType == ExpressionType.Equal
+                                ? equalsMethod ? nameof(object.Equals) : "=="
+                                : equalsMethod
+                                    ? "!" + nameof(object.Equals)
+                                    : "!=",
+                            entityType1.DisplayName()));
                 }
 
                 result = Visit(
@@ -1175,22 +1187,28 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
             var primaryKeyProperties = entityType.FindPrimaryKey()?.Properties;
             if (primaryKeyProperties == null)
             {
-                throw new InvalidOperationException(CoreStrings.EntityEqualityOnKeylessEntityNotSupported(
-                    nodeType == ExpressionType.Equal
-                        ? equalsMethod ? nameof(object.Equals) : "=="
-                        : equalsMethod ? "!" + nameof(object.Equals) : "!=",
-                    entityType.DisplayName()));
+                throw new InvalidOperationException(
+                    CoreStrings.EntityEqualityOnKeylessEntityNotSupported(
+                        nodeType == ExpressionType.Equal
+                            ? equalsMethod ? nameof(object.Equals) : "=="
+                            : equalsMethod
+                                ? "!" + nameof(object.Equals)
+                                : "!=",
+                        entityType.DisplayName()));
             }
 
             if (primaryKeyProperties.Count > 1
                 && (leftEntityReference?.SubqueryEntity != null
                     || rightEntityReference?.SubqueryEntity != null))
             {
-                throw new InvalidOperationException(CoreStrings.EntityEqualityOnCompositeKeyEntitySubqueryNotSupported(
-                    nodeType == ExpressionType.Equal
-                        ? equalsMethod ? nameof(object.Equals) : "=="
-                        : equalsMethod ? "!" + nameof(object.Equals) : "!=",
-                    entityType.DisplayName()));
+                throw new InvalidOperationException(
+                    CoreStrings.EntityEqualityOnCompositeKeyEntitySubqueryNotSupported(
+                        nodeType == ExpressionType.Equal
+                            ? equalsMethod ? nameof(object.Equals) : "=="
+                            : equalsMethod
+                                ? "!" + nameof(object.Equals)
+                                : "!=",
+                        entityType.DisplayName()));
             }
 
             result = Visit(
@@ -1200,9 +1218,10 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
                                 nodeType,
                                 CreatePropertyAccessExpression(left, p),
                                 CreatePropertyAccessExpression(right, p)))
-                    .Aggregate((l, r) => nodeType == ExpressionType.Equal
-                        ? Expression.AndAlso(l, r)
-                        : Expression.OrElse(l, r)));
+                    .Aggregate(
+                        (l, r) => nodeType == ExpressionType.Equal
+                            ? Expression.AndAlso(l, r)
+                            : Expression.OrElse(l, r)));
 
             return true;
         }
@@ -1311,20 +1330,20 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
             return leftExpressions.Zip(
                     rightExpressions,
                     (l, r) =>
-                    {
-                        l = RemoveObjectConvert(l);
-                        r = RemoveObjectConvert(r);
-                        if (l.Type.IsNullableType())
                         {
-                            r = r.Type.IsNullableType() ? r : Expression.Convert(r, l.Type);
-                        }
-                        else if (r.Type.IsNullableType())
-                        {
-                            l = l.Type.IsNullableType() ? l : Expression.Convert(l, r.Type);
-                        }
+                            l = RemoveObjectConvert(l);
+                            r = RemoveObjectConvert(r);
+                            if (l.Type.IsNullableType())
+                            {
+                                r = r.Type.IsNullableType() ? r : Expression.Convert(r, l.Type);
+                            }
+                            else if (r.Type.IsNullableType())
+                            {
+                                l = l.Type.IsNullableType() ? l : Expression.Convert(l, r.Type);
+                            }
 
-                        return Expression.Equal(l, r);
-                    })
+                            return Expression.Equal(l, r);
+                        })
                 .Aggregate((a, b) => Expression.AndAlso(a, b));
 
             static Expression RemoveObjectConvert(Expression expression)
@@ -1341,7 +1360,7 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
         [DebuggerStepThrough]
         private static bool TranslationFailed(Expression? original, Expression? translation)
             => original != null
-            && (translation == QueryCompilationContext.NotTranslatedExpression || translation is EntityReferenceExpression);
+                && (translation == QueryCompilationContext.NotTranslatedExpression || translation is EntityReferenceExpression);
 
         private static bool InMemoryLike(string matchExpression, string pattern, string escapeCharacter)
         {

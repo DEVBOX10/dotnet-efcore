@@ -12,16 +12,19 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
     ///     The <see cref="DiagnosticSource" /> event payload for
     ///     <see cref="RelationalEventId" /> min batch size events.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-diagnostics">Logging, events, and diagnostics</see> for more information.
+    /// </remarks>
     public class MinBatchSizeEventData : BatchEventData
     {
         /// <summary>
         ///     Constructs the event payload.
         /// </summary>
-        /// <param name="eventDefinition"> The event definition. </param>
-        /// <param name="messageGenerator"> A delegate that generates a log message for this event. </param>
-        /// <param name="entries"> The entries being updated. </param>
-        /// <param name="commandCount"> The command count. </param>
-        /// <param name="minBatchSize"> The minimum batch size. </param>
+        /// <param name="eventDefinition">The event definition.</param>
+        /// <param name="messageGenerator">A delegate that generates a log message for this event.</param>
+        /// <param name="entries">The entries being updated.</param>
+        /// <param name="commandCount">The command count.</param>
+        /// <param name="minBatchSize">The minimum batch size.</param>
         public MinBatchSizeEventData(
             EventDefinitionBase eventDefinition,
             Func<EventDefinitionBase, EventData, string> messageGenerator,

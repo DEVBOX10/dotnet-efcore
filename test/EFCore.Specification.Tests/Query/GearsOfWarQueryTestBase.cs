@@ -7885,7 +7885,7 @@ namespace Microsoft.EntityFrameworkCore.Query
 
         }
 
-        [ConditionalTheory(Skip = "issue #22692")]
+        [ConditionalTheory]
         [MemberData(nameof(IsAsyncData))]
         public virtual Task Cast_to_derived_followed_by_multiple_includes(bool async)
         {
@@ -9116,6 +9116,26 @@ namespace Microsoft.EntityFrameworkCore.Query
                     AssertEqual(e.NestedOuter.NestedInner.Property, a.NestedOuter.NestedInner.Property);
                     AssertEqual(e.NestedOuter.NestedInner.PropertyAfterNavigation, a.NestedOuter.NestedInner.PropertyAfterNavigation);
                 });
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Join_entity_with_itself_grouped_by_key_followed_by_include_skip_take(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => (from g1 in ss.Set<Gear>()
+                       join g2 in ss.Set<Gear>().Where(x => x.Nickname != "Dom").GroupBy(x => x.HasSoulPatch).Select(g => g.Min(x => x.Nickname.Length)) on g1.Nickname.Length equals g2
+                       select g1).Include(x => x.Weapons).OrderBy(x => x.Nickname).Skip(0).Take(10));
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Where_equals_method_on_nullable_with_object_overload(bool async)
+        {
+            return AssertQuery(
+                async,
+                ss => ss.Set<Mission>().Where(m => m.Rating.Equals(null)));
         }
 
         protected GearsOfWarContext CreateContext()

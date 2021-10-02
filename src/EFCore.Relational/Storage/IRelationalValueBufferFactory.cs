@@ -16,13 +16,17 @@ namespace Microsoft.EntityFrameworkCore.Storage
     ///         not used in application code.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     for more information.
+    /// </remarks>
     public interface IRelationalValueBufferFactory
     {
         /// <summary>
         ///     Creates a value buffer for the given <see cref="DbDataReader" />.
         /// </summary>
-        /// <param name="dataReader"> The reader to create a value buffer for. </param>
-        /// <returns> The newly created value buffer. </returns>
+        /// <param name="dataReader">The reader to create a value buffer for.</param>
+        /// <returns>The newly created value buffer.</returns>
         ValueBuffer Create(DbDataReader dataReader);
     }
 }

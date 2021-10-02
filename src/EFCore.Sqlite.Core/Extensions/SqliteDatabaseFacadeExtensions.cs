@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Sqlite.Infrastructure.Internal;
 
@@ -27,8 +26,8 @@ namespace Microsoft.EntityFrameworkCore
         /// <remarks>
         ///     See <see href="https://aka.ms/efcore-docs-sqlite">Accessing SQLite databases with EF Core</see> for more information.
         /// </remarks>
-        /// <param name="database"> The facade from <see cref="DbContext.Database" />. </param>
-        /// <returns> <see langword="true" /> if SQLite is being used; <see langword="false" /> otherwise. </returns>
+        /// <param name="database">The facade from <see cref="DbContext.Database" />.</param>
+        /// <returns><see langword="true" /> if SQLite is being used; <see langword="false" /> otherwise.</returns>
         public static bool IsSqlite(this DatabaseFacade database)
             => database.ProviderName == typeof(SqliteOptionsExtension).Assembly.GetName().Name;
     }

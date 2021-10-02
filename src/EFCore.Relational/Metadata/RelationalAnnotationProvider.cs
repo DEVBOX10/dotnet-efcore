@@ -20,12 +20,15 @@ namespace Microsoft.EntityFrameworkCore.Metadata
     ///         This service cannot depend on services registered as <see cref="ServiceLifetime.Scoped" />.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-modeling">Modeling entity types and relationships</see> for more information.
+    /// </remarks>
     public class RelationalAnnotationProvider : IRelationalAnnotationProvider
     {
         /// <summary>
         ///     Initializes a new instance of this class.
         /// </summary>
-        /// <param name="dependencies"> Parameter object containing dependencies for this service. </param>
+        /// <param name="dependencies">Parameter object containing dependencies for this service.</param>
         public RelationalAnnotationProvider(RelationalAnnotationProviderDependencies dependencies)
         {
             Check.NotNull(dependencies, nameof(dependencies));
@@ -37,7 +40,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         ///     Relational provider-specific dependencies for this service.
         /// </summary>
         protected virtual RelationalAnnotationProviderDependencies Dependencies { get; }
-        
+
         /// <inheritdoc />
         public virtual IEnumerable<IAnnotation> For(IRelationalModel model, bool designTime)
             => Enumerable.Empty<IAnnotation>();

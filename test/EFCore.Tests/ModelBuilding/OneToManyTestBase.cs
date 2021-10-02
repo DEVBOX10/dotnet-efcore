@@ -1474,10 +1474,6 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 Assert.Contains(nonPrimaryPrincipalKey, principalType.GetKeys());
                 var oldKeyProperty = principalType.FindProperty(nameof(BigMak.Id));
                 var newKeyProperty = principalType.FindProperty(nameof(BigMak.AlternateKey));
-                Assert.False(oldKeyProperty.RequiresValueGenerator());
-                Assert.Equal(ValueGenerated.Never, oldKeyProperty.ValueGenerated);
-                Assert.True(newKeyProperty.RequiresValueGenerator());
-                Assert.Equal(ValueGenerated.OnAdd, newKeyProperty.ValueGenerated);
                 Assert.Same(dependentKey, dependentType.FindPrimaryKey());
 
                 Assert.Equal(dependentType.GetForeignKeys().Count(), dependentType.GetIndexes().Count());
@@ -2682,6 +2678,58 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 Assert.Equal(
                     CoreStrings.NonConfiguredNavigationToSharedType("Navigation", nameof(CollectionNavigationToSharedType)),
                     Assert.Throws<InvalidOperationException>(() => modelBuilder.FinalizeModel()).Message);
+            }
+
+            [ConditionalFact]
+            public virtual void WithMany_call_on_keyless_entity_throws()
+            {
+                var modelBuilder = CreateModelBuilder();
+
+                Assert.Equal(
+                    CoreStrings.PrincipalKeylessType(
+                            nameof(KeylessCollectionNavigation),
+                            nameof(KeylessCollectionNavigation) + "." + nameof(KeylessCollectionNavigation.Stores),
+                            nameof(Store)),
+                    Assert.Throws<InvalidOperationException>(
+                        () => modelBuilder.Entity<KeylessCollectionNavigation>().HasNoKey().HasMany(e => e.Stores)).Message);
+            }
+
+            [ConditionalFact]
+            public virtual void WithMany_pointing_to_keyless_entity_throws()
+            {
+                var modelBuilder = CreateModelBuilder();
+
+                Assert.Equal(
+                    CoreStrings.NavigationToKeylessType(
+                            nameof(KeylessReferenceNavigation.Collection),
+                            nameof(KeylessCollectionNavigation)),
+                    Assert.Throws<InvalidOperationException>(
+                        () => modelBuilder.Entity<KeylessCollectionNavigation>().HasNoKey()
+                        .HasOne(e => e.Reference).WithMany(e => e.Collection)).Message);
+            }
+
+            public virtual void Reference_navigation_from_keyless_entity_type_works()
+            {
+                var modelBuilder = CreateModelBuilder();
+
+                modelBuilder.Entity<Discount>(entity =>
+                {
+                    entity.HasNoKey();
+
+                    entity.HasOne(d => d.Store).WithMany();
+                });
+
+                var model = modelBuilder.FinalizeModel();
+
+                Assert.Collection(model.GetEntityTypes(),
+                    e =>
+                    {
+                        Assert.Equal(typeof(Discount).DisplayName(), e.Name);
+                        var fk = Assert.Single(e.GetForeignKeys());
+                        Assert.False(fk.IsUnique);
+                        Assert.Equal(nameof(Discount.Store), fk.DependentToPrincipal.Name);
+                    },
+                    e => Assert.Equal(typeof(Store).DisplayName(), e.Name));
             }
         }
     }

@@ -10,14 +10,17 @@ namespace Microsoft.EntityFrameworkCore.Metadata
     /// <summary>
     ///     Represents property facet overrides for a particular table-like store object.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-modeling">Modeling entity types and relationships</see> for more information.
+    /// </remarks>
     public class RuntimeRelationalPropertyOverrides : AnnotatableBase, IRelationalPropertyOverrides
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="RuntimeRelationalPropertyOverrides"/> class.
+        ///     Initializes a new instance of the <see cref="RuntimeRelationalPropertyOverrides" /> class.
         /// </summary>
-        /// <param name="property"> The property for which the overrides are applied. </param>
-        /// <param name="columnNameOverriden"> Whether the column name is overridden. </param>
-        /// <param name="columnName"> The column name. </param>
+        /// <param name="property">The property for which the overrides are applied.</param>
+        /// <param name="columnNameOverriden">Whether the column name is overridden.</param>
+        /// <param name="columnName">The column name.</param>
         public RuntimeRelationalPropertyOverrides(
             RuntimeProperty property,
             bool columnNameOverriden,
@@ -35,21 +38,21 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         /// </summary>
         public virtual RuntimeProperty Property { get; }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         IProperty IRelationalPropertyOverrides.Property
         {
             [DebuggerStepThrough]
             get => Property;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         string? IRelationalPropertyOverrides.ColumnName
         {
             [DebuggerStepThrough]
             get => (string?)this[RelationalAnnotationNames.ColumnName];
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         bool IRelationalPropertyOverrides.ColumnNameOverriden
         {
             [DebuggerStepThrough]

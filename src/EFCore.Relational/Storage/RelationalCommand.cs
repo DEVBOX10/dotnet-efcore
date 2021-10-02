@@ -22,6 +22,10 @@ namespace Microsoft.EntityFrameworkCore.Storage
     ///         not used in application code.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     for more information.
+    /// </remarks>
     public class RelationalCommand : IRelationalCommand
     {
         private RelationalDataReader? _relationalReader;
@@ -36,9 +40,9 @@ namespace Microsoft.EntityFrameworkCore.Storage
         ///         not used in application code.
         ///     </para>
         /// </summary>
-        /// <param name="dependencies"> Service dependencies. </param>
-        /// <param name="commandText"> The text of the command to be executed. </param>
-        /// <param name="parameters"> Parameters for the command. </param>
+        /// <param name="dependencies">Service dependencies.</param>
+        /// <param name="commandText">The text of the command to be executed.</param>
+        /// <param name="parameters">Parameters for the command.</param>
         public RelationalCommand(
             RelationalCommandBuilderDependencies dependencies,
             string commandText,
@@ -71,8 +75,8 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// <summary>
         ///     Executes the command with no results.
         /// </summary>
-        /// <param name="parameterObject"> Parameters for this method. </param>
-        /// <returns> The number of rows affected. </returns>
+        /// <param name="parameterObject">Parameters for this method.</param>
+        /// <returns>The number of rows affected.</returns>
         public virtual int ExecuteNonQuery(RelationalCommandParameterObject parameterObject)
         {
             var (connection, context, logger) = (parameterObject.Connection, parameterObject.Context, parameterObject.Logger);
@@ -151,12 +155,12 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// <summary>
         ///     Asynchronously executes the command with no results.
         /// </summary>
-        /// <param name="parameterObject"> Parameters for this method. </param>
+        /// <param name="parameterObject">Parameters for this method.</param>
         /// <param name="cancellationToken">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
         /// <returns>
         ///     A task that represents the asynchronous operation. The task result contains the number of rows affected.
         /// </returns>
-        /// <exception cref="OperationCanceledException"> If the <see cref="CancellationToken"/> is canceled. </exception>
+        /// <exception cref="OperationCanceledException">If the <see cref="CancellationToken" /> is canceled.</exception>
         public virtual async Task<int> ExecuteNonQueryAsync(
             RelationalCommandParameterObject parameterObject,
             CancellationToken cancellationToken = default)
@@ -251,8 +255,8 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// <summary>
         ///     Executes the command with a single scalar result.
         /// </summary>
-        /// <param name="parameterObject"> Parameters for this method. </param>
-        /// <returns> The result of the command. </returns>
+        /// <param name="parameterObject">Parameters for this method.</param>
+        /// <returns>The result of the command.</returns>
         public virtual object? ExecuteScalar(RelationalCommandParameterObject parameterObject)
         {
             var (connection, context, logger) = (parameterObject.Connection, parameterObject.Context, parameterObject.Logger);
@@ -331,12 +335,12 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// <summary>
         ///     Asynchronously executes the command with a single scalar result.
         /// </summary>
-        /// <param name="parameterObject"> Parameters for this method. </param>
+        /// <param name="parameterObject">Parameters for this method.</param>
         /// <param name="cancellationToken">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
         /// <returns>
         ///     A task that represents the asynchronous operation. The task result contains the result of the command.
         /// </returns>
-        /// <exception cref="OperationCanceledException"> If the <see cref="CancellationToken"/> is canceled. </exception>
+        /// <exception cref="OperationCanceledException">If the <see cref="CancellationToken" /> is canceled.</exception>
         public virtual async Task<object?> ExecuteScalarAsync(
             RelationalCommandParameterObject parameterObject,
             CancellationToken cancellationToken = default)
@@ -430,8 +434,8 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// <summary>
         ///     Executes the command with a <see cref="RelationalDataReader" /> result.
         /// </summary>
-        /// <param name="parameterObject"> Parameters for this method. </param>
-        /// <returns> The result of the command. </returns>
+        /// <param name="parameterObject">Parameters for this method.</param>
+        /// <returns>The result of the command.</returns>
         public virtual RelationalDataReader ExecuteReader(RelationalCommandParameterObject parameterObject)
         {
             var connection = parameterObject.Connection;
@@ -539,12 +543,12 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// <summary>
         ///     Asynchronously executes the command with a <see cref="RelationalDataReader" /> result.
         /// </summary>
-        /// <param name="parameterObject"> Parameters for this method. </param>
+        /// <param name="parameterObject">Parameters for this method.</param>
         /// <param name="cancellationToken">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
         /// <returns>
         ///     A task that represents the asynchronous operation. The task result contains the result of the command.
         /// </returns>
-        /// <exception cref="OperationCanceledException"> If the <see cref="CancellationToken"/> is canceled. </exception>
+        /// <exception cref="OperationCanceledException">If the <see cref="CancellationToken" /> is canceled.</exception>
         public virtual async Task<RelationalDataReader> ExecuteReaderAsync(
             RelationalCommandParameterObject parameterObject,
             CancellationToken cancellationToken = default)
@@ -672,10 +676,10 @@ namespace Microsoft.EntityFrameworkCore.Storage
         ///         not used in application code.
         ///     </para>
         /// </summary>
-        /// <param name="parameterObject"> Parameters for this method. </param>
-        /// <param name="commandId"> The command correlation ID. </param>
-        /// <param name="commandMethod"> The method that will be called on the created command. </param>
-        /// <returns> The created command. </returns>
+        /// <param name="parameterObject">Parameters for this method.</param>
+        /// <param name="commandId">The command correlation ID.</param>
+        /// <param name="commandMethod">The method that will be called on the created command.</param>
+        /// <returns>The created command.</returns>
         public virtual DbCommand CreateDbCommand(
             RelationalCommandParameterObject parameterObject,
             Guid commandId,
@@ -701,13 +705,13 @@ namespace Microsoft.EntityFrameworkCore.Storage
                     : connection.DbConnection.CreateCommand();
 
                 command = logger.CommandCreated(
-                    connection, 
-                    command, 
-                    commandMethod, 
-                    context, 
-                    commandId, 
-                    connectionId, 
-                    startTime, 
+                    connection,
+                    command,
+                    commandMethod,
+                    context,
+                    commandId,
+                    connectionId,
+                    startTime,
                     _stopwatch.Elapsed,
                     parameterObject.CommandSource);
             }
@@ -778,12 +782,12 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// </summary>
         /// <returns>The created <see cref="RelationalDataReader" />.</returns>
         protected virtual RelationalDataReader CreateRelationalDataReader()
-             => new();
+            => new();
 
         /// <summary>
-        ///     Populates this command from the provided <paramref name="commandTemplate"/>.
+        ///     Populates this command from the provided <paramref name="commandTemplate" />.
         /// </summary>
-        /// <param name="commandTemplate"> A template command from which the command text and parameters will be copied. </param>
+        /// <param name="commandTemplate">A template command from which the command text and parameters will be copied.</param>
         public virtual void PopulateFrom(IRelationalCommandTemplate commandTemplate)
         {
             CommandText = commandTemplate.CommandText;

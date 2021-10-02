@@ -16,14 +16,18 @@ namespace Microsoft.EntityFrameworkCore.Storage
     ///         not used in application code.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     for more information.
+    /// </remarks>
     public class ReaderColumn<T> : ReaderColumn
     {
         /// <summary>
         ///     Creates a new instance of the <see cref="ReaderColumn{T}" /> class.
         /// </summary>
-        /// <param name="nullable"> A value indicating if the column is nullable. </param>
-        /// <param name="name"> The name of the column. </param>
-        /// <param name="getFieldValue"> A function to get field value for the column from the reader. </param>
+        /// <param name="nullable">A value indicating if the column is nullable.</param>
+        /// <param name="name">The name of the column.</param>
+        /// <param name="getFieldValue">A function to get field value for the column from the reader.</param>
         [Obsolete("Use constructor which also takes IPropertyBase.")]
         public ReaderColumn(bool nullable, string? name, Func<DbDataReader, int[], T> getFieldValue)
             : this(nullable, name, property: null, getFieldValue)
@@ -33,10 +37,10 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// <summary>
         ///     Creates a new instance of the <see cref="ReaderColumn{T}" /> class.
         /// </summary>
-        /// <param name="nullable"> A value indicating if the column is nullable. </param>
-        /// <param name="name"> The name of the column. </param>
-        /// <param name="property"> The property being read if any, null otherwise. </param>
-        /// <param name="getFieldValue"> A function to get field value for the column from the reader. </param>
+        /// <param name="nullable">A value indicating if the column is nullable.</param>
+        /// <param name="name">The name of the column.</param>
+        /// <param name="property">The property being read if any, null otherwise.</param>
+        /// <param name="getFieldValue">A function to get field value for the column from the reader.</param>
         public ReaderColumn(
             bool nullable,
             string? name,

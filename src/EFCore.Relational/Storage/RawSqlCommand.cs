@@ -15,13 +15,17 @@ namespace Microsoft.EntityFrameworkCore.Storage
     ///         not used in application code.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     for more information.
+    /// </remarks>
     public class RawSqlCommand
     {
         /// <summary>
         ///     Initializes a new instance of the <see cref="RawSqlCommand" /> class.
         /// </summary>
-        /// <param name="relationalCommand"> The command to be executed. </param>
-        /// <param name="parameterValues"> The values to be assigned to parameters. </param>
+        /// <param name="relationalCommand">The command to be executed.</param>
+        /// <param name="parameterValues">The values to be assigned to parameters.</param>
         public RawSqlCommand(
             IRelationalCommand relationalCommand,
             IReadOnlyDictionary<string, object?> parameterValues)

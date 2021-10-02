@@ -20,6 +20,10 @@ namespace Microsoft.EntityFrameworkCore.Storage
     ///         not used in application code.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     for more information.
+    /// </remarks>
     public class RelationalDataReader : IDisposable, IAsyncDisposable
     {
         private IRelationalConnection _relationalConnection = default!;
@@ -37,11 +41,11 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// <summary>
         ///     Initializes a new instance of the <see cref="RelationalDataReader" /> class.
         /// </summary>
-        /// <param name="relationalConnection"> The relational connection. </param>
-        /// <param name="command"> The command that was executed. </param>
-        /// <param name="reader"> The underlying reader for the result set. </param>
-        /// <param name="commandId"> A correlation ID that identifies the <see cref="DbCommand" /> instance being used. </param>
-        /// <param name="logger"> The diagnostic source. </param>
+        /// <param name="relationalConnection">The relational connection.</param>
+        /// <param name="command">The command that was executed.</param>
+        /// <param name="reader">The underlying reader for the result set.</param>
+        /// <param name="commandId">A correlation ID that identifies the <see cref="DbCommand" /> instance being used.</param>
+        /// <param name="logger">The diagnostic source.</param>
         public virtual void Initialize(
             IRelationalConnection relationalConnection,
             DbCommand command,
@@ -77,7 +81,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// <summary>
         ///     Calls <see cref="DbDataReader.Read()" /> on the underlying <see cref="System.Data.Common.DbDataReader" />.
         /// </summary>
-        /// <returns> <see langword="true" /> if there are more rows; otherwise <see langword="false" />. </returns>
+        /// <returns><see langword="true" /> if there are more rows; otherwise <see langword="false" />.</returns>
         public virtual bool Read()
         {
             _readCount++;
@@ -89,7 +93,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
         ///     Calls <see cref="DbDataReader.ReadAsync(CancellationToken)" /> on the underlying
         ///     <see cref="System.Data.Common.DbDataReader" />.
         /// </summary>
-        /// <returns> <see langword="true" /> if there are more rows; otherwise <see langword="false" />. </returns>
+        /// <returns><see langword="true" /> if there are more rows; otherwise <see langword="false" />.</returns>
         public virtual Task<bool> ReadAsync(CancellationToken cancellationToken = default)
         {
             _readCount++;

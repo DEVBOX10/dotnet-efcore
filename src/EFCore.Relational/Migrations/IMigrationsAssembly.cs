@@ -20,6 +20,9 @@ namespace Microsoft.EntityFrameworkCore.Migrations
     ///         The implementation does not need to be thread-safe.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-migrations">Database migrations</see> for more information.
+    /// </remarks>
     public interface IMigrationsAssembly
     {
         /// <summary>
@@ -42,8 +45,8 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         ///     Finds a migration identifier in the assembly with the given a full migration name or
         ///     just its identifier.
         /// </summary>
-        /// <param name="nameOrId"> The name or identifier to lookup. </param>
-        /// <returns> The identifier of the migration, or <see langword="null" /> if none was found. </returns>
+        /// <param name="nameOrId">The name or identifier to lookup.</param>
+        /// <returns>The identifier of the migration, or <see langword="null" /> if none was found.</returns>
         string? FindMigrationId(string nameOrId);
 
         /// <summary>
@@ -52,8 +55,8 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         /// <param name="migrationClass">
         ///     The <see cref="TypeInfo" /> for the migration class, as obtained from the <see cref="Migrations" /> dictionary.
         /// </param>
-        /// <param name="activeProvider"> The name of the current database provider. </param>
-        /// <returns> The migration instance. </returns>
+        /// <param name="activeProvider">The name of the current database provider.</param>
+        /// <returns>The migration instance.</returns>
         Migration CreateMigration(TypeInfo migrationClass, string activeProvider);
     }
 }

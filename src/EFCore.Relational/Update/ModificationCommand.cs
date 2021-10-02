@@ -22,6 +22,10 @@ namespace Microsoft.EntityFrameworkCore.Update
     ///         This type is typically used by database providers; it is generally not used in application code.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     for more information.
+    /// </remarks>
     public class ModificationCommand : IModificationCommand
     {
         private readonly Func<string>? _generateParameterName;
@@ -36,7 +40,7 @@ namespace Microsoft.EntityFrameworkCore.Update
         /// <summary>
         ///     Initializes a new <see cref="ModificationCommand" /> instance.
         /// </summary>
-        /// <param name="modificationCommandParameters"> Creation parameters. </param>
+        /// <param name="modificationCommandParameters">Creation parameters.</param>
         public ModificationCommand(in ModificationCommandParameters modificationCommandParameters)
         {
             TableName = modificationCommandParameters.TableName;
@@ -159,7 +163,7 @@ namespace Microsoft.EntityFrameworkCore.Update
                 EntityState = entry.SharedIdentityEntry == null
                     ? entry.EntityState
                     : entry.SharedIdentityEntry.EntityType == entry.EntityType
-                        || entry.SharedIdentityEntry.EntityType.GetTableMappings()
+                    || entry.SharedIdentityEntry.EntityType.GetTableMappings()
                         .Any(m => m.Table.Name == TableName && m.Table.Schema == Schema)
                         ? EntityState.Modified
                         : entry.EntityState;
@@ -214,8 +218,8 @@ namespace Microsoft.EntityFrameworkCore.Update
         /// <summary>
         ///     Creates a new <see cref="IColumnModification" /> and add it to this command.
         /// </summary>
-        /// <param name="columnModificationParameters"> Creation parameters. </param>
-        /// <returns> The new <see cref="IColumnModification" /> instance. </returns>
+        /// <param name="columnModificationParameters">Creation parameters.</param>
+        /// <returns>The new <see cref="IColumnModification" /> instance.</returns>
         public virtual IColumnModification AddColumnModification(in ColumnModificationParameters columnModificationParameters)
         {
             var modification = CreateColumnModification(columnModificationParameters);
@@ -233,8 +237,8 @@ namespace Microsoft.EntityFrameworkCore.Update
         /// <summary>
         ///     Creates a new instance that implements <see cref="IColumnModification" /> interface.
         /// </summary>
-        /// <param name="columnModificationParameters"> Creation parameters. </param>
-        /// <returns> The new instance that implements <see cref="IColumnModification" /> interface. </returns>
+        /// <param name="columnModificationParameters">Creation parameters.</param>
+        /// <returns>The new instance that implements <see cref="IColumnModification" /> interface.</returns>
         protected virtual IColumnModification CreateColumnModification(in ColumnModificationParameters columnModificationParameters)
             => new ColumnModification(columnModificationParameters);
 
@@ -266,7 +270,9 @@ namespace Microsoft.EntityFrameworkCore.Update
 
                     if (entry.SharedIdentityEntry != null)
                     {
-                        var sharedTableMapping = GetTableMapping(entry.SharedIdentityEntry.EntityType);
+                        var sharedTableMapping = entry.EntityType != entry.SharedIdentityEntry.EntityType
+                            ? GetTableMapping(entry.SharedIdentityEntry.EntityType)
+                            : tableMapping;
                         if (sharedTableMapping != null)
                         {
                             InitializeSharedColumns(entry.SharedIdentityEntry, sharedTableMapping, updating, sharedTableColumnMap);
@@ -292,8 +298,8 @@ namespace Microsoft.EntityFrameworkCore.Update
                 var optionalDependentWithAllNull =
                     (entry.EntityState == EntityState.Deleted
                         || entry.EntityState == EntityState.Added)
-                        && tableMapping.Table.IsOptional(entry.EntityType)
-                        && tableMapping.Table.GetRowInternalForeignKeys(entry.EntityType).Any();
+                    && tableMapping.Table.IsOptional(entry.EntityType)
+                    && tableMapping.Table.GetRowInternalForeignKeys(entry.EntityType).Any();
 
                 foreach (var columnMapping in tableMapping.ColumnMappings)
                 {
@@ -428,7 +434,7 @@ namespace Microsoft.EntityFrameworkCore.Update
         ///     propagates them back to into the appropriate <see cref="IColumnModification" />
         ///     from which the values can be propagated on to tracked entities.
         /// </summary>
-        /// <param name="valueBuffer"> The buffer containing the values read from the database. </param>
+        /// <param name="valueBuffer">The buffer containing the values read from the database.</param>
         public virtual void PropagateResults(ValueBuffer valueBuffer)
         {
             Check.NotNull(valueBuffer, nameof(valueBuffer));
@@ -478,16 +484,7 @@ namespace Microsoft.EntityFrameworkCore.Update
                         break;
                     case EntityState.Added:
                         _currentValue = entry.GetCurrentValue(property);
-
-                        var comparer = property.GetValueComparer();
-                        if (comparer == null)
-                        {
-                            _write = !Equals(_originalValue, _currentValue);
-                        }
-                        else
-                        {
-                            _write = !comparer.Equals(_originalValue, _currentValue);
-                        }
+                        _write = !property.GetValueComparer().Equals(_originalValue, _currentValue);
 
                         break;
                     case EntityState.Deleted:
@@ -508,7 +505,8 @@ namespace Microsoft.EntityFrameworkCore.Update
                 if (_write
                     && (entry.EntityState == EntityState.Unchanged
                         || (entry.EntityState == EntityState.Modified && !entry.IsModified(property))
-                        || (entry.EntityState == EntityState.Added && Equals(_originalValue, entry.GetCurrentValue(property)))))
+                        || (entry.EntityState == EntityState.Added
+                            && property.GetValueComparer().Equals(_originalValue, entry.GetCurrentValue(property)))))
                 {
                     entry.SetStoreGeneratedValue(property, _currentValue);
 

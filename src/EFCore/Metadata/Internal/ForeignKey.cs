@@ -122,7 +122,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         /// </summary>
         public virtual InternalForeignKeyBuilder Builder
         {
-            [DebuggerStepThrough] get => _builder ?? throw new InvalidOperationException(CoreStrings.ObjectRemovedFromModel);
+            [DebuggerStepThrough]
+            get => _builder ?? throw new InvalidOperationException(CoreStrings.ObjectRemovedFromModel);
         }
 
         /// <summary>
@@ -149,7 +150,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public override bool IsReadOnly => DeclaringEntityType.Model.IsReadOnly;
+        public override bool IsReadOnly
+            => DeclaringEntityType.Model.IsReadOnly;
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -195,10 +197,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         /// <summary>
         ///     Runs the conventions when an annotation was set or removed.
         /// </summary>
-        /// <param name="name"> The key of the set annotation. </param>
-        /// <param name="annotation"> The annotation set. </param>
-        /// <param name="oldAnnotation"> The old annotation. </param>
-        /// <returns> The annotation that was set. </returns>
+        /// <param name="name">The key of the set annotation.</param>
+        /// <param name="annotation">The annotation set.</param>
+        /// <param name="oldAnnotation">The old annotation.</param>
+        /// <returns>The annotation that was set.</returns>
         protected override IConventionAnnotation? OnAnnotationSet(
             string name,
             IConventionAnnotation? annotation,
@@ -455,18 +457,21 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
             EnsureMutable();
 
             var name = propertyIdentity?.Name;
-            if (pointsToPrincipal
-                && PrincipalEntityType.IsKeyless)
+            if (name != null)
             {
-                throw new InvalidOperationException(
-                    CoreStrings.NavigationToKeylessType(name, PrincipalEntityType.DisplayName()));
-            }
+                if (pointsToPrincipal
+                    && PrincipalEntityType.IsKeyless)
+                {
+                    throw new InvalidOperationException(
+                        CoreStrings.NavigationToKeylessType(name, PrincipalEntityType.DisplayName()));
+                }
 
-            if (!pointsToPrincipal
-                && DeclaringEntityType.IsKeyless)
-            {
-                throw new InvalidOperationException(
-                    CoreStrings.NavigationToKeylessType(name, DeclaringEntityType.DisplayName()));
+                if (!pointsToPrincipal
+                    && DeclaringEntityType.IsKeyless)
+                {
+                    throw new InvalidOperationException(
+                        CoreStrings.NavigationToKeylessType(name, DeclaringEntityType.DisplayName()));
+                }
             }
 
             var oldNavigation = pointsToPrincipal ? DependentToPrincipal : PrincipalToDependent;
@@ -498,8 +503,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
                 && IsOwnership
                 && !pointsToPrincipal)
             {
-                throw new InvalidOperationException(CoreStrings.OwnershipToDependent(
-                    oldNavigation?.Name, PrincipalEntityType.DisplayName(), DeclaringEntityType.DisplayName()));
+                throw new InvalidOperationException(
+                    CoreStrings.OwnershipToDependent(
+                        oldNavigation?.Name, PrincipalEntityType.DisplayName(), DeclaringEntityType.DisplayName()));
             }
 
             if (oldNavigation != null)
@@ -995,7 +1001,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         /// </summary>
         public virtual DebugView DebugView
             => new(
-                () => ((IReadOnlyForeignKey)this).ToDebugString(MetadataDebugStringOptions.ShortDefault),
+                () => ((IReadOnlyForeignKey)this).ToDebugString(),
                 () => ((IReadOnlyForeignKey)this).ToDebugString(MetadataDebugStringOptions.LongDefault));
 
         /// <summary>

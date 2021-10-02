@@ -5,7 +5,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore.Query;
@@ -33,22 +32,22 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking
     public abstract class ValueComparer : IEqualityComparer, IEqualityComparer<object>
     {
         private static readonly MethodInfo _doubleEqualsMethodInfo
-            = typeof(double).GetRequiredRuntimeMethod(nameof(double.Equals), new[] { typeof(double) });
+            = typeof(double).GetRequiredRuntimeMethod(nameof(double.Equals), typeof(double));
 
         private static readonly MethodInfo _floatEqualsMethodInfo
-            = typeof(float).GetRequiredRuntimeMethod(nameof(float.Equals), new[] { typeof(float) });
+            = typeof(float).GetRequiredRuntimeMethod(nameof(float.Equals), typeof(float));
 
         internal static readonly MethodInfo ArrayCopyMethod
-            = typeof(Array).GetRequiredRuntimeMethod(nameof(Array.Copy), new[] { typeof(Array), typeof(Array), typeof(int) });
+            = typeof(Array).GetRequiredRuntimeMethod(nameof(Array.Copy), typeof(Array), typeof(Array), typeof(int));
 
         internal static readonly MethodInfo EqualityComparerHashCodeMethod
-            = typeof(IEqualityComparer).GetRequiredRuntimeMethod(nameof(IEqualityComparer.GetHashCode), new[] { typeof(object) });
+            = typeof(IEqualityComparer).GetRequiredRuntimeMethod(nameof(IEqualityComparer.GetHashCode), typeof(object));
 
         internal static readonly MethodInfo EqualityComparerEqualsMethod
-            = typeof(IEqualityComparer).GetRequiredRuntimeMethod(nameof(IEqualityComparer.Equals), new[] { typeof(object), typeof(object) });
+            = typeof(IEqualityComparer).GetRequiredRuntimeMethod(nameof(IEqualityComparer.Equals), typeof(object), typeof(object));
 
         internal static readonly MethodInfo ObjectEqualsMethod
-            = typeof(object).GetRequiredRuntimeMethod(nameof(object.Equals), new[] { typeof(object), typeof(object) });
+            = typeof(object).GetRequiredRuntimeMethod(nameof(object.Equals), typeof(object), typeof(object));
 
         internal static readonly MethodInfo ObjectGetHashCodeMethod
             = typeof(object).GetRequiredRuntimeMethod(nameof(object.GetHashCode), Type.EmptyTypes);
@@ -57,9 +56,9 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking
         ///     Creates a new <see cref="ValueComparer" /> with the given comparison and
         ///     snapshotting expressions.
         /// </summary>
-        /// <param name="equalsExpression"> The comparison expression. </param>
-        /// <param name="hashCodeExpression"> The associated hash code generator. </param>
-        /// <param name="snapshotExpression"> The snapshot expression. </param>
+        /// <param name="equalsExpression">The comparison expression.</param>
+        /// <param name="hashCodeExpression">The associated hash code generator.</param>
+        /// <param name="snapshotExpression">The snapshot expression.</param>
         protected ValueComparer(
             LambdaExpression equalsExpression,
             LambdaExpression hashCodeExpression,
@@ -82,16 +81,16 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking
         /// <summary>
         ///     Compares the two instances to determine if they are equal.
         /// </summary>
-        /// <param name="left"> The first instance. </param>
-        /// <param name="right"> The second instance. </param>
-        /// <returns> <see langword="true" /> if they are equal; <see langword="false" /> otherwise. </returns>
+        /// <param name="left">The first instance.</param>
+        /// <param name="right">The second instance.</param>
+        /// <returns><see langword="true" /> if they are equal; <see langword="false" /> otherwise.</returns>
         public new abstract bool Equals(object? left, object? right);
 
         /// <summary>
         ///     Returns the hash code for the given instance.
         /// </summary>
-        /// <param name="instance"> The instance. </param>
-        /// <returns> The hash code. </returns>
+        /// <param name="instance">The instance.</param>
+        /// <returns>The hash code.</returns>
         public abstract int GetHashCode(object instance);
 
         /// <summary>
@@ -105,8 +104,8 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking
         ///         reference.
         ///     </para>
         /// </summary>
-        /// <param name="instance"> The instance. </param>
-        /// <returns> The snapshot. </returns>
+        /// <param name="instance">The instance.</param>
+        /// <returns>The snapshot.</returns>
         [return: NotNullIfNotNull("instance")]
         public abstract object? Snapshot(object? instance);
 
@@ -137,9 +136,9 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking
         ///     Takes <see cref="EqualsExpression" /> and replaces the two parameters with the given expressions,
         ///     returning the transformed body.
         /// </summary>
-        /// <param name="leftExpression"> The new left expression. </param>
-        /// <param name="rightExpression"> The new right expression. </param>
-        /// <returns> The body of the lambda with left and right parameters replaced.</returns>
+        /// <param name="leftExpression">The new left expression.</param>
+        /// <param name="rightExpression">The new right expression.</param>
+        /// <returns>The body of the lambda with left and right parameters replaced.</returns>
         public virtual Expression ExtractEqualsBody(
             Expression leftExpression,
             Expression rightExpression)
@@ -159,8 +158,8 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking
         ///     Takes the <see cref="HashCodeExpression" /> and replaces the parameter with the given expression,
         ///     returning the transformed body.
         /// </summary>
-        /// <param name="expression"> The new expression. </param>
-        /// <returns> The body of the lambda with the parameter replaced.</returns>
+        /// <param name="expression">The new expression.</param>
+        /// <returns>The body of the lambda with the parameter replaced.</returns>
         public virtual Expression ExtractHashCodeBody(Expression expression)
         {
             Check.NotNull(expression, nameof(expression));
@@ -175,8 +174,8 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking
         ///     Takes the <see cref="SnapshotExpression" /> and replaces the parameter with the given expression,
         ///     returning the transformed body.
         /// </summary>
-        /// <param name="expression"> The new expression. </param>
-        /// <returns> The body of the lambda with the parameter replaced.</returns>
+        /// <param name="expression">The new expression.</param>
+        /// <returns>The body of the lambda with the parameter replaced.</returns>
         public virtual Expression ExtractSnapshotBody(Expression expression)
         {
             Check.NotNull(expression, nameof(expression));
@@ -190,12 +189,12 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking
         /// <summary>
         ///     Creates a default <see cref="ValueComparer{T}" /> for the given type.
         /// </summary>
-        /// <param name="type"> The type. </param>
+        /// <param name="type">The type.</param>
         /// <param name="favorStructuralComparisons">
         ///     If <see langword="true" />, then EF will use <see cref="IStructuralEquatable" /> if the type
         ///     implements it. This is usually used when byte arrays act as keys.
         /// </param>
-        /// <returns> The <see cref="ValueComparer{T}" />. </returns>
+        /// <returns>The <see cref="ValueComparer{T}" />.</returns>
         public static ValueComparer CreateDefault(Type type, bool favorStructuralComparisons)
         {
             var nonNullableType = type.UnwrapNullableType();

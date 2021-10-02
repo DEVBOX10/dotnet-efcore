@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations.Internal;
 using Microsoft.EntityFrameworkCore.Update;
@@ -16,6 +15,9 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Operations
     /// <summary>
     ///     A <see cref="MigrationOperation" /> for updating seed data in an existing table.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-migrations">Database migrations</see> for more information.
+    /// </remarks>
     [DebuggerDisplay("UPDATE {Table}")]
     public class UpdateDataOperation : MigrationOperation, ITableMigrationOperation
     {
@@ -66,7 +68,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Operations
         /// <summary>
         ///     Generates the commands that correspond to this operation.
         /// </summary>
-        /// <returns> The commands that correspond to this operation. </returns>
+        /// <returns>The commands that correspond to this operation.</returns>
         [Obsolete]
         public virtual IEnumerable<ModificationCommand> GenerateModificationCommands(IModel? model)
         {
@@ -92,8 +94,9 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Operations
 
             for (var i = 0; i < KeyValues.GetLength(0); i++)
             {
-                var modificationCommand = modificationCommandFactory.CreateModificationCommand(new ModificationCommandParameters(
-                    Table, Schema, sensitiveLoggingEnabled: false));
+                var modificationCommand = modificationCommandFactory.CreateModificationCommand(
+                    new ModificationCommandParameters(
+                        Table, Schema, sensitiveLoggingEnabled: false));
 
                 for (var j = 0; j < KeyColumns.Length; j++)
                 {

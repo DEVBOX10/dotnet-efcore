@@ -11,6 +11,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata
     /// <summary>
     ///     Represents a column in a table.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-modeling">Modeling entity types and relationships</see> for more information.
+    /// </remarks>
     public interface IColumn : IColumnBase
     {
         /// <summary>
@@ -65,6 +68,13 @@ namespace Microsoft.EntityFrameworkCore.Metadata
                 && PropertyMappings.First().Property.ValueGenerated == ValueGenerated.OnAddOrUpdate;
 
         /// <summary>
+        ///     Gets the column order.
+        /// </summary>
+        /// <value> The column order. </value>
+        public virtual int? Order
+            => PropertyMappings.First().Property.GetColumnOrder(StoreObjectIdentifier.Table(Table.Name, Table.Schema));
+
+        /// <summary>
         ///     Returns the object that is used as the default value for this column.
         /// </summary>
         public virtual object? DefaultValue
@@ -79,8 +89,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         /// <summary>
         ///     Gets the object that is used as the default value for this column.
         /// </summary>
-        /// <param name="defaultValue"> The default value. </param>
-        /// <returns> True if the default value was explicitly set; false otherwise. </returns>
+        /// <param name="defaultValue">The default value.</param>
+        /// <returns>True if the default value was explicitly set; false otherwise.</returns>
         public virtual bool TryGetDefaultValue(out object? defaultValue)
         {
             foreach (var mapping in PropertyMappings)
@@ -150,9 +160,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         ///         It is designed for debugging only and may change arbitrarily between releases.
         ///     </para>
         /// </summary>
-        /// <param name="options"> Options for generating the string. </param>
-        /// <param name="indent"> The number of indent spaces to use before each new line. </param>
-        /// <returns> A human-readable representation. </returns>
+        /// <param name="options">Options for generating the string.</param>
+        /// <param name="indent">The number of indent spaces to use before each new line.</param>
+        /// <returns>A human-readable representation.</returns>
         string ToDebugString(MetadataDebugStringOptions options = MetadataDebugStringOptions.ShortDefault, int indent = 0)
         {
             var builder = new StringBuilder();

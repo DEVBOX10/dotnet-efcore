@@ -12,6 +12,10 @@ namespace Microsoft.EntityFrameworkCore.Storage
     ///         not used in application code.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     for more information.
+    /// </remarks>
     public class ParameterNameGenerator
     {
         private int _count;
@@ -19,7 +23,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// <summary>
         ///     Generates the next unique parameter name.
         /// </summary>
-        /// <returns> The generated name. </returns>
+        /// <returns>The generated name.</returns>
         public virtual string GenerateNext()
             => "p" + _count++;
 

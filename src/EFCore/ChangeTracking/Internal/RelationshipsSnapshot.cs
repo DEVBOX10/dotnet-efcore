@@ -41,7 +41,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
                 Check.DebugAssert(!IsEmpty, "relationship snapshot is empty");
                 Check.DebugAssert(
-                    propertyBase is not INavigation { IsCollection : true },
+                    propertyBase is not INavigation { IsCollection: true },
                     $"property {propertyBase} is is not reference navigation");
 
                 _values[propertyBase.GetRelationshipIndex()] = SnapshotValue(propertyBase, value);
@@ -62,18 +62,18 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                 return value;
             }
 
-            public void RemoveFromCollection(IPropertyBase propertyBase, object removedEntity)
+            public void RemoveFromCollection(INavigationBase navigation, object removedEntity)
             {
-                var index = propertyBase.GetRelationshipIndex();
+                var index = navigation.GetRelationshipIndex();
                 if (index != -1)
                 {
                     ((HashSet<object>)_values[index]!)?.Remove(removedEntity);
                 }
             }
 
-            public void AddToCollection(IPropertyBase propertyBase, object addedEntity)
+            public void AddToCollection(INavigationBase navigation, object addedEntity)
             {
-                var index = propertyBase.GetRelationshipIndex();
+                var index = navigation.GetRelationshipIndex();
                 if (index != -1)
                 {
                     var snapshot = GetOrCreateCollection(index);
@@ -82,9 +82,9 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                 }
             }
 
-            public void AddRangeToCollection(IPropertyBase propertyBase, IEnumerable<object> addedEntities)
+            public void AddRangeToCollection(INavigationBase navigation, IEnumerable<object> addedEntities)
             {
-                var index = propertyBase.GetRelationshipIndex();
+                var index = navigation.GetRelationshipIndex();
                 if (index != -1)
                 {
                     var snapshot = GetOrCreateCollection(index);

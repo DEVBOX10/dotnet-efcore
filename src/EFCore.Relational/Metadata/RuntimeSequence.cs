@@ -11,6 +11,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata
     /// <summary>
     ///     Represents a database sequence in the model.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-sequences">Database sequences</see> for more information.
+    /// </remarks>
     public class RuntimeSequence : AnnotatableBase, ISequence
     {
         private readonly string? _schema;
@@ -22,17 +25,17 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         private readonly bool _isCyclic;
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="RuntimeSequence"/> class.
+        ///     Initializes a new instance of the <see cref="RuntimeSequence" /> class.
         /// </summary>
-        /// <param name="name"> The sequence name. </param>
-        /// <param name="model"> The model. </param>
-        /// <param name="type"> The type of values generated. </param>
-        /// <param name="schema"> The schema. </param>
-        /// <param name="startValue"> The initial value. </param>
-        /// <param name="incrementBy"> The value increment. </param>
-        /// <param name="cyclic"> Whether the sequence is cyclic. </param>
-        /// <param name="minValue"> The minimum value. </param>
-        /// <param name="maxValue"> The maximum value. </param>
+        /// <param name="name">The sequence name.</param>
+        /// <param name="model">The model.</param>
+        /// <param name="type">The type of values generated.</param>
+        /// <param name="schema">The schema.</param>
+        /// <param name="startValue">The initial value.</param>
+        /// <param name="incrementBy">The value increment.</param>
+        /// <param name="cyclic">Whether the sequence is cyclic.</param>
+        /// <param name="minValue">The minimum value.</param>
+        /// <param name="maxValue">The maximum value.</param>
         public RuntimeSequence(
             string name,
             RuntimeModel model,
@@ -74,7 +77,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         /// <summary>
         ///     Returns a string that represents the current object.
         /// </summary>
-        /// <returns> A string that represents the current object. </returns>
+        /// <returns>A string that represents the current object.</returns>
         public override string ToString()
             => ((ISequence)this).ToDebugString(MetadataDebugStringOptions.SingleLineDefault);
 
@@ -87,66 +90,66 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         [EntityFrameworkInternal]
         public virtual DebugView DebugView
             => new(
-                () => ((ISequence)this).ToDebugString(MetadataDebugStringOptions.ShortDefault),
+                () => ((ISequence)this).ToDebugString(),
                 () => ((ISequence)this).ToDebugString(MetadataDebugStringOptions.LongDefault));
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         IReadOnlyModel IReadOnlySequence.Model
         {
             [DebuggerStepThrough]
             get => Model;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         IModel ISequence.Model
         {
             [DebuggerStepThrough]
             get => Model;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         long IReadOnlySequence.StartValue
         {
             [DebuggerStepThrough]
             get => _startValue;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         int IReadOnlySequence.IncrementBy
         {
             [DebuggerStepThrough]
             get => _incrementBy;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         long? IReadOnlySequence.MinValue
         {
             [DebuggerStepThrough]
             get => _minValue;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         long? IReadOnlySequence.MaxValue
         {
             [DebuggerStepThrough]
             get => _maxValue;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         Type IReadOnlySequence.Type
         {
             [DebuggerStepThrough]
             get => _type;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         Type IReadOnlySequence.ClrType
         {
             [DebuggerStepThrough]
             get => _type;
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         bool IReadOnlySequence.IsCyclic
         {
             [DebuggerStepThrough]

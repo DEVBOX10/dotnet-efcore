@@ -24,8 +24,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <summary>
         ///     Creates a new instance of <see cref="SqlServerTemporalConvention" />.
         /// </summary>
-        /// <param name="dependencies"> Parameter object containing dependencies for this convention.</param>
-        /// <param name="relationalDependencies"> Parameter object containing relational dependencies for this convention.</param>
+        /// <param name="dependencies">Parameter object containing dependencies for this convention.</param>
+        /// <param name="relationalDependencies">Parameter object containing relational dependencies for this convention.</param>
         public SqlServerTemporalConvention(
             ProviderConventionSetBuilderDependencies dependencies,
             RelationalConventionSetBuilderDependencies relationalDependencies)
@@ -133,7 +133,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
             IConventionForeignKey? oldForeignKey,
             IConventionContext<IConventionForeignKey> context)
         {
-             if (skipNavigationBuilder.Metadata.JoinEntityType is IConventionEntityType joinEntityType
+            if (skipNavigationBuilder.Metadata.JoinEntityType is IConventionEntityType joinEntityType
                 && joinEntityType.HasSharedClrType
                 && !joinEntityType.IsTemporal()
                 && joinEntityType.GetConfigurationSource() == ConfigurationSource.Convention

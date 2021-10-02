@@ -33,6 +33,9 @@ namespace Microsoft.EntityFrameworkCore.Migrations
     ///         The implementation does not need to be thread-safe.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-migrations">Database migrations</see> for more information.
+    /// </remarks>
     // TODO: Leverage query pipeline for GetAppliedMigrations
     // TODO: Leverage update pipeline for GetInsertScript & GetDeleteScript
     public abstract class HistoryRepository : IHistoryRepository
@@ -49,7 +52,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         /// <summary>
         ///     Initializes a new instance of this class.
         /// </summary>
-        /// <param name="dependencies"> Parameter object containing dependencies for this service. </param>
+        /// <param name="dependencies">Parameter object containing dependencies for this service.</param>
         protected HistoryRepository(HistoryRepositoryDependencies dependencies)
         {
             Check.NotNull(dependencies, nameof(dependencies));
@@ -104,12 +107,13 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                 var modelBuilder = new ModelBuilder(conventionSet);
                 modelBuilder.Entity<HistoryRow>(
                     x =>
-                    {
-                        ConfigureTable(x);
-                        x.ToTable(TableName, TableSchema);
-                    });
+                        {
+                            ConfigureTable(x);
+                            x.ToTable(TableName, TableSchema);
+                        });
 
-                _model = Dependencies.ModelRuntimeInitializer.Initialize((IModel)modelBuilder.Model, designTime: true, validationLogger: null);
+                _model = Dependencies.ModelRuntimeInitializer.Initialize(
+                    (IModel)modelBuilder.Model, designTime: true, validationLogger: null);
             }
 
             return _model;
@@ -132,7 +136,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         /// <summary>
         ///     Checks whether or not the history table exists.
         /// </summary>
-        /// <returns> <see langword="true" /> if the table already exists, <see langword="false" /> otherwise. </returns>
+        /// <returns><see langword="true" /> if the table already exists, <see langword="false" /> otherwise.</returns>
         public virtual bool Exists()
             => Dependencies.DatabaseCreator.Exists()
                 && InterpretExistsResult(
@@ -152,7 +156,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         ///     A task that represents the asynchronous operation. The task result contains
         ///     <see langword="true" /> if the table already exists, <see langword="false" /> otherwise.
         /// </returns>
-        /// <exception cref="OperationCanceledException"> If the <see cref="CancellationToken"/> is canceled. </exception>
+        /// <exception cref="OperationCanceledException">If the <see cref="CancellationToken" /> is canceled.</exception>
         public virtual async Task<bool> ExistsAsync(CancellationToken cancellationToken = default)
             => await Dependencies.DatabaseCreator.ExistsAsync(cancellationToken).ConfigureAwait(false)
                 && InterpretExistsResult(
@@ -175,13 +179,13 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         ///     Overridden by a database provider to generate a SQL script that will create the history table
         ///     if and only if it does not already exist.
         /// </summary>
-        /// <returns> The SQL script. </returns>
+        /// <returns>The SQL script.</returns>
         public abstract string GetCreateIfNotExistsScript();
 
         /// <summary>
         ///     Generates a SQL script that will create the history table.
         /// </summary>
-        /// <returns> The SQL script. </returns>
+        /// <returns>The SQL script.</returns>
         public virtual string GetCreateScript()
         {
             var model = EnsureModel();
@@ -200,7 +204,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         ///         Database providers can override this to add or replace configuration.
         ///     </para>
         /// </summary>
-        /// <param name="history"> A builder for the <see cref="HistoryRow" /> entity type. </param>
+        /// <param name="history">A builder for the <see cref="HistoryRow" /> entity type.</param>
         protected virtual void ConfigureTable(EntityTypeBuilder<HistoryRow> history)
         {
             history.ToTable(DefaultTableName);
@@ -212,7 +216,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         /// <summary>
         ///     Queries the history table for all migrations that have been applied.
         /// </summary>
-        /// <returns> The list of applied migrations, as <see cref="HistoryRow" /> entities. </returns>
+        /// <returns>The list of applied migrations, as <see cref="HistoryRow" /> entities.</returns>
         public virtual IReadOnlyList<HistoryRow> GetAppliedMigrations()
         {
             var rows = new List<HistoryRow>();
@@ -245,7 +249,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         ///     A task that represents the asynchronous operation. The task result contains
         ///     the list of applied migrations, as <see cref="HistoryRow" /> entities.
         /// </returns>
-        /// <exception cref="OperationCanceledException"> If the <see cref="CancellationToken"/> is canceled. </exception>
+        /// <exception cref="OperationCanceledException">If the <see cref="CancellationToken" /> is canceled.</exception>
         public virtual async Task<IReadOnlyList<HistoryRow>> GetAppliedMigrationsAsync(
             CancellationToken cancellationToken = default)
         {
@@ -291,8 +295,8 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         /// <summary>
         ///     Generates a SQL script to insert a row into the history table.
         /// </summary>
-        /// <param name="row"> The row to insert, represented as a <see cref="HistoryRow" /> entity. </param>
-        /// <returns> The generated SQL. </returns>
+        /// <param name="row">The row to insert, represented as a <see cref="HistoryRow" /> entity.</param>
+        /// <returns>The generated SQL.</returns>
         public virtual string GetInsertScript(HistoryRow row)
         {
             Check.NotNull(row, nameof(row));
@@ -318,8 +322,8 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         /// <summary>
         ///     Generates a SQL script to delete a row from the history table.
         /// </summary>
-        /// <param name="migrationId"> The migration identifier of the row to delete. </param>
-        /// <returns> The generated SQL. </returns>
+        /// <param name="migrationId">The migration identifier of the row to delete.</param>
+        /// <returns>The generated SQL.</returns>
         public virtual string GetDeleteScript(string migrationId)
         {
             Check.NotEmpty(migrationId, nameof(migrationId));
@@ -340,22 +344,22 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         ///     Overridden by database providers to generate a SQL Script that will <c>BEGIN</c> a block
         ///     of SQL if and only if the migration with the given identifier does not already exist in the history table.
         /// </summary>
-        /// <param name="migrationId"> The migration identifier. </param>
-        /// <returns> The generated SQL. </returns>
+        /// <param name="migrationId">The migration identifier.</param>
+        /// <returns>The generated SQL.</returns>
         public abstract string GetBeginIfNotExistsScript(string migrationId);
 
         /// <summary>
         ///     Overridden by database providers to generate a SQL Script that will <c>BEGIN</c> a block
         ///     of SQL if and only if the migration with the given identifier already exists in the history table.
         /// </summary>
-        /// <param name="migrationId"> The migration identifier. </param>
-        /// <returns> The generated SQL. </returns>
+        /// <param name="migrationId">The migration identifier.</param>
+        /// <returns>The generated SQL.</returns>
         public abstract string GetBeginIfExistsScript(string migrationId);
 
         /// <summary>
         ///     Overridden by database providers to generate a SQL script to <c>END</c> the SQL block.
         /// </summary>
-        /// <returns> The generated SQL. </returns>
+        /// <returns>The generated SQL.</returns>
         public abstract string GetEndIfScript();
     }
 }

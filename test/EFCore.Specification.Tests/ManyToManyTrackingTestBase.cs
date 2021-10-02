@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -808,10 +807,10 @@ namespace Microsoft.EntityFrameworkCore
 
                     Assert.All(
                         context.ChangeTracker.Entries<Dictionary<string, object>>(), e => Assert.Equal(
-                            ((int)e.Entity["CompositeId1"] == key1
-                                && (string)e.Entity["CompositeId2"] == key2
-                                && (DateTime)e.Entity["CompositeId3"] == key3)
-                            || (int)e.Entity["RootId"] == id
+                            ((int)e.Entity["CompositeKeySkipSharedKey1"] == key1
+                                && (string)e.Entity["CompositeKeySkipSharedKey2"] == key2
+                                && (DateTime)e.Entity["CompositeKeySkipSharedKey3"] == key3)
+                            || (int)e.Entity["RootSkipSharedId"] == id
                                 ? EntityState.Deleted
                                 : EntityState.Unchanged, e.State));
 
@@ -828,10 +827,10 @@ namespace Microsoft.EntityFrameworkCore
 
                     Assert.DoesNotContain(
                         context.ChangeTracker.Entries<Dictionary<string, object>>(),
-                        e => ((int)e.Entity["CompositeId1"] == key1
-                                && (string)e.Entity["CompositeId2"] == key2
-                                && (DateTime)e.Entity["CompositeId3"] == key3)
-                            || (int)e.Entity["RootId"] == id);
+                        e => ((int)e.Entity["CompositeKeySkipSharedKey1"] == key1
+                                && (string)e.Entity["CompositeKeySkipSharedKey2"] == key2
+                                && (DateTime)e.Entity["CompositeKeySkipSharedKey3"] == key3)
+                            || (int)e.Entity["RootSkipSharedId"] == id);
                 },
                 context =>
                 {
@@ -842,10 +841,10 @@ namespace Microsoft.EntityFrameworkCore
 
                     Assert.DoesNotContain(
                         context.ChangeTracker.Entries<Dictionary<string, object>>(),
-                        e => ((int)e.Entity["CompositeId1"] == key1
-                                && (string)e.Entity["CompositeId2"] == key2
-                                && (DateTime)e.Entity["CompositeId3"] == key3)
-                            || (int)e.Entity["RootId"] == id);
+                        e => ((int)e.Entity["CompositeKeySkipSharedKey1"] == key1
+                                && (string)e.Entity["CompositeKeySkipSharedKey2"] == key2
+                                && (DateTime)e.Entity["CompositeKeySkipSharedKey3"] == key3)
+                            || (int)e.Entity["RootSkipSharedId"] == id);
                 });
 
             void ValidateNavigations(
@@ -4869,7 +4868,7 @@ namespace Microsoft.EntityFrameworkCore
             }
         }
 
-        protected void VerifyRelationshipSnapshots(DbContext context, IEnumerable<object> entities)
+        protected static void VerifyRelationshipSnapshots(DbContext context, IEnumerable<object> entities)
         {
             var detectChanges = context.ChangeTracker.AutoDetectChangesEnabled;
             try

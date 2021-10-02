@@ -17,6 +17,10 @@ namespace Microsoft.EntityFrameworkCore.Update
     ///         This type is typically used by database providers; it is generally not used in application code.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     for more information.
+    /// </remarks>
     public interface IColumnModification
     {
         /// <summary>
@@ -125,7 +129,7 @@ namespace Microsoft.EntityFrameworkCore.Update
         /// <summary>
         ///     Adds a modification affecting the same database value.
         /// </summary>
-        /// <param name="modification"> The modification for the shared column. </param>
+        /// <param name="modification">The modification for the shared column.</param>
         public void AddSharedColumnModification(IColumnModification modification);
     }
 }

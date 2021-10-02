@@ -25,7 +25,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <summary>
         ///     Creates a new instance of <see cref="EntityTypeConfigurationEntityTypeAttributeConvention" />.
         /// </summary>
-        /// <param name="dependencies"> Parameter object containing dependencies for this convention. </param>
+        /// <param name="dependencies">Parameter object containing dependencies for this convention.</param>
         public EntityTypeConfigurationEntityTypeAttributeConvention(ProviderConventionSetBuilderDependencies dependencies)
             : base(dependencies)
         {
@@ -34,22 +34,25 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <summary>
         ///     Called after an entity type is added to the model if it has an attribute.
         /// </summary>
-        /// <param name="entityTypeBuilder"> The builder for the entity type. </param>
-        /// <param name="attribute"> The attribute. </param>
-        /// <param name="context"> Additional information associated with convention execution. </param>
-        protected override void ProcessEntityTypeAdded(IConventionEntityTypeBuilder entityTypeBuilder,
+        /// <param name="entityTypeBuilder">The builder for the entity type.</param>
+        /// <param name="attribute">The attribute.</param>
+        /// <param name="context">Additional information associated with convention execution.</param>
+        protected override void ProcessEntityTypeAdded(
+            IConventionEntityTypeBuilder entityTypeBuilder,
             EntityTypeConfigurationAttribute attribute,
             IConventionContext<IConventionEntityTypeBuilder> context)
         {
             var entityTypeConfigurationType = attribute.EntityTypeConfigurationType;
 
-            if (!entityTypeConfigurationType.GetInterfaces().Any(x =>
-                x.IsGenericType
-                && x.GetGenericTypeDefinition() == typeof(IEntityTypeConfiguration<>)
-                && x.GenericTypeArguments[0] == entityTypeBuilder.Metadata.ClrType))
+            if (!entityTypeConfigurationType.GetInterfaces().Any(
+                x =>
+                    x.IsGenericType
+                    && x.GetGenericTypeDefinition() == typeof(IEntityTypeConfiguration<>)
+                    && x.GenericTypeArguments[0] == entityTypeBuilder.Metadata.ClrType))
             {
-                throw new InvalidOperationException(CoreStrings.InvalidEntityTypeConfigurationAttribute(
-                    entityTypeConfigurationType.ShortDisplayName(), entityTypeBuilder.Metadata.ShortName()));
+                throw new InvalidOperationException(
+                    CoreStrings.InvalidEntityTypeConfigurationAttribute(
+                        entityTypeConfigurationType.ShortDisplayName(), entityTypeBuilder.Metadata.ShortName()));
             }
 
             _configureMethod.MakeGenericMethod(entityTypeBuilder.Metadata.ClrType)

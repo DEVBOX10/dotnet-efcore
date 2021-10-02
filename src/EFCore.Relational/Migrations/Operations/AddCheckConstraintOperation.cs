@@ -10,6 +10,9 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Operations
     /// <summary>
     ///     A <see cref="MigrationOperation" /> for creating a new check constraint.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-migrations">Database migrations</see> for more information.
+    /// </remarks>
     [DebuggerDisplay("ALTER TABLE {Table} ADD CONSTRAINT {Name} CHECK")]
     public class AddCheckConstraintOperation : MigrationOperation, ITableMigrationOperation
     {
@@ -39,8 +42,8 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Operations
         /// <summary>
         ///     Creates a new <see cref="AddCheckConstraintOperation" /> from the specified check constraint.
         /// </summary>
-        /// <param name="checkConstraint"> The check constraint. </param>
-        /// <returns> The operation. </returns>
+        /// <param name="checkConstraint">The check constraint.</param>
+        /// <returns>The operation.</returns>
         public static AddCheckConstraintOperation CreateFrom(ICheckConstraint checkConstraint)
         {
             Check.NotNull(checkConstraint, nameof(checkConstraint));

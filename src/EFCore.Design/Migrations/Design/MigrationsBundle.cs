@@ -15,6 +15,9 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Design
     /// <summary>
     ///     Defines the entry point for Migrations bundles.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-migration-bundles">EF Core migration bundles</see>.
+    /// </remarks>
     public static class MigrationsBundle
     {
         private static string? _context;
@@ -26,11 +29,11 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Design
         /// <summary>
         ///     The entry point for Migrations bundles.
         /// </summary>
-        /// <param name="context"> The DbContext to use. </param>
-        /// <param name="assembly"> The Migrations assembly. </param>
-        /// <param name="startupAssembly"> The startup assembly. </param>
-        /// <param name="args"> The command-line arguments. </param>
-        /// <returns> Zero if the command succeeds; otherwise, one. </returns>
+        /// <param name="context">The DbContext to use.</param>
+        /// <param name="assembly">The Migrations assembly.</param>
+        /// <param name="startupAssembly">The startup assembly.</param>
+        /// <param name="args">The command-line arguments.</param>
+        /// <returns>Zero if the command succeeds; otherwise, one.</returns>
         public static int Execute(string? context, Assembly assembly, Assembly startupAssembly, string[] args)
         {
             _context = context;
@@ -82,33 +85,33 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Design
 
             app.OnExecute(
                 args =>
-                {
-                    Reporter.IsVerbose = verbose.HasValue();
-                    Reporter.NoColor = noColor.HasValue();
-                    Reporter.PrefixOutput = prefixOutput.HasValue();
+                    {
+                        Reporter.IsVerbose = verbose.HasValue();
+                        Reporter.NoColor = noColor.HasValue();
+                        Reporter.PrefixOutput = prefixOutput.HasValue();
 
-                    ExecuteInternal(args);
+                        ExecuteInternal(args);
 
-                    return 0;
-                });
+                        return 0;
+                    });
         }
 
         private static void ExecuteInternal(string[] args)
         {
             new MigrationsOperations(
-                new OperationReporter(
-                    new OperationReportHandler(
-                        Reporter.WriteError,
-                        Reporter.WriteWarning,
-                        Reporter.WriteInformation,
-                        Reporter.WriteVerbose)),
-                _assembly!,
-                _startupAssembly!,
-                projectDir: string.Empty,
-                rootNamespace: null,
-                language: null,
-                nullable: false,
-                args)
+                    new OperationReporter(
+                        new OperationReportHandler(
+                            Reporter.WriteError,
+                            Reporter.WriteWarning,
+                            Reporter.WriteInformation,
+                            Reporter.WriteVerbose)),
+                    _assembly!,
+                    _startupAssembly!,
+                    projectDir: string.Empty,
+                    rootNamespace: null,
+                    language: null,
+                    nullable: false,
+                    args)
                 .UpdateDatabase(_migration!.Value, _connection!.Value(), _context);
         }
     }

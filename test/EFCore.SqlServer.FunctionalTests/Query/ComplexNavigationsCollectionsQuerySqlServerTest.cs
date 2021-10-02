@@ -661,7 +661,7 @@ LEFT JOIN (
     WHERE [t1].[row] <= 1
 ) AS [t0] ON [t].[Name] = [t0].[Name]
 LEFT JOIN [LevelTwo] AS [l1] ON [t0].[Id] = [l1].[OneToMany_Optional_Inverse2Id]
-ORDER BY [t].[Name], [t0].[Name]");
+ORDER BY [t].[Name], [t0].[Id]");
         }
 
         public override async Task Include_collection_with_groupby_in_subquery_and_filter_before_groupby(bool async)
@@ -686,7 +686,7 @@ LEFT JOIN (
     WHERE [t1].[row] <= 1
 ) AS [t0] ON [t].[Name] = [t0].[Name]
 LEFT JOIN [LevelTwo] AS [l1] ON [t0].[Id] = [l1].[OneToMany_Optional_Inverse2Id]
-ORDER BY [t].[Name], [t0].[Name]");
+ORDER BY [t].[Name], [t0].[Id]");
         }
 
         public override async Task Include_collection_with_groupby_in_subquery_and_filter_after_groupby(bool async)
@@ -710,7 +710,7 @@ LEFT JOIN (
     WHERE [t1].[row] <= 1
 ) AS [t0] ON [t].[Name] = [t0].[Name]
 LEFT JOIN [LevelTwo] AS [l1] ON [t0].[Id] = [l1].[OneToMany_Optional_Inverse2Id]
-ORDER BY [t].[Name], [t0].[Name]");
+ORDER BY [t].[Name], [t0].[Id]");
         }
 
         public override async Task Include_reference_collection_order_by_reference_navigation(bool async)
@@ -2000,16 +2000,16 @@ ORDER BY [t].[Date], [t0].[Date], [t0].[Name]");
             await base.Skip_Take_on_grouping_element_into_non_entity(async);
 
             AssertSql(
-                @"SELECT [t].[Date], [t0].[Name], [t0].[Date]
+                @"SELECT [t].[Date], [t0].[Name], [t0].[Id]
 FROM (
     SELECT [l].[Date]
     FROM [LevelOne] AS [l]
     GROUP BY [l].[Date]
 ) AS [t]
 LEFT JOIN (
-    SELECT [t1].[Name], [t1].[Date]
+    SELECT [t1].[Name], [t1].[Id], [t1].[Date]
     FROM (
-        SELECT [l0].[Name], [l0].[Date], ROW_NUMBER() OVER(PARTITION BY [l0].[Date] ORDER BY [l0].[Name]) AS [row]
+        SELECT [l0].[Name], [l0].[Id], [l0].[Date], ROW_NUMBER() OVER(PARTITION BY [l0].[Date] ORDER BY [l0].[Name]) AS [row]
         FROM [LevelOne] AS [l0]
     ) AS [t1]
     WHERE (1 < [t1].[row]) AND ([t1].[row] <= 6)
@@ -2039,7 +2039,7 @@ OUTER APPLY (
     ) AS [t1]
     LEFT JOIN [LevelTwo] AS [l0] ON [t1].[Id] = [l0].[OneToMany_Optional_Inverse2Id]
 ) AS [t0]
-ORDER BY [t].[Date], [t0].[Name], [t0].[Date]");
+ORDER BY [t].[Date], [t0].[Name], [t0].[Id]");
         }
 
         public override async Task Skip_Take_on_grouping_element_with_reference_include(bool async)
@@ -2064,7 +2064,7 @@ OUTER APPLY (
     ) AS [t1]
     LEFT JOIN [LevelTwo] AS [l0] ON [t1].[Id] = [l0].[Level1_Optional_Id]
 ) AS [t0]
-ORDER BY [t].[Date], [t0].[Name], [t0].[Date]");
+ORDER BY [t].[Date], [t0].[Name], [t0].[Id]");
         }
 
         public override async Task Skip_Take_on_grouping_element_inside_collection_projection(bool async)
@@ -2189,6 +2189,57 @@ OUTER APPLY (
 ) AS [t]
 LEFT JOIN [LevelTwo] AS [l1] ON [l].[Id] = [l1].[OneToMany_Optional_Inverse2Id]
 ORDER BY [l].[Id], [t].[Id]");
+        }
+
+        public override async Task Complex_query_issue_21665(bool async)
+        {
+            await base.Complex_query_issue_21665(async);
+
+            AssertSql(
+                @"SELECT [t].[Id], [t].[Date], [t].[Name], [t].[OneToMany_Optional_Self_Inverse1Id], [t].[OneToMany_Required_Self_Inverse1Id], [t].[OneToOne_Optional_Self1Id], [t].[Name0], [t].[c], [t].[c0], [t].[c1], [t].[Id0], [t0].[Id], [t0].[Date], [t0].[Name], [t0].[OneToMany_Optional_Self_Inverse1Id], [t0].[OneToMany_Required_Self_Inverse1Id], [t0].[OneToOne_Optional_Self1Id], [t0].[ChildCount], [t0].[Level2Name], [t0].[Level2Count], [t0].[IsLevel2There], [t0].[Id0]
+FROM (
+    SELECT TOP(1) [l].[Id], [l].[Date], [l].[Name], [l].[OneToMany_Optional_Self_Inverse1Id], [l].[OneToMany_Required_Self_Inverse1Id], [l].[OneToOne_Optional_Self1Id], [l0].[Name] AS [Name0], (
+        SELECT COUNT(*)
+        FROM [LevelOne] AS [l1]
+        WHERE [l].[Id] = [l1].[OneToMany_Optional_Self_Inverse1Id]) AS [c], (
+        SELECT COUNT(*)
+        FROM [LevelTwo] AS [l2]
+        WHERE [l].[Id] = [l2].[OneToMany_Optional_Inverse2Id]) AS [c0], CASE
+        WHEN EXISTS (
+            SELECT 1
+            FROM [LevelTwo] AS [l3]
+            WHERE ([l].[Id] = [l3].[OneToMany_Optional_Inverse2Id]) AND ([l3].[Id] = 2)) THEN CAST(1 AS bit)
+        ELSE CAST(0 AS bit)
+    END AS [c1], [l0].[Id] AS [Id0]
+    FROM [LevelOne] AS [l]
+    LEFT JOIN [LevelTwo] AS [l0] ON [l].[Id] = [l0].[Level1_Optional_Id]
+    WHERE [l].[Id] = 2
+    ORDER BY [l].[Name]
+) AS [t]
+OUTER APPLY (
+    SELECT [t1].[Id], [t1].[Date], [t1].[Name], [t1].[OneToMany_Optional_Self_Inverse1Id], [t1].[OneToMany_Required_Self_Inverse1Id], [t1].[OneToOne_Optional_Self1Id], (
+        SELECT COUNT(*)
+        FROM [LevelOne] AS [l5]
+        WHERE [t1].[Id] = [l5].[OneToMany_Optional_Self_Inverse1Id]) AS [ChildCount], [l4].[Name] AS [Level2Name], (
+        SELECT COUNT(*)
+        FROM [LevelTwo] AS [l6]
+        WHERE [t1].[Id] = [l6].[OneToMany_Optional_Inverse2Id]) AS [Level2Count], CASE
+        WHEN EXISTS (
+            SELECT 1
+            FROM [LevelTwo] AS [l7]
+            WHERE ([t1].[Id] = [l7].[OneToMany_Optional_Inverse2Id]) AND ([l7].[Id] = 2)) THEN CAST(1 AS bit)
+        ELSE CAST(0 AS bit)
+    END AS [IsLevel2There], [l4].[Id] AS [Id0]
+    FROM (
+        SELECT [l8].[Id], [l8].[Date], [l8].[Name], [l8].[OneToMany_Optional_Self_Inverse1Id], [l8].[OneToMany_Required_Self_Inverse1Id], [l8].[OneToOne_Optional_Self1Id]
+        FROM [LevelOne] AS [l8]
+        WHERE [t].[Id] = [l8].[OneToMany_Optional_Self_Inverse1Id]
+        ORDER BY [l8].[Name]
+        OFFSET 1 ROWS FETCH NEXT 5 ROWS ONLY
+    ) AS [t1]
+    LEFT JOIN [LevelTwo] AS [l4] ON [t1].[Id] = [l4].[Level1_Optional_Id]
+) AS [t0]
+ORDER BY [t].[Name], [t].[Id], [t].[Id0], [t0].[Name], [t0].[Id]");
         }
 
         private void AssertSql(params string[] expected)

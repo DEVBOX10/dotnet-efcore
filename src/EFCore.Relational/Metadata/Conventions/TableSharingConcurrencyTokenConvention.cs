@@ -17,6 +17,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
     ///     creates a shadow concurrency property mapped to that column
     ///     on the base-most entity type(s).
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-conventions">Model building conventions</see> for more information.
+    /// </remarks>
     public class TableSharingConcurrencyTokenConvention : IModelFinalizingConvention
     {
         private const string ConcurrencyPropertyPrefix = "_TableSharingConcurrencyTokenConvention_";
@@ -24,8 +27,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <summary>
         ///     Creates a new instance of <see cref="TableSharingConcurrencyTokenConvention" />.
         /// </summary>
-        /// <param name="dependencies"> Parameter object containing dependencies for this convention. </param>
-        /// <param name="relationalDependencies"> Parameter object containing relational dependencies for this convention. </param>
+        /// <param name="dependencies">Parameter object containing dependencies for this convention.</param>
+        /// <param name="relationalDependencies">Parameter object containing relational dependencies for this convention.</param>
         public TableSharingConcurrencyTokenConvention(
             ProviderConventionSetBuilderDependencies dependencies,
             RelationalConventionSetBuilderDependencies relationalDependencies)
@@ -251,6 +254,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
                         entityTypeDictionary.Remove(entityType);
                         break;
                     }
+
                     baseType = baseType.BaseType;
                 }
             }

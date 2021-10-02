@@ -5,13 +5,13 @@ using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace Microsoft.EntityFrameworkCore.Query
 {
-    /// <inheritdoc/>
+    /// <inheritdoc />
     public class NavigationExpansionExtensibilityHelper : INavigationExpansionExtensibilityHelper
     {
         /// <summary>
         ///     Creates a new instance of the <see cref="NavigationExpansionExtensibilityHelper" /> class.
         /// </summary>
-        /// <param name="dependencies"> Parameter object containing dependencies for this class. </param>
+        /// <param name="dependencies">Parameter object containing dependencies for this class.</param>
         public NavigationExpansionExtensibilityHelper(NavigationExpansionExtensibilityHelperDependencies dependencies)
         {
             Dependencies = dependencies;
@@ -22,13 +22,13 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// </summary>
         protected virtual NavigationExpansionExtensibilityHelperDependencies Dependencies { get; }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         public virtual QueryRootExpression CreateQueryRoot(IEntityType entityType, QueryRootExpression? source)
             => source?.QueryProvider != null
                 ? new QueryRootExpression(source.QueryProvider, entityType)
                 : new QueryRootExpression(entityType);
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         public virtual bool AreQueryRootsCompatible(QueryRootExpression? first, QueryRootExpression? second)
         {
             if (first is null && second is null)

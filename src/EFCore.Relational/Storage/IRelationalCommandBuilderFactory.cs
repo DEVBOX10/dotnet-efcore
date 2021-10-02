@@ -19,12 +19,16 @@ namespace Microsoft.EntityFrameworkCore.Storage
     ///         This service cannot depend on services registered as <see cref="ServiceLifetime.Scoped" />.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     for more information.
+    /// </remarks>
     public interface IRelationalCommandBuilderFactory
     {
         /// <summary>
         ///     Creates a new <see cref="IRelationalCommandBuilder" />.
         /// </summary>
-        /// <returns> The newly created builder. </returns>
+        /// <returns>The newly created builder.</returns>
         IRelationalCommandBuilder Create();
     }
 }

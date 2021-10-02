@@ -21,9 +21,9 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <summary>
         ///     Creates a new instance of the <see cref="RelationalQueryTranslationPostprocessor" /> class.
         /// </summary>
-        /// <param name="dependencies"> Parameter object containing dependencies for this class. </param>
-        /// <param name="relationalDependencies"> Parameter object containing relational dependencies for this class. </param>
-        /// <param name="queryCompilationContext"> The query compilation context object to use. </param>
+        /// <param name="dependencies">Parameter object containing dependencies for this class.</param>
+        /// <param name="relationalDependencies">Parameter object containing relational dependencies for this class.</param>
+        /// <param name="queryCompilationContext">The query compilation context object to use.</param>
         public RelationalQueryTranslationPostprocessor(
             QueryTranslationPostprocessorDependencies dependencies,
             RelationalQueryTranslationPostprocessorDependencies relationalDependencies,
@@ -52,7 +52,9 @@ namespace Microsoft.EntityFrameworkCore.Query
             query = new TableAliasVerifyingExpressionVisitor().Visit(query);
 #endif
             query = new SelectExpressionPruningExpressionVisitor().Visit(query);
-            query = new SqlExpressionSimplifyingExpressionVisitor(RelationalDependencies.SqlExpressionFactory, _useRelationalNulls).Visit(query);
+            query =
+                new SqlExpressionSimplifyingExpressionVisitor(RelationalDependencies.SqlExpressionFactory, _useRelationalNulls)
+                    .Visit(query);
             query = new RelationalValueConverterCompensatingExpressionVisitor(RelationalDependencies.SqlExpressionFactory).Visit(query);
 
 #pragma warning disable 618
@@ -65,8 +67,8 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <summary>
         ///     Optimizes the SQL expression.
         /// </summary>
-        /// <param name="query"> An expression to optimize. </param>
-        /// <returns> An expression which has SQL optimized. </returns>
+        /// <param name="query">An expression to optimize.</param>
+        /// <returns>An expression which has SQL optimized.</returns>
         [Obsolete(
             "Use 'Optimize' method on "
             + nameof(RelationalParameterBasedSqlProcessor)
@@ -115,7 +117,7 @@ namespace Microsoft.EntityFrameworkCore.Query
 
                     var result = Visit(expression);
 
-                    foreach (var group in _usedAliases.GroupBy(e => e[0..1]))
+                    foreach (var group in _usedAliases.GroupBy(e => e[..1]))
                     {
                         if (group.Count() == 1)
                         {
@@ -144,6 +146,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                         {
                             throw new InvalidOperationException($"Duplicate alias: {tableExpressionBase.Alias}");
                         }
+
                         _usedAliases.Add(tableExpressionBase.Alias);
 
                         _visitedTableExpressionBases.Add(tableExpressionBase);

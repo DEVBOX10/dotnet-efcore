@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.EntityFrameworkCore.Utilities;
 
 namespace Microsoft.EntityFrameworkCore
@@ -15,7 +14,7 @@ namespace Microsoft.EntityFrameworkCore
     ///     <see cref="DbContext.OnConfiguring(DbContextOptionsBuilder)" /> or use a <see cref="DbContextOptionsBuilder{TContext}" />
     ///     to create instances of this class and it is not designed to be directly constructed in your application code.
     /// </summary>
-    /// <typeparam name="TContext"> The type of the context these options apply to. </typeparam>
+    /// <typeparam name="TContext">The type of the context these options apply to.</typeparam>
     /// <remarks>
     ///     See <see href="https://aka.ms/efcore-docs-dbcontext-options">Using DbContextOptions</see> for more information.
     /// </remarks>
@@ -28,7 +27,6 @@ namespace Microsoft.EntityFrameworkCore
         ///     to create instances of this class and it is not designed to be directly constructed in your application code.
         /// </summary>
         public DbContextOptions()
-            : this(ImmutableSortedDictionary.Create<Type, IDbContextOptionsExtension>(TypeFullNameComparer.Instance))
         {
         }
 
@@ -37,9 +35,15 @@ namespace Microsoft.EntityFrameworkCore
         ///     <see cref="DbContext.OnConfiguring(DbContextOptionsBuilder)" /> or use a <see cref="DbContextOptionsBuilder{TContext}" />
         ///     to create instances of this class and it is not designed to be directly constructed in your application code.
         /// </summary>
-        /// <param name="extensions"> The extensions that store the configured options. </param>
+        /// <param name="extensions">The extensions that store the configured options.</param>
         public DbContextOptions(
             IReadOnlyDictionary<Type, IDbContextOptionsExtension> extensions)
+            : base(extensions)
+        {
+        }
+
+        private DbContextOptions(
+            ImmutableSortedDictionary<Type, (IDbContextOptionsExtension Extension, int Ordinal)> extensions)
             : base(extensions)
         {
         }
@@ -49,7 +53,14 @@ namespace Microsoft.EntityFrameworkCore
         {
             Check.NotNull(extension, nameof(extension));
 
-            return new DbContextOptions<TContext>(ExtensionsMap.SetItem(extension.GetType(), extension));
+            var type = extension.GetType();
+            var ordinal = ExtensionsMap.Count;
+            if (ExtensionsMap.TryGetValue(type, out var existingValue))
+            {
+                ordinal = existingValue.Ordinal;
+            }
+
+            return new DbContextOptions<TContext>(ExtensionsMap.SetItem(type, (extension, ordinal)));
         }
 
         /// <summary>

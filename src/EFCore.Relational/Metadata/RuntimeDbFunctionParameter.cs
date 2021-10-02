@@ -13,6 +13,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata
     /// <summary>
     ///     Represents a function parameter.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-database-functions">Database functions</see> for more information.
+    /// </remarks>
     public class RuntimeDbFunctionParameter : AnnotatableBase, IRuntimeDbFunctionParameter
     {
         private readonly string _name;
@@ -62,15 +65,16 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         /// <summary>
         ///     Gets or sets the type mapping for this parameter.
         /// </summary>
-        /// <returns> The type mapping. </returns>
+        /// <returns>The type mapping.</returns>
         public virtual RelationalTypeMapping? TypeMapping
         {
-            get => NonCapturingLazyInitializer.EnsureInitialized(ref _typeMapping, this, static parameter =>
-            {
-                var relationalTypeMappingSource =
-                    (IRelationalTypeMappingSource)((IModel)parameter.Function.Model).GetModelDependencies().TypeMappingSource;
-                return relationalTypeMappingSource.FindMapping(parameter._storeType)!;
-            });
+            get => NonCapturingLazyInitializer.EnsureInitialized(
+                ref _typeMapping, this, static parameter =>
+                    {
+                        var relationalTypeMappingSource =
+                            (IRelationalTypeMappingSource)((IModel)parameter.Function.Model).GetModelDependencies().TypeMappingSource;
+                        return relationalTypeMappingSource.FindMapping(parameter._storeType)!;
+                    });
 
             set => _typeMapping = value;
         }
@@ -78,7 +82,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         /// <summary>
         ///     Returns a string that represents the current object.
         /// </summary>
-        /// <returns> A string that represents the current object. </returns>
+        /// <returns>A string that represents the current object.</returns>
         public override string ToString()
             => ((IDbFunctionParameter)this).ToDebugString(MetadataDebugStringOptions.SingleLineDefault);
 
@@ -91,7 +95,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         [EntityFrameworkInternal]
         public virtual DebugView DebugView
             => new(
-                () => ((IDbFunctionParameter)this).ToDebugString(MetadataDebugStringOptions.ShortDefault),
+                () => ((IDbFunctionParameter)this).ToDebugString(),
                 () => ((IDbFunctionParameter)this).ToDebugString(MetadataDebugStringOptions.LongDefault));
 
         /// <inheritdoc />

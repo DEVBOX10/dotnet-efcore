@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
-using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -52,10 +51,10 @@ namespace Microsoft.EntityFrameworkCore.Query
             = typeof(Random).GetRequiredRuntimeMethod(nameof(Random.Next), Array.Empty<Type>());
 
         private static readonly MethodInfo _randomNextOneArg
-            = typeof(Random).GetRequiredRuntimeMethod(nameof(Random.Next), new[] { typeof(int) });
+            = typeof(Random).GetRequiredRuntimeMethod(nameof(Random.Next), typeof(int));
 
         private static readonly MethodInfo _randomNextTwoArgs
-            = typeof(Random).GetRequiredRuntimeMethod(nameof(Random.Next), new[] { typeof(int), typeof(int) });
+            = typeof(Random).GetRequiredRuntimeMethod(nameof(Random.Next), typeof(int), typeof(int));
 
         /// <summary>
         ///     <para>
@@ -66,7 +65,7 @@ namespace Microsoft.EntityFrameworkCore.Query
         ///         not used in application code.
         ///     </para>
         /// </summary>
-        /// <param name="dependencies"> The dependencies to use. </param>
+        /// <param name="dependencies">The dependencies to use.</param>
         public EvaluatableExpressionFilter(
             EvaluatableExpressionFilterDependencies dependencies)
         {
@@ -83,9 +82,9 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <summary>
         ///     Checks whether the given expression can be evaluated.
         /// </summary>
-        /// <param name="expression"> The expression. </param>
-        /// <param name="model"> The model. </param>
-        /// <returns> <see langword="true" /> if the expression can be evaluated; <see langword="false" /> otherwise. </returns>
+        /// <param name="expression">The expression.</param>
+        /// <param name="model">The model.</param>
+        /// <returns><see langword="true" /> if the expression can be evaluated; <see langword="false" /> otherwise.</returns>
         public virtual bool IsEvaluatableExpression(Expression expression, IModel model)
         {
             Check.NotNull(expression, nameof(expression));

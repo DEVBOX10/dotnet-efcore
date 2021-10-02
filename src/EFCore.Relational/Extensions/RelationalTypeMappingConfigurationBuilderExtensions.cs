@@ -11,15 +11,21 @@ namespace Microsoft.EntityFrameworkCore
     /// <summary>
     ///     Relational database specific extension methods for <see cref="TypeMappingConfigurationBuilder" />.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-modeling">Modeling entity types and relationships</see> for more information.
+    /// </remarks>
     public static class RelationalTypeMappingConfigurationBuilderExtensions
     {
         /// <summary>
         ///     Configures the data type of the column that the scalar maps to when targeting a relational database.
         ///     This should be the complete type name, including precision, scale, length, etc.
         /// </summary>
-        /// <param name="scalarBuilder"> The builder for the scalar being configured. </param>
-        /// <param name="typeName"> The name of the data type of the column. </param>
-        /// <returns> The same builder instance so that multiple calls can be chained. </returns>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-modeling">Modeling entity types and relationships</see> for more information.
+        /// </remarks>
+        /// <param name="scalarBuilder">The builder for the scalar being configured.</param>
+        /// <param name="typeName">The name of the data type of the column.</param>
+        /// <returns>The same builder instance so that multiple calls can be chained.</returns>
         public static TypeMappingConfigurationBuilder HasColumnType(
             this TypeMappingConfigurationBuilder scalarBuilder,
             string typeName)
@@ -36,10 +42,13 @@ namespace Microsoft.EntityFrameworkCore
         ///     Configures the data type of the column that the scalar maps to when targeting a relational database.
         ///     This should be the complete type name, including precision, scale, length, etc.
         /// </summary>
-        /// <typeparam name="TScalar"> The type of the scalar being configured. </typeparam>
-        /// <param name="scalarBuilder"> The builder for the scalar being configured. </param>
-        /// <param name="typeName"> The name of the data type of the column. </param>
-        /// <returns> The same builder instance so that multiple calls can be chained. </returns>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-modeling">Modeling entity types and relationships</see> for more information.
+        /// </remarks>
+        /// <typeparam name="TScalar">The type of the scalar being configured.</typeparam>
+        /// <param name="scalarBuilder">The builder for the scalar being configured.</param>
+        /// <param name="typeName">The name of the data type of the column.</param>
+        /// <returns>The same builder instance so that multiple calls can be chained.</returns>
         public static TypeMappingConfigurationBuilder<TScalar> HasColumnType<TScalar>(
             this TypeMappingConfigurationBuilder<TScalar> scalarBuilder,
             string typeName)
@@ -48,9 +57,12 @@ namespace Microsoft.EntityFrameworkCore
         /// <summary>
         ///     Configures the scalar as capable of storing only fixed-length data, such as strings.
         /// </summary>
-        /// <param name="scalarBuilder"> The builder for the scalar being configured. </param>
-        /// <param name="fixedLength"> A value indicating whether the scalar is constrained to fixed length values. </param>
-        /// <returns> The same builder instance so that multiple configuration calls can be chained. </returns>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-modeling">Modeling entity types and relationships</see> for more information.
+        /// </remarks>
+        /// <param name="scalarBuilder">The builder for the scalar being configured.</param>
+        /// <param name="fixedLength">A value indicating whether the scalar is constrained to fixed length values.</param>
+        /// <returns>The same builder instance so that multiple configuration calls can be chained.</returns>
         public static TypeMappingConfigurationBuilder IsFixedLength(
             this TypeMappingConfigurationBuilder scalarBuilder,
             bool fixedLength = true)
@@ -65,10 +77,13 @@ namespace Microsoft.EntityFrameworkCore
         /// <summary>
         ///     Configures the scalar as capable of storing only fixed-length data, such as strings.
         /// </summary>
-        /// <typeparam name="TScalar"> The type of the scalar being configured. </typeparam>
-        /// <param name="scalarBuilder"> The builder for the scalar being configured. </param>
-        /// <param name="fixedLength"> A value indicating whether the scalar is constrained to fixed length values. </param>
-        /// <returns> The same builder instance so that multiple configuration calls can be chained. </returns>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-modeling">Modeling entity types and relationships</see> for more information.
+        /// </remarks>
+        /// <typeparam name="TScalar">The type of the scalar being configured.</typeparam>
+        /// <param name="scalarBuilder">The builder for the scalar being configured.</param>
+        /// <param name="fixedLength">A value indicating whether the scalar is constrained to fixed length values.</param>
+        /// <returns>The same builder instance so that multiple configuration calls can be chained.</returns>
         public static TypeMappingConfigurationBuilder<TScalar> IsFixedLength<TScalar>(
             this TypeMappingConfigurationBuilder<TScalar> scalarBuilder,
             bool fixedLength = true)

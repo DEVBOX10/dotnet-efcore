@@ -5,8 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Globalization;
 using System.Linq;
+using System.Security;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.EntityFrameworkCore.Design.Internal;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -242,7 +242,11 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
         {
             Check.NotNull(entityType, nameof(entityType));
 
-            var collectionNavigations = entityType.GetNavigations().Where(n => n.IsCollection).ToList();
+            var collectionNavigations = entityType.GetDeclaredNavigations()
+                .Cast<INavigationBase>()
+                .Concat(entityType.GetDeclaredSkipNavigations())
+                .Where(n => n.IsCollection)
+                .ToList();
 
             if (collectionNavigations.Count > 0)
             {
@@ -272,7 +276,7 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
         {
             Check.NotNull(entityType, nameof(entityType));
 
-            foreach (var property in entityType.GetProperties().OrderBy(p => p.GetColumnOrdinal()))
+            foreach (var property in entityType.GetProperties().OrderBy(p => p.GetColumnOrder() ?? -1))
             {
                 GenerateComment(property.GetComment());
 
@@ -402,6 +406,7 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
                 {
                     unicodeAttribute.AddParameter(_code.Literal(false));
                 }
+
                 _sb.AppendLine(unicodeAttribute.ToString());
             }
         }
@@ -597,7 +602,7 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
 
                 foreach (var line in comment.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None))
                 {
-                    _sb.AppendLine($"/// {System.Security.SecurityElement.Escape(line)}");
+                    _sb.AppendLine($"/// {SecurityElement.Escape(line)}");
                 }
 
                 _sb.AppendLine("/// </summary>");

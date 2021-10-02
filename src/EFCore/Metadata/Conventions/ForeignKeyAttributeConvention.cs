@@ -37,7 +37,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <summary>
         ///     Creates a new instance of <see cref="ForeignKeyAttributeConvention" />.
         /// </summary>
-        /// <param name="dependencies"> Parameter object containing dependencies for this convention. </param>
+        /// <param name="dependencies">Parameter object containing dependencies for this convention.</param>
         public ForeignKeyAttributeConvention(ProviderConventionSetBuilderDependencies dependencies)
         {
             Dependencies = dependencies;
@@ -78,7 +78,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
                     inverses.Add(inverseProperty);
                     continue;
                 }
-                else if (GetAttribute<ForeignKeyAttribute>(navigation) == null)
+
+                if (GetAttribute<ForeignKeyAttribute>(navigation) == null)
                 {
                     if (FindForeignKeyAttributeOnProperty(entityType, navigation) == null)
                     {
@@ -122,8 +123,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <summary>
         ///     Called after a foreign key is added to the entity type.
         /// </summary>
-        /// <param name="relationshipBuilder"> The builder for the foreign key. </param>
-        /// <param name="context"> Additional information associated with convention execution. </param>
+        /// <param name="relationshipBuilder">The builder for the foreign key.</param>
+        /// <param name="context">Additional information associated with convention execution.</param>
         public virtual void ProcessForeignKeyAdded(
             IConventionForeignKeyBuilder relationshipBuilder,
             IConventionContext<IConventionForeignKeyBuilder> context)
@@ -140,8 +141,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <summary>
         ///     Called after a navigation is added to the entity type.
         /// </summary>
-        /// <param name="navigationBuilder"> The builder for the navigation. </param>
-        /// <param name="context"> Additional information associated with convention execution. </param>
+        /// <param name="navigationBuilder">The builder for the navigation.</param>
+        /// <param name="context">Additional information associated with convention execution.</param>
         public virtual void ProcessNavigationAdded(
             IConventionNavigationBuilder navigationBuilder,
             IConventionContext<IConventionNavigationBuilder> context)
@@ -166,10 +167,12 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
             var foreignKey = relationshipBuilder.Metadata;
 
             var fkPropertyOnPrincipal
-                = FindForeignKeyAttributeOnProperty(foreignKey.PrincipalEntityType, foreignKey.PrincipalToDependent?.GetIdentifyingMemberInfo());
+                = FindForeignKeyAttributeOnProperty(
+                    foreignKey.PrincipalEntityType, foreignKey.PrincipalToDependent?.GetIdentifyingMemberInfo());
 
             var fkPropertyOnDependent
-                = FindForeignKeyAttributeOnProperty(foreignKey.DeclaringEntityType, foreignKey.DependentToPrincipal?.GetIdentifyingMemberInfo());
+                = FindForeignKeyAttributeOnProperty(
+                    foreignKey.DeclaringEntityType, foreignKey.DependentToPrincipal?.GetIdentifyingMemberInfo());
 
             if (fkPropertyOnDependent != null
                 && fkPropertyOnPrincipal != null)
@@ -551,7 +554,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
                     {
                         var foreignKey = declaredNavigation.ForeignKey;
                         var fkPropertyOnPrincipal
-                            = FindForeignKeyAttributeOnProperty(foreignKey.PrincipalEntityType, declaredNavigation.GetIdentifyingMemberInfo());
+                            = FindForeignKeyAttributeOnProperty(
+                                foreignKey.PrincipalEntityType, declaredNavigation.GetIdentifyingMemberInfo());
                         if (fkPropertyOnPrincipal != null)
                         {
                             throw new InvalidOperationException(

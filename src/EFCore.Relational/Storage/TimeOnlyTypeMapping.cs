@@ -3,8 +3,6 @@
 
 using System;
 using System.Data;
-using System.Globalization;
-using Microsoft.EntityFrameworkCore.Utilities;
 
 namespace Microsoft.EntityFrameworkCore.Storage
 {
@@ -17,13 +15,17 @@ namespace Microsoft.EntityFrameworkCore.Storage
     ///         not used in application code.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     for more information.
+    /// </remarks>
     public class TimeOnlyTypeMapping : RelationalTypeMapping
     {
         /// <summary>
         ///     Initializes a new instance of the <see cref="TimeOnlyTypeMapping" /> class.
         /// </summary>
-        /// <param name="storeType"> The name of the database type. </param>
-        /// <param name="dbType"> The <see cref="DbType" /> to be used. </param>
+        /// <param name="storeType">The name of the database type.</param>
+        /// <param name="dbType">The <see cref="DbType" /> to be used.</param>
         public TimeOnlyTypeMapping(
             string storeType,
             DbType? dbType = System.Data.DbType.Time)
@@ -34,7 +36,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// <summary>
         ///     Initializes a new instance of the <see cref="TimeOnlyTypeMapping" /> class.
         /// </summary>
-        /// <param name="parameters"> Parameter object for <see cref="RelationalTypeMapping" />. </param>
+        /// <param name="parameters">Parameter object for <see cref="RelationalTypeMapping" />.</param>
         protected TimeOnlyTypeMapping(RelationalTypeMappingParameters parameters)
             : base(parameters)
         {
@@ -43,8 +45,8 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// <summary>
         ///     Creates a copy of this mapping.
         /// </summary>
-        /// <param name="parameters"> The parameters for this mapping. </param>
-        /// <returns> The newly created mapping. </returns>
+        /// <param name="parameters">The parameters for this mapping.</param>
+        /// <returns>The newly created mapping.</returns>
         protected override RelationalTypeMapping Clone(RelationalTypeMappingParameters parameters)
             => new TimeOnlyTypeMapping(parameters);
 

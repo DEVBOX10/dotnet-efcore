@@ -20,21 +20,25 @@ namespace Microsoft.EntityFrameworkCore.Storage
     ///         This service cannot depend on services registered as <see cref="ServiceLifetime.Scoped" />.
     ///     </para>
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
+    ///     for more information.
+    /// </remarks>
     public interface IRawSqlCommandBuilder
     {
         /// <summary>
         ///     Creates a new command based on SQL command text.
         /// </summary>
-        /// <param name="sql"> The command text. </param>
-        /// <returns> The newly created command. </returns>
+        /// <param name="sql">The command text.</param>
+        /// <returns>The newly created command.</returns>
         IRelationalCommand Build(string sql);
 
         /// <summary>
         ///     Creates a new command based on SQL command text.
         /// </summary>
-        /// <param name="sql"> The command text. </param>
-        /// <param name="parameters"> Parameters for the command. </param>
-        /// <returns> The newly created command. </returns>
+        /// <param name="sql">The command text.</param>
+        /// <param name="parameters">Parameters for the command.</param>
+        /// <returns>The newly created command.</returns>
         RawSqlCommand Build(
             string sql,
             IEnumerable<object> parameters);

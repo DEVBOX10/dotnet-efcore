@@ -15,13 +15,17 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
     ///     A convention which ensures that all sequences in the model have unique names
     ///     within a schema when truncated to the maximum identifier length for the model.
     /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-conventions">Model building conventions</see> and
+    ///     <see href="https://aka.ms/efcore-docs-sequences">Database sequences</see> for more information.
+    /// </remarks>
     public class SequenceUniquificationConvention : IModelFinalizingConvention
     {
         /// <summary>
         ///     Creates a new instance of <see cref="SequenceUniquificationConvention" />.
         /// </summary>
-        /// <param name="dependencies"> Parameter object containing dependencies for this convention. </param>
-        /// <param name="relationalDependencies"> Parameter object containing relational dependencies for this convention. </param>
+        /// <param name="dependencies">Parameter object containing dependencies for this convention.</param>
+        /// <param name="relationalDependencies">Parameter object containing relational dependencies for this convention.</param>
         public SequenceUniquificationConvention(
             ProviderConventionSetBuilderDependencies dependencies,
             RelationalConventionSetBuilderDependencies relationalDependencies)

@@ -468,16 +468,40 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
             }
 
             [ConditionalFact]
+            public virtual void Throws_for_many_to_many_with_a_shadow_navigation()
+            {
+                var modelBuilder = CreateModelBuilder();
+
+                modelBuilder.Ignore<OneToOneNavPrincipal>();
+                modelBuilder.Ignore<OneToManyNavPrincipal>();
+                modelBuilder.Entity<NavDependent>().Ignore(d => d.ManyToManyPrincipals);
+
+                modelBuilder.Entity<ManyToManyNavPrincipal>()
+                            .HasMany(d => d.Dependents)
+                            .WithMany("Shadow");
+
+                Assert.Equal(
+                    CoreStrings.ShadowManyToManyNavigation(
+                        nameof(NavDependent),
+                        "Shadow",
+                        nameof(ManyToManyNavPrincipal),
+                        nameof(ManyToManyNavPrincipal.Dependents)),
+                    Assert.Throws<InvalidOperationException>(
+                        () => modelBuilder.FinalizeModel()).Message);
+            }
+
+            [ConditionalFact]
             public virtual void Throws_for_self_ref_with_same_navigation()
             {
                 var modelBuilder = CreateModelBuilder();
 
-                modelBuilder.Entity<SelfRefManyToOne>().Ignore(s => s.SelfRef1);
-                modelBuilder.Entity<SelfRefManyToOne>().HasMany(t => t.SelfRef2)
-                    .WithMany(t => t.SelfRef2);
-
-                Assert.Equal(CoreStrings.EntityRequiresKey("SelfRefManyToOneSelfRefManyToOne (Dictionary<string, object>)"),
-                    Assert.Throws<InvalidOperationException>(() => modelBuilder.FinalizeModel()).Message);
+                Assert.Equal(
+                    CoreStrings.ManyToManyOneNav(nameof(SelfRefManyToOne), nameof(SelfRefManyToOne.SelfRef2)),
+                    Assert.Throws<InvalidOperationException>(
+                        () => modelBuilder
+                            .Entity<SelfRefManyToOne>()
+                            .HasMany(e => e.SelfRef2)
+                            .WithMany(e => e.SelfRef2)).Message);
             }
 
             [ConditionalFact]

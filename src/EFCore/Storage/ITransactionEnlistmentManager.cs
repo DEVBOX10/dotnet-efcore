@@ -23,7 +23,8 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// <summary>
         ///     The current ambient transaction. Defaults to <see cref="Transaction.Current" />.
         /// </summary>
-        Transaction? CurrentAmbientTransaction => Transaction.Current;
+        Transaction? CurrentAmbientTransaction
+            => Transaction.Current;
 
         /// <summary>
         ///     The currently enlisted transaction.
@@ -33,7 +34,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// <summary>
         ///     Specifies an existing <see cref="Transaction" /> to be used for database operations.
         /// </summary>
-        /// <param name="transaction"> The transaction to be used. </param>
+        /// <param name="transaction">The transaction to be used.</param>
         void EnlistTransaction(Transaction? transaction);
     }
 }

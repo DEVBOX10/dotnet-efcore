@@ -260,7 +260,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                         throw new InvalidOperationException(
                             CoreStrings.TempValuePersists(
                                 property.Name,
-                                EntityType.DisplayName(), newState));
+                                entityType.DisplayName(), newState));
                     }
                 }
             }
@@ -290,7 +290,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             if (newState == EntityState.Unchanged)
             {
                 _stateData.FlagAllProperties(
-                    EntityType.PropertyCount(), PropertyFlag.Modified,
+                    entityType.PropertyCount(), PropertyFlag.Modified,
                     flagged: false);
             }
 
@@ -318,6 +318,8 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
             _stateData.EntityState = newState;
 
+            // Save shared identity entity before it's detached
+            var sharedIdentityEntry = SharedIdentityEntry;
             if (oldState == EntityState.Detached)
             {
                 StateManager.StartTracking(this);
@@ -331,7 +333,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                     || newState == EntityState.Detached)
                 && HasConceptualNull)
             {
-                _stateData.FlagAllProperties(EntityType.PropertyCount(), PropertyFlag.Null, flagged: false);
+                _stateData.FlagAllProperties(entityType.PropertyCount(), PropertyFlag.Null, flagged: false);
             }
 
             if (oldState == EntityState.Detached
@@ -352,35 +354,50 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
             FireStateChanged(oldState);
 
-            if (SharedIdentityEntry != null)
-            {
-                if (newState == EntityState.Unchanged)
-                {
-                    SharedIdentityEntry.SetEntityState(EntityState.Detached);
-                }
-                else if (newState == EntityState.Modified
-                    && SharedIdentityEntry.EntityState == EntityState.Modified)
-                {
-                    if (StateManager.SensitiveLoggingEnabled)
-                    {
-                        throw new InvalidOperationException(
-                            CoreStrings.IdentityConflictSensitive(
-                                EntityType.DisplayName(),
-                                this.BuildCurrentValuesString(EntityType.FindPrimaryKey()!.Properties)));
-                    }
-
-                    throw new InvalidOperationException(
-                        CoreStrings.IdentityConflict(
-                            EntityType.DisplayName(),
-                            EntityType.FindPrimaryKey()!.Properties.Format()));
-                }
-            }
+            HandleSharedIdentityEntry(oldState, newState, entityType);
 
             if ((newState == EntityState.Deleted
                     || newState == EntityState.Detached)
+                && sharedIdentityEntry == null
                 && StateManager.CascadeDeleteTiming == CascadeTiming.Immediate)
             {
                 StateManager.CascadeDelete(this, force: false);
+            }
+        }
+
+        private void HandleSharedIdentityEntry(EntityState oldState, EntityState newState, IEntityType entityType)
+        {
+            var sharedIdentityEntry = SharedIdentityEntry;
+            if (sharedIdentityEntry == null)
+            {
+                return;
+            }
+
+            switch (newState)
+            {
+                case EntityState.Unchanged:
+                    sharedIdentityEntry.SetEntityState(EntityState.Detached);
+                    break;
+                case EntityState.Added:
+                case EntityState.Modified:
+                    if (sharedIdentityEntry.EntityState == EntityState.Added
+                        || sharedIdentityEntry.EntityState == EntityState.Modified)
+                    {
+                        if (StateManager.SensitiveLoggingEnabled)
+                        {
+                            throw new InvalidOperationException(
+                                CoreStrings.IdentityConflictSensitive(
+                                    EntityType.DisplayName(),
+                                    this.BuildCurrentValuesString(EntityType.FindPrimaryKey()!.Properties)));
+                        }
+
+                        throw new InvalidOperationException(
+                            CoreStrings.IdentityConflict(
+                                EntityType.DisplayName(),
+                                EntityType.FindPrimaryKey()!.Properties.Format()));
+                    }
+
+                    break;
             }
         }
 
@@ -663,7 +680,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                 return CurrentValueType.Normal;
             }
 
-            @equals ??= ValuesEqualFunc(property);
+            equals ??= ValuesEqualFunc(property);
             var defaultValue = property.ClrType.GetDefaultValue();
             var value = ReadPropertyValue(property);
             if (!equals(value, defaultValue))
@@ -1011,17 +1028,11 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
             // If setting the original value results in the current value being different from the
             // original value, then mark the property as modified.
-            if (EntityState == EntityState.Unchanged
-                || (EntityState == EntityState.Modified
-                    && !IsModified(property)))
+            if ((EntityState == EntityState.Unchanged
+                    || (EntityState == EntityState.Modified && !IsModified(property)))
+                && !_stateData.IsPropertyFlagged(property.GetIndex(), PropertyFlag.Unknown))
             {
-                var currentValue = this[propertyBase];
-                var propertyIndex = property.GetIndex();
-                if (!ValuesEqualFunc(property)(currentValue, value)
-                    && !_stateData.IsPropertyFlagged(propertyIndex, PropertyFlag.Unknown))
-                {
-                    SetPropertyModified(property);
-                }
+                ((StateManager as StateManager)?.ChangeDetector as ChangeDetector)?.DetectValueChange(this, property);
             }
         }
 
@@ -1034,6 +1045,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         public void SetRelationshipSnapshotValue(IPropertyBase propertyBase, object? value)
         {
             EnsureRelationshipSnapshot();
+
             _relationshipsSnapshot.SetValue(propertyBase, value);
         }
 
@@ -1118,11 +1130,11 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public void RemoveFromCollectionSnapshot(
-            IPropertyBase propertyBase,
+            INavigationBase navigation,
             object removedEntity)
         {
             EnsureRelationshipSnapshot();
-            _relationshipsSnapshot.RemoveFromCollection(propertyBase, removedEntity);
+            _relationshipsSnapshot.RemoveFromCollection(navigation, removedEntity);
         }
 
         /// <summary>
@@ -1131,10 +1143,10 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public void AddToCollectionSnapshot(IPropertyBase propertyBase, object addedEntity)
+        public void AddToCollectionSnapshot(INavigationBase navigation, object addedEntity)
         {
             EnsureRelationshipSnapshot();
-            _relationshipsSnapshot.AddToCollection(propertyBase, addedEntity);
+            _relationshipsSnapshot.AddToCollection(navigation, addedEntity);
         }
 
         /// <summary>
@@ -1144,11 +1156,11 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public void AddRangeToCollectionSnapshot(
-            IPropertyBase propertyBase,
+            INavigationBase navigation,
             IEnumerable<object> addedEntities)
         {
             EnsureRelationshipSnapshot();
-            _relationshipsSnapshot.AddRangeToCollection(propertyBase, addedEntities);
+            _relationshipsSnapshot.AddRangeToCollection(navigation, addedEntities);
         }
 
         /// <summary>
@@ -1339,6 +1351,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                             {
                                 SetOriginalValue(propertyBase, value);
                             }
+
                             _stateData.FlagProperty(propertyIndex, PropertyFlag.Unknown, isFlagged: false);
                         }
                     }
@@ -1364,7 +1377,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         /// </summary>
         public void HandleNullForeignKey(
             IProperty property,
-            bool setModified = false, 
+            bool setModified = false,
             bool isCascadeDelete = false)
         {
             if (EntityState != EntityState.Deleted
@@ -1391,13 +1404,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         }
 
         private static Func<object?, object?, bool> ValuesEqualFunc(IProperty property)
-        {
-            var comparer = property.GetValueComparer();
-
-            return comparer != null
-                ? (Func<object?, object?, bool>)((l, r) => comparer.Equals(l, r))
-                : (l, r) => Equals(l, r);
-        }
+            => property.GetValueComparer().Equals;
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -1939,7 +1946,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         public DebugView DebugView
             => new(
                 () => this.ToDebugString(ChangeTrackerDebugStringOptions.ShortDefault),
-                () => this.ToDebugString(ChangeTrackerDebugStringOptions.LongDefault));
+                () => this.ToDebugString());
 
         IUpdateEntry? IUpdateEntry.SharedIdentityEntry
             => SharedIdentityEntry;
