@@ -543,7 +543,7 @@ namespace Microsoft.EntityFrameworkCore
         ///     </para>
         /// </summary>
         /// <remarks>
-        ///     Ssee <see href="https://aka.ms/efcore-docs-saving-data">Saving data in EF Core</see> for more information.
+        ///     See <see href="https://aka.ms/efcore-docs-saving-data">Saving data in EF Core</see> for more information.
         /// </remarks>
         /// <returns>
         ///     The number of state entries written to the database.
@@ -576,7 +576,7 @@ namespace Microsoft.EntityFrameworkCore
         ///     </para>
         /// </summary>
         /// <remarks>
-        ///     Ssee <see href="https://aka.ms/efcore-docs-saving-data">Saving data in EF Core</see> for more information.
+        ///     See <see href="https://aka.ms/efcore-docs-saving-data">Saving data in EF Core</see> for more information.
         /// </remarks>
         /// <param name="acceptAllChangesOnSuccess">
         ///     Indicates whether <see cref="ChangeTracker.AcceptAllChanges" /> is called after the changes have
@@ -668,7 +668,7 @@ namespace Microsoft.EntityFrameworkCore
         ///     </para>
         /// </summary>
         /// <remarks>
-        ///     Ssee <see href="https://aka.ms/efcore-docs-saving-data">Saving data in EF Core</see> for more information.
+        ///     See <see href="https://aka.ms/efcore-docs-saving-data">Saving data in EF Core</see> for more information.
         /// </remarks>
         /// <param name="cancellationToken">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
         /// <returns>
@@ -704,7 +704,7 @@ namespace Microsoft.EntityFrameworkCore
         ///     </para>
         /// </summary>
         /// <remarks>
-        ///     Ssee <see href="https://aka.ms/efcore-docs-saving-data">Saving data in EF Core</see> for more information.
+        ///     See <see href="https://aka.ms/efcore-docs-saving-data">Saving data in EF Core</see> for more information.
         /// </remarks>
         /// <param name="acceptAllChangesOnSuccess">
         ///     Indicates whether <see cref="ChangeTracker.AcceptAllChanges" /> is called after the changes have
@@ -775,7 +775,7 @@ namespace Microsoft.EntityFrameworkCore
         }
 
         /// <summary>
-        ///     An event fired at the beginning of a call to <see cref="M:SaveChanges" /> or <see cref="M:SaveChangesAsync" />
+        ///     An event fired at the beginning of a call to <see cref="O:SaveChanges" /> or <see cref="O:SaveChangesAsync" />
         /// </summary>
         /// <remarks>
         ///     See <see href="https://aka.ms/efcore-docs-saving-data">Saving data in EF Core</see> and
@@ -784,7 +784,7 @@ namespace Microsoft.EntityFrameworkCore
         public event EventHandler<SavingChangesEventArgs>? SavingChanges;
 
         /// <summary>
-        ///     An event fired at the end of a call to <see cref="M:SaveChanges" /> or <see cref="M:SaveChangesAsync" />
+        ///     An event fired at the end of a call to <see cref="O:SaveChanges" /> or <see cref="O:SaveChangesAsync" />
         /// </summary>
         /// <remarks>
         ///     See <see href="https://aka.ms/efcore-docs-saving-data">Saving data in EF Core</see> and
@@ -793,7 +793,7 @@ namespace Microsoft.EntityFrameworkCore
         public event EventHandler<SavedChangesEventArgs>? SavedChanges;
 
         /// <summary>
-        ///     An event fired if a call to <see cref="M:SaveChanges" /> or <see cref="M:SaveChangesAsync" /> fails with an exception.
+        ///     An event fired if a call to <see cref="O:SaveChanges" /> or <see cref="O:SaveChangesAsync" /> fails with an exception.
         /// </summary>
         /// <remarks>
         ///     See <see href="https://aka.ms/efcore-docs-saving-data">Saving data in EF Core</see> and
@@ -956,20 +956,51 @@ namespace Microsoft.EntityFrameworkCore
         /// </remarks>
         public virtual void Dispose()
         {
-            var leaseActive = _lease.IsActive;
-            var contextDisposed = leaseActive && _lease.ContextDisposed();
+            var lease = _lease;
+            var contextShouldBeDisposed = lease.IsActive && _lease.IsStandalone;
 
-            if (DisposeSync(leaseActive, contextDisposed))
+            if (DisposeSync(lease.IsActive, contextShouldBeDisposed))
             {
                 _serviceScope?.Dispose();
             }
+
+            lease.ContextDisposed();
         }
 
-        private bool DisposeSync(bool leaseActive, bool contextDisposed)
+        /// <summary>
+        ///     <para>
+        ///         Releases the allocated resources for this context.
+        ///     </para>
+        ///     <para>
+        ///         Entity Framework Core does not support multiple parallel operations being run on the same DbContext instance. This
+        ///         includes both parallel execution of async queries and any explicit concurrent use from multiple threads.
+        ///         Therefore, always await async calls immediately, or use separate DbContext instances for operations that execute
+        ///         in parallel. See <see href="https://aka.ms/efcore-docs-threading">Avoiding DbContext threading issues</see>
+        ///         for more information.
+        ///     </para>
+        /// </summary>
+        /// <remarks>
+        ///     See <see href="https://aka.ms/efcore-docs-dbcontext">DbContext lifetime, configuration, and initialization</see>
+        ///     for more information.
+        /// </remarks>
+        public virtual async ValueTask DisposeAsync()
+        {
+            var lease = _lease;
+            var contextShouldBeDisposed = lease.IsActive && _lease.IsStandalone;
+
+            if (DisposeSync(lease.IsActive, contextShouldBeDisposed))
+            {
+                await _serviceScope.DisposeAsyncIfAvailable();
+            }
+
+            await lease.ContextDisposedAsync();
+        }
+
+        private bool DisposeSync(bool leaseActive, bool contextShouldBeDisposed)
         {
             if (leaseActive)
             {
-                if (contextDisposed)
+                if (contextShouldBeDisposed)
                 {
                     _disposed = true;
                     _lease = DbContextLease.InactiveLease;
@@ -998,33 +1029,6 @@ namespace Microsoft.EntityFrameworkCore
             }
 
             return false;
-        }
-
-        /// <summary>
-        ///     <para>
-        ///         Releases the allocated resources for this context.
-        ///     </para>
-        ///     <para>
-        ///         Entity Framework Core does not support multiple parallel operations being run on the same DbContext instance. This
-        ///         includes both parallel execution of async queries and any explicit concurrent use from multiple threads.
-        ///         Therefore, always await async calls immediately, or use separate DbContext instances for operations that execute
-        ///         in parallel. See <see href="https://aka.ms/efcore-docs-threading">Avoiding DbContext threading issues</see>
-        ///         for more information.
-        ///     </para>
-        /// </summary>
-        /// <remarks>
-        ///     See <see href="https://aka.ms/efcore-docs-dbcontext">DbContext lifetime, configuration, and initialization</see>
-        ///     for more information.
-        /// </remarks>
-        public virtual async ValueTask DisposeAsync()
-        {
-            var leaseActive = _lease.IsActive;
-            var contextDisposed = leaseActive && await _lease.ContextDisposedAsync();
-
-            if (DisposeSync(leaseActive, contextDisposed))
-            {
-                await _serviceScope.DisposeAsyncIfAvailable();
-            }
         }
 
         /// <summary>
