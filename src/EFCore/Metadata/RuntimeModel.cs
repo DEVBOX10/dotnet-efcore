@@ -13,22 +13,29 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Microsoft.EntityFrameworkCore.Metadata
 {
     /// <summary>
-    ///     <para>
-    ///         Metadata about the shape of entities, the relationships between them, and how they map to
-    ///         the database. A model is typically created by overriding the
-    ///         <see cref="DbContext.OnModelCreating(ModelBuilder)" /> method on a derived
-    ///         <see cref="DbContext" />.
-    ///     </para>
+    ///     Metadata about the shape of entities, the relationships between them, and how they map to
+    ///     the database. A model is typically created by overriding the
+    ///     <see cref="DbContext.OnModelCreating(ModelBuilder)" /> method on a derived
+    ///     <see cref="DbContext" />.
+    /// </summary>
+    /// <remarks>
     ///     <para>
     ///         This is a light-weight implementation that is constructed from a built model and is not meant to be used at design-time.
     ///     </para>
-    /// </summary>
-    /// <remarks>
-    ///     See <see href="https://aka.ms/efcore-docs-modeling">Modeling entity types and relationships</see> for more information.
+    ///     <para>
+    ///         The service lifetime is <see cref="ServiceLifetime.Scoped" />. This means that each
+    ///         <see cref="DbContext" /> instance will use its own instance of this service.
+    ///         The implementation may depend on other services registered with any lifetime.
+    ///         The implementation does not need to be thread-safe.
+    ///     </para>
+    ///     <para>
+    ///         See <see href="https://aka.ms/efcore-docs-modeling">Modeling entity types and relationships</see> for more information.
+    ///     </para>
     /// </remarks>
     public class RuntimeModel : AnnotatableBase, IRuntimeModel
     {

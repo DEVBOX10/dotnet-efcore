@@ -6,31 +6,40 @@ using System.Collections.Generic;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.DependencyInjection;
 
 // ReSharper disable once CheckNamespace
 namespace Microsoft.EntityFrameworkCore
 {
     /// <summary>
-    ///     <para>
-    ///         An <see cref="IExecutionStrategy" /> implementation for retrying failed executions on SQL Server.
-    ///     </para>
+    ///     An <see cref="IExecutionStrategy" /> implementation for retrying failed executions on SQL Server.
+    /// </summary>
+    /// <remarks>
     ///     <para>
     ///         This strategy is specifically tailored to SQL Server (including SQL Azure). It is pre-configured with
     ///         error numbers for transient errors that can be retried. Additional error numbers to retry on can also be supplied.
     ///     </para>
-    /// </summary>
+    ///     <para>
+    ///         The service lifetime is <see cref="ServiceLifetime.Scoped" />. This means that each
+    ///         <see cref="DbContext" /> instance will use its own instance of this service.
+    ///         The implementation may depend on other services registered with any lifetime.
+    ///         The implementation does not need to be thread-safe.
+    ///     </para>
+    ///     <para>
+    ///         See <see href="https://aka.ms/efcore-docs-connection-resiliency">Connection resiliency and database retries</see>
+    ///         for more information.
+    ///     </para>
+    /// </remarks>
     public class SqlServerRetryingExecutionStrategy : ExecutionStrategy
     {
         private readonly ICollection<int>? _additionalErrorNumbers;
 
         /// <summary>
-        ///     <para>
-        ///         Creates a new instance of <see cref="SqlServerRetryingExecutionStrategy" />.
-        ///     </para>
-        ///     <para>
-        ///         Default values of 6 for the maximum retry count and 30 seconds for the maximum default delay are used.
-        ///     </para>
+        ///     Creates a new instance of <see cref="SqlServerRetryingExecutionStrategy" />.
         /// </summary>
+        /// <remarks>
+        ///     Default values of 6 for the maximum retry count and 30 seconds for the maximum default delay are used.
+        /// </remarks>
         /// <param name="context">The context on which the operations will be invoked.</param>
         public SqlServerRetryingExecutionStrategy(
             DbContext context)
@@ -39,13 +48,11 @@ namespace Microsoft.EntityFrameworkCore
         }
 
         /// <summary>
-        ///     <para>
-        ///         Creates a new instance of <see cref="SqlServerRetryingExecutionStrategy" />.
-        ///     </para>
-        ///     <para>
-        ///         Default values of 6 for the maximum retry count and 30 seconds for the maximum default delay are used.
-        ///     </para>
+        ///     Creates a new instance of <see cref="SqlServerRetryingExecutionStrategy" />.
         /// </summary>
+        /// <remarks>
+        ///     Default values of 6 for the maximum retry count and 30 seconds for the maximum default delay are used.
+        /// </remarks>
         /// <param name="dependencies">Parameter object containing service dependencies.</param>
         public SqlServerRetryingExecutionStrategy(
             ExecutionStrategyDependencies dependencies)
@@ -54,13 +61,11 @@ namespace Microsoft.EntityFrameworkCore
         }
 
         /// <summary>
-        ///     <para>
-        ///         Creates a new instance of <see cref="SqlServerRetryingExecutionStrategy" />.
-        ///     </para>
-        ///     <para>
-        ///         A default value 30 seconds for the maximum default delay is used.
-        ///     </para>
+        ///     Creates a new instance of <see cref="SqlServerRetryingExecutionStrategy" />.
         /// </summary>
+        /// <remarks>
+        ///     A default value 30 seconds for the maximum default delay is used.
+        /// </remarks>
         /// <param name="context">The context on which the operations will be invoked.</param>
         /// <param name="maxRetryCount">The maximum number of retry attempts.</param>
         public SqlServerRetryingExecutionStrategy(
@@ -71,13 +76,11 @@ namespace Microsoft.EntityFrameworkCore
         }
 
         /// <summary>
-        ///     <para>
-        ///         Creates a new instance of <see cref="SqlServerRetryingExecutionStrategy" />.
-        ///     </para>
-        ///     <para>
-        ///         A default value 30 seconds for the maximum default delay is used.
-        ///     </para>
+        ///     Creates a new instance of <see cref="SqlServerRetryingExecutionStrategy" />.
         /// </summary>
+        /// <remarks>
+        ///     A default value 30 seconds for the maximum default delay is used.
+        /// </remarks>
         /// <param name="dependencies">Parameter object containing service dependencies.</param>
         /// <param name="maxRetryCount">The maximum number of retry attempts.</param>
         public SqlServerRetryingExecutionStrategy(

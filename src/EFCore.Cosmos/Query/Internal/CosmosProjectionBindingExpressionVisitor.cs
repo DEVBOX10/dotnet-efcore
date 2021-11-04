@@ -37,18 +37,10 @@ namespace Microsoft.EntityFrameworkCore.Cosmos.Query.Internal
         private SelectExpression _selectExpression;
         private bool _clientEval;
 
-        private readonly IDictionary<ProjectionMember, Expression> _projectionMapping
-            = new Dictionary<ProjectionMember, Expression>();
-
+        private readonly Dictionary<ProjectionMember, Expression> _projectionMapping = new();
         private readonly Stack<ProjectionMember> _projectionMembers = new();
-
-#pragma warning disable CS0618 // Type or member is obsolete
-        private readonly IDictionary<ParameterExpression, CollectionShaperExpression> _collectionShaperMapping
-            = new Dictionary<ParameterExpression, CollectionShaperExpression>();
-#pragma warning restore CS0618 // Type or member is obsolete
-
-        private readonly Stack<INavigation> _includedNavigations
-            = new();
+        private readonly Dictionary<ParameterExpression, CollectionShaperExpression> _collectionShaperMapping = new();
+        private readonly Stack<INavigation> _includedNavigations = new();
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -221,8 +213,6 @@ namespace Microsoft.EntityFrameworkCore.Cosmos.Query.Internal
         /// </summary>
         protected override Expression VisitExtension(Expression extensionExpression)
         {
-            Check.NotNull(extensionExpression, nameof(extensionExpression));
-
             switch (extensionExpression)
             {
                 case EntityShaperExpression entityShaperExpression:
@@ -296,8 +286,6 @@ namespace Microsoft.EntityFrameworkCore.Cosmos.Query.Internal
         /// </summary>
         protected override Expression VisitMember(MemberExpression memberExpression)
         {
-            Check.NotNull(memberExpression, nameof(memberExpression));
-
             if (!_clientEval)
             {
                 return null;
@@ -445,8 +433,6 @@ namespace Microsoft.EntityFrameworkCore.Cosmos.Query.Internal
         /// </summary>
         protected override Expression VisitMemberInit(MemberInitExpression memberInitExpression)
         {
-            Check.NotNull(memberInitExpression, nameof(memberInitExpression));
-
             var newExpression = Visit(memberInitExpression.NewExpression);
             if (newExpression == null)
             {
@@ -480,8 +466,6 @@ namespace Microsoft.EntityFrameworkCore.Cosmos.Query.Internal
         /// </summary>
         protected override Expression VisitMethodCall(MethodCallExpression methodCallExpression)
         {
-            Check.NotNull(methodCallExpression, nameof(methodCallExpression));
-
             if (methodCallExpression.TryGetEFPropertyArguments(out var source, out var memberName)
                 || methodCallExpression.TryGetIndexerArguments(_model, out source, out memberName))
             {
@@ -663,8 +647,6 @@ namespace Microsoft.EntityFrameworkCore.Cosmos.Query.Internal
         /// </summary>
         protected override Expression VisitNew(NewExpression newExpression)
         {
-            Check.NotNull(newExpression, nameof(newExpression));
-
             if (newExpression.Arguments.Count == 0)
             {
                 return newExpression;

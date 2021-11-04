@@ -9,24 +9,14 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Update;
-using Microsoft.EntityFrameworkCore.Utilities;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Microsoft.EntityFrameworkCore.InMemory.Storage.Internal
 {
     /// <summary>
-    ///     <para>
-    ///         This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-    ///         the same compatibility standards as public APIs. It may be changed or removed without notice in
-    ///         any release. You should only use it directly in your code with extreme caution and knowing that
-    ///         doing so can result in application failures when updating to a new Entity Framework Core release.
-    ///     </para>
-    ///     <para>
-    ///         The service lifetime is <see cref="ServiceLifetime.Scoped" />. This means that each
-    ///         <see cref="DbContext" /> instance will use its own instance of this service.
-    ///         The implementation may depend on other services registered with any lifetime.
-    ///         The implementation does not need to be thread-safe.
-    ///     </para>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     public class InMemoryDatabase : Database, IInMemoryDatabase
     {
@@ -50,11 +40,6 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Storage.Internal
             IDiagnosticsLogger<DbLoggerCategory.Update> updateLogger)
             : base(dependencies)
         {
-            Check.NotNull(storeCache, nameof(storeCache));
-            Check.NotNull(options, nameof(options));
-            Check.NotNull(updateAdapterFactory, nameof(updateAdapterFactory));
-            Check.NotNull(updateLogger, nameof(updateLogger));
-
             _store = storeCache.GetStore(options);
             _designTimeModel = designTimeModel;
             _updateAdapterFactory = updateAdapterFactory;
@@ -77,7 +62,7 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Storage.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public override int SaveChanges(IList<IUpdateEntry> entries)
-            => _store.ExecuteTransaction(Check.NotNull(entries, nameof(entries)), _updateLogger);
+            => _store.ExecuteTransaction(entries, _updateLogger);
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -88,7 +73,7 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Storage.Internal
         public override Task<int> SaveChangesAsync(
             IList<IUpdateEntry> entries,
             CancellationToken cancellationToken = default)
-            => Task.FromResult(_store.ExecuteTransaction(Check.NotNull(entries, nameof(entries)), _updateLogger));
+            => Task.FromResult(_store.ExecuteTransaction(entries, _updateLogger));
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to

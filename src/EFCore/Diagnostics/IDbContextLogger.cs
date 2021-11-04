@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Microsoft.EntityFrameworkCore.Diagnostics
@@ -11,14 +12,22 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
     ///     Used by <see cref="DbContextOptionsBuilder.LogTo(Action{string},LogLevel,DbContextLoggerOptions?)" />
     /// </summary>
     /// <remarks>
-    ///     See <see href="https://aka.ms/efcore-docs-simple-logging">EF Core simple logging</see> for more information.
+    ///     <para>
+    ///         The service lifetime is <see cref="ServiceLifetime.Scoped" />. This means that each
+    ///         <see cref="DbContext" /> instance will use its own instance of this service.
+    ///         The implementation may depend on other services registered with any lifetime.
+    ///         The implementation does not need to be thread-safe.
+    ///     </para>
+    ///     <para>
+    ///         See <see href="https://aka.ms/efcore-docs-simple-logging">EF Core simple logging</see> for more information.
+    ///     </para>
     /// </remarks>
     public interface IDbContextLogger
     {
         /// <summary>
-        ///     <para>
-        ///         Logs the given <see cref="EventData" />.
-        ///     </para>
+        ///     Logs the given <see cref="EventData" />.
+        /// </summary>
+        /// <remarks>
         ///     <para>
         ///         This method is only called if <see cref="ShouldLog" /> returns true.
         ///     </para>
@@ -26,7 +35,7 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         ///         The specific subtype of the <see cref="EventData" /> argument is dependent on the event
         ///         being logged. See <see cref="CoreEventId" /> for the type of event data used for each core event.
         ///     </para>
-        /// </summary>
+        /// </remarks>
         /// <param name="eventData">The event to log.</param>
         void Log(EventData eventData);
 

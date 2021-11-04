@@ -96,8 +96,6 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
                 parameterize: false,
                 generateContextAccessors: true);
 
-            // TODO: Use MemberNotNullWhen
-            // Value won't be accessed when condition is not met.
             _nonCyclicAutoIncludeEntityTypes = !_queryCompilationContext.IgnoreAutoIncludes ? new HashSet<IEntityType>() : null!;
         }
 
@@ -214,7 +212,10 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
                 && innerExpression != null
                 && memberExpression.Member.Name == nameof(ICollection<int>.Count)
                 && memberExpression.Expression.Type.GetInterfaces().Append(memberExpression.Expression.Type)
-                    .Any(e => e.IsGenericType && e.GetGenericTypeDefinition() == typeof(ICollection<>)))
+                    .Any(e => e.IsGenericType
+                        && (e.GetGenericTypeDefinition() is Type genericTypeDefinition
+                            && (genericTypeDefinition == typeof(ICollection<>)
+                                || genericTypeDefinition == typeof(IReadOnlyCollection<>)))))
             {
                 var innerQueryable = UnwrapCollectionMaterialization(innerExpression);
 
@@ -733,8 +734,7 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
                     || method.GetGenericMethodDefinition() == EnumerableMethods.ToArray))
             {
                 return methodCallExpression.Update(
-                    // TODO-Nullable bug
-                    null!, new[] { UnwrapCollectionMaterialization(Visit(methodCallExpression.Arguments[0])) });
+                    null, new[] { UnwrapCollectionMaterialization(Visit(methodCallExpression.Arguments[0])) });
             }
 
             return ProcessUnknownMethod(methodCallExpression);
@@ -1109,8 +1109,7 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
                     var arguments = new List<Expression> { filterExpression.Body };
                     arguments.AddRange(methodCallExpression.Arguments.Skip(1));
                     filterExpression = Expression.Lambda(
-                        // TODO-Nullable bug
-                        methodCallExpression.Update(methodCallExpression.Object!, arguments),
+                        methodCallExpression.Update(methodCallExpression.Object, arguments),
                         filterExpression.Parameters);
 
                     return (result, filterExpression);
@@ -1135,8 +1134,7 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
                     arguments.Add(source);
                     arguments.AddRange(methodCallExpression.Arguments.Skip(1));
 
-                    // TODO-Nullable bug
-                    return methodCallExpression.Update(methodCallExpression.Object!, arguments);
+                    return methodCallExpression.Update(methodCallExpression.Object, arguments);
                 }
 
                 return expression;

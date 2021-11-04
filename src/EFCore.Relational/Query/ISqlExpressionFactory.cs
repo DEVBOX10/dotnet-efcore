@@ -13,34 +13,16 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Microsoft.EntityFrameworkCore.Query
 {
     /// <summary>
-    ///     <para>
-    ///         A factory for creating <see cref="SqlExpression" /> instances.
-    ///     </para>
-    ///     <para>
-    ///         The service lifetime is <see cref="ServiceLifetime.Scoped" />. This means that each
-    ///         <see cref="DbContext" /> instance will use its own instance of this service.
-    ///         The implementation may depend on other services registered with any lifetime.
-    ///         The implementation does not need to be thread-safe.
-    ///     </para>
+    ///     A factory for creating <see cref="SqlExpression" /> instances.
     /// </summary>
+    /// <remarks>
+    ///     The service lifetime is <see cref="ServiceLifetime.Scoped" />. This means that each
+    ///     <see cref="DbContext" /> instance will use its own instance of this service.
+    ///     The implementation may depend on other services registered with any lifetime.
+    ///     The implementation does not need to be thread-safe.
+    /// </remarks>
     public interface ISqlExpressionFactory
     {
-        /// <summary>
-        ///     Gets the relational database type for a given object, throwing if no mapping is found.
-        /// </summary>
-        /// <param name="value">The object to get the mapping for.</param>
-        /// <returns>The type mapping to be used.</returns>
-        [Obsolete("Use IRelationalTypeMappingSource directly.")]
-        RelationalTypeMapping GetTypeMappingForValue(object? value);
-
-        /// <summary>
-        ///     Finds the type mapping for a given <see cref="Type" />.
-        /// </summary>
-        /// <param name="type">The CLR type.</param>
-        /// <returns>The type mapping, or <see langword="null" /> if none was found.</returns>
-        [Obsolete("Use IRelationalTypeMappingSource directly.")]
-        RelationalTypeMapping? FindMapping(Type type);
-
         /// <summary>
         ///     Applies type mapping to the given <see cref="SqlExpression" />.
         /// </summary>
@@ -240,12 +222,12 @@ namespace Microsoft.EntityFrameworkCore.Query
 
         // Other
         /// <summary>
-        ///     Creates a <see cref="SqlBinaryExpression" /> which represents a bitwise OR operation.
+        ///     Creates a <see cref="SqlFunctionExpression" /> which represents a COALESCE operation.
         /// </summary>
         /// <param name="left">The left operand.</param>
         /// <param name="right">The right operand.</param>
         /// <param name="typeMapping">A type mapping to be assigned to the created expression.</param>
-        /// <returns>An expression representing a SQL bitwise OR operation.</returns>
+        /// <returns>An expression representing a SQL COALESCE operation.</returns>
         SqlFunctionExpression Coalesce(
             SqlExpression left,
             SqlExpression right,
@@ -296,15 +278,6 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// </summary>
         /// <param name="operand">An expression to compare with <see cref="CaseWhenClause.Test" /> in <paramref name="whenClauses" />.</param>
         /// <param name="whenClauses">A list of <see cref="CaseWhenClause" /> to compare and get result from.</param>
-        /// <returns>An expression representing a CASE statement in a SQL tree.</returns>
-        [Obsolete("Use overload which takes IReadOnlyList instead of params")]
-        CaseExpression Case(SqlExpression operand, params CaseWhenClause[] whenClauses);
-
-        /// <summary>
-        ///     Creates a new <see cref="CaseExpression" /> which represent a CASE statement in a SQL tree.
-        /// </summary>
-        /// <param name="operand">An expression to compare with <see cref="CaseWhenClause.Test" /> in <paramref name="whenClauses" />.</param>
-        /// <param name="whenClauses">A list of <see cref="CaseWhenClause" /> to compare and get result from.</param>
         /// <param name="elseResult">A value to return if no <paramref name="whenClauses" /> matches, if any.</param>
         /// <returns>An expression representing a CASE statement in a SQL tree.</returns>
         CaseExpression Case(
@@ -319,99 +292,6 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <param name="elseResult">A value to return if no <paramref name="whenClauses" /> matches, if any.</param>
         /// <returns>An expression representing a CASE statement in a SQL tree.</returns>
         CaseExpression Case(IReadOnlyList<CaseWhenClause> whenClauses, SqlExpression? elseResult);
-
-        /// <summary>
-        ///     Creates a new <see cref="SqlFunctionExpression" /> which represents a function call in a SQL tree.
-        /// </summary>
-        /// <param name="name">The name of the function.</param>
-        /// <param name="arguments">The arguments of the function.</param>
-        /// <param name="returnType">The <see cref="Type" /> of the expression.</param>
-        /// <param name="typeMapping">The <see cref="RelationalTypeMapping" /> associated with the expression.</param>
-        /// <returns>An expression representing a function call in a SQL tree.</returns>
-        [Obsolete("Use overload that explicitly specifies value for 'argumentsPropagateNullability' argument.")]
-        SqlFunctionExpression Function(
-            string name,
-            IEnumerable<SqlExpression> arguments,
-            Type returnType,
-            RelationalTypeMapping? typeMapping = null);
-
-        /// <summary>
-        ///     Creates a new <see cref="SqlFunctionExpression" /> which represents a function call in a SQL tree.
-        /// </summary>
-        /// <param name="schema">The schema in which the function is defined.</param>
-        /// <param name="name">The name of the function.</param>
-        /// <param name="arguments">The arguments of the function.</param>
-        /// <param name="returnType">The <see cref="Type" /> of the expression.</param>
-        /// <param name="typeMapping">The <see cref="RelationalTypeMapping" /> associated with the expression.</param>
-        /// <returns>An expression representing a function call in a SQL tree.</returns>
-        [Obsolete("Use overload that explicitly specifies value for 'argumentsPropagateNullability' argument.")]
-        SqlFunctionExpression Function(
-            string? schema,
-            string name,
-            IEnumerable<SqlExpression> arguments,
-            Type returnType,
-            RelationalTypeMapping? typeMapping = null);
-
-        /// <summary>
-        ///     Creates a new <see cref="SqlFunctionExpression" /> which represents a function call in a SQL tree.
-        /// </summary>
-        /// <param name="instance">An expression on which the function is applied.</param>
-        /// <param name="name">The name of the function.</param>
-        /// <param name="arguments">The arguments of the function.</param>
-        /// <param name="returnType">The <see cref="Type" /> of the expression.</param>
-        /// <param name="typeMapping">The <see cref="RelationalTypeMapping" /> associated with the expression.</param>
-        /// <returns>An expression representing a function call in a SQL tree.</returns>
-        [Obsolete(
-            "Use overload that explicitly specifies value for 'instancePropagatesNullability' and 'argumentsPropagateNullability' arguments.")]
-        SqlFunctionExpression Function(
-            SqlExpression instance,
-            string name,
-            IEnumerable<SqlExpression> arguments,
-            Type returnType,
-            RelationalTypeMapping? typeMapping = null);
-
-        /// <summary>
-        ///     Creates a new <see cref="SqlFunctionExpression" /> which represents a function call in a SQL tree.
-        /// </summary>
-        /// <param name="name">The name of the function.</param>
-        /// <param name="returnType">The <see cref="Type" /> of the expression.</param>
-        /// <param name="typeMapping">The <see cref="RelationalTypeMapping" /> associated with the expression.</param>
-        /// <returns>An expression representing a function call in a SQL tree.</returns>
-        [Obsolete("Use NiladicFunction method.")]
-        SqlFunctionExpression Function(
-            string name,
-            Type returnType,
-            RelationalTypeMapping? typeMapping = null);
-
-        /// <summary>
-        ///     Creates a new <see cref="SqlFunctionExpression" /> which represents a function call in a SQL tree.
-        /// </summary>
-        /// <param name="schema">The schema in which the function is defined.</param>
-        /// <param name="name">The name of the function.</param>
-        /// <param name="returnType">The <see cref="Type" /> of the expression.</param>
-        /// <param name="typeMapping">The <see cref="RelationalTypeMapping" /> associated with the expression.</param>
-        /// <returns>An expression representing a function call in a SQL tree.</returns>
-        [Obsolete("Use NiladicFunction method.")]
-        SqlFunctionExpression Function(
-            string schema,
-            string name,
-            Type returnType,
-            RelationalTypeMapping? typeMapping = null);
-
-        /// <summary>
-        ///     Creates a new <see cref="SqlFunctionExpression" /> which represents a function call in a SQL tree.
-        /// </summary>
-        /// <param name="instance">An expression on which the function is applied.</param>
-        /// <param name="name">The name of the function.</param>
-        /// <param name="returnType">The <see cref="Type" /> of the expression.</param>
-        /// <param name="typeMapping">The <see cref="RelationalTypeMapping" /> associated with the expression.</param>
-        /// <returns>An expression representing a function call in a SQL tree.</returns>
-        [Obsolete("Use NiladicFunction method.")]
-        SqlFunctionExpression Function(
-            SqlExpression instance,
-            string name,
-            Type returnType,
-            RelationalTypeMapping? typeMapping = null);
 
         /// <summary>
         ///     Creates a new <see cref="SqlFunctionExpression" /> which represents a function call in a SQL tree.
@@ -595,16 +475,5 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <param name="tableExpressionBase">A table source to project from.</param>
         /// <returns>An expression representing a SELECT in a SQL tree.</returns>
         SelectExpression Select(IEntityType entityType, TableExpressionBase tableExpressionBase);
-
-        /// <summary>
-        ///     Creates a new <see cref="SelectExpression" /> which represents a SELECT in a SQL tree projecting an entity type from
-        ///     a table source created using a custom SQL.
-        /// </summary>
-        /// <param name="entityType">An entity type to project.</param>
-        /// <param name="sql">A custom SQL for the table source.</param>
-        /// <param name="sqlArguments">An expression representing parameters passed to the custom SQL.</param>
-        /// <returns>An expression representing a SELECT in a SQL tree.</returns>
-        [Obsolete("Use overload which takes TableExpressionBase by passing FromSqlExpression directly.")]
-        SelectExpression Select(IEntityType entityType, string sql, Expression sqlArguments);
     }
 }

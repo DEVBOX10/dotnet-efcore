@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.SqlServer.Design.Internal;
+using Microsoft.EntityFrameworkCore.SqlServer.Internal;
 using Microsoft.EntityFrameworkCore.SqlServer.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
@@ -146,10 +147,6 @@ namespace TestNamespace
 {
     public partial class TestDbContext : DbContext
     {
-        public TestDbContext()
-        {
-        }
-
         public TestDbContext(DbContextOptions<TestDbContext> options)
             : base(options)
         {
@@ -1047,10 +1044,6 @@ namespace TestNamespace
 {
     public partial class TestDbContext : DbContext
     {
-        public TestDbContext()
-        {
-        }
-
         public TestDbContext(DbContextOptions<TestDbContext> options)
             : base(options)
         {
@@ -1075,23 +1068,28 @@ namespace TestNamespace
                 skipBuild: true);
         }
 
-        [ConditionalFact(Skip = "issue #26007")]
+        [ConditionalFact]
         public void Temporal_table_works()
         {
-            Test(
-                modelBuilder => modelBuilder.Entity(
-                    "Customer", e =>
-                    {
-                        e.Property<int>("Id");
-                        e.Property<string>("Name");
-                        e.HasKey("Id");
-                        e.ToTable(tb => tb.IsTemporal());
-                    }),
-                new ModelCodeGenerationOptions { UseDataAnnotations = false },
-                code =>
-                {
-                    AssertFileContents(
-                        @"using System;
+            // Shadow properties. Issue #26007.
+            Assert.Equal(
+                SqlServerStrings.TemporalPeriodPropertyMustBeInShadowState("Customer", "PeriodStart"),
+                Assert.Throws<InvalidOperationException>(
+                    () =>
+                        Test(
+                            modelBuilder => modelBuilder.Entity(
+                                "Customer", e =>
+                                {
+                                    e.Property<int>("Id");
+                                    e.Property<string>("Name");
+                                    e.HasKey("Id");
+                                    e.ToTable(tb => tb.IsTemporal());
+                                }),
+                            new ModelCodeGenerationOptions { UseDataAnnotations = false },
+                            code =>
+                            {
+                                AssertFileContents(
+                                    @"using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -1115,7 +1113,9 @@ namespace TestNamespace
         {
             if (!optionsBuilder.IsConfigured)
             {
-#warning " + DesignStrings.SensitiveInformationWarning + @"
+#warning "
+                                    + DesignStrings.SensitiveInformationWarning
+                                    + @"
                 optionsBuilder.UseSqlServer(""Initial Catalog=TestDatabase"");
             }
         }
@@ -1145,12 +1145,12 @@ namespace TestNamespace
     }
 }
 ",
-                        code.ContextFile);
-                },
-                model =>
-                {
-                    // TODO
-                });
+                                    code.ContextFile);
+                            },
+                            model =>
+                            {
+                                // TODO
+                            })).Message);
         }
 
         protected override void AddModelServices(IServiceCollection services)

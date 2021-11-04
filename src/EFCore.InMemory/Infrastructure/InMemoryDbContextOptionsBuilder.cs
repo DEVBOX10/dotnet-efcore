@@ -3,24 +3,23 @@
 
 using System.ComponentModel;
 using Microsoft.EntityFrameworkCore.InMemory.Infrastructure.Internal;
-using Microsoft.EntityFrameworkCore.Utilities;
 
 namespace Microsoft.EntityFrameworkCore.Infrastructure
 {
     /// <summary>
-    ///     <para>
-    ///         Allows in-memory specific configuration to be performed on <see cref="DbContextOptions" />.
-    ///     </para>
+    ///     Allows in-memory specific configuration to be performed on <see cref="DbContextOptions" />.
+    /// </summary>
+    /// <remarks>
     ///     <para>
     ///         Instances of this class are returned from a call to
     ///         <see
     ///             cref="InMemoryDbContextOptionsExtensions.UseInMemoryDatabase(DbContextOptionsBuilder, string, System.Action{InMemoryDbContextOptionsBuilder})" />
     ///         and it is not designed to be directly constructed in your application code.
     ///     </para>
-    /// </summary>
-    /// <remarks>
-    ///     See <see href="https://aka.ms/efcore-docs-dbcontext-options">Using DbContextOptions</see>, and
-    ///     <see href="https://aka.ms/efcore-docs-in-memory">The EF Core in-memory database provider</see> for more information.
+    ///     <para>
+    ///         See <see href="https://aka.ms/efcore-docs-dbcontext-options">Using DbContextOptions</see>, and
+    ///         <see href="https://aka.ms/efcore-docs-in-memory">The EF Core in-memory database provider</see> for more information.
+    ///     </para>
     /// </remarks>
     public class InMemoryDbContextOptionsBuilder : IInMemoryDbContextOptionsBuilderInfrastructure
     {
@@ -30,8 +29,6 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         /// <param name="optionsBuilder">The options builder.</param>
         public InMemoryDbContextOptionsBuilder(DbContextOptionsBuilder optionsBuilder)
         {
-            Check.NotNull(optionsBuilder, nameof(optionsBuilder));
-
             OptionsBuilder = optionsBuilder;
         }
 
@@ -46,9 +43,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
             => OptionsBuilder;
 
         /// <summary>
-        ///     <para>
-        ///         Enables nullability check for all properties across all entities within the in-memory database.
-        ///     </para>
+        ///     Enables nullability check for all properties across all entities within the in-memory database.
         /// </summary>
         /// <remarks>
         ///     See <see href="https://aka.ms/efcore-docs-dbcontext-options">Using DbContextOptions</see>, and

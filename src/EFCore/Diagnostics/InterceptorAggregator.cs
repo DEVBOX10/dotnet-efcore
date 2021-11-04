@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.EntityFrameworkCore.Utilities;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Microsoft.EntityFrameworkCore.Diagnostics
 {
@@ -12,7 +13,16 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
     ///     Abstract base class for implementations of the <see cref="IInterceptorAggregator" /> service.
     /// </summary>
     /// <remarks>
-    ///     See <see href="https://aka.ms/efcore-docs-interceptors">EF Core interceptors</see> for more information.
+    ///     <para>
+    ///         The service lifetime is <see cref="ServiceLifetime.Scoped" /> and multiple registrations
+    ///         are allowed. This means that each <see cref="DbContext" /> instance will use its own
+    ///         set of instances of this service.
+    ///         The implementations may depend on other services registered with any lifetime.
+    ///         The implementations do not need to be thread-safe.
+    ///     </para>
+    ///     <para>
+    ///         See <see href="https://aka.ms/efcore-docs-interceptors">EF Core interceptors</see> for more information.
+    ///     </para>
     /// </remarks>
     /// <typeparam name="TInterceptor">The interceptor type.</typeparam>
     public abstract class InterceptorAggregator<TInterceptor> : IInterceptorAggregator
@@ -28,10 +38,8 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             => typeof(TInterceptor);
 
         /// <summary>
-        ///     <para>
-        ///         Resolves a single <see cref="IInterceptor" /> /> from all those registered on
-        ///         the <see cref="DbContext" /> or in the internal service provider.
-        ///     </para>
+        ///     Resolves a single <see cref="IInterceptor" /> /> from all those registered on
+        ///     the <see cref="DbContext" /> or in the internal service provider.
         /// </summary>
         /// <param name="interceptors">The interceptors to combine.</param>
         /// <returns>The combined interceptor.</returns>

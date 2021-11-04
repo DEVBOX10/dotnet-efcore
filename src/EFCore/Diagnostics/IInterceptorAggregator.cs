@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Microsoft.EntityFrameworkCore.Diagnostics
 {
@@ -15,13 +16,22 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
     ///         This type is typically used by database providers (and other extensions). It is generally
     ///         not used in application code.
     ///     </para>
+    /// </summary>
+    /// <remarks>
     ///     <para>
     ///         Instances should be registered on the internal service provider as multiple <see cref="IInterceptorAggregator" />
     ///         interfaces.
     ///     </para>
-    /// </summary>
-    /// <remarks>
-    ///     See <see href="https://aka.ms/efcore-docs-interceptors">EF Core interceptors</see> for more information.
+    ///     <para>
+    ///         The service lifetime is <see cref="ServiceLifetime.Scoped" /> and multiple registrations
+    ///         are allowed. This means that each <see cref="DbContext" /> instance will use its own
+    ///         set of instances of this service.
+    ///         The implementations may depend on other services registered with any lifetime.
+    ///         The implementations do not need to be thread-safe.
+    ///     </para>
+    ///     <para>
+    ///         See <see href="https://aka.ms/efcore-docs-interceptors">EF Core interceptors</see> for more information.
+    ///     </para>
     /// </remarks>
     public interface IInterceptorAggregator
     {
@@ -31,10 +41,8 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         Type InterceptorType { get; }
 
         /// <summary>
-        ///     <para>
-        ///         Resolves a single <see cref="IInterceptor" /> /> from all those registered on
-        ///         the <see cref="DbContext" /> or in the internal service provider.
-        ///     </para>
+        ///     Resolves a single <see cref="IInterceptor" /> /> from all those registered on
+        ///     the <see cref="DbContext" /> or in the internal service provider.
         /// </summary>
         /// <param name="interceptors">The interceptors to combine.</param>
         /// <returns>The combined interceptor.</returns>
