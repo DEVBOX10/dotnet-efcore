@@ -15,89 +15,89 @@ public class SqlServerAnnotationCodeGenerator : AnnotationCodeGenerator
 {
     #region MethodInfos
 
-    private static readonly MethodInfo _modelUseIdentityColumnsMethodInfo
-        = typeof(SqlServerModelBuilderExtensions).GetRequiredRuntimeMethod(
-            nameof(SqlServerModelBuilderExtensions.UseIdentityColumns), typeof(ModelBuilder), typeof(long), typeof(int));
+    private static readonly MethodInfo ModelUseIdentityColumnsMethodInfo
+        = typeof(SqlServerModelBuilderExtensions).GetRuntimeMethod(
+            nameof(SqlServerModelBuilderExtensions.UseIdentityColumns), new[] { typeof(ModelBuilder), typeof(long), typeof(int) })!;
 
-    private static readonly MethodInfo _modelUseHiLoMethodInfo
-        = typeof(SqlServerModelBuilderExtensions).GetRequiredRuntimeMethod(
-            nameof(SqlServerModelBuilderExtensions.UseHiLo), typeof(ModelBuilder), typeof(string), typeof(string));
+    private static readonly MethodInfo ModelUseHiLoMethodInfo
+        = typeof(SqlServerModelBuilderExtensions).GetRuntimeMethod(
+            nameof(SqlServerModelBuilderExtensions.UseHiLo), new[] { typeof(ModelBuilder), typeof(string), typeof(string) })!;
 
-    private static readonly MethodInfo _modelHasDatabaseMaxSizeMethodInfo
-        = typeof(SqlServerModelBuilderExtensions).GetRequiredRuntimeMethod(
-            nameof(SqlServerModelBuilderExtensions.HasDatabaseMaxSize), typeof(ModelBuilder), typeof(string));
+    private static readonly MethodInfo ModelHasDatabaseMaxSizeMethodInfo
+        = typeof(SqlServerModelBuilderExtensions).GetRuntimeMethod(
+            nameof(SqlServerModelBuilderExtensions.HasDatabaseMaxSize), new[] { typeof(ModelBuilder), typeof(string) })!;
 
-    private static readonly MethodInfo _modelHasServiceTierSqlMethodInfo
-        = typeof(SqlServerModelBuilderExtensions).GetRequiredRuntimeMethod(
-            nameof(SqlServerModelBuilderExtensions.HasServiceTierSql), typeof(ModelBuilder), typeof(string));
+    private static readonly MethodInfo ModelHasServiceTierSqlMethodInfo
+        = typeof(SqlServerModelBuilderExtensions).GetRuntimeMethod(
+            nameof(SqlServerModelBuilderExtensions.HasServiceTierSql), new[] { typeof(ModelBuilder), typeof(string) })!;
 
-    private static readonly MethodInfo _modelHasPerformanceLevelSqlMethodInfo
-        = typeof(SqlServerModelBuilderExtensions).GetRequiredRuntimeMethod(
-            nameof(SqlServerModelBuilderExtensions.HasPerformanceLevelSql), typeof(ModelBuilder), typeof(string));
+    private static readonly MethodInfo ModelHasPerformanceLevelSqlMethodInfo
+        = typeof(SqlServerModelBuilderExtensions).GetRuntimeMethod(
+            nameof(SqlServerModelBuilderExtensions.HasPerformanceLevelSql), new[] { typeof(ModelBuilder), typeof(string) })!;
 
-    private static readonly MethodInfo _modelHasAnnotationMethodInfo
-        = typeof(ModelBuilder).GetRequiredRuntimeMethod(
-            nameof(ModelBuilder.HasAnnotation), typeof(string), typeof(object));
+    private static readonly MethodInfo ModelHasAnnotationMethodInfo
+        = typeof(ModelBuilder).GetRuntimeMethod(
+            nameof(ModelBuilder.HasAnnotation), new[] { typeof(string), typeof(object) })!;
 
-    private static readonly MethodInfo _entityTypeToTableMethodInfo
-        = typeof(RelationalEntityTypeBuilderExtensions).GetRequiredRuntimeMethod(
-            nameof(RelationalEntityTypeBuilderExtensions.ToTable), typeof(EntityTypeBuilder), typeof(string));
+    private static readonly MethodInfo EntityTypeToTableMethodInfo
+        = typeof(RelationalEntityTypeBuilderExtensions).GetRuntimeMethod(
+            nameof(RelationalEntityTypeBuilderExtensions.ToTable), new[] { typeof(EntityTypeBuilder), typeof(string) })!;
 
-    private static readonly MethodInfo _entityTypeIsMemoryOptimizedMethodInfo
-        = typeof(SqlServerEntityTypeBuilderExtensions).GetRequiredRuntimeMethod(
-            nameof(SqlServerEntityTypeBuilderExtensions.IsMemoryOptimized), typeof(EntityTypeBuilder), typeof(bool));
+    private static readonly MethodInfo EntityTypeIsMemoryOptimizedMethodInfo
+        = typeof(SqlServerEntityTypeBuilderExtensions).GetRuntimeMethod(
+            nameof(SqlServerEntityTypeBuilderExtensions.IsMemoryOptimized), new[] { typeof(EntityTypeBuilder), typeof(bool) })!;
 
-    private static readonly MethodInfo _propertyIsSparseMethodInfo
-        = typeof(SqlServerPropertyBuilderExtensions).GetRequiredRuntimeMethod(
-            nameof(SqlServerPropertyBuilderExtensions.IsSparse), typeof(PropertyBuilder), typeof(bool));
+    private static readonly MethodInfo PropertyIsSparseMethodInfo
+        = typeof(SqlServerPropertyBuilderExtensions).GetRuntimeMethod(
+            nameof(SqlServerPropertyBuilderExtensions.IsSparse), new[] { typeof(PropertyBuilder), typeof(bool) })!;
 
-    private static readonly MethodInfo _propertyUseIdentityColumnsMethodInfo
-        = typeof(SqlServerPropertyBuilderExtensions).GetRequiredRuntimeMethod(
-            nameof(SqlServerPropertyBuilderExtensions.UseIdentityColumn), typeof(PropertyBuilder), typeof(long), typeof(int));
+    private static readonly MethodInfo PropertyUseIdentityColumnsMethodInfo
+        = typeof(SqlServerPropertyBuilderExtensions).GetRuntimeMethod(
+            nameof(SqlServerPropertyBuilderExtensions.UseIdentityColumn), new[] { typeof(PropertyBuilder), typeof(long), typeof(int) })!;
 
-    private static readonly MethodInfo _propertyUseHiLoMethodInfo
-        = typeof(SqlServerPropertyBuilderExtensions).GetRequiredRuntimeMethod(
-            nameof(SqlServerPropertyBuilderExtensions.UseHiLo), typeof(PropertyBuilder), typeof(string), typeof(string));
+    private static readonly MethodInfo PropertyUseHiLoMethodInfo
+        = typeof(SqlServerPropertyBuilderExtensions).GetRuntimeMethod(
+            nameof(SqlServerPropertyBuilderExtensions.UseHiLo), new[] { typeof(PropertyBuilder), typeof(string), typeof(string) })!;
 
-    private static readonly MethodInfo _indexIsClusteredMethodInfo
-        = typeof(SqlServerIndexBuilderExtensions).GetRequiredRuntimeMethod(
-            nameof(SqlServerIndexBuilderExtensions.IsClustered), typeof(IndexBuilder), typeof(bool));
+    private static readonly MethodInfo IndexIsClusteredMethodInfo
+        = typeof(SqlServerIndexBuilderExtensions).GetRuntimeMethod(
+            nameof(SqlServerIndexBuilderExtensions.IsClustered), new[] { typeof(IndexBuilder), typeof(bool) })!;
 
-    private static readonly MethodInfo _indexIncludePropertiesMethodInfo
-        = typeof(SqlServerIndexBuilderExtensions).GetRequiredRuntimeMethod(
-            nameof(SqlServerIndexBuilderExtensions.IncludeProperties), typeof(IndexBuilder), typeof(string[]));
+    private static readonly MethodInfo IndexIncludePropertiesMethodInfo
+        = typeof(SqlServerIndexBuilderExtensions).GetRuntimeMethod(
+            nameof(SqlServerIndexBuilderExtensions.IncludeProperties), new[] { typeof(IndexBuilder), typeof(string[]) })!;
 
-    private static readonly MethodInfo _indexHasFillFactorMethodInfo
-        = typeof(SqlServerIndexBuilderExtensions).GetRequiredRuntimeMethod(
-            nameof(SqlServerIndexBuilderExtensions.HasFillFactor), typeof(IndexBuilder), typeof(int));
+    private static readonly MethodInfo IndexHasFillFactorMethodInfo
+        = typeof(SqlServerIndexBuilderExtensions).GetRuntimeMethod(
+            nameof(SqlServerIndexBuilderExtensions.HasFillFactor), new[] { typeof(IndexBuilder), typeof(int) })!;
 
-    private static readonly MethodInfo _keyIsClusteredMethodInfo
-        = typeof(SqlServerKeyBuilderExtensions).GetRequiredRuntimeMethod(
-            nameof(SqlServerKeyBuilderExtensions.IsClustered), typeof(KeyBuilder), typeof(bool));
+    private static readonly MethodInfo KeyIsClusteredMethodInfo
+        = typeof(SqlServerKeyBuilderExtensions).GetRuntimeMethod(
+            nameof(SqlServerKeyBuilderExtensions.IsClustered), new[] { typeof(KeyBuilder), typeof(bool) })!;
 
-    private static readonly MethodInfo _tableIsTemporalMethodInfo
-        = typeof(SqlServerTableBuilderExtensions).GetRequiredRuntimeMethod(
-            nameof(SqlServerTableBuilderExtensions.IsTemporal), typeof(TableBuilder), typeof(bool));
+    private static readonly MethodInfo TableIsTemporalMethodInfo
+        = typeof(SqlServerTableBuilderExtensions).GetRuntimeMethod(
+            nameof(SqlServerTableBuilderExtensions.IsTemporal), new[] { typeof(TableBuilder), typeof(bool) })!;
 
-    private static readonly MethodInfo _temporalTableUseHistoryTableMethodInfo1
-        = typeof(TemporalTableBuilder).GetRequiredRuntimeMethod(
-            nameof(TemporalTableBuilder.UseHistoryTable), typeof(string), typeof(string));
+    private static readonly MethodInfo TemporalTableUseHistoryTableMethodInfo1
+        = typeof(TemporalTableBuilder).GetRuntimeMethod(
+            nameof(TemporalTableBuilder.UseHistoryTable), new[] { typeof(string), typeof(string) })!;
 
-    private static readonly MethodInfo _temporalTableUseHistoryTableMethodInfo2
-        = typeof(TemporalTableBuilder).GetRequiredRuntimeMethod(
-            nameof(TemporalTableBuilder.UseHistoryTable), typeof(string));
+    private static readonly MethodInfo TemporalTableUseHistoryTableMethodInfo2
+        = typeof(TemporalTableBuilder).GetRuntimeMethod(
+            nameof(TemporalTableBuilder.UseHistoryTable), new[] { typeof(string) })!;
 
-    private static readonly MethodInfo _temporalTableHasPeriodStartMethodInfo
-        = typeof(TemporalTableBuilder).GetRequiredRuntimeMethod(
-            nameof(TemporalTableBuilder.HasPeriodStart), typeof(string));
+    private static readonly MethodInfo TemporalTableHasPeriodStartMethodInfo
+        = typeof(TemporalTableBuilder).GetRuntimeMethod(
+            nameof(TemporalTableBuilder.HasPeriodStart), new[] { typeof(string) })!;
 
-    private static readonly MethodInfo _temporalTableHasPeriodEndMethodInfo
-        = typeof(TemporalTableBuilder).GetRequiredRuntimeMethod(
-            nameof(TemporalTableBuilder.HasPeriodEnd), typeof(string));
+    private static readonly MethodInfo TemporalTableHasPeriodEndMethodInfo
+        = typeof(TemporalTableBuilder).GetRuntimeMethod(
+            nameof(TemporalTableBuilder.HasPeriodEnd), new[] { typeof(string) })!;
 
-    private static readonly MethodInfo _temporalPropertyHasColumnNameMethodInfo
-        = typeof(TemporalPeriodPropertyBuilder).GetRequiredRuntimeMethod(
-            nameof(TemporalPeriodPropertyBuilder.HasColumnName), typeof(string));
+    private static readonly MethodInfo TemporalPropertyHasColumnNameMethodInfo
+        = typeof(TemporalPeriodPropertyBuilder).GetRuntimeMethod(
+            nameof(TemporalPeriodPropertyBuilder.HasColumnName), new[] { typeof(string) })!;
 
     #endregion MethodInfos
 
@@ -131,17 +131,17 @@ public class SqlServerAnnotationCodeGenerator : AnnotationCodeGenerator
 
         GenerateSimpleFluentApiCall(
             annotations,
-            SqlServerAnnotationNames.MaxDatabaseSize, _modelHasDatabaseMaxSizeMethodInfo,
+            SqlServerAnnotationNames.MaxDatabaseSize, ModelHasDatabaseMaxSizeMethodInfo,
             fragments);
 
         GenerateSimpleFluentApiCall(
             annotations,
-            SqlServerAnnotationNames.ServiceTierSql, _modelHasServiceTierSqlMethodInfo,
+            SqlServerAnnotationNames.ServiceTierSql, ModelHasServiceTierSqlMethodInfo,
             fragments);
 
         GenerateSimpleFluentApiCall(
             annotations,
-            SqlServerAnnotationNames.PerformanceLevelSql, _modelHasPerformanceLevelSqlMethodInfo,
+            SqlServerAnnotationNames.PerformanceLevelSql, ModelHasPerformanceLevelSqlMethodInfo,
             fragments);
 
         return fragments;
@@ -169,8 +169,8 @@ public class SqlServerAnnotationCodeGenerator : AnnotationCodeGenerator
         {
             fragments.Add(
                 isSparse
-                    ? new MethodCallCodeFragment(_propertyIsSparseMethodInfo)
-                    : new MethodCallCodeFragment(_propertyIsSparseMethodInfo, false));
+                    ? new MethodCallCodeFragment(PropertyIsSparseMethodInfo)
+                    : new MethodCallCodeFragment(PropertyIsSparseMethodInfo, false));
         }
 
         return fragments;
@@ -192,8 +192,8 @@ public class SqlServerAnnotationCodeGenerator : AnnotationCodeGenerator
         {
             fragments.Add(
                 isMemoryOptimized
-                    ? new MethodCallCodeFragment(_entityTypeIsMemoryOptimizedMethodInfo)
-                    : new MethodCallCodeFragment(_entityTypeIsMemoryOptimizedMethodInfo, false));
+                    ? new MethodCallCodeFragment(EntityTypeIsMemoryOptimizedMethodInfo)
+                    : new MethodCallCodeFragment(EntityTypeIsMemoryOptimizedMethodInfo, false));
         }
 
         if (annotations.TryGetValue(SqlServerAnnotationNames.IsTemporal, out var isTemporalAnnotation)
@@ -231,31 +231,31 @@ public class SqlServerAnnotationCodeGenerator : AnnotationCodeGenerator
             {
                 temporalTableBuilderCalls.Add(
                     historyTableSchema != null
-                        ? new MethodCallCodeFragment(_temporalTableUseHistoryTableMethodInfo1, historyTableName, historyTableSchema)
-                        : new MethodCallCodeFragment(_temporalTableUseHistoryTableMethodInfo2, historyTableName));
+                        ? new MethodCallCodeFragment(TemporalTableUseHistoryTableMethodInfo1, historyTableName, historyTableSchema)
+                        : new MethodCallCodeFragment(TemporalTableUseHistoryTableMethodInfo2, historyTableName));
             }
 
             // ttb => ttb.HasPeriodStart("Start").HasColumnName("ColumnStart")
             temporalTableBuilderCalls.Add(
                 periodStartColumnName != null
-                    ? new MethodCallCodeFragment(_temporalTableHasPeriodStartMethodInfo, periodStartPropertyName)
-                        .Chain(new MethodCallCodeFragment(_temporalPropertyHasColumnNameMethodInfo, periodStartColumnName))
-                    : new MethodCallCodeFragment(_temporalTableHasPeriodStartMethodInfo, periodStartPropertyName));
+                    ? new MethodCallCodeFragment(TemporalTableHasPeriodStartMethodInfo, periodStartPropertyName)
+                        .Chain(new MethodCallCodeFragment(TemporalPropertyHasColumnNameMethodInfo, periodStartColumnName))
+                    : new MethodCallCodeFragment(TemporalTableHasPeriodStartMethodInfo, periodStartPropertyName));
 
             // ttb => ttb.HasPeriodEnd("End").HasColumnName("ColumnEnd")
             temporalTableBuilderCalls.Add(
                 periodEndColumnName != null
-                    ? new MethodCallCodeFragment(_temporalTableHasPeriodEndMethodInfo, periodEndPropertyName)
-                        .Chain(new MethodCallCodeFragment(_temporalPropertyHasColumnNameMethodInfo, periodEndColumnName))
-                    : new MethodCallCodeFragment(_temporalTableHasPeriodEndMethodInfo, periodEndPropertyName));
+                    ? new MethodCallCodeFragment(TemporalTableHasPeriodEndMethodInfo, periodEndPropertyName)
+                        .Chain(new MethodCallCodeFragment(TemporalPropertyHasColumnNameMethodInfo, periodEndColumnName))
+                    : new MethodCallCodeFragment(TemporalTableHasPeriodEndMethodInfo, periodEndPropertyName));
 
             // ToTable(tb => tb.IsTemporal(ttb => { ... }))
             var toTemporalTableCall = new MethodCallCodeFragment(
-                _entityTypeToTableMethodInfo,
+                EntityTypeToTableMethodInfo,
                 new NestedClosureCodeFragment(
                     "tb",
                     new MethodCallCodeFragment(
-                        _tableIsTemporalMethodInfo,
+                        TableIsTemporalMethodInfo,
                         new NestedClosureCodeFragment(
                             "ttb",
                             temporalTableBuilderCalls))));
@@ -298,8 +298,8 @@ public class SqlServerAnnotationCodeGenerator : AnnotationCodeGenerator
     protected override MethodCallCodeFragment? GenerateFluentApi(IKey key, IAnnotation annotation)
         => annotation.Name == SqlServerAnnotationNames.Clustered
             ? (bool)annotation.Value! == false
-                ? new MethodCallCodeFragment(_keyIsClusteredMethodInfo, false)
-                : new MethodCallCodeFragment(_keyIsClusteredMethodInfo)
+                ? new MethodCallCodeFragment(KeyIsClusteredMethodInfo, false)
+                : new MethodCallCodeFragment(KeyIsClusteredMethodInfo)
             : null;
 
     /// <summary>
@@ -312,11 +312,11 @@ public class SqlServerAnnotationCodeGenerator : AnnotationCodeGenerator
         => annotation.Name switch
         {
             SqlServerAnnotationNames.Clustered => (bool)annotation.Value! == false
-                ? new MethodCallCodeFragment(_indexIsClusteredMethodInfo, false)
-                : new MethodCallCodeFragment(_indexIsClusteredMethodInfo),
+                ? new MethodCallCodeFragment(IndexIsClusteredMethodInfo, false)
+                : new MethodCallCodeFragment(IndexIsClusteredMethodInfo),
 
-            SqlServerAnnotationNames.Include => new MethodCallCodeFragment(_indexIncludePropertiesMethodInfo, annotation.Value),
-            SqlServerAnnotationNames.FillFactor => new MethodCallCodeFragment(_indexHasFillFactorMethodInfo, annotation.Value),
+            SqlServerAnnotationNames.Include => new MethodCallCodeFragment(IndexIncludePropertiesMethodInfo, annotation.Value),
+            SqlServerAnnotationNames.FillFactor => new MethodCallCodeFragment(IndexHasFillFactorMethodInfo, annotation.Value),
 
             _ => null
         };
@@ -362,7 +362,7 @@ public class SqlServerAnnotationCodeGenerator : AnnotationCodeGenerator
                     ?? model.FindAnnotation(SqlServerAnnotationNames.IdentityIncrement)?.Value as int?
                     ?? 1;
                 return new MethodCallCodeFragment(
-                    onModel ? _modelUseIdentityColumnsMethodInfo : _propertyUseIdentityColumnsMethodInfo,
+                    onModel ? ModelUseIdentityColumnsMethodInfo : PropertyUseIdentityColumnsMethodInfo,
                     seed,
                     increment);
 
@@ -370,7 +370,7 @@ public class SqlServerAnnotationCodeGenerator : AnnotationCodeGenerator
                 var name = GetAndRemove<string>(annotations, SqlServerAnnotationNames.HiLoSequenceName);
                 var schema = GetAndRemove<string>(annotations, SqlServerAnnotationNames.HiLoSequenceSchema);
                 return new MethodCallCodeFragment(
-                    onModel ? _modelUseHiLoMethodInfo : _propertyUseHiLoMethodInfo,
+                    onModel ? ModelUseHiLoMethodInfo : PropertyUseHiLoMethodInfo,
                     (name, schema) switch
                     {
                         (null, null) => Array.Empty<object>(),
@@ -380,7 +380,7 @@ public class SqlServerAnnotationCodeGenerator : AnnotationCodeGenerator
 
             case SqlServerValueGenerationStrategy.None:
                 return new MethodCallCodeFragment(
-                    _modelHasAnnotationMethodInfo,
+                    ModelHasAnnotationMethodInfo,
                     SqlServerAnnotationNames.ValueGenerationStrategy,
                     SqlServerValueGenerationStrategy.None);
 

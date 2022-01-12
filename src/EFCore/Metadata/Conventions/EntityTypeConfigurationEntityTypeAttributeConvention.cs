@@ -11,8 +11,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions;
 /// </remarks>
 public class EntityTypeConfigurationEntityTypeAttributeConvention : EntityTypeAttributeConventionBase<EntityTypeConfigurationAttribute>
 {
-    private static readonly MethodInfo _configureMethod = typeof(EntityTypeConfigurationEntityTypeAttributeConvention)
-        .GetRequiredDeclaredMethod(nameof(Configure));
+    private static readonly MethodInfo ConfigureMethod
+        = typeof(EntityTypeConfigurationEntityTypeAttributeConvention).GetTypeInfo().GetDeclaredMethod(nameof(Configure))!;
 
     /// <summary>
     ///     Creates a new instance of <see cref="EntityTypeConfigurationEntityTypeAttributeConvention" />.
@@ -47,7 +47,7 @@ public class EntityTypeConfigurationEntityTypeAttributeConvention : EntityTypeAt
                     entityTypeConfigurationType.ShortDisplayName(), entityTypeBuilder.Metadata.ShortName()));
         }
 
-        _configureMethod.MakeGenericMethod(entityTypeBuilder.Metadata.ClrType)
+        ConfigureMethod.MakeGenericMethod(entityTypeBuilder.Metadata.ClrType)
             .Invoke(null, new object[] { entityTypeBuilder.Metadata, entityTypeConfigurationType });
     }
 

@@ -29,7 +29,7 @@ public class MigrationsSqlGenerator : IMigrationsSqlGenerator
 {
     private static readonly
         IReadOnlyDictionary<Type, Action<MigrationsSqlGenerator, MigrationOperation, IModel?, MigrationCommandListBuilder>>
-        _generateActions =
+        GenerateActions =
             new Dictionary<Type, Action<MigrationsSqlGenerator, MigrationOperation, IModel?, MigrationCommandListBuilder>>
             {
                 { typeof(AddColumnOperation), (g, o, m, b) => g.Generate((AddColumnOperation)o, m, b) },
@@ -151,7 +151,7 @@ public class MigrationsSqlGenerator : IMigrationsSqlGenerator
         MigrationCommandListBuilder builder)
     {
         var operationType = operation.GetType();
-        if (!_generateActions.TryGetValue(operationType, out var generateAction))
+        if (!GenerateActions.TryGetValue(operationType, out var generateAction))
         {
             throw new InvalidOperationException(RelationalStrings.UnknownOperation(GetType().ShortDisplayName(), operationType));
         }
@@ -861,7 +861,7 @@ public class MigrationsSqlGenerator : IMigrationsSqlGenerator
         {
             throw new InvalidOperationException(
                 RelationalStrings.InsertDataOperationValuesCountMismatch(
-                    operation.Values.GetLength(1), operation.Columns.Length, FormatTable(operation.Table, operation.Schema)));
+                    operation.Values.GetLength(1), operation.Columns.Length, FormatTable(operation.Table, operation.Schema ?? model?.GetDefaultSchema())));
         }
 
         if (operation.ColumnTypes != null
@@ -869,7 +869,7 @@ public class MigrationsSqlGenerator : IMigrationsSqlGenerator
         {
             throw new InvalidOperationException(
                 RelationalStrings.InsertDataOperationTypesCountMismatch(
-                    operation.ColumnTypes.Length, operation.Columns.Length, FormatTable(operation.Table, operation.Schema)));
+                    operation.ColumnTypes.Length, operation.Columns.Length, FormatTable(operation.Table, operation.Schema ?? model?.GetDefaultSchema())));
         }
 
         if (operation.ColumnTypes == null
@@ -877,7 +877,7 @@ public class MigrationsSqlGenerator : IMigrationsSqlGenerator
         {
             throw new InvalidOperationException(
                 RelationalStrings.InsertDataOperationNoModel(
-                    FormatTable(operation.Table, operation.Schema)));
+                    FormatTable(operation.Table, operation.Schema ?? model?.GetDefaultSchema())));
         }
 
         var propertyMappings = operation.ColumnTypes == null
@@ -887,7 +887,7 @@ public class MigrationsSqlGenerator : IMigrationsSqlGenerator
         for (var i = 0; i < operation.Values.GetLength(0); i++)
         {
             var modificationCommand = Dependencies.ModificationCommandFactory.CreateModificationCommand(
-                new ModificationCommandParameters(operation.Table, operation.Schema, SensitiveLoggingEnabled));
+                new ModificationCommandParameters(operation.Table, operation.Schema ?? model?.GetDefaultSchema(), SensitiveLoggingEnabled));
             for (var j = 0; j < operation.Columns.Length; j++)
             {
                 var name = operation.Columns[j];
@@ -1142,7 +1142,7 @@ public class MigrationsSqlGenerator : IMigrationsSqlGenerator
         string? schema,
         IModel? model)
     {
-        var table = model?.GetRelationalModel().FindTable(tableName, schema);
+        var table = model?.GetRelationalModel().FindTable(tableName, schema ?? model.GetDefaultSchema());
         if (table == null)
         {
             throw new InvalidOperationException(

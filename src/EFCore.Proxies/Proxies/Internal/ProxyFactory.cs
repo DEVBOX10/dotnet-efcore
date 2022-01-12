@@ -16,9 +16,10 @@ namespace Microsoft.EntityFrameworkCore.Proxies.Internal;
 /// </summary>
 public class ProxyFactory : IProxyFactory
 {
-    private static readonly Type _proxyLazyLoaderInterface = typeof(IProxyLazyLoader);
-    private static readonly Type _notifyPropertyChangedInterface = typeof(INotifyPropertyChanged);
-    private static readonly Type _notifyPropertyChangingInterface = typeof(INotifyPropertyChanging);
+    private static readonly Type ProxyLazyLoaderInterface = typeof(IProxyLazyLoader);
+    private static readonly Type NotifyPropertyChangedInterface = typeof(INotifyPropertyChanged);
+    private static readonly Type NotifyPropertyChangingInterface = typeof(INotifyPropertyChanging);
+    private static readonly ProxyGenerationOptions GenerationOptions = new(new ClonelessProxyGenerationHook());
 
     private readonly ProxyGenerator _generator = new();
 
@@ -59,7 +60,7 @@ public class ProxyFactory : IProxyFactory
         => _generator.ProxyBuilder.CreateClassProxyType(
             entityType.ClrType,
             GetInterfacesToProxy(options, entityType.ClrType),
-            ProxyGenerationOptions.Default);
+                GenerationOptions);
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -94,7 +95,7 @@ public class ProxyFactory : IProxyFactory
         => _generator.CreateClassProxy(
             entityType.ClrType,
             GetInterfacesToProxy(options, entityType.ClrType),
-            ProxyGenerationOptions.Default,
+                GenerationOptions,
             constructorArguments,
             GetNotifyChangeInterceptors(options, entityType, new LazyLoadingInterceptor(entityType, loader)));
 
@@ -137,7 +138,7 @@ public class ProxyFactory : IProxyFactory
         => _generator.CreateClassProxy(
             entityType.ClrType,
             GetInterfacesToProxy(options, entityType.ClrType),
-            ProxyGenerationOptions.Default,
+                GenerationOptions,
             constructorArguments,
             GetNotifyChangeInterceptors(options, entityType));
 
@@ -149,19 +150,19 @@ public class ProxyFactory : IProxyFactory
 
         if (options.UseLazyLoadingProxies)
         {
-            interfacesToProxy.Add(_proxyLazyLoaderInterface);
+            interfacesToProxy.Add(ProxyLazyLoaderInterface);
         }
 
         if (options.UseChangeTrackingProxies)
         {
-            if (!_notifyPropertyChangedInterface.IsAssignableFrom(type))
+            if (!NotifyPropertyChangedInterface.IsAssignableFrom(type))
             {
-                interfacesToProxy.Add(_notifyPropertyChangedInterface);
+                interfacesToProxy.Add(NotifyPropertyChangedInterface);
             }
 
-            if (!_notifyPropertyChangingInterface.IsAssignableFrom(type))
+            if (!NotifyPropertyChangingInterface.IsAssignableFrom(type))
             {
-                interfacesToProxy.Add(_notifyPropertyChangingInterface);
+                interfacesToProxy.Add(NotifyPropertyChangingInterface);
             }
         }
 
@@ -182,17 +183,24 @@ public class ProxyFactory : IProxyFactory
 
         if (options.UseChangeTrackingProxies)
         {
-            if (!_notifyPropertyChangedInterface.IsAssignableFrom(entityType.ClrType))
+            if (!NotifyPropertyChangedInterface.IsAssignableFrom(entityType.ClrType))
             {
                 interceptors.Add(new PropertyChangedInterceptor(entityType, options.CheckEquality));
             }
 
-            if (!_notifyPropertyChangingInterface.IsAssignableFrom(entityType.ClrType))
+            if (!NotifyPropertyChangingInterface.IsAssignableFrom(entityType.ClrType))
             {
                 interceptors.Add(new PropertyChangingInterceptor(entityType, options.CheckEquality));
             }
         }
 
         return interceptors.ToArray();
+    }
+
+    private sealed class ClonelessProxyGenerationHook : AllMethodsHook
+    {
+        public override bool ShouldInterceptMethod(Type type, MethodInfo methodInfo)
+            => methodInfo.Name != "<Clone>$"
+                && base.ShouldInterceptMethod(type, methodInfo);
     }
 }

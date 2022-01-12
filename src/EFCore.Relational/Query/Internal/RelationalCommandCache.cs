@@ -16,7 +16,7 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal;
 /// </summary>
 public class RelationalCommandCache : IPrintableExpression
 {
-    private static readonly ConcurrentDictionary<object, object> _locks
+    private static readonly ConcurrentDictionary<object, object> Locks
         = new();
 
     private readonly IMemoryCache _memoryCache;
@@ -72,7 +72,7 @@ public class RelationalCommandCache : IPrintableExpression
         // herd), have only one actually process and block the others.
         // Note that the following synchronization isn't perfect - some race conditions may cause concurrent
         // processing. This is benign (and rare).
-        var compilationLock = _locks.GetOrAdd(cacheKey, _ => new object());
+        var compilationLock = Locks.GetOrAdd(cacheKey, _ => new object());
         try
         {
             lock (compilationLock)
@@ -94,7 +94,7 @@ public class RelationalCommandCache : IPrintableExpression
         }
         finally
         {
-            _locks.TryRemove(cacheKey, out _);
+            Locks.TryRemove(cacheKey, out _);
         }
     }
 
@@ -138,10 +138,9 @@ public class RelationalCommandCache : IPrintableExpression
 
             if (_parameterValues.Count > 0)
             {
-                foreach (var parameterValue in _parameterValues)
+                foreach (var (key, value) in _parameterValues)
                 {
-                    var value = parameterValue.Value;
-                    if (!commandCacheKey._parameterValues.TryGetValue(parameterValue.Key, out var otherValue))
+                    if (!commandCacheKey._parameterValues.TryGetValue(key, out var otherValue))
                     {
                         return false;
                     }

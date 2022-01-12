@@ -13,12 +13,12 @@ namespace Microsoft.EntityFrameworkCore.Sqlite.Query.Internal;
 /// </summary>
 public class SqliteSubstrMethodTranslator : IMethodCallTranslator
 {
-    private static readonly MethodInfo _methodInfo = typeof(SqliteDbFunctionsExtensions)
-        .GetRequiredMethod(nameof(SqliteDbFunctionsExtensions.Substr), typeof(DbFunctions), typeof(byte[]), typeof(int));
+    private static readonly MethodInfo MethodInfo = typeof(SqliteDbFunctionsExtensions)
+        .GetMethod(nameof(SqliteDbFunctionsExtensions.Substr), new[] { typeof(DbFunctions), typeof(byte[]), typeof(int) })!;
 
-    private static readonly MethodInfo _methodInfoWithLength = typeof(SqliteDbFunctionsExtensions)
-        .GetRequiredMethod(
-            nameof(SqliteDbFunctionsExtensions.Substr), typeof(DbFunctions), typeof(byte[]), typeof(int), typeof(int));
+    private static readonly MethodInfo MethodInfoWithLength = typeof(SqliteDbFunctionsExtensions)
+        .GetMethod(
+            nameof(SqliteDbFunctionsExtensions.Substr), new[] { typeof(DbFunctions), typeof(byte[]), typeof(int), typeof(int) })!;
 
     private readonly ISqlExpressionFactory _sqlExpressionFactory;
 
@@ -45,8 +45,8 @@ public class SqliteSubstrMethodTranslator : IMethodCallTranslator
         IReadOnlyList<SqlExpression> arguments,
         IDiagnosticsLogger<DbLoggerCategory.Query> logger)
     {
-        if (method.Equals(_methodInfo)
-            || method.Equals(_methodInfoWithLength))
+        if (method.Equals(MethodInfo)
+            || method.Equals(MethodInfoWithLength))
         {
             return _sqlExpressionFactory.Function(
                 "substr",

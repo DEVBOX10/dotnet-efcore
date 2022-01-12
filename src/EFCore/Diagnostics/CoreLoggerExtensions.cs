@@ -114,6 +114,78 @@ public static class CoreLoggerExtensions
     }
 
     /// <summary>
+    ///     Logs for the <see cref="CoreEventId.SaveChangesFailed" /> event.
+    /// </summary>
+    /// <param name="diagnostics">The diagnostics logger to use.</param>
+    /// <param name="context">The context in use.</param>
+    public static void SaveChangesCanceled(
+        this IDiagnosticsLogger<DbLoggerCategory.Update> diagnostics,
+        DbContext context)
+    {
+        var definition = CoreResources.LogSaveChangesCanceled(diagnostics);
+
+        if (diagnostics.ShouldLog(definition))
+        {
+            definition.Log(diagnostics, context.GetType());
+        }
+
+        if (diagnostics.NeedsEventData<ISaveChangesInterceptor>(
+                definition,
+                out var interceptor, out var diagnosticSourceEnabled, out var simpleLogEnabled))
+        {
+            var eventData = new DbContextEventData(definition, SaveChangesCanceled, context);
+
+            diagnostics.DispatchEventData(definition, eventData, diagnosticSourceEnabled, simpleLogEnabled);
+
+            interceptor?.SaveChangesCanceled(eventData);
+        }
+    }
+
+    /// <summary>
+    ///     Logs for the <see cref="CoreEventId.SaveChangesFailed" /> event.
+    /// </summary>
+    /// <param name="diagnostics">The diagnostics logger to use.</param>
+    /// <param name="context">The context in use.</param>
+    /// <param name="cancellationToken">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
+    /// <returns>A <see cref="Task" /> for the async result.</returns>
+    /// <exception cref="OperationCanceledException">If the <see cref="CancellationToken" /> is canceled.</exception>
+    public static Task SaveChangesCanceledAsync(
+        this IDiagnosticsLogger<DbLoggerCategory.Update> diagnostics,
+        DbContext context,
+        CancellationToken cancellationToken = default)
+    {
+        var definition = CoreResources.LogSaveChangesCanceled(diagnostics);
+
+        if (diagnostics.ShouldLog(definition))
+        {
+            definition.Log(diagnostics, context.GetType());
+        }
+
+        if (diagnostics.NeedsEventData<ISaveChangesInterceptor>(
+                definition,
+                out var interceptor, out var diagnosticSourceEnabled, out var simpleLogEnabled))
+        {
+            var eventData = new DbContextEventData(definition, SaveChangesCanceled, context);
+
+            diagnostics.DispatchEventData(definition, eventData, diagnosticSourceEnabled, simpleLogEnabled);
+
+            if (interceptor != null)
+            {
+                return interceptor.SaveChangesCanceledAsync(eventData, cancellationToken);
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private static string SaveChangesCanceled(EventDefinitionBase definition, EventData payload)
+    {
+        var d = (EventDefinition<Type?>)definition;
+        var p = (DbContextEventData)payload;
+        return d.GenerateMessage(p.Context?.GetType());
+    }
+
+    /// <summary>
     ///     Logs for the <see cref="CoreEventId.OptimisticConcurrencyException" /> event.
     /// </summary>
     /// <param name="diagnostics">The diagnostics logger to use.</param>
@@ -319,6 +391,38 @@ public static class CoreLoggerExtensions
         var d = (EventDefinition<Type, string, Exception>)definition;
         var p = (DbContextTypeErrorEventData)payload;
         return d.GenerateMessage(p.ContextType, Environment.NewLine, p.Exception);
+    }
+
+    /// <summary>
+    ///     Logs for the <see cref="CoreEventId.QueryCanceled" /> event.
+    /// </summary>
+    /// <param name="diagnostics">The diagnostics logger to use.</param>
+    /// <param name="contextType">The <see cref="DbContext" /> type being used.</param>
+    public static void QueryCanceled(this IDiagnosticsLogger<DbLoggerCategory.Query> diagnostics, Type contextType)
+    {
+        var definition = CoreResources.LogQueryCanceled(diagnostics);
+
+        if (diagnostics.ShouldLog(definition))
+        {
+            definition.Log(diagnostics, contextType);
+        }
+
+        if (diagnostics.NeedsEventData(definition, out var diagnosticSourceEnabled, out var simpleLogEnabled))
+        {
+            var eventData = new DbContextTypeEventData(
+                definition,
+                QueryCanceled,
+                contextType);
+
+            diagnostics.DispatchEventData(definition, eventData, diagnosticSourceEnabled, simpleLogEnabled);
+        }
+    }
+
+    private static string QueryCanceled(EventDefinitionBase definition, EventData payload)
+    {
+        var d = (EventDefinition<Type>)definition;
+        var p = (DbContextTypeEventData)payload;
+        return d.GenerateMessage(p.ContextType);
     }
 
     /// <summary>
@@ -1690,14 +1794,14 @@ public static class CoreLoggerExtensions
     {
         var d = (EventDefinition<string, string?, string, string?, string?>)definition;
         var p = (TwoUnmappedPropertyCollectionsEventData)payload;
-        var navigation = p.FirstPropertyCollection.First();
-        var inverseNavigation = p.SecondPropertyCollection.First();
+        var (memberInfo1, type1) = p.FirstPropertyCollection.First();
+        var (memberInfo2, type2) = p.SecondPropertyCollection.First();
         var ownershipNavigation = p.SecondPropertyCollection.Last();
         return d.GenerateMessage(
-            inverseNavigation.Item2.ShortDisplayName(),
-            inverseNavigation.Item1?.Name,
-            navigation.Item2.ShortDisplayName(),
-            navigation.Item1?.Name,
+            type2.ShortDisplayName(),
+            memberInfo2?.Name,
+            type1.ShortDisplayName(),
+            memberInfo1?.Name,
             ownershipNavigation.Item1?.Name);
     }
 
@@ -1756,15 +1860,15 @@ public static class CoreLoggerExtensions
     {
         var d = (EventDefinition<string, string?, string, string?, string?, string?>)definition;
         var p = (TwoUnmappedPropertyCollectionsEventData)payload;
-        var firstNavigation = p.FirstPropertyCollection.First();
+        var (memberInfo1, type1) = p.FirstPropertyCollection.First();
         var firstProperty = p.FirstPropertyCollection.Last();
-        var secondNavigation = p.SecondPropertyCollection.First();
+        var (memberInfo2, type2) = p.SecondPropertyCollection.First();
         var secondProperty = p.SecondPropertyCollection.Last();
         return d.GenerateMessage(
-            firstNavigation.Item2.ShortDisplayName(),
-            firstNavigation.Item1?.Name,
-            secondNavigation.Item2.ShortDisplayName(),
-            secondNavigation.Item1?.Name,
+            type1.ShortDisplayName(),
+            memberInfo1?.Name,
+            type2.ShortDisplayName(),
+            memberInfo2?.Name,
             firstProperty.Item1?.Name,
             secondProperty.Item1?.Name);
     }
@@ -1858,13 +1962,13 @@ public static class CoreLoggerExtensions
     {
         var d = (EventDefinition<string, string?, string, string?>)definition;
         var p = (TwoUnmappedPropertyCollectionsEventData)payload;
-        var navigation = p.FirstPropertyCollection.First();
-        var property = p.SecondPropertyCollection.First();
+        var (memberInfo1, type1) = p.FirstPropertyCollection.First();
+        var (memberInfo2, type2) = p.SecondPropertyCollection.First();
         return d.GenerateMessage(
-            navigation.Item2.ShortDisplayName(),
-            navigation.Item1?.Name,
-            property.Item2.ShortDisplayName(),
-            property.Item1?.Name);
+            type1.ShortDisplayName(),
+            memberInfo1?.Name,
+            type2.ShortDisplayName(),
+            memberInfo2?.Name);
     }
 
     /// <summary>

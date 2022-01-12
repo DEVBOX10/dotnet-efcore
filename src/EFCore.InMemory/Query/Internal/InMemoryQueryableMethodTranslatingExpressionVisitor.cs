@@ -1144,8 +1144,8 @@ public class InMemoryQueryableMethodTranslatingExpressionVisitor : QueryableMeth
 
     private sealed class SharedTypeEntityExpandingExpressionVisitor : ExpressionVisitor
     {
-        private static readonly MethodInfo _objectEqualsMethodInfo
-            = typeof(object).GetRequiredRuntimeMethod(nameof(object.Equals), typeof(object), typeof(object));
+        private static readonly MethodInfo ObjectEqualsMethodInfo
+            = typeof(object).GetRuntimeMethod(nameof(object.Equals), new[] { typeof(object), typeof(object) })!;
 
         private readonly InMemoryExpressionTranslatingExpressionVisitor _expressionTranslator;
 
@@ -1253,7 +1253,7 @@ public class InMemoryQueryableMethodTranslatingExpressionVisitor : QueryableMeth
                     makeNullable);
 
                 var keyComparison = Expression.Call(
-                    _objectEqualsMethodInfo, AddConvertToObject(outerKey), AddConvertToObject(innerKey));
+                    ObjectEqualsMethodInfo, AddConvertToObject(outerKey), AddConvertToObject(innerKey));
 
                 var predicate = makeNullable
                     ? Expression.AndAlso(
@@ -1352,7 +1352,7 @@ public class InMemoryQueryableMethodTranslatingExpressionVisitor : QueryableMeth
         Type transparentIdentifierType,
         Expression targetExpression,
         string fieldName)
-        => Expression.Field(targetExpression, transparentIdentifierType.GetRequiredDeclaredField(fieldName));
+        => Expression.Field(targetExpression, transparentIdentifierType.GetTypeInfo().GetDeclaredField(fieldName)!);
 
     private ShapedQueryExpression? TranslateScalarAggregate(
         ShapedQueryExpression source,

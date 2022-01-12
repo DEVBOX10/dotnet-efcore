@@ -1760,11 +1760,11 @@ public class InternalEntityTypeBuilder : AnnotatableBuilder<EntityType, Internal
 
             if (detachedKeys != null)
             {
-                foreach (var detachedKeyTuple in detachedKeys)
+                foreach (var (internalKeyBuilder, value) in detachedKeys)
                 {
-                    var newKeyBuilder = detachedKeyTuple.Item1.Attach(Metadata.RootType().Builder, detachedKeyTuple.Item2);
+                    var newKeyBuilder = internalKeyBuilder.Attach(Metadata.RootType().Builder, value);
                     if (newKeyBuilder == null
-                        && detachedKeyTuple.Item1.Metadata.GetConfigurationSource() == ConfigurationSource.Explicit)
+                        && internalKeyBuilder.Metadata.GetConfigurationSource() == ConfigurationSource.Explicit)
                     {
                         throw new InvalidOperationException(CoreStrings.DerivedEntityCannotHaveKeys(Metadata.DisplayName()));
                     }
@@ -3002,9 +3002,7 @@ public class InternalEntityTypeBuilder : AnnotatableBuilder<EntityType, Internal
                 }
                 else
                 {
-                    var navigation = navigationToTarget;
-                    navigationToTarget = inverseNavigation;
-                    inverseNavigation = navigation;
+                    (navigationToTarget, inverseNavigation) = (inverseNavigation, navigationToTarget);
 
                     navigationProperty = navigationToTarget?.MemberInfo;
                     inverseProperty = inverseNavigation?.MemberInfo;
@@ -4229,9 +4227,9 @@ public class InternalEntityTypeBuilder : AnnotatableBuilder<EntityType, Internal
 
             if (detachedNavigations != null)
             {
-                foreach (var detachedSkipNavigationTuple in detachedNavigations)
+                foreach (var (navigation, inverse) in detachedNavigations)
                 {
-                    detachedSkipNavigationTuple.Navigation.Attach(this, inverseBuilder: detachedSkipNavigationTuple.Inverse);
+                    navigation.Attach(this, inverseBuilder: inverse);
                 }
             }
         }
@@ -4787,7 +4785,7 @@ public class InternalEntityTypeBuilder : AnnotatableBuilder<EntityType, Internal
 
     private const string DefaultDiscriminatorName = "Discriminator";
 
-    private static readonly Type _defaultDiscriminatorType = typeof(string);
+    private static readonly Type DefaultDiscriminatorType = typeof(string);
 
     private InternalPropertyBuilder? GetOrCreateDiscriminatorProperty(Type? type, string? name, ConfigurationSource configurationSource)
     {
@@ -4799,7 +4797,7 @@ public class InternalEntityTypeBuilder : AnnotatableBuilder<EntityType, Internal
         }
 
         return Metadata.RootType().Builder.Property(
-                type ?? discriminatorProperty?.ClrType ?? _defaultDiscriminatorType,
+                type ?? discriminatorProperty?.ClrType ?? DefaultDiscriminatorType,
                 name ?? discriminatorProperty?.Name ?? DefaultDiscriminatorName,
                 typeConfigurationSource: type != null ? configurationSource : null,
                 configurationSource)
@@ -4905,7 +4903,7 @@ public class InternalEntityTypeBuilder : AnnotatableBuilder<EntityType, Internal
                 || configurationSource.Overrides(Metadata.GetDiscriminatorPropertyConfigurationSource()))
             && (discriminatorProperty != null
                 || Metadata.RootType().Builder.CanAddDiscriminatorProperty(
-                    discriminatorType ?? _defaultDiscriminatorType,
+                    discriminatorType ?? DefaultDiscriminatorType,
                     name ?? DefaultDiscriminatorName,
                     typeConfigurationSource: discriminatorType != null
                         ? configurationSource

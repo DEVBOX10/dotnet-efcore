@@ -410,8 +410,8 @@ public abstract class PropertyBase : ConventionAnnotatable, IMutablePropertyBase
                 return new CurrentValueComparerFactory().Create(property);
             });
 
-    private static readonly MethodInfo _containsKeyMethod =
-        typeof(IDictionary<string, object>).GetRequiredMethod(nameof(IDictionary<string, object>.ContainsKey), typeof(string));
+    private static readonly MethodInfo ContainsKeyMethod =
+        typeof(IDictionary<string, object>).GetMethod(nameof(IDictionary<string, object>.ContainsKey), new[] { typeof(string) })!;
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -433,7 +433,7 @@ public abstract class PropertyBase : ConventionAnnotatable, IMutablePropertyBase
             {
                 expression = Expression.Condition(
                     Expression.Call(
-                        instanceExpression, _containsKeyMethod, new List<Expression> { Expression.Constant(property.Name) }),
+                        instanceExpression, ContainsKeyMethod, new List<Expression> { Expression.Constant(property.Name) }),
                     expression,
                     expression.Type.GetDefaultValueConstant());
             }

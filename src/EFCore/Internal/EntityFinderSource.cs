@@ -15,8 +15,8 @@ namespace Microsoft.EntityFrameworkCore.Internal;
 /// </summary>
 public class EntityFinderSource : IEntityFinderSource
 {
-    private static readonly MethodInfo _genericCreate
-        = typeof(EntityFinderSource).GetTypeInfo().GetRequiredDeclaredMethod(nameof(CreateConstructor));
+    private static readonly MethodInfo GenericCreate
+        = typeof(EntityFinderSource).GetTypeInfo().GetDeclaredMethod(nameof(CreateConstructor))!;
 
     private readonly ConcurrentDictionary<Type, Func<IStateManager, IDbSetSource, IDbSetCache, IEntityType, IEntityFinder>> _cache
         = new();
@@ -35,7 +35,7 @@ public class EntityFinderSource : IEntityFinderSource
         => _cache.GetOrAdd(
             type.ClrType,
             t => (Func<IStateManager, IDbSetSource, IDbSetCache, IEntityType, IEntityFinder>)
-                _genericCreate.MakeGenericMethod(t).Invoke(null, null)!)(stateManager, setSource, setCache, type);
+                GenericCreate.MakeGenericMethod(t).Invoke(null, null)!)(stateManager, setSource, setCache, type);
 
     [UsedImplicitly]
     private static Func<IStateManager, IDbSetSource, IDbSetCache, IEntityType, IEntityFinder> CreateConstructor<TEntity>()

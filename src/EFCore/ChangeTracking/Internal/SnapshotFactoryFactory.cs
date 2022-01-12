@@ -143,7 +143,7 @@ public abstract class SnapshotFactoryFactory
             arguments[i] = (propertyBase as INavigation)?.IsCollection ?? false
                 ? Expression.Call(
                     null,
-                    _snapshotCollectionMethod,
+                    SnapshotCollectionMethod,
                     memberAccess)
                 : CreateSnapshotValueExpression(memberAccess, propertyBase);
         }
@@ -261,8 +261,8 @@ public abstract class SnapshotFactoryFactory
     protected virtual bool UseEntityVariable
         => true;
 
-    private static readonly MethodInfo _snapshotCollectionMethod
-        = typeof(SnapshotFactoryFactory).GetTypeInfo().GetRequiredDeclaredMethod(nameof(SnapshotCollection));
+    private static readonly MethodInfo SnapshotCollectionMethod
+        = typeof(SnapshotFactoryFactory).GetTypeInfo().GetDeclaredMethod(nameof(SnapshotCollection))!;
 
     [UsedImplicitly]
     private static HashSet<object>? SnapshotCollection(IEnumerable<object>? collection)

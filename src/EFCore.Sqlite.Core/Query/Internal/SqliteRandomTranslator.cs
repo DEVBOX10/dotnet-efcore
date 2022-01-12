@@ -13,8 +13,8 @@ namespace Microsoft.EntityFrameworkCore.Sqlite.Query.Internal;
 /// </summary>
 public class SqliteRandomTranslator : IMethodCallTranslator
 {
-    private static readonly MethodInfo _methodInfo = typeof(DbFunctionsExtensions).GetRequiredMethod(
-        nameof(DbFunctionsExtensions.Random), typeof(DbFunctions));
+    private static readonly MethodInfo MethodInfo
+        = typeof(DbFunctionsExtensions).GetMethod(nameof(DbFunctionsExtensions.Random), new[] { typeof(DbFunctions) })!;
 
     private readonly ISqlExpressionFactory _sqlExpressionFactory;
 
@@ -41,7 +41,7 @@ public class SqliteRandomTranslator : IMethodCallTranslator
             IReadOnlyList<SqlExpression> arguments,
             IDiagnosticsLogger<DbLoggerCategory.Query> logger)
         // Issue #15586: Query: TypeCompatibility chart for inference.
-        => _methodInfo.Equals(method)
+        => MethodInfo.Equals(method)
             ? _sqlExpressionFactory.Function(
                 "abs",
                 new SqlExpression[]

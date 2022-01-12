@@ -14,7 +14,8 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Query.Internal;
 /// </summary>
 public class SqlServerGeometryCollectionMemberTranslator : IMemberTranslator
 {
-    private static readonly MemberInfo _count = typeof(GeometryCollection).GetRequiredRuntimeProperty(nameof(GeometryCollection.Count));
+    private static readonly MemberInfo Count
+        = typeof(GeometryCollection).GetTypeInfo().GetRuntimeProperty(nameof(GeometryCollection.Count))!;
     private readonly ISqlExpressionFactory _sqlExpressionFactory;
 
     /// <summary>
@@ -40,7 +41,7 @@ public class SqlServerGeometryCollectionMemberTranslator : IMemberTranslator
         Type returnType,
         IDiagnosticsLogger<DbLoggerCategory.Query> logger)
     {
-        if (Equals(member, _count))
+        if (Equals(member, Count))
         {
             return _sqlExpressionFactory.Function(
                 instance!,

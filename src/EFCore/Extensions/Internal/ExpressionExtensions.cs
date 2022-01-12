@@ -37,7 +37,8 @@ public static class ExpressionExtensions
             return Expression.Not(
                 Expression.Call(
                     currentValueExpression,
-                    currentValueExpression.Type.GetRequiredMethod("get_HasValue")));
+                    Check.NotNull(
+                        currentValueExpression.Type.GetMethod("get_HasValue"), $"get_HasValue on {currentValueExpression.Type.Name}")));
         }
 
         var property = propertyBase as IReadOnlyProperty;
@@ -182,22 +183,18 @@ public static class ExpressionExtensions
     [return: NotNullIfNotNull("expression")]
     private static Expression? RemoveConvert(Expression? expression)
     {
-        while (true)
+        if (expression is UnaryExpression unaryExpression
+            && (expression.NodeType == ExpressionType.Convert
+                || expression.NodeType == ExpressionType.ConvertChecked))
         {
-            if (expression is UnaryExpression unaryExpression
-                && (expression.NodeType == ExpressionType.Convert
-                    || expression.NodeType == ExpressionType.ConvertChecked))
-            {
-                expression = unaryExpression.Operand;
-                continue;
-            }
-
-            return expression;
+            return RemoveConvert(unaryExpression.Operand);
         }
+
+        return expression;
     }
 
-    private static readonly MethodInfo _objectEqualsMethodInfo
-        = typeof(object).GetRequiredRuntimeMethod(nameof(object.Equals), typeof(object), typeof(object));
+    private static readonly MethodInfo ObjectEqualsMethodInfo
+        = typeof(object).GetRuntimeMethod(nameof(object.Equals), new[] { typeof(object), typeof(object) })!;
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -230,7 +227,7 @@ public static class ExpressionExtensions
                 && property.ClrType.UnwrapNullableType() is Type nonNullableType
                 && !(nonNullableType == typeof(bool) || nonNullableType.IsNumeric() || nonNullableType.IsEnum)
                     ? Expression.Call(
-                        _objectEqualsMethodInfo,
+                        ObjectEqualsMethodInfo,
                         Expression.Call(
                             EF.PropertyMethod.MakeGenericMethod(typeof(object)),
                             entityParameterExpression,

@@ -11,12 +11,10 @@ namespace Microsoft.EntityFrameworkCore.Sqlite.Scaffolding.Internal;
 /// </summary>
 public class SqliteCodeGenerator : ProviderCodeGenerator
 {
-    private static readonly MethodInfo _useSqliteMethodInfo
-        = typeof(SqliteDbContextOptionsBuilderExtensions).GetRequiredRuntimeMethod(
+    private static readonly MethodInfo UseSqliteMethodInfo
+        = typeof(SqliteDbContextOptionsBuilderExtensions).GetRuntimeMethod(
             nameof(SqliteDbContextOptionsBuilderExtensions.UseSqlite),
-            typeof(DbContextOptionsBuilder),
-            typeof(string),
-            typeof(Action<SqliteDbContextOptionsBuilder>));
+            new[] { typeof(DbContextOptionsBuilder), typeof(string), typeof(Action<SqliteDbContextOptionsBuilder>) })!;
 
     /// <summary>
     ///     Initializes a new instance of the <see cref="SqliteCodeGenerator" /> class.
@@ -37,7 +35,7 @@ public class SqliteCodeGenerator : ProviderCodeGenerator
         string connectionString,
         MethodCallCodeFragment? providerOptions)
         => new(
-            _useSqliteMethodInfo,
+            UseSqliteMethodInfo,
             providerOptions == null
                 ? new object[] { connectionString }
                 : new object[] { connectionString, new NestedClosureCodeFragment("x", providerOptions) });

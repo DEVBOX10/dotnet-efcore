@@ -984,8 +984,8 @@ public class RelationalQueryableMethodTranslatingExpressionVisitor : QueryableMe
 
     private sealed class SharedTypeEntityExpandingExpressionVisitor : ExpressionVisitor
     {
-        private static readonly MethodInfo _objectEqualsMethodInfo
-            = typeof(object).GetRequiredRuntimeMethod(nameof(object.Equals), typeof(object), typeof(object));
+        private static readonly MethodInfo ObjectEqualsMethodInfo
+            = typeof(object).GetRuntimeMethod(nameof(object.Equals), new[] { typeof(object), typeof(object) })!;
 
         private readonly RelationalSqlTranslatingExpressionVisitor _sqlTranslator;
         private readonly ISqlExpressionFactory _sqlExpressionFactory;
@@ -1106,7 +1106,7 @@ public class RelationalQueryableMethodTranslatingExpressionVisitor : QueryableMe
                     makeNullable);
 
                 var keyComparison = Expression.Call(
-                    _objectEqualsMethodInfo, AddConvertToObject(outerKey), AddConvertToObject(innerKey));
+                    ObjectEqualsMethodInfo, AddConvertToObject(outerKey), AddConvertToObject(innerKey));
 
                 var predicate = makeNullable
                     ? Expression.AndAlso(
@@ -1350,7 +1350,7 @@ public class RelationalQueryableMethodTranslatingExpressionVisitor : QueryableMe
         Type transparentIdentifierType,
         Expression targetExpression,
         string fieldName)
-        => Expression.Field(targetExpression, transparentIdentifierType.GetRequiredDeclaredField(fieldName));
+        => Expression.Field(targetExpression, transparentIdentifierType.GetTypeInfo().GetDeclaredField(fieldName)!);
 
     private static void HandleGroupByForAggregate(SelectExpression selectExpression, bool eraseProjection = false)
     {
@@ -1608,6 +1608,7 @@ public class RelationalQueryableMethodTranslatingExpressionVisitor : QueryableMe
             selector = _sqlExpressionFactory.Case(
                 new List<CaseWhenClause> { new(predicate, selector) },
                 elseResult: null);
+            selectExpression.UpdatePredicate(_groupingElementCorrelationalPredicate!);
         }
 
         if (selectExpression.IsDistinct)

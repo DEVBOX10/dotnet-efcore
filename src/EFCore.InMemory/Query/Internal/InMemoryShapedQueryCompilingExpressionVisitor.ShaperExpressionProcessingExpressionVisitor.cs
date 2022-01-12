@@ -9,20 +9,20 @@ public partial class InMemoryShapedQueryCompilingExpressionVisitor
 {
     private sealed class ShaperExpressionProcessingExpressionVisitor : ExpressionVisitor
     {
-        private static readonly MethodInfo _includeReferenceMethodInfo
-            = typeof(ShaperExpressionProcessingExpressionVisitor).GetRequiredDeclaredMethod(nameof(IncludeReference));
+        private static readonly MethodInfo IncludeReferenceMethodInfo
+            = typeof(ShaperExpressionProcessingExpressionVisitor).GetTypeInfo().GetDeclaredMethod(nameof(IncludeReference))!;
 
-        private static readonly MethodInfo _includeCollectionMethodInfo
-            = typeof(ShaperExpressionProcessingExpressionVisitor).GetRequiredDeclaredMethod(nameof(IncludeCollection));
+        private static readonly MethodInfo IncludeCollectionMethodInfo
+            = typeof(ShaperExpressionProcessingExpressionVisitor).GetTypeInfo().GetDeclaredMethod(nameof(IncludeCollection))!;
 
-        private static readonly MethodInfo _materializeCollectionMethodInfo
-            = typeof(ShaperExpressionProcessingExpressionVisitor).GetRequiredDeclaredMethod(nameof(MaterializeCollection));
+        private static readonly MethodInfo MaterializeCollectionMethodInfo
+            = typeof(ShaperExpressionProcessingExpressionVisitor).GetTypeInfo().GetDeclaredMethod(nameof(MaterializeCollection))!;
 
-        private static readonly MethodInfo _materializeSingleResultMethodInfo
-            = typeof(ShaperExpressionProcessingExpressionVisitor).GetRequiredDeclaredMethod(nameof(MaterializeSingleResult));
+        private static readonly MethodInfo MaterializeSingleResultMethodInfo
+            = typeof(ShaperExpressionProcessingExpressionVisitor).GetTypeInfo().GetDeclaredMethod(nameof(MaterializeSingleResult))!;
 
-        private static readonly MethodInfo _collectionAccessorAddMethodInfo
-            = typeof(IClrCollectionAccessor).GetRequiredDeclaredMethod(nameof(IClrCollectionAccessor.Add));
+        private static readonly MethodInfo CollectionAccessorAddMethodInfo
+            = typeof(IClrCollectionAccessor).GetTypeInfo().GetDeclaredMethod(nameof(IClrCollectionAccessor.Add))!;
 
         private readonly InMemoryShapedQueryCompilingExpressionVisitor _inMemoryShapedQueryCompilingExpressionVisitor;
         private readonly bool _tracking;
@@ -128,7 +128,7 @@ public partial class InMemoryShapedQueryCompilingExpressionVisitor
                             .ProcessShaper(collectionResultShaperExpression.InnerShaper);
                         _expressions.Add(
                             Expression.Call(
-                                _includeCollectionMethodInfo.MakeGenericMethod(entityClrType, includingClrType, relatedEntityClrType),
+                                IncludeCollectionMethodInfo.MakeGenericMethod(entityClrType, includingClrType, relatedEntityClrType),
                                 QueryCompilationContext.QueryContextParameter,
                                 Visit(collectionResultShaperExpression.Projection),
                                 Expression.Constant(shaperLambda.Compile()),
@@ -148,7 +148,7 @@ public partial class InMemoryShapedQueryCompilingExpressionVisitor
                     {
                         _expressions.Add(
                             Expression.Call(
-                                _includeReferenceMethodInfo.MakeGenericMethod(entityClrType, includingClrType, relatedEntityClrType),
+                                IncludeReferenceMethodInfo.MakeGenericMethod(entityClrType, includingClrType, relatedEntityClrType),
                                 QueryCompilationContext.QueryContextParameter,
                                 entity,
                                 Visit(includeExpression.NavigationExpression),
@@ -175,7 +175,7 @@ public partial class InMemoryShapedQueryCompilingExpressionVisitor
                         .ProcessShaper(collectionResultShaperExpression.InnerShaper);
 
                     return Expression.Call(
-                        _materializeCollectionMethodInfo.MakeGenericMethod(elementType, collectionType),
+                        MaterializeCollectionMethodInfo.MakeGenericMethod(elementType, collectionType),
                         QueryCompilationContext.QueryContextParameter,
                         Visit(collectionResultShaperExpression.Projection),
                         Expression.Constant(shaperLambda.Compile()),
@@ -189,7 +189,7 @@ public partial class InMemoryShapedQueryCompilingExpressionVisitor
                         .ProcessShaper(singleResultShaperExpression.InnerShaper);
 
                     return Expression.Call(
-                        _materializeSingleResultMethodInfo.MakeGenericMethod(singleResultShaperExpression.Type),
+                        MaterializeSingleResultMethodInfo.MakeGenericMethod(singleResultShaperExpression.Type),
                         QueryCompilationContext.QueryContextParameter,
                         Visit(singleResultShaperExpression.Projection),
                         Expression.Constant(shaperLambda.Compile()));
@@ -400,7 +400,7 @@ public partial class InMemoryShapedQueryCompilingExpressionVisitor
             INavigationBase navigation)
             => Expression.Call(
                 Expression.Constant(navigation.GetCollectionAccessor()),
-                _collectionAccessorAddMethodInfo,
+                CollectionAccessorAddMethodInfo,
                 entity,
                 relatedEntity,
                 Expression.Constant(true));

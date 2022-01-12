@@ -18,7 +18,7 @@ namespace Microsoft.EntityFrameworkCore.Query;
 public class QuerySqlGenerator : SqlExpressionVisitor
 {
 
-    private static readonly Dictionary<ExpressionType, string> _operatorMap = new()
+    private static readonly Dictionary<ExpressionType, string> OperatorMap = new()
     {
         { ExpressionType.Equal, " = " },
         { ExpressionType.NotEqual, " <> " },
@@ -523,17 +523,19 @@ public class QuerySqlGenerator : SqlExpressionVisitor
         var parameterName = sqlParameterExpression.Name;
 
         if (_relationalCommandBuilder.Parameters
-            .All(p => p.InvariantName != parameterName
-                || (p is TypeMappedRelationalParameter typeMappedRelationalParameter
-                    && (typeMappedRelationalParameter.RelationalTypeMapping.StoreType != sqlParameterExpression.TypeMapping!.StoreType
-                        || typeMappedRelationalParameter.RelationalTypeMapping.Converter != sqlParameterExpression.TypeMapping!.Converter))))
+            .All(
+                p => p.InvariantName != parameterName
+                    || (p is TypeMappedRelationalParameter typeMappedRelationalParameter
+                        && (typeMappedRelationalParameter.RelationalTypeMapping.StoreType != sqlParameterExpression.TypeMapping!.StoreType
+                            || typeMappedRelationalParameter.RelationalTypeMapping.Converter
+                            != sqlParameterExpression.TypeMapping!.Converter))))
         {
             parameterName = GetUniqueParameterName(parameterName);
             _relationalCommandBuilder.AddParameter(
                 invariantName,
                 _sqlGenerationHelper.GenerateParameterName(parameterName),
-                 sqlParameterExpression.TypeMapping!,
-                 sqlParameterExpression.IsNullable);
+                sqlParameterExpression.TypeMapping!,
+                sqlParameterExpression.IsNullable);
         }
 
         _relationalCommandBuilder
@@ -826,7 +828,7 @@ public class QuerySqlGenerator : SqlExpressionVisitor
     /// <param name="binaryExpression">A SQL binary operation.</param>
     /// <returns>A string representation of the binary operator.</returns>
     protected virtual string GetOperator(SqlBinaryExpression binaryExpression)
-        => _operatorMap[binaryExpression.OperatorType];
+        => OperatorMap[binaryExpression.OperatorType];
 
     /// <summary>
     ///     Returns a bool value indicating if the inner SQL expression required to be put inside parenthesis

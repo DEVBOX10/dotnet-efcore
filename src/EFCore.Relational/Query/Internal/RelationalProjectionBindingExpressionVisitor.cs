@@ -14,8 +14,8 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal;
 /// </summary>
 public class RelationalProjectionBindingExpressionVisitor : ExpressionVisitor
 {
-    private static readonly MethodInfo _getParameterValueMethodInfo
-        = typeof(RelationalProjectionBindingExpressionVisitor).GetRequiredDeclaredMethod(nameof(GetParameterValue));
+    private static readonly MethodInfo GetParameterValueMethodInfo
+        = typeof(RelationalProjectionBindingExpressionVisitor).GetTypeInfo().GetDeclaredMethod(nameof(GetParameterValue))!;
 
     private readonly RelationalQueryableMethodTranslatingExpressionVisitor _queryableMethodTranslatingExpressionVisitor;
     private readonly RelationalSqlTranslatingExpressionVisitor _sqlTranslator;
@@ -126,7 +126,7 @@ public class RelationalProjectionBindingExpressionVisitor : ExpressionVisitor
                                 QueryCompilationContext.QueryParameterPrefix, StringComparison.Ordinal)
                             == true
                                 ? Expression.Call(
-                                    _getParameterValueMethodInfo.MakeGenericMethod(parameterExpression.Type),
+                                    GetParameterValueMethodInfo.MakeGenericMethod(parameterExpression.Type),
                                     QueryCompilationContext.QueryContextParameter,
                                     Expression.Constant(parameterExpression.Name))
                                 : throw new InvalidOperationException(CoreStrings.TranslationFailed(parameterExpression.Print()));
@@ -150,6 +150,7 @@ public class RelationalProjectionBindingExpressionVisitor : ExpressionVisitor
                             _queryableMethodTranslatingExpressionVisitor.TranslateSubquery(
                                 materializeCollectionNavigationExpression.Subquery)!);
                         return new CollectionResultExpression(
+                            // expression.Type will be CLR type of the navigation here so that is fine.
                             new ProjectionBindingExpression(_selectExpression, _clientProjections.Count - 1, expression.Type),
                             materializeCollectionNavigationExpression.Navigation,
                             materializeCollectionNavigationExpression.Navigation.ClrType.GetSequenceType());
@@ -166,6 +167,7 @@ public class RelationalProjectionBindingExpressionVisitor : ExpressionVisitor
                             if (subquery != null)
                             {
                                 _clientProjections!.Add(subquery);
+                                // expression.Type here will be List<T>
                                 return new CollectionResultExpression(
                                     new ProjectionBindingExpression(_selectExpression, _clientProjections.Count - 1, expression.Type),
                                     navigation: null,
@@ -185,8 +187,14 @@ public class RelationalProjectionBindingExpressionVisitor : ExpressionVisitor
                                 }
 
                                 _clientProjections!.Add(subquery);
+                                var type = expression.Type;
+                                if (type.IsGenericType
+                                    && type.GetGenericTypeDefinition() == typeof(IQueryable<>))
+                                {
+                                    type = typeof(IEnumerable<>).MakeGenericType(type.GetSequenceType());
+                                }
                                 var projectionBindingExpression = new ProjectionBindingExpression(
-                                    _selectExpression, _clientProjections.Count - 1, expression.Type);
+                                    _selectExpression, _clientProjections.Count - 1, type);
                                 return subquery.ResultCardinality == ResultCardinality.Enumerable
                                     ? new CollectionResultExpression(
                                         projectionBindingExpression, navigation: null, subquery.ShaperExpression.Type)

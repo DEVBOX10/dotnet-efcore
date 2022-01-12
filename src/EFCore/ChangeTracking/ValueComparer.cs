@@ -25,26 +25,26 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking;
 /// </remarks>
 public abstract class ValueComparer : IEqualityComparer, IEqualityComparer<object>
 {
-    private static readonly MethodInfo _doubleEqualsMethodInfo
-        = typeof(double).GetRequiredRuntimeMethod(nameof(double.Equals), typeof(double));
+    private static readonly MethodInfo DoubleEqualsMethodInfo
+        = typeof(double).GetRuntimeMethod(nameof(double.Equals), new[] { typeof(double) })!;
 
-    private static readonly MethodInfo _floatEqualsMethodInfo
-        = typeof(float).GetRequiredRuntimeMethod(nameof(float.Equals), typeof(float));
+    private static readonly MethodInfo FloatEqualsMethodInfo
+        = typeof(float).GetRuntimeMethod(nameof(float.Equals), new[] { typeof(float) })!;
 
     internal static readonly MethodInfo ArrayCopyMethod
-        = typeof(Array).GetRequiredRuntimeMethod(nameof(Array.Copy), typeof(Array), typeof(Array), typeof(int));
+        = typeof(Array).GetRuntimeMethod(nameof(Array.Copy), new[] { typeof(Array), typeof(Array), typeof(int) })!;
 
     internal static readonly MethodInfo EqualityComparerHashCodeMethod
-        = typeof(IEqualityComparer).GetRequiredRuntimeMethod(nameof(IEqualityComparer.GetHashCode), typeof(object));
+        = typeof(IEqualityComparer).GetRuntimeMethod(nameof(IEqualityComparer.GetHashCode), new[] { typeof(object) })!;
 
     internal static readonly MethodInfo EqualityComparerEqualsMethod
-        = typeof(IEqualityComparer).GetRequiredRuntimeMethod(nameof(IEqualityComparer.Equals), typeof(object), typeof(object));
+        = typeof(IEqualityComparer).GetRuntimeMethod(nameof(IEqualityComparer.Equals), new[] { typeof(object), typeof(object) })!;
 
     internal static readonly MethodInfo ObjectEqualsMethod
-        = typeof(object).GetRequiredRuntimeMethod(nameof(object.Equals), typeof(object), typeof(object));
+        = typeof(object).GetRuntimeMethod(nameof(object.Equals), new[] { typeof(object), typeof(object) })!;
 
     internal static readonly MethodInfo ObjectGetHashCodeMethod
-        = typeof(object).GetRequiredRuntimeMethod(nameof(object.GetHashCode), Type.EmptyTypes);
+        = typeof(object).GetRuntimeMethod(nameof(object.GetHashCode), Type.EmptyTypes)!;
 
     /// <summary>
     ///     Creates a new <see cref="ValueComparer" /> with the given comparison and
@@ -256,7 +256,7 @@ public abstract class ValueComparer : IEqualityComparer, IEqualityComparer<objec
         }
 
         public override Expression ExtractEqualsBody(Expression leftExpression, Expression rightExpression)
-            => Expression.Call(leftExpression, _doubleEqualsMethodInfo, rightExpression);
+            => Expression.Call(leftExpression, DoubleEqualsMethodInfo, rightExpression);
     }
 
     internal sealed class DefaultFloatValueComparer : DefaultValueComparer<float>
@@ -267,13 +267,13 @@ public abstract class ValueComparer : IEqualityComparer, IEqualityComparer<objec
         }
 
         public override Expression ExtractEqualsBody(Expression leftExpression, Expression rightExpression)
-            => Expression.Call(leftExpression, _floatEqualsMethodInfo, rightExpression);
+            => Expression.Call(leftExpression, FloatEqualsMethodInfo, rightExpression);
     }
 
     internal sealed class DefaultDateTimeOffsetValueComparer : DefaultValueComparer<DateTimeOffset>
     {
-        private static readonly MethodInfo _equalsExactMethodInfo
-            = typeof(DateTimeOffset).GetRequiredRuntimeMethod(nameof(DateTimeOffset.EqualsExact), typeof(DateTimeOffset));
+        private static readonly MethodInfo EqualsExactMethodInfo
+            = typeof(DateTimeOffset).GetRuntimeMethod(nameof(DateTimeOffset.EqualsExact), new[] { typeof(DateTimeOffset) })!;
 
         // In .NET, two DateTimeOffset instances are considered equal if they represent the same point in time but with different
         // time zone offsets. This comparer uses EqualsExact, which considers such DateTimeOffset as non-equal.
@@ -283,6 +283,6 @@ public abstract class ValueComparer : IEqualityComparer, IEqualityComparer<objec
         }
 
         public override Expression ExtractEqualsBody(Expression leftExpression, Expression rightExpression)
-            => Expression.Call(leftExpression, _equalsExactMethodInfo, rightExpression);
+            => Expression.Call(leftExpression, EqualsExactMethodInfo, rightExpression);
     }
 }

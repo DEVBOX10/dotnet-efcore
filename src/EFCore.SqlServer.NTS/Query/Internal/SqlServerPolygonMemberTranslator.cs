@@ -14,12 +14,14 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Query.Internal;
 /// </summary>
 public class SqlServerPolygonMemberTranslator : IMemberTranslator
 {
-    private static readonly MemberInfo _exteriorRing = typeof(Polygon).GetRequiredRuntimeProperty(nameof(Polygon.ExteriorRing));
-    private static readonly MemberInfo _numInteriorRings = typeof(Polygon).GetRequiredRuntimeProperty(nameof(Polygon.NumInteriorRings));
+    private static readonly MemberInfo ExteriorRing
+        = typeof(Polygon).GetTypeInfo().GetRuntimeProperty(nameof(Polygon.ExteriorRing))!;
+    private static readonly MemberInfo NumInteriorRings
+        = typeof(Polygon).GetTypeInfo().GetRuntimeProperty(nameof(Polygon.NumInteriorRings))!;
 
-    private static readonly IDictionary<MemberInfo, string> _geometryMemberToFunctionName = new Dictionary<MemberInfo, string>
+    private static readonly IDictionary<MemberInfo, string> GeometryMemberToFunctionName = new Dictionary<MemberInfo, string>
     {
-        { _exteriorRing, "STExteriorRing" }, { _numInteriorRings, "STNumInteriorRing" }
+        { ExteriorRing, "STExteriorRing" }, { NumInteriorRings, "STNumInteriorRing" }
     };
 
     private readonly IRelationalTypeMappingSource _typeMappingSource;
@@ -59,7 +61,7 @@ public class SqlServerPolygonMemberTranslator : IMemberTranslator
 
             if (isGeography)
             {
-                if (Equals(_exteriorRing, member))
+                if (Equals(ExteriorRing, member))
                 {
                     return _sqlExpressionFactory.Function(
                         instance,
@@ -72,7 +74,7 @@ public class SqlServerPolygonMemberTranslator : IMemberTranslator
                         _typeMappingSource.FindMapping(returnType, storeType));
                 }
 
-                if (Equals(_numInteriorRings, member))
+                if (Equals(NumInteriorRings, member))
                 {
                     return _sqlExpressionFactory.Subtract(
                         _sqlExpressionFactory.Function(
@@ -87,7 +89,7 @@ public class SqlServerPolygonMemberTranslator : IMemberTranslator
                 }
             }
 
-            if (_geometryMemberToFunctionName.TryGetValue(member, out var functionName))
+            if (GeometryMemberToFunctionName.TryGetValue(member, out var functionName))
             {
                 var resultTypeMapping = typeof(Geometry).IsAssignableFrom(returnType)
                     ? _typeMappingSource.FindMapping(returnType, storeType)

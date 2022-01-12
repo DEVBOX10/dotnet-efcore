@@ -14,7 +14,8 @@ namespace Microsoft.EntityFrameworkCore.Sqlite.Query.Internal;
 /// </summary>
 public class SqliteGeometryCollectionMemberTranslator : IMemberTranslator
 {
-    private static readonly MemberInfo _count = typeof(GeometryCollection).GetRequiredRuntimeProperty(nameof(GeometryCollection.Count));
+    private static readonly MemberInfo Count
+        = typeof(GeometryCollection).GetTypeInfo().GetRuntimeProperty(nameof(GeometryCollection.Count))!;
     private readonly ISqlExpressionFactory _sqlExpressionFactory;
 
     /// <summary>
@@ -39,7 +40,7 @@ public class SqliteGeometryCollectionMemberTranslator : IMemberTranslator
         MemberInfo member,
         Type returnType,
         IDiagnosticsLogger<DbLoggerCategory.Query> logger)
-        => Equals(member, _count)
+        => Equals(member, Count)
             ? _sqlExpressionFactory.Function(
                 "NumGeometries",
                 new[] { instance! },

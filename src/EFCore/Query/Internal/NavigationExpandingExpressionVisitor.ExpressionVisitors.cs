@@ -14,8 +14,8 @@ public partial class NavigationExpandingExpressionVisitor
     /// </summary>
     private class ExpandingExpressionVisitor : ExpressionVisitor
     {
-        private static readonly MethodInfo _objectEqualsMethodInfo
-            = typeof(object).GetRequiredRuntimeMethod(nameof(object.Equals), typeof(object), typeof(object));
+        private static readonly MethodInfo ObjectEqualsMethodInfo
+            = typeof(object).GetRuntimeMethod(nameof(object.Equals), new[] { typeof(object), typeof(object) })!;
 
         private readonly NavigationExpandingExpressionVisitor _navigationExpandingExpressionVisitor;
         private readonly NavigationExpansionExpression _source;
@@ -410,7 +410,7 @@ public partial class NavigationExpandingExpressionVisitor
                                 })
                             .Aggregate((l, r) => Expression.AndAlso(l, r))
                         : Expression.NotEqual(outerKey, Expression.Constant(null, outerKey.Type)),
-                    Expression.Call(_objectEqualsMethodInfo, AddConvertToObject(outerKey), AddConvertToObject(innerKey)));
+                    Expression.Call(ObjectEqualsMethodInfo, AddConvertToObject(outerKey), AddConvertToObject(innerKey)));
 
                 // Caller should take care of wrapping MaterializeCollectionNavigation
                 return Expression.Call(
@@ -430,8 +430,8 @@ public partial class NavigationExpandingExpressionVisitor
             var resultSelectorInnerParameter = Expression.Parameter(innerSource.SourceElementType, "i");
             var resultType = TransparentIdentifierFactory.Create(_source.SourceElementType, innerSource.SourceElementType);
 
-            var transparentIdentifierOuterMemberInfo = resultType.GetTypeInfo().GetRequiredDeclaredField("Outer");
-            var transparentIdentifierInnerMemberInfo = resultType.GetTypeInfo().GetRequiredDeclaredField("Inner");
+            var transparentIdentifierOuterMemberInfo = resultType.GetTypeInfo().GetDeclaredField("Outer")!;
+            var transparentIdentifierInnerMemberInfo = resultType.GetTypeInfo().GetDeclaredField("Inner")!;
 
             var resultSelector = Expression.Lambda(
                 Expression.New(
@@ -486,8 +486,8 @@ public partial class NavigationExpandingExpressionVisitor
     /// </summary>
     private sealed class IncludeExpandingExpressionVisitor : ExpandingExpressionVisitor
     {
-        private static readonly MethodInfo _fetchJoinEntityMethodInfo =
-            typeof(IncludeExpandingExpressionVisitor).GetRequiredDeclaredMethod(nameof(FetchJoinEntity));
+        private static readonly MethodInfo FetchJoinEntityMethodInfo =
+            typeof(IncludeExpandingExpressionVisitor).GetTypeInfo().GetDeclaredMethod(nameof(FetchJoinEntity))!;
 
         private readonly bool _queryStateManager;
         private readonly bool _ignoreAutoIncludes;
@@ -698,10 +698,8 @@ public partial class NavigationExpandingExpressionVisitor
 
         private static void VerifyNoCycles(IncludeTreeNode includeTreeNode)
         {
-            foreach (var keyValuePair in includeTreeNode)
+            foreach (var (navigation, referenceIncludeTreeNode) in includeTreeNode)
             {
-                var navigation = keyValuePair.Key;
-                var referenceIncludeTreeNode = keyValuePair.Value;
                 var inverseNavigation = navigation.Inverse;
                 if (inverseNavigation != null
                     && referenceIncludeTreeNode.ContainsKey(inverseNavigation))
@@ -717,9 +715,8 @@ public partial class NavigationExpandingExpressionVisitor
         {
             var result = root;
             var convertedRoot = root;
-            foreach (var kvp in entityReference.IncludePaths)
+            foreach (var (navigationBase, includeTreeNode) in entityReference.IncludePaths)
             {
-                var navigationBase = kvp.Key;
                 if (!navigationBase.IsCollection
                     && previousNavigation?.Inverse == navigationBase)
                 {
@@ -811,7 +808,7 @@ public partial class NavigationExpandingExpressionVisitor
                             var newResultSelector = Expression.Quote(
                                 Expression.Lambda(
                                     Expression.Call(
-                                        _fetchJoinEntityMethodInfo.MakeGenericMethod(joinParameter.Type, targetParameter.Type),
+                                        FetchJoinEntityMethodInfo.MakeGenericMethod(joinParameter.Type, targetParameter.Type),
                                         joinParameter,
                                         targetParameter),
                                     joinParameter,
@@ -824,8 +821,8 @@ public partial class NavigationExpandingExpressionVisitor
                         {
                             var resultType = TransparentIdentifierFactory.Create(joinParameter.Type, targetParameter.Type);
 
-                            var transparentIdentifierOuterMemberInfo = resultType.GetTypeInfo().GetRequiredDeclaredField("Outer");
-                            var transparentIdentifierInnerMemberInfo = resultType.GetTypeInfo().GetRequiredDeclaredField("Inner");
+                            var transparentIdentifierOuterMemberInfo = resultType.GetTypeInfo().GetDeclaredField("Outer")!;
+                            var transparentIdentifierInnerMemberInfo = resultType.GetTypeInfo().GetDeclaredField("Inner")!;
 
                             var newResultSelector = Expression.Quote(
                                 Expression.Lambda(
@@ -857,7 +854,7 @@ public partial class NavigationExpandingExpressionVisitor
                             var selector = Expression.Quote(
                                 Expression.Lambda(
                                     Expression.Call(
-                                        _fetchJoinEntityMethodInfo.MakeGenericMethod(joinParameter.Type, targetParameter.Type),
+                                        FetchJoinEntityMethodInfo.MakeGenericMethod(joinParameter.Type, targetParameter.Type),
                                         Expression.MakeMemberAccess(
                                             transparentIdentifierParameter, transparentIdentifierOuterMemberInfo),
                                         transparentIdentifierInnerAccessor),
@@ -878,7 +875,7 @@ public partial class NavigationExpandingExpressionVisitor
                     }
                 }
 
-                result = new IncludeExpression(result, included, navigationBase, kvp.Value.SetLoaded);
+                result = new IncludeExpression(result, included, navigationBase, includeTreeNode.SetLoaded);
             }
 
             return result;
@@ -1138,9 +1135,9 @@ public partial class NavigationExpandingExpressionVisitor
             _navigationExpansionExpression = (NavigationExpansionExpression)groupByNavigationExpansionExpression.GroupingEnumerable;
             _keyAccessExpression = Expression.MakeMemberAccess(
                 groupByNavigationExpansionExpression.CurrentParameter,
-                groupByNavigationExpansionExpression.CurrentParameter.Type.GetRequiredDeclaredProperty(
-                    nameof(IGrouping<int, int>.Key)));
-            _keyMemberInfo = parameterExpression.Type.GetRequiredDeclaredProperty(nameof(IGrouping<int, int>.Key));
+                groupByNavigationExpansionExpression.CurrentParameter.Type.GetTypeInfo().GetDeclaredProperty(
+                    nameof(IGrouping<int, int>.Key))!);
+            _keyMemberInfo = parameterExpression.Type.GetTypeInfo().GetDeclaredProperty(nameof(IGrouping<int, int>.Key))!;
             _cloningExpressionVisitor = new CloningExpressionVisitor();
         }
 

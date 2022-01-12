@@ -32,8 +32,8 @@ namespace Microsoft.EntityFrameworkCore.Query;
 /// </remarks>
 public abstract class ShapedQueryCompilingExpressionVisitor : ExpressionVisitor
 {
-    private static readonly PropertyInfo _cancellationTokenMemberInfo
-        = typeof(QueryContext).GetRequiredProperty(nameof(QueryContext.CancellationToken));
+    private static readonly PropertyInfo CancellationTokenMemberInfo
+        = typeof(QueryContext).GetTypeInfo().GetProperty(nameof(QueryContext.CancellationToken))!;
 
     private readonly Expression _cancellationTokenParameter;
     private readonly EntityMaterializerInjectingExpressionVisitor _entityMaterializerInjectingExpressionVisitor;
@@ -62,7 +62,7 @@ public abstract class ShapedQueryCompilingExpressionVisitor : ExpressionVisitor
         {
             _cancellationTokenParameter = Expression.MakeMemberAccess(
                 QueryCompilationContext.QueryContextParameter,
-                _cancellationTokenMemberInfo);
+                CancellationTokenMemberInfo);
         }
         else
         {
@@ -94,7 +94,7 @@ public abstract class ShapedQueryCompilingExpressionVisitor : ExpressionVisitor
                 case ResultCardinality.Single:
                     return QueryCompilationContext.IsAsync
                         ? Expression.Call(
-                            _singleAsyncMethodInfo.MakeGenericMethod(serverEnumerable.Type.GetSequenceType()),
+                            SingleAsyncMethodInfo.MakeGenericMethod(serverEnumerable.Type.GetSequenceType()),
                             serverEnumerable,
                             _cancellationTokenParameter)
                         : Expression.Call(
@@ -104,7 +104,7 @@ public abstract class ShapedQueryCompilingExpressionVisitor : ExpressionVisitor
                 case ResultCardinality.SingleOrDefault:
                     return QueryCompilationContext.IsAsync
                         ? Expression.Call(
-                            _singleOrDefaultAsyncMethodInfo.MakeGenericMethod(serverEnumerable.Type.GetSequenceType()),
+                            SingleOrDefaultAsyncMethodInfo.MakeGenericMethod(serverEnumerable.Type.GetSequenceType()),
                             serverEnumerable,
                             _cancellationTokenParameter)
                         : Expression.Call(
@@ -117,12 +117,12 @@ public abstract class ShapedQueryCompilingExpressionVisitor : ExpressionVisitor
         return base.VisitExtension(extensionExpression);
     }
 
-    private static readonly MethodInfo _singleAsyncMethodInfo
+    private static readonly MethodInfo SingleAsyncMethodInfo
         = typeof(ShapedQueryCompilingExpressionVisitor).GetTypeInfo()
             .GetDeclaredMethods(nameof(SingleAsync))
             .Single(mi => mi.GetParameters().Length == 2);
 
-    private static readonly MethodInfo _singleOrDefaultAsyncMethodInfo
+    private static readonly MethodInfo SingleOrDefaultAsyncMethodInfo
         = typeof(ShapedQueryCompilingExpressionVisitor).GetTypeInfo()
             .GetDeclaredMethods(nameof(SingleOrDefaultAsync))
             .Single(mi => mi.GetParameters().Length == 2);
@@ -131,7 +131,9 @@ public abstract class ShapedQueryCompilingExpressionVisitor : ExpressionVisitor
         IAsyncEnumerable<TSource> asyncEnumerable,
         CancellationToken cancellationToken = default)
     {
-        await using var enumerator = asyncEnumerable.GetAsyncEnumerator(cancellationToken);
+        var enumerator = asyncEnumerable.GetAsyncEnumerator(cancellationToken);
+        await using var _ = enumerator.ConfigureAwait(false);
+
         if (!await enumerator.MoveNextAsync().ConfigureAwait(false))
         {
             throw new InvalidOperationException(CoreStrings.SequenceContainsNoElements);
@@ -151,7 +153,9 @@ public abstract class ShapedQueryCompilingExpressionVisitor : ExpressionVisitor
         IAsyncEnumerable<TSource> asyncEnumerable,
         CancellationToken cancellationToken = default)
     {
-        await using var enumerator = asyncEnumerable.GetAsyncEnumerator(cancellationToken);
+        var enumerator = asyncEnumerable.GetAsyncEnumerator(cancellationToken);
+        await using var _ = enumerator.ConfigureAwait(false);
+
         if (!(await enumerator.MoveNextAsync().ConfigureAwait(false)))
         {
             return default;
@@ -267,32 +271,32 @@ public abstract class ShapedQueryCompilingExpressionVisitor : ExpressionVisitor
 
     private sealed class EntityMaterializerInjectingExpressionVisitor : ExpressionVisitor
     {
-        private static readonly ConstructorInfo _materializationContextConstructor
+        private static readonly ConstructorInfo MaterializationContextConstructor
             = typeof(MaterializationContext).GetConstructors().Single(ci => ci.GetParameters().Length == 2);
 
-        private static readonly ConstructorInfo _valueBufferConstructor
+        private static readonly ConstructorInfo ValueBufferConstructor
             = typeof(ValueBuffer).GetTypeInfo().DeclaredConstructors.Single(ci => ci.GetParameters().Length == 1);
 
-        private static readonly PropertyInfo _dbContextMemberInfo
-            = typeof(QueryContext).GetRequiredProperty(nameof(QueryContext.Context));
+        private static readonly PropertyInfo DbContextMemberInfo
+            = typeof(QueryContext).GetTypeInfo().GetProperty(nameof(QueryContext.Context))!;
 
-        private static readonly PropertyInfo _entityMemberInfo
-            = typeof(InternalEntityEntry).GetRequiredProperty(nameof(InternalEntityEntry.Entity));
+        private static readonly PropertyInfo EntityMemberInfo
+            = typeof(InternalEntityEntry).GetTypeInfo().GetProperty(nameof(InternalEntityEntry.Entity))!;
 
-        private static readonly PropertyInfo _entityTypeMemberInfo
-            = typeof(InternalEntityEntry).GetRequiredProperty(nameof(InternalEntityEntry.EntityType));
+        private static readonly PropertyInfo EntityTypeMemberInfo
+            = typeof(InternalEntityEntry).GetTypeInfo().GetProperty(nameof(InternalEntityEntry.EntityType))!;
 
-        private static readonly MethodInfo _tryGetEntryMethodInfo
+        private static readonly MethodInfo TryGetEntryMethodInfo
             = typeof(QueryContext).GetTypeInfo().GetDeclaredMethods(nameof(QueryContext.TryGetEntry))
                 .Single(mi => mi.GetParameters().Length == 4);
 
-        private static readonly MethodInfo _startTrackingMethodInfo
-            = typeof(QueryContext).GetRequiredMethod(
-                nameof(QueryContext.StartTracking), typeof(IEntityType), typeof(object), typeof(ValueBuffer));
+        private static readonly MethodInfo StartTrackingMethodInfo
+            = typeof(QueryContext).GetMethod(
+                nameof(QueryContext.StartTracking), new[] { typeof(IEntityType), typeof(object), typeof(ValueBuffer) })!;
 
-        private static readonly MethodInfo _createNullKeyValueInNoTrackingQuery
-            = typeof(EntityMaterializerInjectingExpressionVisitor).GetRequiredDeclaredMethod(
-                nameof(CreateNullKeyValueInNoTrackingQuery));
+        private static readonly MethodInfo CreateNullKeyValueInNoTrackingQueryMethod
+            = typeof(EntityMaterializerInjectingExpressionVisitor)
+                .GetTypeInfo().GetDeclaredMethod(nameof(CreateNullKeyValueInNoTrackingQuery))!;
 
         private readonly IEntityMaterializerSource _entityMaterializerSource;
         private readonly QueryTrackingBehavior _queryTrackingBehavior;
@@ -353,11 +357,11 @@ public abstract class ShapedQueryCompilingExpressionVisitor : ExpressionVisitor
                 Expression.Assign(
                     materializationContextVariable,
                     Expression.New(
-                        _materializationContextConstructor,
+                        MaterializationContextConstructor,
                         entityShaperExpression.ValueBufferExpression,
                         Expression.MakeMemberAccess(
                             QueryCompilationContext.QueryContextParameter,
-                            _dbContextMemberInfo))));
+                            DbContextMemberInfo))));
 
             var valueBufferExpression = Expression.Call(materializationContextVariable, MaterializationContext.GetValueBufferMethod);
 
@@ -388,7 +392,7 @@ public abstract class ShapedQueryCompilingExpressionVisitor : ExpressionVisitor
                         entryVariable,
                         Expression.Call(
                             QueryCompilationContext.QueryContextParameter,
-                            _tryGetEntryMethodInfo,
+                            TryGetEntryMethodInfo,
                             Expression.Constant(primaryKey),
                             Expression.NewArrayInit(
                                 typeof(object),
@@ -411,10 +415,10 @@ public abstract class ShapedQueryCompilingExpressionVisitor : ExpressionVisitor
                             Expression.Block(
                                 Expression.Assign(
                                     concreteEntityTypeVariable,
-                                    Expression.MakeMemberAccess(entryVariable, _entityTypeMemberInfo)),
+                                    Expression.MakeMemberAccess(entryVariable, EntityTypeMemberInfo)),
                                 Expression.Assign(
                                     instanceVariable, Expression.Convert(
-                                        Expression.MakeMemberAccess(entryVariable, _entityMemberInfo),
+                                        Expression.MakeMemberAccess(entryVariable, EntityMemberInfo),
                                         entityType.ClrType))),
                             MaterializeEntity(
                                 entityShaperExpression, materializationContextVariable, concreteEntityTypeVariable, instanceVariable,
@@ -462,7 +466,7 @@ public abstract class ShapedQueryCompilingExpressionVisitor : ExpressionVisitor
                                                 p => valueBufferExpression.CreateValueBufferReadValueExpression(
                                                     typeof(object), p.GetIndex(), p)))),
                                     Expression.Call(
-                                        _createNullKeyValueInNoTrackingQuery,
+                                        CreateNullKeyValueInNoTrackingQueryMethod,
                                         Expression.Constant(entityType),
                                         Expression.Constant(primaryKey.Properties),
                                         keyValuesVariable))));
@@ -546,7 +550,7 @@ public abstract class ShapedQueryCompilingExpressionVisitor : ExpressionVisitor
                             Expression.Default(typeof(InternalEntityEntry)),
                             Expression.Call(
                                 QueryCompilationContext.QueryContextParameter,
-                                _startTrackingMethodInfo,
+                                StartTrackingMethodInfo,
                                 concreteEntityTypeVariable,
                                 instanceVariable,
                                 shadowValuesVariable))));
@@ -588,7 +592,7 @@ public abstract class ShapedQueryCompilingExpressionVisitor : ExpressionVisitor
                     Expression.Assign(
                         shadowValuesVariable,
                         Expression.New(
-                            _valueBufferConstructor,
+                            ValueBufferConstructor,
                             Expression.NewArrayInit(
                                 typeof(object),
                                 shadowProperties.Select(

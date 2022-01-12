@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Query.Internal;
 
@@ -23,9 +24,9 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 public sealed partial class SelectExpression : TableExpressionBase
 {
     private const string DiscriminatorColumnAlias = "Discriminator";
-    private static readonly IdentifierComparer _identifierComparer = new();
+    private static readonly IdentifierComparer IdentifierComparerInstance = new();
 
-    private static readonly Dictionary<ExpressionType, ExpressionType> _mirroredOperationMap =
+    private static readonly Dictionary<ExpressionType, ExpressionType> MirroredOperationMap =
         new()
         {
             { ExpressionType.Equal, ExpressionType.Equal },
@@ -51,6 +52,8 @@ public sealed partial class SelectExpression : TableExpressionBase
     private List<Expression> _clientProjections = new();
     private readonly List<string?> _aliasForClientProjections = new();
 
+    private SqlExpression? _groupingCorrelationPredicate;
+    private Guid? _groupingParentSelectExpressionId;
     private CloningExpressionVisitor? _cloningExpressionVisitor;
 
     private SelectExpression(
@@ -514,6 +517,7 @@ public sealed partial class SelectExpression : TableExpressionBase
                         || shapedQueryExpression.ResultCardinality == ResultCardinality.SingleOrDefault:
                     {
                         var innerSelectExpression = (SelectExpression)shapedQueryExpression.QueryExpression;
+                        innerSelectExpression._groupingCorrelationPredicate = null;
                         var innerShaperExpression = shapedQueryExpression.ShaperExpression;
                         if (innerSelectExpression._clientProjections.Count == 0)
                         {
@@ -584,6 +588,7 @@ public sealed partial class SelectExpression : TableExpressionBase
                         when shapedQueryExpression.ResultCardinality == ResultCardinality.Enumerable:
                     {
                         var innerSelectExpression = (SelectExpression)shapedQueryExpression.QueryExpression;
+                        innerSelectExpression._groupingCorrelationPredicate = null;
                         if (_identifier.Count == 0
                             || innerSelectExpression._identifier.Count == 0)
                         {
@@ -605,7 +610,7 @@ public sealed partial class SelectExpression : TableExpressionBase
                         {
                             var outerSelectExpression = (SelectExpression)cloningExpressionVisitor!.Visit(baseSelectExpression!);
                             innerSelectExpression =
-                                (SelectExpression)new ColumnExpressionReplacingExpressionVisitor(this, outerSelectExpression)
+                                (SelectExpression)new ColumnExpressionReplacingExpressionVisitor(this, outerSelectExpression._tableReferences)
                                     .Visit(innerSelectExpression);
 
                             if (outerSelectExpression.Limit != null
@@ -706,7 +711,7 @@ public sealed partial class SelectExpression : TableExpressionBase
                         }
                         else
                         {
-                            var parentIdentifierList = _identifier.Except(_childIdentifiers, _identifierComparer).ToList();
+                            var parentIdentifierList = _identifier.Except(_childIdentifiers, IdentifierComparerInstance).ToList();
                             var (parentIdentifier, parentIdentifierValueComparers) = GetIdentifierAccessor(
                                 this, newClientProjections, parentIdentifierList);
                             var (outerIdentifier, outerIdentifierValueComparers) = GetIdentifierAccessor(
@@ -779,7 +784,7 @@ public sealed partial class SelectExpression : TableExpressionBase
                                 this,
                                 newClientProjections,
                                 innerSelectExpression._identifier
-                                    .Except(innerSelectExpression._childIdentifiers, _identifierComparer)
+                                    .Except(innerSelectExpression._childIdentifiers, IdentifierComparerInstance)
                                     .Select(e => (e.Column.MakeNullable(), e.Comparer)));
 
                             OrderingExpression? pendingOrdering = null;
@@ -823,9 +828,9 @@ public sealed partial class SelectExpression : TableExpressionBase
                         {
                             var updatedExpressions = new List<Expression>();
                             var comparers = new List<ValueComparer>();
-                            foreach (var keyExpression in identifyingProjection)
+                            foreach (var (column, comparer) in identifyingProjection)
                             {
-                                var index = selectExpression.AddToProjection(keyExpression.Column, null);
+                                var index = selectExpression.AddToProjection(column, null);
                                 var clientProjectionToAdd = Constant(index);
                                 var existingIndex = clientProjectionList.FindIndex(
                                     e => ExpressionEqualityComparer.Instance.Equals(e, clientProjectionToAdd));
@@ -836,13 +841,13 @@ public sealed partial class SelectExpression : TableExpressionBase
                                 }
 
                                 var projectionBindingExpression = new ProjectionBindingExpression(
-                                    selectExpression, existingIndex, keyExpression.Column.Type.MakeNullable());
+                                    selectExpression, existingIndex, column.Type.MakeNullable());
 
                                 updatedExpressions.Add(
                                     projectionBindingExpression.Type.IsValueType
                                         ? Convert(projectionBindingExpression, typeof(object))
                                         : projectionBindingExpression);
-                                comparers.Add(keyExpression.Comparer);
+                                comparers.Add(comparer);
                             }
 
                             return (NewArrayInit(typeof(object), updatedExpressions), comparers);
@@ -933,9 +938,9 @@ public sealed partial class SelectExpression : TableExpressionBase
                     if (constantValue is Dictionary<IProperty, int> entityDictionary)
                     {
                         var newDictionary = new Dictionary<IProperty, int>(entityDictionary.Count);
-                        foreach (var kvp in entityDictionary)
+                        foreach (var (property, value) in entityDictionary)
                         {
-                            newDictionary[kvp.Key] = projectionIndexMap[kvp.Value];
+                            newDictionary[property] = projectionIndexMap[value];
                         }
 
                         remappedConstant = Constant(newDictionary);
@@ -961,11 +966,11 @@ public sealed partial class SelectExpression : TableExpressionBase
 
         {
             var result = new Dictionary<ProjectionMember, Expression>(_projectionMapping.Count);
-            foreach (var keyValuePair in _projectionMapping)
+            foreach (var (projectionMember, expression) in _projectionMapping)
             {
-                result[keyValuePair.Key] = keyValuePair.Value is EntityProjectionExpression entityProjection
+                result[projectionMember] = expression is EntityProjectionExpression entityProjection
                     ? AddEntityProjection(entityProjection)
-                    : Constant(AddToProjection((SqlExpression)keyValuePair.Value, keyValuePair.Key.Last?.Name));
+                    : Constant(AddToProjection((SqlExpression)expression, projectionMember.Last?.Name));
             }
 
             _projectionMapping.Clear();
@@ -998,14 +1003,13 @@ public sealed partial class SelectExpression : TableExpressionBase
     public void ReplaceProjection(IReadOnlyDictionary<ProjectionMember, Expression> projectionMapping)
     {
         _projectionMapping.Clear();
-        foreach (var kvp in projectionMapping)
+        foreach (var (projectionMember, expression) in projectionMapping)
         {
-            var expression = kvp.Value;
             Check.DebugAssert(
                 expression is SqlExpression
                 || expression is EntityProjectionExpression,
                 "Invalid operation in the projection.");
-            _projectionMapping[kvp.Key] = expression;
+            _projectionMapping[projectionMember] = expression;
         }
     }
 
@@ -1131,6 +1135,11 @@ public sealed partial class SelectExpression : TableExpressionBase
         }
     }
 
+    internal void UpdatePredicate(SqlExpression predicate)
+    {
+        Predicate = predicate;
+    }
+
     /// <summary>
     ///     Applies grouping from given key selector.
     /// </summary>
@@ -1229,12 +1238,14 @@ public sealed partial class SelectExpression : TableExpressionBase
 
         // We generate the cloned expression before changing identifier for this SelectExpression
         // because we are going to erase grouping for cloned expression.
+        _groupingParentSelectExpressionId = Guid.NewGuid();
         var clonedSelectExpression = Clone();
         var correlationPredicate = groupByTerms.Zip(clonedSelectExpression._groupBy)
             .Select(e => sqlExpressionFactory.Equal(e.First, e.Second))
             .Aggregate((l, r) => sqlExpressionFactory.AndAlso(l, r));
         clonedSelectExpression._groupBy.Clear();
         clonedSelectExpression.ApplyPredicate(correlationPredicate);
+        clonedSelectExpression._groupingCorrelationPredicate = clonedSelectExpression.Predicate;
 
         if (!_identifier.All(e => _groupBy.Contains(e.Column)))
         {
@@ -1433,13 +1444,17 @@ public sealed partial class SelectExpression : TableExpressionBase
             Predicate = Predicate,
             Having = Having,
             Offset = Offset,
-            Limit = Limit
+            Limit = Limit,
+            _groupingParentSelectExpressionId = _groupingParentSelectExpressionId,
+            _groupingCorrelationPredicate = _groupingCorrelationPredicate
         };
         Offset = null;
         Limit = null;
         IsDistinct = false;
         Predicate = null;
         Having = null;
+        _groupingCorrelationPredicate = null;
+        _groupingParentSelectExpressionId = null;
         _groupBy.Clear();
         _orderings.Clear();
         _tables.Clear();
@@ -1502,21 +1517,21 @@ public sealed partial class SelectExpression : TableExpressionBase
         var tableReferenceExpression = new TableReferenceExpression(this, setOperationAlias);
 
         var aliasUniquifier = new AliasUniquifier(_usedAliases);
-        foreach (var joinedMapping in select1._projectionMapping.Join(
+        foreach (var (projectionMember, expression1, expression2) in select1._projectionMapping.Join(
                      select2._projectionMapping,
                      kv => kv.Key,
                      kv => kv.Key,
                      (kv1, kv2) => (kv1.Key, Value1: kv1.Value, Value2: kv2.Value)))
         {
-            if (joinedMapping.Value1 is EntityProjectionExpression entityProjection1
-                && joinedMapping.Value2 is EntityProjectionExpression entityProjection2)
+            if (expression1 is EntityProjectionExpression entityProjection1
+                && expression2 is EntityProjectionExpression entityProjection2)
             {
-                HandleEntityProjection(joinedMapping.Key, select1, entityProjection1, select2, entityProjection2);
+                HandleEntityProjection(projectionMember, select1, entityProjection1, select2, entityProjection2);
                 continue;
             }
 
-            var innerColumn1 = (SqlExpression)joinedMapping.Value1;
-            var innerColumn2 = (SqlExpression)joinedMapping.Value2;
+            var innerColumn1 = (SqlExpression)expression1;
+            var innerColumn2 = (SqlExpression)expression2;
             // For now, make sure that both sides output the same store type, otherwise the query may fail.
             // TODO: with #15586 we'll be able to also allow different store types which are implicitly convertible to one another.
             if (innerColumn1.TypeMapping!.StoreType != innerColumn2.TypeMapping!.StoreType)
@@ -1532,7 +1547,7 @@ public sealed partial class SelectExpression : TableExpressionBase
             innerColumn1 = (SqlExpression)aliasUniquifier.Visit(innerColumn1);
 
             var alias = GenerateUniqueColumnAlias(
-                joinedMapping.Key.Last?.Name
+                projectionMember.Last?.Name
                 ?? (innerColumn1 as ColumnExpression)?.Name
                 ?? "c");
 
@@ -1548,14 +1563,14 @@ public sealed partial class SelectExpression : TableExpressionBase
                 outerProjection = outerProjection.MakeNullable();
             }
 
-            _projectionMapping[joinedMapping.Key] = outerProjection;
+            _projectionMapping[projectionMember] = outerProjection;
 
             if (outerIdentifiers.Length > 0)
             {
-                var index = select1._identifier.FindIndex(e => e.Column.Equals(joinedMapping.Value1));
+                var index = select1._identifier.FindIndex(e => e.Column.Equals(expression1));
                 if (index != -1)
                 {
-                    if (select2._identifier[index].Column.Equals(joinedMapping.Value2))
+                    if (select2._identifier[index].Column.Equals(expression2))
                     {
                         outerIdentifiers[index] = outerProjection;
                     }
@@ -1865,9 +1880,9 @@ public sealed partial class SelectExpression : TableExpressionBase
 
                 var newPropertyExpressions = new Dictionary<IProperty, ColumnExpression>();
                 var tableReferenceExpression = FindTableReference(selectExpression, tableExpressionBase);
-                foreach (var item in subqueryPropertyExpressions)
+                foreach (var (property, columnExpression) in subqueryPropertyExpressions)
                 {
-                    newPropertyExpressions[item.Key] = subquery.GenerateOuterColumn(tableReferenceExpression, item.Value);
+                    newPropertyExpressions[property] = subquery.GenerateOuterColumn(tableReferenceExpression, columnExpression);
                 }
 
                 return newPropertyExpressions;
@@ -1913,8 +1928,8 @@ public sealed partial class SelectExpression : TableExpressionBase
         AddJoin(joinType, ref innerSelectExpression, out _, joinPredicate);
 
         var transparentIdentifierType = TransparentIdentifierFactory.Create(outerShaper.Type, innerShaper.Type);
-        var outerMemberInfo = transparentIdentifierType.GetTypeInfo().GetRequiredDeclaredField("Outer");
-        var innerMemberInfo = transparentIdentifierType.GetTypeInfo().GetRequiredDeclaredField("Inner");
+        var outerMemberInfo = transparentIdentifierType.GetTypeInfo().GetDeclaredField("Outer")!;
+        var innerMemberInfo = transparentIdentifierType.GetTypeInfo().GetDeclaredField("Inner")!;
         var outerClientEval = _clientProjections.Count > 0;
         var innerClientEval = innerSelectExpression._clientProjections.Count > 0;
         var innerNullable = joinType == JoinType.LeftJoin || joinType == JoinType.OuterApply;
@@ -1976,12 +1991,11 @@ public sealed partial class SelectExpression : TableExpressionBase
                 var projectionMapping = new Dictionary<ProjectionMember, Expression>();
                 var mapping = new Dictionary<ProjectionMember, ProjectionMember>();
 
-                foreach (var projection in _projectionMapping)
+                foreach (var (projectionMember, expression) in _projectionMapping)
                 {
-                    var projectionMember = projection.Key;
-                    var remappedProjectionMember = projection.Key.Prepend(outerMemberInfo);
+                    var remappedProjectionMember = projectionMember.Prepend(outerMemberInfo);
                     mapping[projectionMember] = remappedProjectionMember;
-                    projectionMapping[remappedProjectionMember] = projection.Value;
+                    projectionMapping[remappedProjectionMember] = expression;
                 }
 
                 outerShaper = new ProjectionMemberRemappingExpressionVisitor(this, mapping).Visit(outerShaper);
@@ -2329,7 +2343,7 @@ public sealed partial class SelectExpression : TableExpressionBase
                         outerColumnExpressions.Add(sqlBinaryExpression.Right);
 
                         return new SqlBinaryExpression(
-                            _mirroredOperationMap[sqlBinaryExpression.OperatorType],
+                            MirroredOperationMap[sqlBinaryExpression.OperatorType],
                             sqlBinaryExpression.Right,
                             sqlBinaryExpression.Left,
                             sqlBinaryExpression.Type,
@@ -2411,9 +2425,9 @@ public sealed partial class SelectExpression : TableExpressionBase
                 IDictionary<ProjectionMember, Expression> projectionMapping)
             {
                 var result = new List<ColumnExpression>();
-                foreach (var mappingElement in projectionMapping)
+                foreach (var (projectionMember, expression) in projectionMapping)
                 {
-                    if (mappingElement.Value is EntityProjectionExpression entityProjection)
+                    if (expression is EntityProjectionExpression entityProjection)
                     {
                         foreach (var property in GetAllPropertiesInHierarchy(entityProjection.EntityType))
                         {
@@ -2426,7 +2440,7 @@ public sealed partial class SelectExpression : TableExpressionBase
                             result.Add(discriminatorColumn);
                         }
                     }
-                    else if (mappingElement.Value is ColumnExpression column)
+                    else if (expression is ColumnExpression column)
                     {
                         result.Add(column);
                     }
@@ -2584,7 +2598,8 @@ public sealed partial class SelectExpression : TableExpressionBase
             Predicate = Predicate,
             Having = Having,
             Offset = Offset,
-            Limit = Limit
+            Limit = Limit,
+            _groupingParentSelectExpressionId = _groupingParentSelectExpressionId
         };
         subquery._usedAliases = _usedAliases;
         _tables.Clear();
@@ -2660,25 +2675,25 @@ public sealed partial class SelectExpression : TableExpressionBase
         }
         else
         {
-            foreach (var mapping in _projectionMapping.ToList())
+            foreach (var (projectionMember, expression) in _projectionMapping.ToList())
             {
                 // If projectionMapping's value is ConstantExpression then projection has already been applied
-                if (mapping.Value is ConstantExpression)
+                if (expression is ConstantExpression)
                 {
                     break;
                 }
 
-                if (mapping.Value is EntityProjectionExpression entityProjection)
+                if (expression is EntityProjectionExpression entityProjection)
                 {
-                    _projectionMapping[mapping.Key] = LiftEntityProjectionFromSubquery(entityProjection);
+                    _projectionMapping[projectionMember] = LiftEntityProjectionFromSubquery(entityProjection);
                 }
                 else
                 {
-                    var innerColumn = (SqlExpression)mapping.Value;
+                    var innerColumn = (SqlExpression)expression;
                     var outerColumn = subquery.GenerateOuterColumn(
-                        subqueryTableReferenceExpression, innerColumn, mapping.Key.Last?.Name);
+                        subqueryTableReferenceExpression, innerColumn, projectionMember.Last?.Name);
                     projectionMap[innerColumn] = outerColumn;
-                    _projectionMapping[mapping.Key] = outerColumn;
+                    _projectionMapping[projectionMember] = outerColumn;
                 }
             }
         }
@@ -2693,28 +2708,28 @@ public sealed partial class SelectExpression : TableExpressionBase
 
         var identifiers = _identifier.ToList();
         _identifier.Clear();
-        foreach (var identifier in identifiers)
+        foreach (var (column, comparer) in identifiers)
         {
             // Invariant, identifier should not contain term which cannot be projected out.
-            if (!projectionMap.TryGetValue(identifier.Column, out var outerColumn))
+            if (!projectionMap.TryGetValue(column, out var outerColumn))
             {
-                outerColumn = subquery.GenerateOuterColumn(subqueryTableReferenceExpression, identifier.Column);
+                outerColumn = subquery.GenerateOuterColumn(subqueryTableReferenceExpression, column);
             }
 
-            _identifier.Add((outerColumn, identifier.Comparer));
+            _identifier.Add((outerColumn, Comparer: comparer));
         }
 
         var childIdentifiers = _childIdentifiers.ToList();
         _childIdentifiers.Clear();
-        foreach (var identifier in childIdentifiers)
+        foreach (var (column, comparer) in childIdentifiers)
         {
             // Invariant, identifier should not contain term which cannot be projected out.
-            if (!projectionMap.TryGetValue(identifier.Column, out var outerColumn))
+            if (!projectionMap.TryGetValue(column, out var outerColumn))
             {
-                outerColumn = subquery.GenerateOuterColumn(subqueryTableReferenceExpression, identifier.Column);
+                outerColumn = subquery.GenerateOuterColumn(subqueryTableReferenceExpression, column);
             }
 
-            _childIdentifiers.Add((outerColumn, identifier.Comparer));
+            _childIdentifiers.Add((outerColumn, Comparer: comparer));
         }
 
         foreach (var ordering in subquery._orderings)
@@ -3028,7 +3043,8 @@ public sealed partial class SelectExpression : TableExpressionBase
     {
         Check.DebugAssert(_tables.Count == _tableReferences.Count, "All the tables should have their associated TableReferences.");
         Check.DebugAssert(
-            string.Equals(GetAliasFromTableExpressionBase(tableExpressionBase), tableReferenceExpression.Alias),
+            string.Equals(
+                GetAliasFromTableExpressionBase(tableExpressionBase), tableReferenceExpression.Alias, StringComparison.Ordinal),
             "Alias of table and table reference should be the same.");
 
         var uniqueAlias = GenerateUniqueAlias(_usedAliases, tableReferenceExpression.Alias);
@@ -3071,11 +3087,11 @@ public sealed partial class SelectExpression : TableExpressionBase
             else
             {
                 var projectionMapping = new Dictionary<ProjectionMember, Expression>();
-                foreach (var mapping in _projectionMapping)
+                foreach (var (projectionMember, expression) in _projectionMapping)
                 {
-                    var newProjection = visitor.Visit(mapping.Value);
+                    var newProjection = visitor.Visit(expression);
 
-                    projectionMapping[mapping.Key] = newProjection;
+                    projectionMapping[projectionMember] = newProjection;
                 }
 
                 _projectionMapping = projectionMapping;
@@ -3127,6 +3143,7 @@ public sealed partial class SelectExpression : TableExpressionBase
 
             Offset = (SqlExpression?)visitor.Visit(Offset);
             Limit = (SqlExpression?)visitor.Visit(Limit);
+            _groupingCorrelationPredicate = (SqlExpression?)visitor.Visit(_groupingCorrelationPredicate);
 
             var identifier = VisitList(_identifier.Select(e => e.Column).ToList(), inPlace: true, out _)
                 .Zip(_identifier, (a, b) => (a, b.Comparer))
@@ -3205,6 +3222,9 @@ public sealed partial class SelectExpression : TableExpressionBase
             var limit = (SqlExpression?)visitor.Visit(Limit);
             changed |= limit != Limit;
 
+            var groupingCorrelationPredicate = (SqlExpression?)visitor.Visit(_groupingCorrelationPredicate);
+            changed |= groupingCorrelationPredicate != _groupingCorrelationPredicate;
+
             var identifier = VisitList(_identifier.Select(e => e.Column).ToList(), inPlace: false, out var identifierChanged);
             changed |= identifierChanged;
 
@@ -3226,7 +3246,9 @@ public sealed partial class SelectExpression : TableExpressionBase
                     Limit = limit,
                     IsDistinct = IsDistinct,
                     Tags = Tags,
-                    _usedAliases = _usedAliases
+                    _usedAliases = _usedAliases,
+                    _groupingCorrelationPredicate = groupingCorrelationPredicate,
+                    _groupingParentSelectExpressionId = _groupingParentSelectExpressionId
                 };
 
                 newSelectExpression._tptLeftJoinTables.AddRange(_tptLeftJoinTables);
@@ -3318,9 +3340,9 @@ public sealed partial class SelectExpression : TableExpressionBase
         SqlExpression? offset)
     {
         var projectionMapping = new Dictionary<ProjectionMember, Expression>();
-        foreach (var kvp in _projectionMapping)
+        foreach (var (projectionMember, expression) in _projectionMapping)
         {
-            projectionMapping[kvp.Key] = kvp.Value;
+            projectionMapping[projectionMember] = expression;
         }
 
         var newTableReferences = _tableReferences.ToList();
@@ -3373,11 +3395,11 @@ public sealed partial class SelectExpression : TableExpressionBase
             expressionPrinter.AppendLine("Projection Mapping:");
             using (expressionPrinter.Indent())
             {
-                foreach (var projectionMappingEntry in _projectionMapping)
+                foreach (var (projectionMember, expression) in _projectionMapping)
                 {
                     expressionPrinter.AppendLine();
-                    expressionPrinter.Append(projectionMappingEntry.Key.ToString()).Append(" -> ");
-                    expressionPrinter.Visit(projectionMappingEntry.Value);
+                    expressionPrinter.Append(projectionMember.ToString()).Append(" -> ");
+                    expressionPrinter.Visit(expression);
                 }
             }
         }
@@ -3500,54 +3522,6 @@ public sealed partial class SelectExpression : TableExpressionBase
 
     /// <inheritdoc />
     public override int GetHashCode()
-    {
-        var hash = new HashCode();
-        hash.Add(base.GetHashCode());
-
-        foreach (var projection in _projection)
-        {
-            hash.Add(projection);
-        }
-
-        foreach (var projection in _clientProjections)
-        {
-            hash.Add(projection);
-        }
-
-        foreach (var projectionMapping in _projectionMapping)
-        {
-            hash.Add(projectionMapping.Key);
-            hash.Add(projectionMapping.Value);
-        }
-
-        foreach (var tag in Tags)
-        {
-            hash.Add(tag);
-        }
-
-        foreach (var table in _tables)
-        {
-            hash.Add(table);
-        }
-
-        hash.Add(Predicate);
-
-        foreach (var groupingKey in _groupBy)
-        {
-            hash.Add(groupingKey);
-        }
-
-        hash.Add(Having);
-
-        foreach (var ordering in _orderings)
-        {
-            hash.Add(ordering);
-        }
-
-        hash.Add(Offset);
-        hash.Add(Limit);
-        hash.Add(IsDistinct);
-
-        return hash.ToHashCode();
-    }
+        // Since equality above is reference equality, hash code can also be based on reference.
+        => RuntimeHelpers.GetHashCode(this);
 }

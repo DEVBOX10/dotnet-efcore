@@ -106,28 +106,26 @@ public class CosmosDatabaseCreator : IDatabaseCreator
             mappedTypes.Add(entityType);
         }
 
-        foreach (var containerMapping in containers)
+        foreach (var (containerName, mappedTypes) in containers)
         {
-            var mappedTypes = containerMapping.Value;
-            var containerName = containerMapping.Key;
             string? partitionKey = null;
-            int? analyticalTTL = null;
-            int? defaultTTL = null;
+            int? analyticalTtl = null;
+            int? defaultTtl = null;
             ThroughputProperties? throughput = null;
 
             foreach (var entityType in mappedTypes)
             {
                 partitionKey ??= GetPartitionKeyStoreName(entityType);
-                analyticalTTL ??= entityType.GetAnalyticalStoreTimeToLive();
-                defaultTTL ??= entityType.GetDefaultTimeToLive();
+                analyticalTtl ??= entityType.GetAnalyticalStoreTimeToLive();
+                defaultTtl ??= entityType.GetDefaultTimeToLive();
                 throughput ??= entityType.GetThroughput();
             }
 
             yield return new ContainerProperties(
                 containerName,
                 partitionKey!,
-                analyticalTTL,
-                defaultTTL,
+                analyticalTtl,
+                defaultTtl,
                 throughput);
         }
     }

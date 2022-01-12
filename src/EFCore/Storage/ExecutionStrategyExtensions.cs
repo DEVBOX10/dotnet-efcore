@@ -837,13 +837,13 @@ public static class ExecutionStrategyExtensions
             async (c, s, ct) =>
             {
                 Check.NotNull(beginTransaction, nameof(beginTransaction));
-                await using (var transaction = await beginTransaction(c, cancellationToken).ConfigureAwait(false))
-                {
-                    s.CommitFailed = false;
-                    s.Result = await s.Operation(s.State, ct).ConfigureAwait(false);
-                    s.CommitFailed = true;
-                    await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-                }
+                var transaction = await beginTransaction(c, cancellationToken).ConfigureAwait(false);
+                await using var _ = transaction.ConfigureAwait(false);
+
+                s.CommitFailed = false;
+                s.Result = await s.Operation(s.State, ct).ConfigureAwait(false);
+                s.CommitFailed = true;
+                await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
 
                 return s.Result;
             }, async (_, s, ct) => new ExecutionResult<TResult>(

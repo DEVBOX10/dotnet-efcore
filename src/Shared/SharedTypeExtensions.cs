@@ -17,7 +17,7 @@ namespace System;
 [DebuggerStepThrough]
 internal static class SharedTypeExtensions
 {
-    private static readonly Dictionary<Type, string> _builtInTypeNames = new()
+    private static readonly Dictionary<Type, string> BuiltInTypeNames = new()
     {
         { typeof(bool), "bool" },
         { typeof(byte), "byte" },
@@ -116,51 +116,6 @@ internal static class SharedTypeExtensions
 
         return props.SingleOrDefault();
     }
-
-    public static MethodInfo GetRequiredMethod(this Type type, string name, params Type[] parameters)
-    {
-        var method = type.GetTypeInfo().GetMethod(name, parameters);
-
-        if (method == null
-            && parameters.Length == 0)
-        {
-            method = type.GetMethod(name);
-        }
-
-        if (method == null)
-        {
-            throw new InvalidOperationException();
-        }
-
-        return method;
-    }
-
-    public static PropertyInfo GetRequiredProperty(this Type type, string name)
-        => type.GetTypeInfo().GetProperty(name)
-            ?? throw new InvalidOperationException($"Could not find property '{name}' on type '{type}'");
-
-    public static FieldInfo GetRequiredDeclaredField(this Type type, string name)
-        => type.GetTypeInfo().GetDeclaredField(name)
-            ?? throw new InvalidOperationException($"Could not find field '{name}' on type '{type}'");
-
-    public static MethodInfo GetRequiredDeclaredMethod(this Type type, string name)
-        => type.GetTypeInfo().GetDeclaredMethod(name)
-            ?? throw new InvalidOperationException($"Could not find method '{name}' on type '{type}'");
-
-    public static MethodInfo GetRequiredDeclaredMethod(this Type type, string name, Func<MethodInfo, bool> methodSelector)
-        => type.GetTypeInfo().GetDeclaredMethods(name).Single(methodSelector);
-
-    public static PropertyInfo GetRequiredDeclaredProperty(this Type type, string name)
-        => type.GetTypeInfo().GetDeclaredProperty(name)
-            ?? throw new InvalidOperationException($"Could not find property '{name}' on type '{type}'");
-
-    public static MethodInfo GetRequiredRuntimeMethod(this Type type, string name, params Type[] parameters)
-        => type.GetTypeInfo().GetRuntimeMethod(name, parameters)
-            ?? throw new InvalidOperationException($"Could not find method '{name}' on type '{type}'");
-
-    public static PropertyInfo GetRequiredRuntimeProperty(this Type type, string name)
-        => type.GetTypeInfo().GetRuntimeProperty(name)
-            ?? throw new InvalidOperationException($"Could not find property '{name}' on type '{type}'");
 
     public static bool IsInstantiable(this Type type)
         => !type.IsAbstract
@@ -393,7 +348,7 @@ internal static class SharedTypeExtensions
     public static IEnumerable<MemberInfo> GetMembersInHierarchy(this Type type, string name)
         => type.GetMembersInHierarchy().Where(m => m.Name == name);
 
-    private static readonly Dictionary<Type, object> _commonTypeDictionary = new()
+    private static readonly Dictionary<Type, object> CommonTypeDictionary = new()
     {
 #pragma warning disable IDE0034 // Simplify 'default' expression - default causes default(object)
         { typeof(int), default(int) },
@@ -426,7 +381,7 @@ internal static class SharedTypeExtensions
         // A bit of perf code to avoid calling Activator.CreateInstance for common types and
         // to avoid boxing on every call. This is about 50% faster than just calling CreateInstance
         // for all value types.
-        return _commonTypeDictionary.TryGetValue(type, out var value)
+        return CommonTypeDictionary.TryGetValue(type, out var value)
             ? value
             : Activator.CreateInstance(type);
     }
@@ -472,7 +427,7 @@ internal static class SharedTypeExtensions
         {
             ProcessArrayType(builder, type, fullName, compilable);
         }
-        else if (_builtInTypeNames.TryGetValue(type, out var builtInName))
+        else if (BuiltInTypeNames.TryGetValue(type, out var builtInName))
         {
             builder.Append(builtInName);
         }
@@ -596,7 +551,7 @@ internal static class SharedTypeExtensions
 
     public static IEnumerable<string> GetNamespaces(this Type type)
     {
-        if (_builtInTypeNames.ContainsKey(type))
+        if (BuiltInTypeNames.ContainsKey(type))
         {
             yield break;
         }
@@ -616,10 +571,10 @@ internal static class SharedTypeExtensions
     }
 
     public static ConstantExpression GetDefaultValueConstant(this Type type)
-        => (ConstantExpression)_generateDefaultValueConstantMethod
+        => (ConstantExpression)GenerateDefaultValueConstantMethod
             .MakeGenericMethod(type).Invoke(null, Array.Empty<object>())!;
 
-    private static readonly MethodInfo _generateDefaultValueConstantMethod =
+    private static readonly MethodInfo GenerateDefaultValueConstantMethod =
         typeof(SharedTypeExtensions).GetTypeInfo().GetDeclaredMethod(nameof(GenerateDefaultValueConstant))!;
 
     private static ConstantExpression GenerateDefaultValueConstant<TDefault>()

@@ -66,7 +66,7 @@ public static class ExpressionExtensions
             && fieldInfo.IsInitOnly)
         {
             return (BinaryExpression)Activator.CreateInstance(
-                _assignBinaryExpressionType,
+                AssignBinaryExpressionType,
                 BindingFlags.NonPublic | BindingFlags.Instance,
                 null,
                 new object[] { memberExpression, valueExpression },
@@ -76,7 +76,7 @@ public static class ExpressionExtensions
         return Expression.Assign(memberExpression, valueExpression);
     }
 
-    private static readonly Type _assignBinaryExpressionType
+    private static readonly Type AssignBinaryExpressionType
         = typeof(Expression).Assembly.GetType("System.Linq.Expressions.AssignBinaryExpression", throwOnError: true)!;
 
     /// <summary>
@@ -299,7 +299,7 @@ public static class ExpressionExtensions
     ///     </para>
     /// </summary>
     public static readonly MethodInfo ValueBufferTryReadValueMethod
-        = typeof(ExpressionExtensions).GetRequiredDeclaredMethod(nameof(ValueBufferTryReadValue));
+        = typeof(ExpressionExtensions).GetTypeInfo().GetDeclaredMethod(nameof(ValueBufferTryReadValue))!;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static TValue ValueBufferTryReadValue<TValue>(

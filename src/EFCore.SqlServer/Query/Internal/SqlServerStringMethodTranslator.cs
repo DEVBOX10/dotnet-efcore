@@ -15,68 +15,68 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Query.Internal;
 /// </summary>
 public class SqlServerStringMethodTranslator : IMethodCallTranslator
 {
-    private static readonly MethodInfo _indexOfMethodInfo
-        = typeof(string).GetRequiredRuntimeMethod(nameof(string.IndexOf), typeof(string));
+    private static readonly MethodInfo IndexOfMethodInfo
+        = typeof(string).GetRuntimeMethod(nameof(string.IndexOf), new[] { typeof(string) })!;
 
-    private static readonly MethodInfo _indexOfMethodInfoWithStartingPosition
-        = typeof(string).GetRequiredRuntimeMethod(nameof(string.IndexOf), typeof(string), typeof(int));
+    private static readonly MethodInfo IndexOfMethodInfoWithStartingPosition
+        = typeof(string).GetRuntimeMethod(nameof(string.IndexOf), new[] { typeof(string), typeof(int) })!;
 
-    private static readonly MethodInfo _replaceMethodInfo
-        = typeof(string).GetRequiredRuntimeMethod(nameof(string.Replace), typeof(string), typeof(string));
+    private static readonly MethodInfo ReplaceMethodInfo
+        = typeof(string).GetRuntimeMethod(nameof(string.Replace), new[] { typeof(string), typeof(string) })!;
 
-    private static readonly MethodInfo _toLowerMethodInfo
-        = typeof(string).GetRequiredRuntimeMethod(nameof(string.ToLower), Array.Empty<Type>());
+    private static readonly MethodInfo ToLowerMethodInfo
+        = typeof(string).GetRuntimeMethod(nameof(string.ToLower), Type.EmptyTypes)!;
 
-    private static readonly MethodInfo _toUpperMethodInfo
-        = typeof(string).GetRequiredRuntimeMethod(nameof(string.ToUpper), Array.Empty<Type>());
+    private static readonly MethodInfo ToUpperMethodInfo
+        = typeof(string).GetRuntimeMethod(nameof(string.ToUpper), Type.EmptyTypes)!;
 
-    private static readonly MethodInfo _substringMethodInfoWithOneArg
-        = typeof(string).GetRequiredRuntimeMethod(nameof(string.Substring), typeof(int));
+    private static readonly MethodInfo SubstringMethodInfoWithOneArg
+        = typeof(string).GetRuntimeMethod(nameof(string.Substring), new[] { typeof(int) })!;
 
-    private static readonly MethodInfo _substringMethodInfoWithTwoArgs
-        = typeof(string).GetRequiredRuntimeMethod(nameof(string.Substring), typeof(int), typeof(int));
+    private static readonly MethodInfo SubstringMethodInfoWithTwoArgs
+        = typeof(string).GetRuntimeMethod(nameof(string.Substring), new[] { typeof(int), typeof(int) })!;
 
-    private static readonly MethodInfo _isNullOrEmptyMethodInfo
-        = typeof(string).GetRequiredRuntimeMethod(nameof(string.IsNullOrEmpty), typeof(string));
+    private static readonly MethodInfo IsNullOrEmptyMethodInfo
+        = typeof(string).GetRuntimeMethod(nameof(string.IsNullOrEmpty), new[] { typeof(string) })!;
 
-    private static readonly MethodInfo _isNullOrWhiteSpaceMethodInfo
-        = typeof(string).GetRequiredRuntimeMethod(nameof(string.IsNullOrWhiteSpace), typeof(string));
+    private static readonly MethodInfo IsNullOrWhiteSpaceMethodInfo
+        = typeof(string).GetRuntimeMethod(nameof(string.IsNullOrWhiteSpace), new[] { typeof(string) })!;
 
     // Method defined in netcoreapp2.0 only
-    private static readonly MethodInfo _trimStartMethodInfoWithoutArgs
-        = typeof(string).GetRequiredRuntimeMethod(nameof(string.TrimStart), Array.Empty<Type>());
+    private static readonly MethodInfo TrimStartMethodInfoWithoutArgs
+        = typeof(string).GetRuntimeMethod(nameof(string.TrimStart), Type.EmptyTypes)!;
 
-    private static readonly MethodInfo _trimEndMethodInfoWithoutArgs
-        = typeof(string).GetRequiredRuntimeMethod(nameof(string.TrimEnd), Array.Empty<Type>());
+    private static readonly MethodInfo TrimEndMethodInfoWithoutArgs
+        = typeof(string).GetRuntimeMethod(nameof(string.TrimEnd), Type.EmptyTypes)!;
 
-    private static readonly MethodInfo _trimMethodInfoWithoutArgs
-        = typeof(string).GetRequiredRuntimeMethod(nameof(string.Trim), Array.Empty<Type>());
+    private static readonly MethodInfo TrimMethodInfoWithoutArgs
+        = typeof(string).GetRuntimeMethod(nameof(string.Trim), Type.EmptyTypes)!;
 
     // Method defined in netstandard2.0
-    private static readonly MethodInfo _trimStartMethodInfoWithCharArrayArg
-        = typeof(string).GetRequiredRuntimeMethod(nameof(string.TrimStart), typeof(char[]));
+    private static readonly MethodInfo TrimStartMethodInfoWithCharArrayArg
+        = typeof(string).GetRuntimeMethod(nameof(string.TrimStart), new[] { typeof(char[]) })!;
 
-    private static readonly MethodInfo _trimEndMethodInfoWithCharArrayArg
-        = typeof(string).GetRequiredRuntimeMethod(nameof(string.TrimEnd), typeof(char[]));
+    private static readonly MethodInfo TrimEndMethodInfoWithCharArrayArg
+        = typeof(string).GetRuntimeMethod(nameof(string.TrimEnd), new[] { typeof(char[]) })!;
 
-    private static readonly MethodInfo _trimMethodInfoWithCharArrayArg
-        = typeof(string).GetRequiredRuntimeMethod(nameof(string.Trim), typeof(char[]));
+    private static readonly MethodInfo TrimMethodInfoWithCharArrayArg
+        = typeof(string).GetRuntimeMethod(nameof(string.Trim), new[] { typeof(char[]) })!;
 
-    private static readonly MethodInfo _startsWithMethodInfo
-        = typeof(string).GetRequiredRuntimeMethod(nameof(string.StartsWith), typeof(string));
+    private static readonly MethodInfo StartsWithMethodInfo
+        = typeof(string).GetRuntimeMethod(nameof(string.StartsWith), new[] { typeof(string) })!;
 
-    private static readonly MethodInfo _containsMethodInfo
-        = typeof(string).GetRequiredRuntimeMethod(nameof(string.Contains), typeof(string));
+    private static readonly MethodInfo ContainsMethodInfo
+        = typeof(string).GetRuntimeMethod(nameof(string.Contains), new[] { typeof(string) })!;
 
-    private static readonly MethodInfo _endsWithMethodInfo
-        = typeof(string).GetRequiredRuntimeMethod(nameof(string.EndsWith), typeof(string));
+    private static readonly MethodInfo EndsWithMethodInfo
+        = typeof(string).GetRuntimeMethod(nameof(string.EndsWith), new[] { typeof(string) })!;
 
-    private static readonly MethodInfo _firstOrDefaultMethodInfoWithoutArgs
+    private static readonly MethodInfo FirstOrDefaultMethodInfoWithoutArgs
         = typeof(Enumerable).GetRuntimeMethods().Single(
             m => m.Name == nameof(Enumerable.FirstOrDefault)
                 && m.GetParameters().Length == 1).MakeGenericMethod(typeof(char));
 
-    private static readonly MethodInfo _lastOrDefaultMethodInfoWithoutArgs
+    private static readonly MethodInfo LastOrDefaultMethodInfoWithoutArgs
         = typeof(Enumerable).GetRuntimeMethods().Single(
             m => m.Name == nameof(Enumerable.LastOrDefault)
                 && m.GetParameters().Length == 1).MakeGenericMethod(typeof(char));
@@ -111,17 +111,17 @@ public class SqlServerStringMethodTranslator : IMethodCallTranslator
     {
         if (instance != null)
         {
-            if (_indexOfMethodInfo.Equals(method))
+            if (IndexOfMethodInfo.Equals(method))
             {
                 return TranslateIndexOf(instance, method, arguments[0], null);
             }
 
-            if (_indexOfMethodInfoWithStartingPosition.Equals(method))
+            if (IndexOfMethodInfoWithStartingPosition.Equals(method))
             {
                 return TranslateIndexOf(instance, method, arguments[0], arguments[1]);
             }
 
-            if (_replaceMethodInfo.Equals(method))
+            if (ReplaceMethodInfo.Equals(method))
             {
                 var firstArgument = arguments[0];
                 var secondArgument = arguments[1];
@@ -140,11 +140,11 @@ public class SqlServerStringMethodTranslator : IMethodCallTranslator
                     stringTypeMapping);
             }
 
-            if (_toLowerMethodInfo.Equals(method)
-                || _toUpperMethodInfo.Equals(method))
+            if (ToLowerMethodInfo.Equals(method)
+                || ToUpperMethodInfo.Equals(method))
             {
                 return _sqlExpressionFactory.Function(
-                    _toLowerMethodInfo.Equals(method) ? "LOWER" : "UPPER",
+                    ToLowerMethodInfo.Equals(method) ? "LOWER" : "UPPER",
                     new[] { instance },
                     nullable: true,
                     argumentsPropagateNullability: new[] { true },
@@ -152,7 +152,7 @@ public class SqlServerStringMethodTranslator : IMethodCallTranslator
                     instance.TypeMapping);
             }
 
-            if (_substringMethodInfoWithOneArg.Equals(method))
+            if (SubstringMethodInfoWithOneArg.Equals(method))
             {
                 return _sqlExpressionFactory.Function(
                     "SUBSTRING",
@@ -175,7 +175,7 @@ public class SqlServerStringMethodTranslator : IMethodCallTranslator
                     instance.TypeMapping);
             }
 
-            if (_substringMethodInfoWithTwoArgs.Equals(method))
+            if (SubstringMethodInfoWithTwoArgs.Equals(method))
             {
                 return _sqlExpressionFactory.Function(
                     "SUBSTRING",
@@ -193,8 +193,8 @@ public class SqlServerStringMethodTranslator : IMethodCallTranslator
                     instance.TypeMapping);
             }
 
-            if (_trimStartMethodInfoWithoutArgs?.Equals(method) == true
-                || (_trimStartMethodInfoWithCharArrayArg.Equals(method)
+            if (TrimStartMethodInfoWithoutArgs?.Equals(method) == true
+                || (TrimStartMethodInfoWithCharArrayArg.Equals(method)
                     // SqlServer LTRIM does not take arguments
                     && ((arguments[0] as SqlConstantExpression)?.Value as Array)?.Length == 0))
             {
@@ -207,8 +207,8 @@ public class SqlServerStringMethodTranslator : IMethodCallTranslator
                     instance.TypeMapping);
             }
 
-            if (_trimEndMethodInfoWithoutArgs?.Equals(method) == true
-                || (_trimEndMethodInfoWithCharArrayArg.Equals(method)
+            if (TrimEndMethodInfoWithoutArgs?.Equals(method) == true
+                || (TrimEndMethodInfoWithCharArrayArg.Equals(method)
                     // SqlServer RTRIM does not take arguments
                     && ((arguments[0] as SqlConstantExpression)?.Value as Array)?.Length == 0))
             {
@@ -221,8 +221,8 @@ public class SqlServerStringMethodTranslator : IMethodCallTranslator
                     instance.TypeMapping);
             }
 
-            if (_trimMethodInfoWithoutArgs?.Equals(method) == true
-                || (_trimMethodInfoWithCharArrayArg.Equals(method)
+            if (TrimMethodInfoWithoutArgs?.Equals(method) == true
+                || (TrimMethodInfoWithCharArrayArg.Equals(method)
                     // SqlServer LTRIM/RTRIM does not take arguments
                     && ((arguments[0] as SqlConstantExpression)?.Value as Array)?.Length == 0))
             {
@@ -244,7 +244,7 @@ public class SqlServerStringMethodTranslator : IMethodCallTranslator
                     instance.TypeMapping);
             }
 
-            if (_containsMethodInfo.Equals(method))
+            if (ContainsMethodInfo.Equals(method))
             {
                 var pattern = arguments[0];
                 var stringTypeMapping = ExpressionExtensions.InferTypeMapping(instance, pattern);
@@ -287,18 +287,18 @@ public class SqlServerStringMethodTranslator : IMethodCallTranslator
                         _sqlExpressionFactory.Constant(0)));
             }
 
-            if (_startsWithMethodInfo.Equals(method))
+            if (StartsWithMethodInfo.Equals(method))
             {
                 return TranslateStartsEndsWith(instance, arguments[0], true);
             }
 
-            if (_endsWithMethodInfo.Equals(method))
+            if (EndsWithMethodInfo.Equals(method))
             {
                 return TranslateStartsEndsWith(instance, arguments[0], false);
             }
         }
 
-        if (_isNullOrEmptyMethodInfo.Equals(method))
+        if (IsNullOrEmptyMethodInfo.Equals(method))
         {
             var argument = arguments[0];
 
@@ -309,7 +309,7 @@ public class SqlServerStringMethodTranslator : IMethodCallTranslator
                     _sqlExpressionFactory.Constant(string.Empty)));
         }
 
-        if (_isNullOrWhiteSpaceMethodInfo.Equals(method))
+        if (IsNullOrWhiteSpaceMethodInfo.Equals(method))
         {
             var argument = arguments[0];
 
@@ -320,7 +320,7 @@ public class SqlServerStringMethodTranslator : IMethodCallTranslator
                     _sqlExpressionFactory.Constant(string.Empty, argument.TypeMapping)));
         }
 
-        if (_firstOrDefaultMethodInfoWithoutArgs.Equals(method))
+        if (FirstOrDefaultMethodInfoWithoutArgs.Equals(method))
         {
             var argument = arguments[0];
             return _sqlExpressionFactory.Function(
@@ -331,7 +331,7 @@ public class SqlServerStringMethodTranslator : IMethodCallTranslator
                 method.ReturnType);
         }
 
-        if (_lastOrDefaultMethodInfoWithoutArgs.Equals(method))
+        if (LastOrDefaultMethodInfoWithoutArgs.Equals(method))
         {
             var argument = arguments[0];
             return _sqlExpressionFactory.Function(

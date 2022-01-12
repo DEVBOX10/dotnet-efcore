@@ -13,10 +13,10 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal;
 /// </summary>
 public partial class NavigationExpandingExpressionVisitor : ExpressionVisitor
 {
-    private static readonly PropertyInfo _queryContextContextPropertyInfo
-        = typeof(QueryContext).GetRequiredDeclaredProperty(nameof(QueryContext.Context));
+    private static readonly PropertyInfo QueryContextContextPropertyInfo
+        = typeof(QueryContext).GetTypeInfo().GetDeclaredProperty(nameof(QueryContext.Context))!;
 
-    private static readonly Dictionary<MethodInfo, MethodInfo> _predicateLessMethodInfo = new()
+    private static readonly Dictionary<MethodInfo, MethodInfo> PredicateLessMethodInfo = new()
     {
         { QueryableMethods.FirstWithPredicate, QueryableMethods.FirstWithoutPredicate },
         { QueryableMethods.FirstOrDefaultWithPredicate, QueryableMethods.FirstOrDefaultWithoutPredicate },
@@ -26,7 +26,7 @@ public partial class NavigationExpandingExpressionVisitor : ExpressionVisitor
         { QueryableMethods.LastOrDefaultWithPredicate, QueryableMethods.LastOrDefaultWithoutPredicate }
     };
 
-    private static readonly List<MethodInfo> _supportedFilteredIncludeOperations = new()
+    private static readonly List<MethodInfo> SupportedFilteredIncludeOperations = new()
     {
         QueryableMethods.Where,
         QueryableMethods.OrderBy,
@@ -113,19 +113,19 @@ public partial class NavigationExpandingExpressionVisitor : ExpressionVisitor
             Expression.Convert(
                 Expression.Property(
                     QueryCompilationContext.QueryContextParameter,
-                    _queryContextContextPropertyInfo),
+                    QueryContextContextPropertyInfo),
                 _queryCompilationContext.ContextType);
 
-        foreach (var parameterValue in _parameters.ParameterValues)
+        foreach (var (key, value) in _parameters.ParameterValues)
         {
-            var lambda = (LambdaExpression)parameterValue.Value!;
+            var lambda = (LambdaExpression)value!;
             var remappedLambdaBody = ReplacingExpressionVisitor.Replace(
                 lambda.Parameters[0],
                 dbContextOnQueryContextPropertyAccess,
                 lambda.Body);
 
             _queryCompilationContext.RegisterRuntimeParameter(
-                parameterValue.Key,
+                key,
                 Expression.Lambda(
                     remappedLambdaBody.Type.IsValueType
                         ? Expression.Convert(remappedLambdaBody, typeof(object))
@@ -907,7 +907,7 @@ public partial class NavigationExpandingExpressionVisitor : ExpressionVisitor
         if (predicate != null)
         {
             source = ProcessWhere(source, predicate);
-            genericMethod = _predicateLessMethodInfo[genericMethod];
+            genericMethod = PredicateLessMethodInfo[genericMethod];
         }
 
         if (source.PendingSelector.Type != returnType)
@@ -1071,7 +1071,7 @@ public partial class NavigationExpandingExpressionVisitor : ExpressionVisitor
             if (currentExpression is MethodCallExpression methodCallExpression)
             {
                 if (!methodCallExpression.Method.IsGenericMethod
-                    || !_supportedFilteredIncludeOperations.Contains(methodCallExpression.Method.GetGenericMethodDefinition()))
+                    || !SupportedFilteredIncludeOperations.Contains(methodCallExpression.Method.GetGenericMethodDefinition()))
                 {
                     throw new InvalidOperationException(CoreStrings.InvalidIncludeExpression(includeExpression));
                 }
@@ -1099,7 +1099,7 @@ public partial class NavigationExpandingExpressionVisitor : ExpressionVisitor
         {
             if (expression is MethodCallExpression methodCallExpression
                 && methodCallExpression.Method.IsGenericMethod
-                && _supportedFilteredIncludeOperations.Contains(methodCallExpression.Method.GetGenericMethodDefinition()))
+                && SupportedFilteredIncludeOperations.Contains(methodCallExpression.Method.GetGenericMethodDefinition()))
             {
                 if (methodCallExpression.Method.GetGenericMethodDefinition() == QueryableMethods.AsQueryable)
                 {
@@ -1135,8 +1135,8 @@ public partial class NavigationExpandingExpressionVisitor : ExpressionVisitor
         var transparentIdentifierType = TransparentIdentifierFactory.Create(
             outerSource.SourceElementType, innerSource.SourceElementType);
 
-        var transparentIdentifierOuterMemberInfo = transparentIdentifierType.GetTypeInfo().GetRequiredDeclaredField("Outer");
-        var transparentIdentifierInnerMemberInfo = transparentIdentifierType.GetTypeInfo().GetRequiredDeclaredField("Inner");
+        var transparentIdentifierOuterMemberInfo = transparentIdentifierType.GetTypeInfo().GetDeclaredField("Outer")!;
+        var transparentIdentifierInnerMemberInfo = transparentIdentifierType.GetTypeInfo().GetDeclaredField("Inner")!;
 
         var newResultSelector = Expression.Lambda(
             Expression.New(
@@ -1184,8 +1184,8 @@ public partial class NavigationExpandingExpressionVisitor : ExpressionVisitor
         var transparentIdentifierType = TransparentIdentifierFactory.Create(
             outerSource.SourceElementType, innerSource.SourceElementType);
 
-        var transparentIdentifierOuterMemberInfo = transparentIdentifierType.GetTypeInfo().GetRequiredDeclaredField("Outer");
-        var transparentIdentifierInnerMemberInfo = transparentIdentifierType.GetTypeInfo().GetRequiredDeclaredField("Inner");
+        var transparentIdentifierOuterMemberInfo = transparentIdentifierType.GetTypeInfo().GetDeclaredField("Outer")!;
+        var transparentIdentifierInnerMemberInfo = transparentIdentifierType.GetTypeInfo().GetDeclaredField("Inner")!;
 
         var newResultSelector = Expression.Lambda(
             Expression.New(
@@ -1295,8 +1295,8 @@ public partial class NavigationExpandingExpressionVisitor : ExpressionVisitor
 
             var transparentIdentifierType = TransparentIdentifierFactory.Create(
                 source.SourceElementType, collectionElementType);
-            var transparentIdentifierOuterMemberInfo = transparentIdentifierType.GetTypeInfo().GetRequiredDeclaredField("Outer");
-            var transparentIdentifierInnerMemberInfo = transparentIdentifierType.GetTypeInfo().GetRequiredDeclaredField("Inner");
+            var transparentIdentifierOuterMemberInfo = transparentIdentifierType.GetTypeInfo().GetDeclaredField("Outer")!;
+            var transparentIdentifierInnerMemberInfo = transparentIdentifierType.GetTypeInfo().GetDeclaredField("Inner")!;
             var collectionElementParameter = Expression.Parameter(collectionElementType, "c");
 
             var newResultSelector = Expression.Lambda(

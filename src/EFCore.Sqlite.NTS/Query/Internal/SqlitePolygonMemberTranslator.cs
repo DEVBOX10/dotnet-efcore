@@ -14,11 +14,11 @@ namespace Microsoft.EntityFrameworkCore.Sqlite.Query.Internal;
 /// </summary>
 public class SqlitePolygonMemberTranslator : IMemberTranslator
 {
-    private static readonly IDictionary<MemberInfo, string> _memberToFunctionName
+    private static readonly IDictionary<MemberInfo, string> MemberToFunctionName
         = new Dictionary<MemberInfo, string>
         {
-            { typeof(Polygon).GetRequiredRuntimeProperty(nameof(Polygon.ExteriorRing)), "ExteriorRing" },
-            { typeof(Polygon).GetRequiredRuntimeProperty(nameof(Polygon.NumInteriorRings)), "NumInteriorRing" }
+            { typeof(Polygon).GetTypeInfo().GetRuntimeProperty(nameof(Polygon.ExteriorRing))!, "ExteriorRing" },
+            { typeof(Polygon).GetTypeInfo().GetRuntimeProperty(nameof(Polygon.NumInteriorRings))!, "NumInteriorRing" }
         };
 
     private readonly ISqlExpressionFactory _sqlExpressionFactory;
@@ -45,7 +45,7 @@ public class SqlitePolygonMemberTranslator : IMemberTranslator
         MemberInfo member,
         Type returnType,
         IDiagnosticsLogger<DbLoggerCategory.Query> logger)
-        => _memberToFunctionName.TryGetValue(member, out var functionName)
+        => MemberToFunctionName.TryGetValue(member, out var functionName)
             ? _sqlExpressionFactory.Function(
                 functionName,
                 new[] { instance! },

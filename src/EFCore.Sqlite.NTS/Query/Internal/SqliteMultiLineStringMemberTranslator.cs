@@ -14,7 +14,8 @@ namespace Microsoft.EntityFrameworkCore.Sqlite.Query.Internal;
 /// </summary>
 public class SqliteMultiLineStringMemberTranslator : IMemberTranslator
 {
-    private static readonly MemberInfo _isClosed = typeof(MultiLineString).GetRequiredRuntimeProperty(nameof(MultiLineString.IsClosed));
+    private static readonly MemberInfo IsClosed
+        = typeof(MultiLineString).GetTypeInfo().GetRuntimeProperty(nameof(MultiLineString.IsClosed))!;
     private readonly ISqlExpressionFactory _sqlExpressionFactory;
 
     /// <summary>
@@ -40,7 +41,7 @@ public class SqliteMultiLineStringMemberTranslator : IMemberTranslator
         Type returnType,
         IDiagnosticsLogger<DbLoggerCategory.Query> logger)
     {
-        if (Equals(member, _isClosed)
+        if (Equals(member, IsClosed)
             && instance != null)
         {
             return _sqlExpressionFactory.Case(
