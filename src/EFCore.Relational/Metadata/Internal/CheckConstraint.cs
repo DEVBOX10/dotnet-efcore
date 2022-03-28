@@ -280,15 +280,77 @@ public class CheckConstraint : ConventionAnnotatable, IMutableCheckConstraint, I
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    public virtual string Name
+    public virtual string? Name
     {
-        get => _name ?? ((IReadOnlyCheckConstraint)this).GetDefaultName() ?? ModelName;
+        get => EntityType.GetTableName() == null
+            ? null
+            : _name ?? ((IReadOnlyCheckConstraint)this).GetDefaultName();
         set => SetName(value, ConfigurationSource.Explicit);
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
     public virtual string? GetName(in StoreObjectIdentifier storeObject)
-        => _name ?? ((IReadOnlyCheckConstraint)this).GetDefaultName(storeObject) ?? ModelName;
+    {
+        if (storeObject.StoreObjectType != StoreObjectType.Table)
+        {
+            return null;
+        }
+
+        if (EntityType.GetMappingStrategy() == RelationalAnnotationNames.TpcMappingStrategy)
+        {
+            foreach (var containingType in EntityType.GetDerivedTypesInclusive())
+            {
+                if (StoreObjectIdentifier.Create(containingType, storeObject.StoreObjectType) == storeObject)
+                {
+                    return _name ?? ((IReadOnlyCheckConstraint)this).GetDefaultName(storeObject);
+                }
+            }
+
+            return null;
+        }
+
+        var declaringStoreObject = StoreObjectIdentifier.Create(EntityType, storeObject.StoreObjectType);
+        if (declaringStoreObject == null)
+        {
+            var tableFound = false;
+            var queue = new Queue<IReadOnlyEntityType>();
+            queue.Enqueue(EntityType);
+            while (queue.Count > 0 && !tableFound)
+            {
+                foreach (var containingType in queue.Dequeue().GetDirectlyDerivedTypes())
+                {
+                    declaringStoreObject = StoreObjectIdentifier.Create(containingType, storeObject.StoreObjectType);
+                    if (declaringStoreObject == null)
+                    {
+                        queue.Enqueue(containingType);
+                        continue;
+                    }
+
+                    if (declaringStoreObject == storeObject)
+                    {
+                        tableFound = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!tableFound)
+            {
+                return null;
+            }
+        }
+        else if (declaringStoreObject != storeObject)
+        {
+            return null;
+        }
+
+        return _name ?? ((IReadOnlyCheckConstraint)this).GetDefaultName(storeObject);
+    }
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to

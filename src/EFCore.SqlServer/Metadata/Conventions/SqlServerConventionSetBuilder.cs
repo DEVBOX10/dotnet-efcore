@@ -63,8 +63,18 @@ public class SqlServerConventionSetBuilder : RelationalConventionSetBuilder
 
         var sqlServerInMemoryTablesConvention = new SqlServerMemoryOptimizedTablesConvention(Dependencies, RelationalDependencies);
         conventionSet.EntityTypeAnnotationChangedConventions.Add(sqlServerInMemoryTablesConvention);
+
         ReplaceConvention(
-            conventionSet.EntityTypeAnnotationChangedConventions, (RelationalValueGenerationConvention)valueGenerationConvention);
+            conventionSet.ForeignKeyPropertiesChangedConventions,
+            (RelationalValueGenerationConvention)valueGenerationConvention);
+
+        ReplaceConvention(
+            conventionSet.ForeignKeyOwnershipChangedConventions,
+            (RelationalValueGenerationConvention)valueGenerationConvention);
+
+        ReplaceConvention(
+            conventionSet.EntityTypeAnnotationChangedConventions,
+            (RelationalValueGenerationConvention)valueGenerationConvention);
 
         var sqlServerTemporalConvention = new SqlServerTemporalConvention(Dependencies, RelationalDependencies);
         ConventionSet.AddBefore(
@@ -108,6 +118,7 @@ public class SqlServerConventionSetBuilder : RelationalConventionSetBuilder
             conventionSet.ModelFinalizingConventions,
             (SharedTableConvention)new SqlServerSharedTableConvention(Dependencies, RelationalDependencies));
         conventionSet.ModelFinalizingConventions.Add(new SqlServerDbFunctionConvention(Dependencies, RelationalDependencies));
+        conventionSet.ModelFinalizingConventions.Add(sqlServerTemporalConvention);
 
         ReplaceConvention(
             conventionSet.ModelFinalizedConventions,

@@ -558,13 +558,18 @@ public class CSharpDbContextGenerator : ICSharpDbContextGenerator
 
         var lines = new List<string>
         {
-            $".{nameof(EntityTypeBuilder.HasIndex)}({_code.Lambda(index.Properties, "e")}, {_code.Literal(index.GetDatabaseName())})"
+            $".{nameof(EntityTypeBuilder.HasIndex)}({_code.Lambda(index.Properties, "e")}, {_code.Literal(index.GetDatabaseName()!)})"
         };
         annotations.Remove(RelationalAnnotationNames.Name);
 
         if (index.IsUnique)
         {
             lines.Add($".{nameof(IndexBuilder.IsUnique)}()");
+        }
+
+        if (index.IsDescending is not null)
+        {
+            lines.Add($".{nameof(IndexBuilder.IsDescending)}({string.Join(", ", index.IsDescending.Select(d => _code.Literal(d)))})");
         }
 
         GenerateAnnotations(index, annotations, lines);
@@ -840,7 +845,7 @@ public class CSharpDbContextGenerator : ICSharpDbContextGenerator
                             _annotationCodeGenerator.RemoveAnnotationsHandledByConventions(index, indexAnnotations);
 
                             lines.Add(
-                                $"j.{nameof(EntityTypeBuilder.HasIndex)}({_code.Literal(index.Properties.Select(e => e.Name).ToArray())}, {_code.Literal(index.GetDatabaseName())})");
+                                $"j.{nameof(EntityTypeBuilder.HasIndex)}({_code.Literal(index.Properties.Select(e => e.Name).ToArray())}, {_code.Literal(index.GetDatabaseName()!)})");
                             indexAnnotations.Remove(RelationalAnnotationNames.Name);
 
                             if (index.IsUnique)

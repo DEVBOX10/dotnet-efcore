@@ -18,8 +18,8 @@ public class TableBuilder<TEntity> : TableBuilder
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     [EntityFrameworkInternal]
-    public TableBuilder(string? name, string? schema, IMutableEntityType entityType)
-        : base(entityType)
+    public TableBuilder(string? name, string? schema, EntityTypeBuilder entityTypeBuilder)
+        : base(name, schema, entityTypeBuilder)
     {
     }
 

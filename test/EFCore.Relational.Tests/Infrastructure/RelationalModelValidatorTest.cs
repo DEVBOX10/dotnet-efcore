@@ -73,9 +73,7 @@ public partial class RelationalModelValidatorTest : ModelValidatorTest
         var entityC = model.AddEntityType(typeof(C));
         entityC.BaseType = entityA;
 
-        VerifyError(
-            RelationalStrings.NonTPHTableClash(
-                entityC.DisplayName(), entityA.DisplayName(), entityA.DisplayName()), modelBuilder);
+        Validate(modelBuilder);
     }
 
     [ConditionalFact]
@@ -1309,6 +1307,24 @@ public partial class RelationalModelValidatorTest : ModelValidatorTest
     }
 
     [ConditionalFact]
+    public virtual void Detects_duplicate_index_names_within_hierarchy_with_different_sort_orders()
+    {
+        var modelBuilder = CreateConventionalModelBuilder();
+        modelBuilder.Entity<Animal>();
+        modelBuilder.Entity<Cat>().HasIndex(c => c.Name).HasDatabaseName("IX_Animal_Name")
+            .IsDescending(true);
+        modelBuilder.Entity<Dog>().HasIndex(d => d.Name).HasDatabaseName("IX_Animal_Name")
+            .IsDescending(false);
+
+        VerifyError(
+            RelationalStrings.DuplicateIndexSortOrdersMismatch(
+                "{'" + nameof(Dog.Name) + "'}", nameof(Dog),
+                "{'" + nameof(Cat.Name) + "'}", nameof(Cat),
+                nameof(Animal), "IX_Animal_Name"),
+            modelBuilder);
+    }
+
+    [ConditionalFact]
     public virtual void Detects_duplicate_index_names_within_hierarchy_with_different_filters()
     {
         var modelBuilder = CreateConventionalModelBuilder();
@@ -1554,16 +1570,14 @@ public partial class RelationalModelValidatorTest : ModelValidatorTest
     }
 
     [ConditionalFact]
-    public virtual void Detects_unconfigured_entity_type_in_TPT()
+    public virtual void Passes_for_unconfigured_entity_type_in_TPT()
     {
         var modelBuilder = CreateConventionalModelBuilder();
         modelBuilder.Entity<Animal>();
         modelBuilder.Entity<Cat>().ToTable("Cat");
         modelBuilder.Entity<Dog>();
 
-        VerifyError(
-            RelationalStrings.NonTPHTableClash(nameof(Dog), nameof(Animal), nameof(Animal)),
-            modelBuilder);
+        Validate(modelBuilder);
     }
 
     [ConditionalFact]
@@ -1575,7 +1589,7 @@ public partial class RelationalModelValidatorTest : ModelValidatorTest
         modelBuilder.Entity<Dog>().ToTable("Dog").ToView("Cat");
 
         VerifyError(
-            RelationalStrings.NonTPHViewClash(nameof(Dog), nameof(Cat), "Cat"),
+            RelationalStrings.NonTphViewClash(nameof(Dog), nameof(Cat), "Cat"),
             modelBuilder);
     }
 
@@ -1587,7 +1601,7 @@ public partial class RelationalModelValidatorTest : ModelValidatorTest
         modelBuilder.Entity<Cat>().ToTable("Animal").ToView("Cat");
 
         VerifyError(
-            RelationalStrings.NonTPHTableClash(nameof(Cat), nameof(Animal), "Animal"),
+            RelationalStrings.NonTphTableClash(nameof(Cat), nameof(Animal), "Animal"),
             modelBuilder);
     }
 
@@ -1599,7 +1613,7 @@ public partial class RelationalModelValidatorTest : ModelValidatorTest
         modelBuilder.Entity<Cat>().ToTable("Cat");
 
         VerifyError(
-            RelationalStrings.TPHTableMismatch(nameof(Cat), nameof(Cat), nameof(Animal), nameof(Animal)),
+            RelationalStrings.TphTableMismatch(nameof(Cat), nameof(Cat), nameof(Animal), nameof(Animal)),
             modelBuilder);
     }
 
@@ -1611,7 +1625,19 @@ public partial class RelationalModelValidatorTest : ModelValidatorTest
         modelBuilder.Entity<Cat>().ToView("Cat");
 
         VerifyError(
-            RelationalStrings.TPHViewMismatch(nameof(Cat), nameof(Cat), nameof(Animal), nameof(Animal)),
+            RelationalStrings.TphViewMismatch(nameof(Cat), nameof(Cat), nameof(Animal), nameof(Animal)),
+            modelBuilder);
+    }
+
+    [ConditionalFact]
+    public virtual void Detects_TPT_with_keyless_entity_type()
+    {
+        var modelBuilder = CreateConventionalModelBuilder();
+        modelBuilder.Entity<Animal>().HasNoKey();
+        modelBuilder.Entity<Cat>().ToTable("Cat");
+
+        VerifyError(
+            RelationalStrings.KeylessMappingStrategy("TPT", nameof(Animal)),
             modelBuilder);
     }
 
@@ -1705,6 +1731,261 @@ public partial class RelationalModelValidatorTest : ModelValidatorTest
                     nameof(Person))),
             modelBuilder,
             LogLevel.Error);
+    }
+
+    [ConditionalFact]
+    public virtual void Passes_for_ToTable_for_abstract_class()
+    {
+        var modelBuilder = CreateConventionalModelBuilder();
+        modelBuilder.Entity<Abstract>().ToTable("Abstract");
+        modelBuilder.Entity<A>();
+        modelBuilder.Entity<Generic<string>>();
+
+        Validate(modelBuilder);
+    }
+
+    [ConditionalFact]
+    public virtual void Passes_for_abstract_class_TPC()
+    {
+        var modelBuilder = CreateConventionalModelBuilder();
+        modelBuilder.Entity<Abstract>();
+        modelBuilder.Entity<A>().UseTpcMappingStrategy();
+        modelBuilder.Entity<Generic<string>>().ToTable("G");
+
+        Validate(modelBuilder);
+    }
+
+    [ConditionalFact]
+    public virtual void Passes_for_view_TPC()
+    {
+        var modelBuilder = CreateConventionalModelBuilder();
+        modelBuilder.Entity<Animal>().ToTable((string)null).UseTpcMappingStrategy();
+        modelBuilder.Entity<Cat>().ToView("Cat");
+
+        Validate(modelBuilder);
+    }
+
+    [ConditionalFact]
+    public virtual void Detects_invalid_MappingStrategy()
+    {
+        var modelBuilder = CreateConventionalModelBuilder();
+        modelBuilder.Entity<Animal>().HasAnnotation(RelationalAnnotationNames.MappingStrategy, "TTT");
+        modelBuilder.Entity<Cat>();
+
+        VerifyError(
+            RelationalStrings.InvalidMappingStrategy("TTT", nameof(Animal)),
+            modelBuilder);
+    }
+
+    [ConditionalFact]
+    public virtual void Detects_MappingStrategy_on_derived_types()
+    {
+        var modelBuilder = CreateConventionalModelBuilder();
+        modelBuilder.Entity<Cat>().HasBaseType((string)null);
+        modelBuilder.Entity<Animal>();
+        modelBuilder.Entity<Cat>().ToTable("Cat").ToView("Cat").UseTpcMappingStrategy().HasBaseType(typeof(Animal));
+
+        VerifyError(
+            RelationalStrings.DerivedStrategy(nameof(Cat), "TPC"),
+            modelBuilder);
+    }
+
+    [ConditionalFact]
+    public virtual void Detects_ToTable_for_abstract_class_TPC()
+    {
+        var modelBuilder = CreateConventionalModelBuilder();
+        modelBuilder.Entity<Abstract>().ToTable("Abstract", "dbo").UseTpcMappingStrategy();
+        modelBuilder.Entity<A>();
+        modelBuilder.Entity<Generic<string>>();
+
+        VerifyError(
+            RelationalStrings.AbstractTpc(nameof(Abstract), "dbo.Abstract"),
+            modelBuilder);
+    }
+
+    [ConditionalFact]
+    public virtual void Detects_ToView_for_abstract_class_TPC()
+    {
+        var modelBuilder = CreateConventionalModelBuilder();
+        modelBuilder.Entity<Abstract>().ToView("Abstract").UseTpcMappingStrategy();
+        modelBuilder.Entity<A>();
+        modelBuilder.Entity<Generic<string>>();
+
+        VerifyError(
+            RelationalStrings.AbstractTpc(nameof(Abstract), "Abstract"),
+            modelBuilder);
+    }
+
+    [ConditionalFact]
+    public virtual void Detects_ToFunction_for_abstract_class_TPC()
+    {
+        var modelBuilder = CreateConventionalModelBuilder();
+        modelBuilder.Entity<Abstract>().ToFunction("Abstract").UseTpcMappingStrategy();
+        modelBuilder.Entity<A>();
+        modelBuilder.Entity<Generic<string>>();
+
+        VerifyError(
+            RelationalStrings.AbstractTpc(nameof(Abstract), "Abstract"),
+            modelBuilder);
+    }
+
+    [ConditionalFact]
+    public virtual void Detects_clashing_entity_types_in_views_TPC()
+    {
+        var modelBuilder = CreateConventionalModelBuilder();
+        modelBuilder.Entity<Animal>().UseTpcMappingStrategy();
+        modelBuilder.Entity<Cat>().ToTable("Cat").ToView("Cat");
+        modelBuilder.Entity<Dog>().ToTable("Dog").ToView("Cat");
+        
+        VerifyError(
+            RelationalStrings.NonTphViewClash(nameof(Dog), nameof(Cat), "Cat"),
+            modelBuilder);
+    }
+
+    [ConditionalFact]
+    public virtual void Detects_table_and_view_TPC_mismatch()
+    {
+        var modelBuilder = CreateConventionalModelBuilder();
+        modelBuilder.Entity<Animal>().UseTpcMappingStrategy().ToTable("Animal").ToView("Animal");
+        modelBuilder.Entity<Cat>().ToTable("Animal").ToView("Cat");
+
+        VerifyError(
+            RelationalStrings.NonTphTableClash(nameof(Cat), nameof(Animal), "Animal"),
+            modelBuilder);
+    }
+
+    [ConditionalFact]
+    public virtual void Passes_on_TPC_with_keyless_entity_type()
+    {
+        var modelBuilder = CreateConventionalModelBuilder();
+        modelBuilder.Entity<Animal>().UseTpcMappingStrategy().HasNoKey();
+        modelBuilder.Entity<Cat>().ToTable("Cat");
+
+        Validate(modelBuilder);
+    }
+
+    [ConditionalFact]
+    public virtual void Detects_view_TPC_with_discriminator()
+    {
+        var modelBuilder = CreateConventionalModelBuilder();
+        modelBuilder.Entity<Animal>().ToView("Animal").UseTpcMappingStrategy().HasDiscriminator<int>("Discriminator");
+        modelBuilder.Entity<Cat>().ToView("Cat");
+
+        VerifyError(
+            RelationalStrings.NonTphMappingStrategy("TPC", nameof(Animal)),
+            modelBuilder);
+    }
+
+    [ConditionalFact]
+    public virtual void Detects_store_generated_PK_in_TPC()
+    {
+        var modelBuilder = CreateConventionalModelBuilder();
+        modelBuilder.Entity<Animal>().UseTpcMappingStrategy();
+        modelBuilder.Entity<Cat>();
+
+        var definition =
+            RelationalResources.LogTpcStoreGeneratedIdentity(new TestLogger<TestRelationalLoggingDefinitions>());
+        VerifyWarning(
+            definition.GenerateMessage(nameof(Animal.Id), nameof(Animal)),
+            modelBuilder,
+            LogLevel.Warning);
+    }
+
+    [ConditionalFact]
+    public virtual void Passes_on_valid_view_sharing_with_TPC()
+    {
+        var modelBuilder = CreateConventionalModelBuilder();
+
+        modelBuilder.Entity<Animal>()
+            .UseTpcMappingStrategy()
+            .ToView("Animal")
+            .Ignore(a => a.FavoritePerson);
+
+        modelBuilder.Entity<Cat>(
+            x =>
+            {
+                x.ToView("Cat");
+                x.HasOne(c => c.FavoritePerson).WithOne().HasForeignKey<Person>(c => c.Id);
+            });
+
+        modelBuilder.Entity<Person>().ToView("Cat");
+
+        Validate(modelBuilder);
+    }
+
+    [ConditionalFact]
+    public virtual void Detects_linking_relationship_on_derived_type_in_TPC()
+    {
+        var modelBuilder = CreateConventionalModelBuilder();
+
+        modelBuilder.Entity<Animal>()
+            .UseTpcMappingStrategy()
+            .Ignore(a => a.FavoritePerson);
+
+        modelBuilder.Entity<Cat>(
+            x =>
+            {
+                x.ToTable("Cat");
+                x.HasOne(c => c.FavoritePerson).WithOne().HasForeignKey<Cat>(c => c.Id);
+            });
+
+        modelBuilder.Entity<Person>().ToTable("Cat");
+
+        VerifyError(
+            RelationalStrings.IncompatibleTableDerivedRelationship(
+                "Cat", "Cat", "Person"),
+            modelBuilder);
+    }
+
+    [ConditionalFact]
+    public virtual void Detects_linking_relationship_on_derived_type_in_TPC_views()
+    {
+        var modelBuilder = CreateConventionalModelBuilder();
+
+        modelBuilder.Entity<Animal>()
+            .UseTpcMappingStrategy()
+            .Ignore(a => a.FavoritePerson)
+            .ToView("Animal");
+
+        modelBuilder.Entity<Cat>(
+            x =>
+            {
+                x.ToView("Cat");
+                x.HasOne(c => c.FavoritePerson).WithOne().HasForeignKey<Cat>(c => c.Id);
+            });
+
+        modelBuilder.Entity<Person>().ToView("Cat");
+
+        VerifyError(
+            RelationalStrings.IncompatibleViewDerivedRelationship(
+                "Cat", "Cat", "Person"),
+            modelBuilder);
+    }
+
+    [ConditionalFact]
+    public virtual void Detects_unmapped_foreign_keys_in_TPC()
+    {
+        var modelBuilder = CreateConventionalModelBuilder();
+        modelBuilder.Entity<Animal>().UseTpcMappingStrategy()
+            .Property(a => a.Id).ValueGeneratedNever();
+        modelBuilder.Entity<Cat>().ToTable("Cat");
+        modelBuilder.Entity<Person>()
+            .HasOne<Animal>().WithOne(a => a.FavoritePerson)
+            .HasForeignKey<Person>(p => p.FavoriteBreed)
+            .HasPrincipalKey<Animal>(a => a.Name);
+
+        var definition =
+            RelationalResources.LogForeignKeyTpcPrincipal(new TestLogger<TestRelationalLoggingDefinitions>());
+        VerifyWarning(
+            definition.GenerateMessage(
+                l => l.Log(
+                    definition.Level,
+                    definition.EventId,
+                    definition.MessageFormat,
+                    "{'FavoriteBreed'}", nameof(Person), nameof(Animal), nameof(Animal), nameof(Animal), nameof(Person),
+                    nameof(Animal))),
+            modelBuilder,
+            LogLevel.Warning);
     }
 
     [ConditionalFact]
@@ -1990,13 +2271,27 @@ public partial class RelationalModelValidatorTest : ModelValidatorTest
     }
 
     [ConditionalFact]
-    public void Detects_mix_of_index_property_mapped_and_not_mapped_to_any_table_unmapped_first()
+    public void Passes_for_mix_of_index_properties_declared_and_inherited_TPT()
     {
         var modelBuilder = CreateConventionalModelBuilder();
 
         modelBuilder.Entity<Animal>().ToTable((string)null);
-        modelBuilder.Entity<Cat>().ToTable("Cats");
-        modelBuilder.Entity<Cat>().HasIndex(nameof(Animal.Name), nameof(Cat.Identity));
+        modelBuilder.Entity<Cat>().ToTable("Cats")
+            .HasIndex(
+                new[] { nameof(Cat.Identity), nameof(Animal.Name) },
+                "IX_MixOfMappedAndUnmappedProperties");
+
+        Validate(modelBuilder);
+    }
+
+    [ConditionalFact]
+    public void Detects_mix_of_index_property_mapped_and_not_mapped_to_any_table_mapped_first()
+    {
+        var modelBuilder = CreateConventionalModelBuilder();
+
+        modelBuilder.Entity<Animal>();
+        modelBuilder.Entity<Cat>().ToTable((string)null)
+            .HasIndex(nameof(Animal.Name), nameof(Cat.Identity));
 
         var definition = RelationalResources
             .LogUnnamedIndexPropertiesBothMappedAndNotMappedToTable(
@@ -2005,19 +2300,18 @@ public partial class RelationalModelValidatorTest : ModelValidatorTest
             definition.GenerateMessage(
                 nameof(Cat),
                 "{'Name', 'Identity'}",
-                "Name"),
+                "Identity"),
             modelBuilder,
             LogLevel.Error);
     }
 
     [ConditionalFact]
-    public void Detects_mix_of_index_property_mapped_and_not_mapped_to_any_table_mapped_first()
+    public void Detects_mix_of_index_property_mapped_and_not_mapped_to_any_table_unmapped_first()
     {
         var modelBuilder = CreateConventionalModelBuilder();
 
-        modelBuilder.Entity<Animal>().ToTable((string)null);
-        modelBuilder.Entity<Cat>().ToTable("Cats");
-        modelBuilder.Entity<Cat>()
+        modelBuilder.Entity<Animal>();
+        modelBuilder.Entity<Cat>().ToTable((string)null)
             .HasIndex(
                 new[] { nameof(Cat.Identity), nameof(Animal.Name) },
                 "IX_MixOfMappedAndUnmappedProperties");
@@ -2030,7 +2324,7 @@ public partial class RelationalModelValidatorTest : ModelValidatorTest
                 "IX_MixOfMappedAndUnmappedProperties",
                 nameof(Cat),
                 "{'Identity', 'Name'}",
-                "Name"),
+                "Identity"),
             modelBuilder,
             LogLevel.Error);
     }
@@ -2041,8 +2335,8 @@ public partial class RelationalModelValidatorTest : ModelValidatorTest
         var modelBuilder = CreateConventionalModelBuilder();
 
         modelBuilder.Entity<Animal>().ToTable("Animals");
-        modelBuilder.Entity<Cat>().ToTable("Cats");
-        modelBuilder.Entity<Cat>().HasIndex(nameof(Animal.Id), nameof(Cat.Identity));
+        modelBuilder.Entity<Cat>().ToTable("Cats")
+            .HasIndex(nameof(Animal.Id), nameof(Cat.Identity));
 
         Validate(modelBuilder);
 
@@ -2117,7 +2411,7 @@ public partial class RelationalModelValidatorTest : ModelValidatorTest
         modelBuilder.HasDbFunction(TestMethods.MethodFMi);
 
         VerifyError(
-            RelationalStrings.TableValuedFunctionNonTPH(
+            RelationalStrings.TableValuedFunctionNonTph(
                 TestMethods.MethodFMi.DeclaringType.FullName + "." + TestMethods.MethodFMi.Name + "()", "C"), modelBuilder);
     }
 
@@ -2150,6 +2444,20 @@ public partial class RelationalModelValidatorTest : ModelValidatorTest
 
         var definition = RelationalResources.LogDuplicateColumnOrders(new TestLogger<TestRelationalLoggingDefinitions>());
         VerifyWarning(definition.GenerateMessage("Animal", "'Id', 'Name'"), modelBuilder, LogLevel.Error);
+    }
+
+    [ConditionalFact]
+    public virtual void Detects_triggers_on_unmapped_entity_types()
+    {
+        var modelBuilder = CreateConventionalModelBuilder();
+        modelBuilder.Entity<Animal>(
+            x =>
+                {
+                    x.ToTable(tb => tb.HasTrigger("Animal_Trigger"));
+                    x.ToTable(name: null);
+                });
+
+        VerifyError(RelationalStrings.TriggerOnUnmappedEntityType("Animal_Trigger", "Animal"), modelBuilder);
     }
 
     protected override void SetBaseType(IMutableEntityType entityType, IMutableEntityType baseEntityType)

@@ -81,30 +81,27 @@ public abstract class NorthwindSelectQueryTestBase<TFixture> : QueryTestBase<TFi
             elementSorter: e => e.OrderID + " " + e.EmployeeID,
             entryCount: 15);
 
-    [ConditionalTheory(Skip = "Issue#19247")]
+    [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
-    public virtual async Task Projection_when_arithmetic_mixed_subqueries(bool async)
-        => Assert.Equal(
-            "Unsupported Binary operator type specified.",
-            (await Assert.ThrowsAsync<InvalidOperationException>(
-                () => AssertQuery(
-                    async,
-                    ss =>
-                        from o in ss.Set<Order>().OrderBy(o => o.OrderID).Take(3).Select(
-                            o2 => new { o2, Mod = o2.OrderID % 2 })
-                        from e in ss.Set<Employee>().OrderBy(e => e.EmployeeID).Take(2).Select(
-                            e2 => new { e2, Square = e2.EmployeeID ^ 2 })
-                        select new
-                        {
-                            Add = e.e2.EmployeeID + o.o2.OrderID,
-                            e.Square,
-                            e.e2,
-                            Literal = 42,
-                            o.o2,
-                            o.Mod
-                        },
-                    elementSorter: e => (e.e2.EmployeeID, e.o2.OrderID),
-                    entryCount: 3))).Message);
+    public virtual Task Projection_when_arithmetic_mixed_subqueries(bool async)
+        => AssertQuery(
+            async,
+            ss =>
+                from o in ss.Set<Order>().OrderBy(o => o.OrderID).Take(3).Select(
+                    o2 => new { o2, Mod = o2.OrderID % 2 })
+                from e in ss.Set<Employee>().OrderBy(e => e.EmployeeID).Take(2).Select(
+                    e2 => new { e2, Square = e2.EmployeeID ^ 2 })
+                select new
+                {
+                    Add = e.e2.EmployeeID + o.o2.OrderID,
+                    e.Square,
+                    e.e2,
+                    Literal = 42,
+                    o.o2,
+                    o.Mod
+                },
+            elementSorter: e => (e.e2.EmployeeID, e.o2.OrderID),
+            entryCount: 5);
 
     [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
@@ -406,139 +403,130 @@ public abstract class NorthwindSelectQueryTestBase<TFixture> : QueryTestBase<TFi
             assertOrder: true,
             elementAsserter: (e, a) => AssertCollection(e, a, ordered: true));
 
-    [ConditionalFact]
-    public virtual void Select_nested_collection_multi_level()
-    {
-        using var context = CreateContext();
-        var customers = context.Customers
-            .Where(c => c.CustomerID.StartsWith("A"))
-            .Select(
-                c => new
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task Select_nested_collection_multi_level(bool async)
+        => AssertQuery(
+            async,
+            ss => ss.Set<Customer>()
+                .OrderBy(c => c.CustomerID)
+                .Where(c => c.CustomerID.StartsWith("A"))
+                .Select(c => new
                 {
                     OrderDates = c.Orders
                         .Where(o => o.OrderID < 10500)
+                        .OrderBy(o => o.OrderID)
                         .Take(3)
-                        .Select(
-                            o => new { Date = o.OrderDate })
-                })
-            .ToList();
+                        .Select(o => new { Date = o.OrderDate })
+                }),
+            assertOrder: true,
+            elementAsserter: (e, a) => AssertCollection(e.OrderDates, a.OrderDates, ordered: true));
 
-        Assert.Equal(4, customers.Count);
-        Assert.All(customers, t => Assert.True(t.OrderDates.Count() <= 3));
-    }
-
-    [ConditionalFact]
-    public virtual void Select_nested_collection_multi_level2()
-    {
-        using var context = CreateContext();
-        var customers = context.Customers
-            .Where(c => c.CustomerID.StartsWith("A"))
-            .Select(
-                c => new
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task Select_nested_collection_multi_level2(bool async)
+        => AssertQuery(
+            async,
+            ss => ss.Set<Customer>()
+                .OrderBy(c => c.CustomerID)
+                .Where(c => c.CustomerID.StartsWith("A"))
+                .Select(c => new
                 {
                     OrderDates = c.Orders
+                        .OrderBy(o => o.OrderID)
                         .Where(o => o.OrderID < 10500)
                         .Select(o => o.OrderDate)
                         .FirstOrDefault()
-                })
-            .ToList();
+                }),
+            assertOrder: true);
 
-        Assert.Equal(4, customers.Count);
-        Assert.Equal(3, customers.Count(c => c.OrderDates != null));
-    }
-
-    [ConditionalFact]
-    public virtual void Select_nested_collection_multi_level3()
-    {
-        using var context = CreateContext();
-        var customers = context.Customers
-            .Where(c => c.CustomerID.StartsWith("A"))
-            .Select(
-                c => new
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task Select_nested_collection_multi_level3(bool async)
+        => AssertQuery(
+            async,
+            ss => ss.Set<Customer>()
+                .OrderBy(c => c.CustomerID)
+                .Where(c => c.CustomerID.StartsWith("A"))
+                .Select(c => new
                 {
-                    OrderDates = context.Orders
+                    OrderDates = ss.Set<Order>()
+                        .OrderBy(o => o.OrderID)
                         .Where(o => o.OrderID < 10500)
                         .Where(o => c.CustomerID == o.CustomerID)
                         .Select(o => o.OrderDate)
                         .FirstOrDefault()
-                })
-            .ToList();
+                }),
+            assertOrder: true);
 
-        Assert.Equal(4, customers.Count);
-        Assert.Equal(3, customers.Count(c => c.OrderDates != null));
-    }
-
-    [ConditionalFact]
-    public virtual void Select_nested_collection_multi_level4()
-    {
-        using var context = CreateContext();
-        var customers = context.Customers
-            .Where(c => c.CustomerID.StartsWith("A"))
-            .Select(
-                c => new
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task Select_nested_collection_multi_level4(bool async)
+        => AssertQuery(
+            async,
+            ss => ss.Set<Customer>()
+                .OrderBy(c => c.CustomerID)
+                .Where(c => c.CustomerID.StartsWith("A"))
+                .Select(c => new
                 {
                     Order = (int?)c.Orders
+                        .OrderBy(o => o.OrderID)
                         .Where(o => o.OrderID < 10500)
-                        .Select(
-                            o => o.OrderDetails
-                                .Where(od => od.OrderID > 10)
-                                .Select(od => od.ProductID)
-                                .Count())
+                        .Select(o => o.OrderDetails
+                            .Where(od => od.OrderID > 10)
+                            .Select(od => od.ProductID)
+                            .Count())
                         .FirstOrDefault()
-                })
-            .ToList();
+                }),
+            assertOrder: true);
 
-        Assert.Equal(4, customers.Count);
-        Assert.Equal(3, customers.Count(c => c.Order != null && c.Order != 0));
-    }
-
-    [ConditionalFact]
-    public virtual void Select_nested_collection_multi_level5()
-    {
-        using var context = CreateContext();
-        var customers = context.Customers
-            .Where(c => c.CustomerID.StartsWith("A"))
-            .Select(
-                c => new
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task Select_nested_collection_multi_level5(bool async)
+        => AssertQuery(
+            async,
+            ss => ss.Set<Customer>()
+                .OrderBy(c => c.CustomerID)
+                .Where(c => c.CustomerID.StartsWith("A"))
+                .Select(c => new
                 {
                     Order = (int?)c.Orders
+                        .OrderBy(o => o.OrderID)
                         .Where(o => o.OrderID < 10500)
                         .Select(
                             o => o.OrderDetails
+                                .OrderBy(od => od.OrderID)
+                                .ThenBy(od => od.ProductID)
                                 .Where(od => od.OrderID != c.Orders.Count)
                                 .Select(od => od.ProductID)
                                 .FirstOrDefault())
                         .FirstOrDefault()
-                })
-            .ToList();
+                }),
+            assertOrder: true);
 
-        Assert.Equal(4, customers.Count);
-        Assert.Equal(3, customers.Count(c => c.Order != null && c.Order != 0));
-    }
-
-    [ConditionalFact]
-    public virtual void Select_nested_collection_multi_level6()
-    {
-        using var context = CreateContext();
-        var customers = context.Customers
-            .Where(c => c.CustomerID.StartsWith("A"))
-            .Select(
-                c => new
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task Select_nested_collection_multi_level6(bool async)
+        => AssertQuery(
+            async,
+            ss => ss.Set<Customer>()
+                .OrderBy(c => c.CustomerID)
+                .Where(c => c.CustomerID.StartsWith("A"))
+                .Select(c => new
                 {
                     Order = (int?)c.Orders
+                        .OrderBy(o => o.OrderID)
                         .Where(o => o.OrderID < 10500)
                         .Select(
                             o => o.OrderDetails
+                                .OrderBy(od => od.OrderID)
+                                .ThenBy(od => od.ProductID)
                                 .Where(od => od.OrderID != c.CustomerID.Length)
                                 .Select(od => od.ProductID)
                                 .FirstOrDefault())
                         .FirstOrDefault()
-                })
-            .ToList();
-
-        Assert.Equal(4, customers.Count);
-        Assert.Equal(3, customers.Count(c => c.Order != null && c.Order != 0));
-    }
+                }),
+            assertOrder: true);
 
     [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
@@ -849,7 +837,7 @@ public abstract class NorthwindSelectQueryTestBase<TFixture> : QueryTestBase<TFi
                 .Take(5)
                 .Distinct()
                 .Select(e => new { e.EmployeeID, e.City }),
-            assertOrder: true);
+            elementSorter: e => e.EmployeeID);
 
     [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
@@ -1050,7 +1038,7 @@ public abstract class NorthwindSelectQueryTestBase<TFixture> : QueryTestBase<TFi
                     .Take(2)
                     .FirstOrDefault()));
 
-    [ConditionalTheory(Skip = "Issue#12597")]
+    [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
     public virtual Task
         Project_single_element_from_collection_with_multiple_OrderBys_Take_and_FirstOrDefault_followed_by_projection_of_length_property(
@@ -1058,11 +1046,17 @@ public abstract class NorthwindSelectQueryTestBase<TFixture> : QueryTestBase<TFi
         => AssertQueryScalar(
             async,
             ss => ss.Set<Customer>().Select(
+                c => (int?)c.Orders.OrderBy(o => o.OrderID)
+                    .ThenByDescending(o => o.OrderDate)
+                    .Select(o => o.CustomerID)
+                    .Take(2)
+                    .FirstOrDefault().Length),
+            ss => ss.Set<Customer>().Select(
                 c => c.Orders.OrderBy(o => o.OrderID)
                     .ThenByDescending(o => o.OrderDate)
                     .Select(o => o.CustomerID)
                     .Take(2)
-                    .FirstOrDefault().Length));
+                    .FirstOrDefault().MaybeScalar(x => x.Length)));
 
     [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
@@ -1520,11 +1514,10 @@ public abstract class NorthwindSelectQueryTestBase<TFixture> : QueryTestBase<TFi
             ss => ss.Set<Customer>().SelectMany(
                 c => c.Orders.Select(o => new { OrderProperty = o.CustomerID, CustomerProperty = c.CustomerID })));
 
-    [ConditionalTheory(Skip = "issue #17763")]
+    [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
     public virtual Task
-        SelectMany_with_collection_being_correlated_subquery_which_references_non_mapped_properties_from_inner_and_outer_entity(
-            bool async)
+        SelectMany_with_collection_being_correlated_subquery_which_references_non_mapped_properties_from_inner_and_outer_entity(bool async)
         => AssertQuery(
             async,
             ss => ss.Set<Customer>().SelectMany(
@@ -1578,7 +1571,7 @@ public abstract class NorthwindSelectQueryTestBase<TFixture> : QueryTestBase<TFi
                   select g,
             elementSorter: e => (e.OrderDate, e.CustomerCity));
 
-    [ConditionalTheory(Skip = "Issue#12148")]
+    [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
     public virtual Task Collection_FirstOrDefault_with_entity_equality_check_in_projection(bool async)
         => AssertQuery(
@@ -1841,7 +1834,7 @@ public abstract class NorthwindSelectQueryTestBase<TFixture> : QueryTestBase<TFi
             });
     }
 
-    [ConditionalTheory(Skip = "Issue#24440")]
+    [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
     public virtual Task Correlated_collection_after_distinct_with_complex_projection_not_containing_original_identifier(bool async)
     {
@@ -2414,4 +2407,30 @@ public abstract class NorthwindSelectQueryTestBase<TFixture> : QueryTestBase<TFi
                 AssertCollection(e.ListWithSubList, a.ListWithSubList, ordered: true,
                     elementAsserter: (ee, aa) => AssertCollection(ee, aa, elementSorter: i => (i.OrderID, i.ProductID)));
             });
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task Using_enumerable_parameter_in_projection(bool async)
+    {
+        var customersToLoad = new List<string> { "A" };
+        var results = new List<OrderDto>();
+
+        return AssertQuery(
+            async,
+            ss => ss.Set<Customer>()
+                .Where(c => c.CustomerID.StartsWith("F"))
+                .Select(c => new
+                {
+                    c.CustomerID,
+                    Orders = customersToLoad.Contains("FISSA")
+                        ? c.Orders.Select(e => new OrderDto())
+                        : results
+                }),
+            elementSorter: e => e.CustomerID,
+            elementAsserter: (e, a) =>
+            {
+                AssertEqual(e.CustomerID, a.CustomerID);
+                AssertEqual(e.Orders.Count(), a.Orders.Count());
+            });
+    }
 }

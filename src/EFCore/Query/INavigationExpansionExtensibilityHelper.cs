@@ -14,7 +14,7 @@ namespace Microsoft.EntityFrameworkCore.Query;
 ///     </para>
 ///     <para>
 ///         See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
-///         and <see href="https://aka.ms/efcore-how-queries-work">How EF Core queries work</see> for more information and examples.
+///         and <see href="https://aka.ms/efcore-docs-how-query-works">How EF Core queries work</see> for more information and examples.
 ///     </para>
 /// </remarks>
 public interface INavigationExpansionExtensibilityHelper
@@ -25,6 +25,13 @@ public interface INavigationExpansionExtensibilityHelper
     /// <param name="entityType">Entity type of the new <see cref="QueryRootExpression" />.</param>
     /// <param name="source">Source expression.</param>
     QueryRootExpression CreateQueryRoot(IEntityType entityType, QueryRootExpression? source);
+
+    /// <summary>
+    ///     Validates whether a new <see cref="QueryRootExpression" /> can be created.
+    /// </summary>
+    /// <param name="entityType">Entity type of the new <see cref="QueryRootExpression" />.</param>
+    /// <param name="source">Source expression.</param>
+    void ValidateQueryRootCreation(IEntityType entityType, QueryRootExpression? source);
 
     /// <summary>
     ///     Checks whether two query roots are compatible for a set operation to combine them.

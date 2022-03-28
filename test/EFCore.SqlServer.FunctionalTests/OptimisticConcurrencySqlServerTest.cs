@@ -166,10 +166,11 @@ ORDER BY [e].[Id]",
 @p4='47.64491' (Nullable = true)
 @p5='-122.128101' (Nullable = true)
 
+SET IMPLICIT_TRANSACTIONS OFF;
 SET NOCOUNT ON;
 UPDATE [Engines] SET [Name] = @p0
-WHERE [Id] = @p1 AND [EngineSupplierId] = @p2 AND [Name] = @p3 AND [StorageLocation_Latitude] = @p4 AND [StorageLocation_Longitude] = @p5;
-SELECT @@ROWCOUNT;");
+OUTPUT 1
+WHERE [Id] = @p1 AND [EngineSupplierId] = @p2 AND [Name] = @p3 AND [StorageLocation_Latitude] = @p4 AND [StorageLocation_Longitude] = @p5;");
     }
 
     private void AssertSql(params string[] expected)

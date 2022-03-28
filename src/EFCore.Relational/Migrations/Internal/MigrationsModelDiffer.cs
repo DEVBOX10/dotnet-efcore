@@ -859,7 +859,7 @@ public class MigrationsModelDiffer : IMigrationsModelDiffer
         public bool Equals(PropertyInfo? x, PropertyInfo? y)
             => x.IsSameAs(y);
 
-        public int GetHashCode([DisallowNull] PropertyInfo obj)
+        public int GetHashCode(PropertyInfo obj)
             => throw new NotSupportedException();
     }
 
@@ -1393,6 +1393,10 @@ public class MigrationsModelDiffer : IMigrationsModelDiffer
 
     private bool IndexStructureEquals(ITableIndex source, ITableIndex target, DiffContext diffContext)
         => source.IsUnique == target.IsUnique
+            && ((source.IsDescending is null && target.IsDescending is null)
+                || (source.IsDescending is not null
+                    && target.IsDescending is not null
+                    && source.IsDescending.SequenceEqual(target.IsDescending)))
             && source.Filter == target.Filter
             && !HasDifferences(source.GetAnnotations(), target.GetAnnotations())
             && source.Columns.Select(p => p.Name).SequenceEqual(
@@ -1523,7 +1527,7 @@ public class MigrationsModelDiffer : IMigrationsModelDiffer
 
         var operation = new DropCheckConstraintOperation
         {
-            Name = source.Name,
+            Name = source.Name!,
             Schema = sourceEntityType.GetSchema(),
             Table = sourceEntityType.GetTableName()!
         };
@@ -2185,7 +2189,7 @@ public class MigrationsModelDiffer : IMigrationsModelDiffer
         var commandBatches = new CommandBatchPreparer(CommandBatchPreparerDependencies)
             .BatchCommands(entries, updateAdapter);
 
-        foreach (var commandBatch in commandBatches)
+        foreach (var (commandBatch, _) in commandBatches)
         {
             InsertDataOperation? batchInsertOperation = null;
             foreach (var command in commandBatch.ModificationCommands)

@@ -501,6 +501,7 @@ public class NavigationFixer : INavigationFixer
                 }
 
                 if (newValue == null
+                    && foreignKey.IsRequired
                     && (foreignKey.DeleteBehavior == DeleteBehavior.Cascade
                         || foreignKey.DeleteBehavior == DeleteBehavior.ClientCascade))
                 {
@@ -1274,11 +1275,7 @@ public class NavigationFixer : INavigationFixer
         IProperty principalProperty,
         object? dependentValue,
         object? principalValue)
-        => (principalProperty.GetKeyValueComparer())
-            ?.Equals(dependentValue, principalValue)
-            ?? StructuralComparisons.StructuralEqualityComparer.Equals(
-                dependentValue,
-                principalValue);
+        => principalProperty.GetKeyValueComparer().Equals(dependentValue, principalValue);
 
     private void ConditionallyNullForeignKeyProperties(
         InternalEntityEntry dependentEntry,

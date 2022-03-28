@@ -1,8 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-
-
 // ReSharper disable InconsistentNaming
 namespace Microsoft.EntityFrameworkCore.ModelBuilding;
 
@@ -244,7 +242,27 @@ public class SqlServerModelBuilderGenericTest : ModelBuilderGenericTest
         }
 
         [ConditionalFact]
-        public virtual void TPT_identifying_FK_are_created_only_on_declaring_type()
+        public virtual void Can_override_TPC_with_TPH()
+        {
+            var modelBuilder = CreateModelBuilder();
+
+            modelBuilder.Entity<P>();
+            modelBuilder.Entity<T>();
+            modelBuilder.Entity<Q>();
+            modelBuilder.Entity<PBase>()
+                .UseTpcMappingStrategy()
+                .UseTphMappingStrategy();
+
+            var model = modelBuilder.FinalizeModel();
+
+            Assert.Equal("Discriminator", model.FindEntityType(typeof(PBase)).GetDiscriminatorPropertyName());
+            Assert.Equal(nameof(PBase), model.FindEntityType(typeof(PBase)).GetDiscriminatorValue());
+            Assert.Equal(nameof(P), model.FindEntityType(typeof(P)).GetDiscriminatorValue());
+            Assert.Equal(nameof(Q), model.FindEntityType(typeof(Q)).GetDiscriminatorValue());
+        }
+
+        [ConditionalFact]
+        public virtual void TPT_identifying_FK_is_created_only_on_declaring_table()
         {
             var modelBuilder = CreateModelBuilder();
             modelBuilder.Entity<BigMak>()
@@ -273,11 +291,13 @@ public class SqlServerModelBuilderGenericTest : ModelBuilderGenericTest
             var principalType = model.FindEntityType(typeof(BigMak));
             Assert.Empty(principalType.GetForeignKeys());
             Assert.Empty(principalType.GetIndexes());
+            Assert.Null(principalType.FindDiscriminatorProperty());
 
             var ingredientType = model.FindEntityType(typeof(Ingredient));
 
             var bunType = model.FindEntityType(typeof(Bun));
             Assert.Empty(bunType.GetIndexes());
+            Assert.Null(bunType.FindDiscriminatorProperty());
             var bunFk = bunType.GetDeclaredForeignKeys().Single(fk => !fk.IsBaseLinking());
             Assert.Equal("FK_Buns_BigMak_Id", bunFk.GetConstraintName());
             Assert.Equal(
@@ -304,6 +324,64 @@ public class SqlServerModelBuilderGenericTest : ModelBuilderGenericTest
                     StoreObjectIdentifier.Create(sesameBunType, StoreObjectType.Table).Value,
                     StoreObjectIdentifier.Create(bunType, StoreObjectType.Table).Value));
             Assert.Single(sesameBunFk.GetMappedConstraints());
+        }
+
+        [ConditionalFact]
+        public virtual void TPC_identifying_FKs_are_created_on_all_tables()
+        {
+            var modelBuilder = CreateModelBuilder();
+            modelBuilder.Entity<BigMak>()
+                .Ignore(b => b.Bun)
+                .Ignore(b => b.Pickles);
+            modelBuilder.Entity<Ingredient>(
+                b =>
+                {
+                    b.ToTable("Ingredients");
+                    b.Ignore(i => i.BigMak);
+                    b.UseTpcMappingStrategy();
+                });
+            modelBuilder.Entity<Bun>(
+                b =>
+                {
+                    b.ToTable("Buns");
+                    b.HasOne(i => i.BigMak).WithOne().HasForeignKey<Bun>(i => i.Id);
+                    b.UseTpcMappingStrategy();
+                });
+            modelBuilder.Entity<SesameBun>(
+                b =>
+                {
+                    b.ToTable("SesameBuns");
+                });
+
+            var model = modelBuilder.FinalizeModel();
+
+            var principalType = model.FindEntityType(typeof(BigMak));
+            Assert.Empty(principalType.GetForeignKeys());
+            Assert.Empty(principalType.GetIndexes());
+            Assert.Null(principalType.FindDiscriminatorProperty());
+
+            var ingredientType = model.FindEntityType(typeof(Ingredient));
+
+            var bunType = model.FindEntityType(typeof(Bun));
+            Assert.Empty(bunType.GetIndexes());
+            Assert.Null(bunType.FindDiscriminatorProperty());
+            var bunFk = bunType.GetDeclaredForeignKeys().Single();
+            Assert.Equal("FK_Buns_BigMak_Id", bunFk.GetConstraintName());
+            Assert.Equal(
+                "FK_Buns_BigMak_Id", bunFk.GetConstraintName(
+                    StoreObjectIdentifier.Create(bunType, StoreObjectType.Table).Value,
+                    StoreObjectIdentifier.Create(principalType, StoreObjectType.Table).Value));
+            Assert.Equal(2, bunFk.GetMappedConstraints().Count());
+
+            Assert.Empty(bunType.GetDeclaredForeignKeys().Where(fk => fk.IsBaseLinking()));
+
+            var sesameBunType = model.FindEntityType(typeof(SesameBun));
+            Assert.Empty(sesameBunType.GetIndexes());
+            Assert.Empty(sesameBunType.GetDeclaredForeignKeys());
+            Assert.Equal(
+                "FK_SesameBuns_BigMak_Id", bunFk.GetConstraintName(
+                    StoreObjectIdentifier.Create(sesameBunType, StoreObjectType.Table).Value,
+                    StoreObjectIdentifier.Create(principalType, StoreObjectType.Table).Value));
         }
 
         [ConditionalFact]
@@ -639,7 +717,13 @@ public class SqlServerModelBuilderGenericTest : ModelBuilderGenericTest
             modelBuilder.Entity<Book>(
                 bb =>
                 {
-                    bb.ToTable("BT", "BS", t => t.ExcludeFromMigrations());
+                    bb.ToTable("BT", "BS", t =>
+                    {
+                        t.ExcludeFromMigrations();
+
+                        Assert.Equal("BT", t.Name);
+                        Assert.Equal("BS", t.Schema);
+                    });
                     bb.OwnsOne(
                         b => b.AlternateLabel, tb =>
                         {
@@ -652,7 +736,13 @@ public class SqlServerModelBuilderGenericTest : ModelBuilderGenericTest
                                 l => l.AnotherBookLabel, ab =>
                                 {
                                     ab.Ignore(l => l.Book);
-                                    ab.ToTable("AT1", "AS1", t => t.ExcludeFromMigrations(false));
+                                    ab.ToTable("AT1", "AS1", t =>
+                                    {
+                                        t.ExcludeFromMigrations(false);
+
+                                        Assert.Equal("AT1", t.Name);
+                                        Assert.Equal("AS1", t.Schema);
+                                    });
                                     ab.OwnsOne(s => s.SpecialBookLabel)
                                         .ToTable("ST11", "SS11")
                                         .Ignore(l => l.Book)
@@ -934,7 +1024,12 @@ public class SqlServerModelBuilderGenericTest : ModelBuilderGenericTest
             var modelBuilder = CreateModelBuilder();
             var model = modelBuilder.Model;
 
-            modelBuilder.Entity<Customer>().ToTable(tb => tb.IsTemporal());
+            modelBuilder.Entity<Customer>().ToTable(tb =>
+            {
+                tb.IsTemporal();
+                Assert.Null(tb.Name);
+                Assert.Null(tb.Schema);
+            });
             modelBuilder.FinalizeModel();
 
             var entity = model.FindEntityType(typeof(Customer));
@@ -1007,8 +1102,8 @@ public class SqlServerModelBuilderGenericTest : ModelBuilderGenericTest
                     ttb =>
                     {
                         ttb.UseHistoryTable("HistoryTable", "historySchema");
-                        ttb.HasPeriodStart("MyPeriodStart").HasColumnName("PeriodStartColumn");
-                        ttb.HasPeriodEnd("MyPeriodEnd").HasColumnName("PeriodEndColumn");
+                        ttb.HasPeriodStart("MyPeriodStart");
+                        ttb.HasPeriodEnd("MyPeriodEnd");
                     }));
 
             modelBuilder.Entity<Customer>().ToTable(
@@ -1016,8 +1111,8 @@ public class SqlServerModelBuilderGenericTest : ModelBuilderGenericTest
                     ttb =>
                     {
                         ttb.UseHistoryTable("ChangedHistoryTable", "changedHistorySchema");
-                        ttb.HasPeriodStart("ChangedMyPeriodStart").HasColumnName("ChangedPeriodStartColumn");
-                        ttb.HasPeriodEnd("ChangedMyPeriodEnd").HasColumnName("ChangedPeriodEndColumn");
+                        ttb.HasPeriodStart("ChangedMyPeriodStart");
+                        ttb.HasPeriodEnd("ChangedMyPeriodEnd");
                     }));
 
             modelBuilder.FinalizeModel();
@@ -1033,12 +1128,61 @@ public class SqlServerModelBuilderGenericTest : ModelBuilderGenericTest
             var periodEnd = entity.GetProperty(entity.GetPeriodEndPropertyName());
 
             Assert.Equal("ChangedMyPeriodStart", periodStart.Name);
-            Assert.Equal("ChangedPeriodStartColumn", periodStart[RelationalAnnotationNames.ColumnName]);
+            Assert.Equal("ChangedMyPeriodStart", periodStart[RelationalAnnotationNames.ColumnName]);
             Assert.True(periodStart.IsShadowProperty());
             Assert.Equal(typeof(DateTime), periodStart.ClrType);
             Assert.Equal(ValueGenerated.OnAddOrUpdate, periodStart.ValueGenerated);
 
             Assert.Equal("ChangedMyPeriodEnd", periodEnd.Name);
+            Assert.Equal("ChangedMyPeriodEnd", periodEnd[RelationalAnnotationNames.ColumnName]);
+            Assert.True(periodEnd.IsShadowProperty());
+            Assert.Equal(typeof(DateTime), periodEnd.ClrType);
+            Assert.Equal(ValueGenerated.OnAddOrUpdate, periodEnd.ValueGenerated);
+        }
+
+        [ConditionalFact]
+        public virtual void Temporal_table_with_period_column_names_changed_configuration()
+        {
+            var modelBuilder = CreateModelBuilder();
+            var model = modelBuilder.Model;
+
+            modelBuilder.Entity<Customer>().ToTable(
+                tb => tb.IsTemporal(
+                    ttb =>
+                    {
+                        ttb.UseHistoryTable("HistoryTable", "historySchema");
+                        ttb.HasPeriodStart("MyPeriodStart").HasColumnName("PeriodStartColumn");
+                        ttb.HasPeriodEnd("MyPeriodEnd").HasColumnName("PeriodEndColumn");
+                    }));
+
+            modelBuilder.Entity<Customer>().ToTable(
+                tb => tb.IsTemporal(
+                    ttb =>
+                    {
+                        ttb.UseHistoryTable("ChangedHistoryTable", "changedHistorySchema");
+                        ttb.HasPeriodStart("MyPeriodStart").HasColumnName("ChangedPeriodStartColumn");
+                        ttb.HasPeriodEnd("MyPeriodEnd").HasColumnName("ChangedPeriodEndColumn");
+                    }));
+
+            modelBuilder.FinalizeModel();
+
+            var entity = model.FindEntityType(typeof(Customer));
+            Assert.True(entity.IsTemporal());
+            Assert.Equal(5, entity.GetProperties().Count());
+
+            Assert.Equal("ChangedHistoryTable", entity.GetHistoryTableName());
+            Assert.Equal("changedHistorySchema", entity.GetHistoryTableSchema());
+
+            var periodStart = entity.GetProperty(entity.GetPeriodStartPropertyName());
+            var periodEnd = entity.GetProperty(entity.GetPeriodEndPropertyName());
+
+            Assert.Equal("MyPeriodStart", periodStart.Name);
+            Assert.Equal("ChangedPeriodStartColumn", periodStart[RelationalAnnotationNames.ColumnName]);
+            Assert.True(periodStart.IsShadowProperty());
+            Assert.Equal(typeof(DateTime), periodStart.ClrType);
+            Assert.Equal(ValueGenerated.OnAddOrUpdate, periodStart.ValueGenerated);
+
+            Assert.Equal("MyPeriodEnd", periodEnd.Name);
             Assert.Equal("ChangedPeriodEndColumn", periodEnd[RelationalAnnotationNames.ColumnName]);
             Assert.True(periodEnd.IsShadowProperty());
             Assert.Equal(typeof(DateTime), periodEnd.ClrType);
@@ -1202,7 +1346,6 @@ public class SqlServerModelBuilderGenericTest : ModelBuilderGenericTest
         where TEntity : class
     {
         public abstract TestTemporalTableBuilder<TEntity> UseHistoryTable(string name, string schema);
-
         public abstract TestTemporalPeriodPropertyBuilder HasPeriodStart(string propertyName);
         public abstract TestTemporalPeriodPropertyBuilder HasPeriodEnd(string propertyName);
     }
@@ -1216,9 +1359,9 @@ public class SqlServerModelBuilderGenericTest : ModelBuilderGenericTest
             TemporalTableBuilder = temporalTableBuilder;
         }
 
-        protected TemporalTableBuilder<TEntity> TemporalTableBuilder { get; }
+        private TemporalTableBuilder<TEntity> TemporalTableBuilder { get; }
 
-        public TemporalTableBuilder<TEntity> Instance
+        TemporalTableBuilder<TEntity> IInfrastructure<TemporalTableBuilder<TEntity>>.Instance
             => TemporalTableBuilder;
 
         protected virtual TestTemporalTableBuilder<TEntity> Wrap(TemporalTableBuilder<TEntity> tableBuilder)
@@ -1242,9 +1385,9 @@ public class SqlServerModelBuilderGenericTest : ModelBuilderGenericTest
             TemporalTableBuilder = temporalTableBuilder;
         }
 
-        protected TemporalTableBuilder TemporalTableBuilder { get; }
+        private TemporalTableBuilder TemporalTableBuilder { get; }
 
-        public TemporalTableBuilder Instance
+        TemporalTableBuilder IInfrastructure<TemporalTableBuilder>.Instance
             => TemporalTableBuilder;
 
         protected virtual TestTemporalTableBuilder<TEntity> Wrap(TemporalTableBuilder temporalTableBuilder)

@@ -74,8 +74,12 @@ public class CSharpMigrationsGeneratorTest
             RelationalAnnotationNames.IsFixedLength,
             RelationalAnnotationNames.Collation,
             RelationalAnnotationNames.IsStored,
+            RelationalAnnotationNames.TpcMappingStrategy,
+            RelationalAnnotationNames.TphMappingStrategy,
+            RelationalAnnotationNames.TptMappingStrategy,
             RelationalAnnotationNames.RelationalModel,
-            RelationalAnnotationNames.ModelDependencies
+            RelationalAnnotationNames.ModelDependencies,
+            RelationalAnnotationNames.Triggers // Appears on entity but requires provider-specific support
         };
 
         // Add a line here if the code generator is supposed to handle this annotation
@@ -92,6 +96,15 @@ public class CSharpMigrationsGeneratorTest
                     + "entityTypeBuilder."
                     + nameof(RelationalEntityTypeBuilderExtensions.ToTable)
                     + @"(""WithAnnotations"", ""MySchema"")")
+            },
+            {
+                RelationalAnnotationNames.MappingStrategy,
+                (RelationalAnnotationNames.TphMappingStrategy,
+                    _toTable
+                    + ";"
+                    + _nl
+                    + _nl
+                    + "entityTypeBuilder.UseTphMappingStrategy()")
             },
             {
                 CoreAnnotationNames.DiscriminatorProperty, ("Id",
@@ -198,8 +211,13 @@ public class CSharpMigrationsGeneratorTest
             RelationalAnnotationNames.Filter,
             RelationalAnnotationNames.DbFunctions,
             RelationalAnnotationNames.MaxIdentifierLength,
+            RelationalAnnotationNames.MappingStrategy,
+            RelationalAnnotationNames.TpcMappingStrategy,
+            RelationalAnnotationNames.TphMappingStrategy,
+            RelationalAnnotationNames.TptMappingStrategy,
             RelationalAnnotationNames.RelationalModel,
-            RelationalAnnotationNames.ModelDependencies
+            RelationalAnnotationNames.ModelDependencies,
+            RelationalAnnotationNames.Triggers
         };
 
         var columnMapping = $@"{_nl}.{nameof(RelationalPropertyBuilderExtensions.HasColumnType)}(""default_int_mapping"")";
@@ -499,8 +517,10 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 namespace MyNamespace
 {
+    /// <inheritdoc />
     public partial class MyMigration : Migration
     {
+        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql(""-- TEST"")
@@ -523,6 +543,7 @@ namespace MyNamespace
                 values: new object[] { 1, null, -1 });
         }
 
+        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
 
@@ -571,6 +592,7 @@ namespace MyNamespace
     [Migration(""20150511161616_MyMigration"")]
     partial class MyMigration
     {
+        /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
@@ -608,7 +630,8 @@ namespace MyNamespace
                 BuildReference.ByName("Microsoft.EntityFrameworkCore"),
                 BuildReference.ByName("Microsoft.EntityFrameworkCore.Relational")
             },
-            Sources = { { "Migration.cs", migrationCode }, { "MigrationSnapshot.cs", migrationMetadataCode } }
+            Sources = { { "Migration.cs", migrationCode }, { "MigrationSnapshot.cs", migrationMetadataCode } },
+            EmitDocumentationDiagnostics = true
         };
 
         var assembly = build.BuildInMemory();
@@ -1004,6 +1027,50 @@ namespace MyNamespace
             Array.Empty<MigrationOperation>());
 
         Assert.Contains("using System.Text.RegularExpressions;", migration);
+    }
+
+    [ConditionalFact]
+    public void Multidimensional_array_warning_is_suppressed_for_multidimensional_seed_data()
+    {
+        var generator = CreateMigrationsCodeGenerator();
+
+        var migration = generator.GenerateMigration(
+            "MyNamespace",
+            "MyMigration",
+            new[]
+            {
+                new DeleteDataOperation
+                {
+                    Table = "MyTable",
+                    KeyColumns = new[] { "Id" },
+                    KeyValues = new object[,] { { 1, 2 }, { 3, 4 } }
+                }
+            },
+            Array.Empty<MigrationOperation>());
+
+        Assert.Contains("#pragma warning disable CA1814", migration);
+    }
+
+    [ConditionalFact]
+    public void Multidimensional_array_warning_is_not_suppressed_for_unidimensional_seed_data()
+    {
+        var generator = CreateMigrationsCodeGenerator();
+
+        var migration = generator.GenerateMigration(
+            "MyNamespace",
+            "MyMigration",
+            new[]
+            {
+                new DeleteDataOperation
+                {
+                    Table = "MyTable",
+                    KeyColumns = new[] { "Id" },
+                    KeyValues = new object[,] { { 1, 2 } }
+                }
+            },
+            Array.Empty<MigrationOperation>());
+
+        Assert.DoesNotContain("#pragma warning disable CA1814", migration);
     }
 
     private static IMigrationsCodeGenerator CreateMigrationsCodeGenerator()

@@ -389,6 +389,7 @@ WHERE [c].[Id] = 1",
 @p5='True' (Nullable = true)
 @p6='Little spotted kiwi' (Size = 4000)
 
+SET IMPLICIT_TRANSACTIONS OFF;
 SET NOCOUNT ON;
 INSERT INTO [Animals] ([Species], [CountryId], [Discriminator], [EagleId], [FoundOn], [IsFlightless], [Name])
 VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6);",
@@ -400,10 +401,11 @@ WHERE [a].[Discriminator] = N'Kiwi' AND ([a].[Species] LIKE N'%owenii')",
             @"@p1='Apteryx owenii' (Nullable = false) (Size = 100)
 @p0='Aquila chrysaetos canadensis' (Size = 100)
 
+SET IMPLICIT_TRANSACTIONS OFF;
 SET NOCOUNT ON;
 UPDATE [Animals] SET [EagleId] = @p0
-WHERE [Species] = @p1;
-SELECT @@ROWCOUNT;",
+OUTPUT 1
+WHERE [Species] = @p1;",
             //
             @"SELECT TOP(2) [a].[Species], [a].[CountryId], [a].[Discriminator], [a].[Name], [a].[EagleId], [a].[IsFlightless], [a].[FoundOn]
 FROM [Animals] AS [a]
@@ -411,10 +413,11 @@ WHERE [a].[Discriminator] = N'Kiwi' AND ([a].[Species] LIKE N'%owenii')",
             //
             @"@p0='Apteryx owenii' (Nullable = false) (Size = 100)
 
+SET IMPLICIT_TRANSACTIONS OFF;
 SET NOCOUNT ON;
 DELETE FROM [Animals]
-WHERE [Species] = @p0;
-SELECT @@ROWCOUNT;",
+OUTPUT 1
+WHERE [Species] = @p0;",
             //
             @"SELECT COUNT(*)
 FROM [Animals] AS [a]

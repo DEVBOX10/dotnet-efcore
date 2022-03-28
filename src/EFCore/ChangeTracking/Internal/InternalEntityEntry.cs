@@ -1250,7 +1250,8 @@ public sealed partial class InternalEntityEntry : IUpdateEntry
                 && valueType == CurrentValueType.Normal
                 && (!asProperty.ClrType.IsNullableType()
                     || asProperty.GetContainingForeignKeys().Any(
-                        fk => (fk.DeleteBehavior == DeleteBehavior.Cascade
+                        fk => fk.IsRequired
+                                && (fk.DeleteBehavior == DeleteBehavior.Cascade
                                 || fk.DeleteBehavior == DeleteBehavior.ClientCascade)
                             && fk.DeclaringEntityType.IsAssignableFrom(EntityType))))
             {
@@ -1470,7 +1471,8 @@ public sealed partial class InternalEntityEntry : IUpdateEntry
 
                 if (property.IsKey()
                     && property.IsForeignKey()
-                    && _stateData.IsPropertyFlagged(property.GetIndex(), PropertyFlag.Unknown))
+                    && _stateData.IsPropertyFlagged(property.GetIndex(), PropertyFlag.Unknown)
+                    && !IsStoreGenerated(property))
                 {
                     if (property.GetContainingForeignKeys().Any(fk => fk.IsOwnership))
                     {

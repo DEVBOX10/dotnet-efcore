@@ -911,6 +911,14 @@ public class CSharpMigrationOperationGenerator : ICSharpMigrationOperationGenera
                     .Append("unique: true");
             }
 
+            if (operation.IsDescending is not null)
+            {
+                builder
+                    .AppendLine(",")
+                    .Append("descending: ")
+                    .Append(Code.Literal(operation.IsDescending));
+            }
+
             if (operation.Filter != null)
             {
                 builder
@@ -2127,6 +2135,7 @@ public class CSharpMigrationOperationGenerator : ICSharpMigrationOperationGenera
         foreach (var annotation in annotations)
         {
             // TODO: Give providers an opportunity to render these as provider-specific extension methods
+            // Issue #6546
             builder
                 .AppendLine()
                 .Append(".Annotation(")
@@ -2149,6 +2158,7 @@ public class CSharpMigrationOperationGenerator : ICSharpMigrationOperationGenera
         foreach (var annotation in annotations)
         {
             // TODO: Give providers an opportunity to render these as provider-specific extension methods
+            // Issue #6546
             builder
                 .AppendLine()
                 .Append(".OldAnnotation(")

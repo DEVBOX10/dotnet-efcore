@@ -1,6 +1,7 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace Microsoft.EntityFrameworkCore.Infrastructure;
@@ -56,6 +57,7 @@ public class RelationalModelValidator : ModelValidator
         ValidateDefaultValuesOnKeys(model, logger);
         ValidateBoolsWithDefaults(model, logger);
         ValidateIndexProperties(model, logger);
+        ValidateTriggers(model, logger);
     }
 
     /// <summary>
@@ -132,7 +134,7 @@ public class RelationalModelValidator : ModelValidator
                     && entityType.FindDiscriminatorProperty() == null)
                 {
                     throw new InvalidOperationException(
-                        RelationalStrings.TableValuedFunctionNonTPH(dbFunction.ModelName, entityType.DisplayName()));
+                        RelationalStrings.TableValuedFunctionNonTph(dbFunction.ModelName, entityType.DisplayName()));
                 }
             }
 
@@ -291,6 +293,7 @@ public class RelationalModelValidator : ModelValidator
             ValidateSharedForeignKeysCompatibility(mappedTypes, table, logger);
             ValidateSharedIndexesCompatibility(mappedTypes, table, logger);
             ValidateSharedCheckConstraintCompatibility(mappedTypes, table, logger);
+            ValidateSharedTriggerCompatibility(mappedTypes, table, logger);
 
             // Validate optional dependents
             if (mappedTypes.Count == 1)
@@ -1051,6 +1054,11 @@ public class RelationalModelValidator : ModelValidator
             var foreignKeyName = foreignKey.GetConstraintName(storeObject, principalTable.Value);
             if (foreignKeyName == null)
             {
+                if (foreignKey.PrincipalEntityType.GetMappingStrategy() == RelationalAnnotationNames.TpcMappingStrategy)
+                {
+                    logger.ForeignKeyTpcPrincipalWarning(foreignKey);
+                }
+
                 var derivedTables = foreignKey.DeclaringEntityType.GetDerivedTypes()
                     .Select(t => StoreObjectIdentifier.Create(t, StoreObjectType.Table))
                     .Where(t => t != null);
@@ -1186,7 +1194,7 @@ public class RelationalModelValidator : ModelValidator
         => key.AreCompatible(duplicateKey, storeObject, shouldThrow: true);
 
     /// <summary>
-    ///     Validates the compatibility of check constraint in a given shared table.
+    ///     Validates the compatibility of check constraints in a given shared table.
     /// </summary>
     /// <param name="mappedTypes">The mapped entity types.</param>
     /// <param name="storeObject">The identifier of the store object.</param>
@@ -1218,8 +1226,8 @@ public class RelationalModelValidator : ModelValidator
     /// <summary>
     ///     Validates the compatibility of two check constraints with the same name.
     /// </summary>
-    /// <param name="checkConstraint">An check constraints.</param>
-    /// <param name="duplicateCheckConstraint">Another check constraints.</param>
+    /// <param name="checkConstraint">A check constraint.</param>
+    /// <param name="duplicateCheckConstraint">Another check constraint.</param>
     /// <param name="indexName">The name of the check constraint.</param>
     /// <param name="storeObject">The identifier of the store object.</param>
     /// <param name="logger">The logger to use.</param>
@@ -1232,6 +1240,53 @@ public class RelationalModelValidator : ModelValidator
         => CheckConstraint.AreCompatible(checkConstraint, duplicateCheckConstraint, storeObject, shouldThrow: true);
 
     /// <summary>
+    ///     Validates the compatibility of triggers in a given shared table.
+    /// </summary>
+    /// <param name="mappedTypes">The mapped entity types.</param>
+    /// <param name="storeObject">The identifier of the store object.</param>
+    /// <param name="logger">The logger to use.</param>
+    protected virtual void ValidateSharedTriggerCompatibility(
+        IReadOnlyList<IEntityType> mappedTypes,
+        in StoreObjectIdentifier storeObject,
+        IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
+    {
+        var triggerMappings = new Dictionary<string, ITrigger>();
+        foreach (var trigger in mappedTypes.SelectMany(et => et.GetDeclaredTriggers()))
+        {
+            var triggerName = trigger.GetName(storeObject);
+            if (triggerName == null)
+            {
+                continue;
+            }
+
+            if (!triggerMappings.TryGetValue(triggerName, out var duplicateTrigger))
+            {
+                triggerMappings[triggerName] = trigger;
+                continue;
+            }
+
+            ValidateCompatible(trigger, duplicateTrigger, triggerName, storeObject, logger);
+        }
+    }
+
+    /// <summary>
+    ///     Validates the compatibility of two trigger with the same name.
+    /// </summary>
+    /// <param name="trigger">A trigger.</param>
+    /// <param name="duplicateTrigger">Another trigger.</param>
+    /// <param name="indexName">The name of the trigger.</param>
+    /// <param name="storeObject">The identifier of the store object.</param>
+    /// <param name="logger">The logger to use.</param>
+    protected virtual void ValidateCompatible(
+        ITrigger trigger,
+        ITrigger duplicateTrigger,
+        string indexName,
+        in StoreObjectIdentifier storeObject,
+        IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
+    {
+    }
+
+    /// <summary>
     ///     Validates the mapping/configuration of inheritance in the model.
     /// </summary>
     /// <param name="model">The model to validate.</param>
@@ -1240,31 +1295,99 @@ public class RelationalModelValidator : ModelValidator
         IModel model,
         IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
     {
-        foreach (var rootEntityType in model.GetEntityTypes())
+        foreach (var entityType in model.GetEntityTypes())
         {
-            if (rootEntityType.BaseType != null)
+            var mappingStrategy = (string?)entityType[RelationalAnnotationNames.MappingStrategy];
+            if (mappingStrategy != null)
+            {
+                ValidateMappingStrategy(mappingStrategy, entityType);
+                var storeObject = entityType.GetSchemaQualifiedTableName()
+                    ?? entityType.GetSchemaQualifiedViewName()
+                    ?? entityType.GetFunctionName();
+                if (mappingStrategy == RelationalAnnotationNames.TpcMappingStrategy
+                    && !entityType.ClrType.IsInstantiable()
+                    && storeObject != null)
+                {
+                    throw new InvalidOperationException(
+                       RelationalStrings.AbstractTpc(entityType.DisplayName(), storeObject));
+                }
+            }
+
+            if (entityType.BaseType != null)
+            {
+                if (mappingStrategy != null
+                    && mappingStrategy != entityType.BaseType.GetMappingStrategy())
+                {
+                    throw new InvalidOperationException(
+                       RelationalStrings.DerivedStrategy(entityType.DisplayName(), mappingStrategy));
+                }
+
+                continue;
+            }
+
+            if (!entityType.GetDirectlyDerivedTypes().Any())
             {
                 continue;
             }
 
             // Hierarchy mapping strategy must be the same across all types of mappings
-            var isTph = rootEntityType.FindPrimaryKey() == null
-                || rootEntityType.FindDiscriminatorProperty() != null;
-            if (isTph)
+            if (entityType.FindDiscriminatorProperty() != null)
             {
-                ValidateTPHMapping(rootEntityType, forTables: false);
-                ValidateTPHMapping(rootEntityType, forTables: true);
-                ValidateDiscriminatorValues(rootEntityType);
+                if (mappingStrategy != null
+                    && mappingStrategy != RelationalAnnotationNames.TphMappingStrategy)
+                {
+                    throw new InvalidOperationException(
+                       RelationalStrings.NonTphMappingStrategy(mappingStrategy, entityType.DisplayName()));
+                }
+
+                ValidateTPHMapping(entityType, forTables: false);
+                ValidateTPHMapping(entityType, forTables: true);
+                ValidateDiscriminatorValues(entityType);
             }
             else
             {
-                ValidateTPTMapping(rootEntityType, forTables: false);
-                ValidateTPTMapping(rootEntityType, forTables: true);
+                var pk = entityType.FindPrimaryKey();
+                if (mappingStrategy == RelationalAnnotationNames.TpcMappingStrategy)
+                {
+                    var storeGeneratedProperty = pk?.Properties.FirstOrDefault(p => (p.ValueGenerated & ValueGenerated.OnAdd) != 0);
+                    if (storeGeneratedProperty != null
+                        && entityType.GetTableName() != null)
+                    {
+                        logger.TpcStoreGeneratedIdentityWarning(storeGeneratedProperty);
+                    }
+                }
+                else if (pk == null)
+                {
+                    throw new InvalidOperationException(
+                       RelationalStrings.KeylessMappingStrategy(mappingStrategy ?? RelationalAnnotationNames.TptMappingStrategy, entityType.DisplayName()));
+                }
+
+                ValidateNonTPHMapping(entityType, forTables: false);
+                ValidateNonTPHMapping(entityType, forTables: true);
             }
         }
     }
 
-    private static void ValidateTPTMapping(IEntityType rootEntityType, bool forTables)
+    /// <summary>
+    ///     Validates that the given mapping strategy is supported
+    /// </summary>
+    /// <param name="mappingStrategy">The mapping strategy.</param>
+    /// <param name="entityType">The entity type.</param>
+    protected virtual void ValidateMappingStrategy(string? mappingStrategy, IEntityType entityType)
+    {
+        switch (mappingStrategy)
+        {
+            case RelationalAnnotationNames.TphMappingStrategy:
+            case RelationalAnnotationNames.TpcMappingStrategy:
+            case RelationalAnnotationNames.TptMappingStrategy:
+                break;
+            default:
+                throw new InvalidOperationException(RelationalStrings.InvalidMappingStrategy(
+                    mappingStrategy, entityType.DisplayName()));
+        };
+    }
+
+    private static void ValidateNonTPHMapping(IEntityType rootEntityType, bool forTables)
     {
         var derivedTypes = new Dictionary<(string, string?), IEntityType>();
         foreach (var entityType in rootEntityType.GetDerivedTypesInclusive())
@@ -1280,9 +1403,9 @@ public class RelationalModelValidator : ModelValidator
             {
                 throw new InvalidOperationException(
                     forTables
-                        ? RelationalStrings.NonTPHTableClash(
+                        ? RelationalStrings.NonTphTableClash(
                             entityType.DisplayName(), otherType.DisplayName(), entityType.GetSchemaQualifiedTableName())
-                        : RelationalStrings.NonTPHViewClash(
+                        : RelationalStrings.NonTphViewClash(
                             entityType.DisplayName(), otherType.DisplayName(), entityType.GetSchemaQualifiedViewName()));
             }
 
@@ -1316,10 +1439,10 @@ public class RelationalModelValidator : ModelValidator
             {
                 throw new InvalidOperationException(
                     forTables
-                        ? RelationalStrings.TPHTableMismatch(
+                        ? RelationalStrings.TphTableMismatch(
                             entityType.DisplayName(), entityType.GetSchemaQualifiedTableName(),
                             firstType.DisplayName(), firstType.GetSchemaQualifiedTableName())
-                        : RelationalStrings.TPHViewMismatch(
+                        : RelationalStrings.TphViewMismatch(
                             entityType.DisplayName(), entityType.GetSchemaQualifiedViewName(),
                             firstType.DisplayName(), firstType.GetSchemaQualifiedViewName()));
             }
@@ -1405,8 +1528,7 @@ public class RelationalModelValidator : ModelValidator
     }
 
     /// <summary>
-    ///     Validates that the properties of any one index are
-    ///     all mapped to columns on at least one common table.
+    ///     Validates that the properties of any one index are all mapped to columns on at least one common table.
     /// </summary>
     /// <param name="model">The model to validate.</param>
     /// <param name="logger">The logger to use.</param>
@@ -1503,6 +1625,43 @@ public class RelationalModelValidator : ModelValidator
                         firstPropertyTables.Item2,
                         lastPropertyTables.Item1,
                         lastPropertyTables.Item2);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Validates that the triggers are unambiguously mapped to exactly one table.
+    /// </summary>
+    /// <param name="model">The model to validate.</param>
+    /// <param name="logger">The logger to use.</param>
+    protected virtual void ValidateTriggers(
+        IModel model,
+        IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
+    {
+        foreach (var entityType in model.GetEntityTypes())
+        {
+            var tableName = entityType.GetTableName();
+            var tableSchema = entityType.GetSchema();
+
+            foreach (var trigger in entityType.GetDeclaredTriggers())
+            {
+                if (tableName is null)
+                {
+                    throw new InvalidOperationException(
+                        RelationalStrings.TriggerOnUnmappedEntityType(trigger.ModelName, entityType.DisplayName()));
+                }
+
+                if ((trigger.TableName != tableName)
+                    || (trigger.TableSchema is not null && trigger.TableSchema != tableSchema))
+                {
+                    throw new InvalidOperationException(
+                        RelationalStrings.TriggerWithMismatchedTable(
+                            trigger.ModelName,
+                            (trigger.TableName!, trigger.TableSchema).FormatTable(),
+                            entityType.DisplayName(),
+                            entityType.GetSchemaQualifiedTableName())
+                    );
                 }
             }
         }

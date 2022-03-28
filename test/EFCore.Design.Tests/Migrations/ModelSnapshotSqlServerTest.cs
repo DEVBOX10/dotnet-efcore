@@ -164,6 +164,14 @@ public class ModelSnapshotSqlServerTest
         public TProperty Property { get; set; }
     }
 
+    private class EntityWithThreeProperties
+    {
+        public int Id { get; set; }
+        public int X { get; set; }
+        public int Y { get; set; }
+        public int Z { get; set; }
+    }
+
     [Index(nameof(FirstName), nameof(LastName))]
     private class EntityWithIndexAttribute
     {
@@ -598,6 +606,57 @@ public class ModelSnapshotSqlServerTest
             });
 
     [ConditionalFact]
+    public virtual void Entities_are_stored_in_model_snapshot_for_TPC()
+        => Test(
+            builder =>
+            {
+                builder.Entity<DerivedEntity>()
+                    .ToTable("DerivedEntity", "foo")
+                    .ToView("DerivedView", "foo");
+                builder.Entity<BaseEntity>().UseTpcMappingStrategy();
+            },
+            AddBoilerPlate(
+                GetHeading()
+                + @"
+            modelBuilder.Entity(""Microsoft.EntityFrameworkCore.Migrations.ModelSnapshotSqlServerTest+BaseEntity"", b =>
+                {
+                    b.Property<int>(""Id"")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType(""int"");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>(""Id""), 1L, 1);
+
+                    b.Property<string>(""Discriminator"")
+                        .HasColumnType(""nvarchar(max)"");
+
+                    b.HasKey(""Id"");
+
+                    b.ToTable(""BaseEntity"");
+
+                    b.UseTpcMappingStrategy();
+                });
+
+            modelBuilder.Entity(""Microsoft.EntityFrameworkCore.Migrations.ModelSnapshotSqlServerTest+DerivedEntity"", b =>
+                {
+                    b.HasBaseType(""Microsoft.EntityFrameworkCore.Migrations.ModelSnapshotSqlServerTest+BaseEntity"");
+
+                    b.Property<string>(""Name"")
+                        .HasColumnType(""nvarchar(max)"");
+
+                    b.ToTable(""DerivedEntity"", ""foo"");
+
+                    b.ToView(""DerivedView"", ""foo"");
+                });"),
+            o =>
+            {
+                Assert.Equal(4, o.GetAnnotations().Count());
+
+                var derived = o.FindEntityType("Microsoft.EntityFrameworkCore.Migrations.ModelSnapshotSqlServerTest+DerivedEntity");
+                Assert.Equal("DerivedEntity", derived.GetTableName());
+                Assert.Equal("DerivedView", derived.GetViewName());
+            });
+
+    [ConditionalFact]
     public void Unmapped_entity_types_are_stored_in_the_model_snapshot()
         => Test(
             builder =>
@@ -814,6 +873,87 @@ public class ModelSnapshotSqlServerTest
             {
                 var constraint = o.FindEntityType(typeof(DerivedEntity)).GetDeclaredCheckConstraints().Single();
                 Assert.Equal("CK_BaseEntity_AlternateId", constraint.Name);
+            });
+
+    [ConditionalFact]
+    public virtual void Trigger_is_stored_in_snapshot()
+        => Test(
+            builder =>
+            {
+                builder.Entity<EntityWithOneProperty>()
+                    .ToTable(tb => tb.HasTrigger("SomeTrigger").Metadata["foo"] = "bar");
+                builder.Ignore<EntityWithTwoProperties>();
+            },
+            AddBoilerPlate(
+                GetHeading()
+                + @"
+            modelBuilder.Entity(""Microsoft.EntityFrameworkCore.Migrations.ModelSnapshotSqlServerTest+EntityWithOneProperty"", b =>
+                {
+                    b.Property<int>(""Id"")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType(""int"");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>(""Id""), 1L, 1);
+
+                    b.HasKey(""Id"");
+
+                    b.ToTable(""EntityWithOneProperty"", t =>
+                    {
+                        t.HasTrigger(""SomeTrigger"")
+                            .HasAnnotation(""foo"", ""bar"");
+                    });
+                });"),
+            o =>
+            {
+                var trigger = Assert.Single(o.GetEntityTypes().Single().GetTriggers());
+                Assert.Equal("SomeTrigger", trigger.Name);
+            });
+
+    [ConditionalFact]
+    public virtual void Triggers_and_ExcludeFromMigrations_are_stored_in_snapshot()
+        => Test(
+            builder =>
+            {
+                builder.Entity<EntityWithOneProperty>()
+                    .ToTable(tb =>
+                    {
+                        tb.HasTrigger("SomeTrigger1");
+                        tb.HasTrigger("SomeTrigger2");
+                        tb.ExcludeFromMigrations();
+                    });
+                builder.Ignore<EntityWithTwoProperties>();
+            },
+            AddBoilerPlate(
+                GetHeading()
+                + @"
+            modelBuilder.Entity(""Microsoft.EntityFrameworkCore.Migrations.ModelSnapshotSqlServerTest+EntityWithOneProperty"", b =>
+                {
+                    b.Property<int>(""Id"")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType(""int"");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>(""Id""), 1L, 1);
+
+                    b.HasKey(""Id"");
+
+                    b.ToTable(""EntityWithOneProperty"", t =>
+                    {
+                        t.ExcludeFromMigrations();
+
+                        t.HasTrigger(""SomeTrigger1"");
+                        t.HasTrigger(""SomeTrigger2"");
+                    });
+                });"),
+            o =>
+            {
+                var entityType = Assert.Single(o.GetEntityTypes());
+
+                Assert.True(entityType.IsTableExcludedFromMigrations());
+
+                Assert.Collection(
+                    entityType.GetTriggers().OrderBy(t => t.Name),
+                    t => Assert.Equal("SomeTrigger1", t.Name),
+                    t => Assert.Equal("SomeTrigger2", t.Name));
             });
 
     [ConditionalFact]
@@ -1268,7 +1408,7 @@ public class ModelSnapshotSqlServerTest
                 );
             });
 
-    [Fact]
+    [ConditionalFact]
     public void HasNoKey_is_handled()
         => Test(
             builder => builder.Entity<EntityWithOneProperty>().Ignore(e => e.EntityWithTwoProperties).HasNoKey(),
@@ -2077,7 +2217,7 @@ public class ModelSnapshotSqlServerTest
                     "Microsoft.EntityFrameworkCore.Migrations.ModelSnapshotSqlServerTest+EntityWithStringProperty");
                 var annotations = temporalEntity.GetAnnotations().ToList();
 
-                Assert.Equal(6, annotations.Count);
+                Assert.Equal(7, annotations.Count);
                 Assert.Contains(annotations, a => a.Name == SqlServerAnnotationNames.IsTemporal && a.Value as bool? == true);
                 Assert.Contains(
                     annotations,
@@ -2123,6 +2263,7 @@ public class ModelSnapshotSqlServerTest
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                         {
+                            ttb.UseHistoryTable(""EntityWithStringPropertyHistory"");
                             ttb
                                 .HasPeriodStart(""PeriodStart"")
                                 .HasColumnName(""PeriodStart"");
@@ -2138,7 +2279,7 @@ public class ModelSnapshotSqlServerTest
                     "Microsoft.EntityFrameworkCore.Migrations.ModelSnapshotSqlServerTest+EntityWithStringProperty");
                 var annotations = temporalEntity.GetAnnotations().ToList();
 
-                Assert.Equal(5, annotations.Count);
+                Assert.Equal(7, annotations.Count);
                 Assert.Contains(annotations, a => a.Name == SqlServerAnnotationNames.IsTemporal && a.Value as bool? == true);
                 Assert.Contains(
                     annotations,
@@ -4231,7 +4372,7 @@ namespace RootNamespace
             o => Assert.True(o.GetEntityTypes().Single().GetIndexes().Single().IsClustered()));
 
     [ConditionalFact]
-    public virtual void Index_isUnique_is_stored_in_snapshot()
+    public virtual void Index_IsUnique_is_stored_in_snapshot()
         => Test(
             builder =>
             {
@@ -4260,6 +4401,76 @@ namespace RootNamespace
                     b.ToTable(""EntityWithTwoProperties"");
                 });"),
             o => Assert.True(o.GetEntityTypes().First().GetIndexes().First().IsUnique));
+
+    [ConditionalFact]
+    public virtual void Index_IsDescending_is_stored_in_snapshot()
+        => Test(
+            builder =>
+            {
+                builder.Entity<EntityWithThreeProperties>(
+                    e =>
+                    {
+                        e.HasIndex(t => new { t.X, t.Y, t.Z }, "IX_empty");
+                        e.HasIndex(t => new { t.X, t.Y, t.Z }, "IX_all_ascending")
+                            .IsDescending(false, false, false);
+                        e.HasIndex(t => new { t.X, t.Y, t.Z }, "IX_all_descending")
+                            .IsDescending(true, true, true);
+                        e.HasIndex(t => new { t.X, t.Y, t.Z }, "IX_mixed")
+                            .IsDescending(false, true, false);
+                    });
+            },
+            AddBoilerPlate(
+                GetHeading()
+                + @"
+            modelBuilder.Entity(""Microsoft.EntityFrameworkCore.Migrations.ModelSnapshotSqlServerTest+EntityWithThreeProperties"", b =>
+                {
+                    b.Property<int>(""Id"")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType(""int"");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>(""Id""), 1L, 1);
+
+                    b.Property<int>(""X"")
+                        .HasColumnType(""int"");
+
+                    b.Property<int>(""Y"")
+                        .HasColumnType(""int"");
+
+                    b.Property<int>(""Z"")
+                        .HasColumnType(""int"");
+
+                    b.HasKey(""Id"");
+
+                    b.HasIndex(new[] { ""X"", ""Y"", ""Z"" }, ""IX_all_ascending"")
+                        .IsDescending(false, false, false);
+
+                    b.HasIndex(new[] { ""X"", ""Y"", ""Z"" }, ""IX_all_descending"")
+                        .IsDescending(true, true, true);
+
+                    b.HasIndex(new[] { ""X"", ""Y"", ""Z"" }, ""IX_empty"");
+
+                    b.HasIndex(new[] { ""X"", ""Y"", ""Z"" }, ""IX_mixed"")
+                        .IsDescending(false, true, false);
+
+                    b.ToTable(""EntityWithThreeProperties"");
+                });"),
+            o =>
+            {
+                var entityType = o.GetEntityTypes().Single();
+                Assert.Equal(4, entityType.GetIndexes().Count());
+
+                var emptyIndex = Assert.Single(entityType.GetIndexes(), i => i.Name == "IX_empty");
+                Assert.Null(emptyIndex.IsDescending);
+
+                var allAscendingIndex = Assert.Single(entityType.GetIndexes(), i => i.Name == "IX_all_ascending");
+                Assert.Equal(new[] { false, false, false}, allAscendingIndex.IsDescending);
+
+                var allDescendingIndex = Assert.Single(entityType.GetIndexes(), i => i.Name == "IX_all_descending");
+                Assert.Equal(new[] { true, true, true }, allDescendingIndex.IsDescending);
+
+                var mixedIndex = Assert.Single(entityType.GetIndexes(), i => i.Name == "IX_mixed");
+                Assert.Equal(new[] { false, true, false }, mixedIndex.IsDescending);
+            });
 
     [ConditionalFact]
     public virtual void Index_database_name_annotation_is_stored_in_snapshot_as_fluent_api()
@@ -6055,6 +6266,9 @@ namespace RootNamespace
         var generator = CreateMigrationsGenerator();
         var code = generator.GenerateSnapshot("RootNamespace", typeof(DbContext), "Snapshot", model);
 
+        var modelFromSnapshot = BuildModelFromSnapshotSource(code);
+        assert(modelFromSnapshot, model);
+
         try
         {
             Assert.Equal(expectedCode, code, ignoreLineEndingDifferences: true);
@@ -6063,9 +6277,6 @@ namespace RootNamespace
         {
             throw new Exception(e.Message + Environment.NewLine + Environment.NewLine + "-- Actual code:" + Environment.NewLine + code);
         }
-
-        var modelFromSnapshot = BuildModelFromSnapshotSource(code);
-        assert(modelFromSnapshot, model);
 
         var targetOptionsBuilder = TestHelpers
             .AddProviderOptions(new DbContextOptionsBuilder())

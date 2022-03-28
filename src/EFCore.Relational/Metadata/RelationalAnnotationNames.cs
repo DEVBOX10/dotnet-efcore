@@ -130,6 +130,11 @@ public static class RelationalAnnotationNames
     public const string DbFunctions = Prefix + "DbFunctions";
 
     /// <summary>
+    ///     The name for trigger annotation.
+    /// </summary>
+    public const string Triggers = Prefix + "Triggers";
+
+    /// <summary>
     ///     The name for the annotation containing the maximum length for database identifiers.
     /// </summary>
     public const string MaxIdentifierLength = Prefix + "MaxIdentifierLength";
@@ -148,6 +153,26 @@ public static class RelationalAnnotationNames
     ///     The name for the annotation determining whether the table is excluded from migrations.
     /// </summary>
     public const string IsTableExcludedFromMigrations = Prefix + "IsTableExcludedFromMigrations";
+
+    /// <summary>
+    ///     The name for the annotation determining the mapping strategy for inherited properties.
+    /// </summary>
+    public const string MappingStrategy = Prefix + "MappingStrategy";
+
+    /// <summary>
+    ///     The value for the annotation corresponding to the TPC mapping strategy.
+    /// </summary>
+    public const string TpcMappingStrategy = "TPC";
+
+    /// <summary>
+    ///     The value for the annotation corresponding to the TPH mapping strategy.
+    /// </summary>
+    public const string TphMappingStrategy = "TPH";
+
+    /// <summary>
+    ///     The value for the annotation corresponding to the TPT mapping strategy.
+    /// </summary>
+    public const string TptMappingStrategy = "TPT";
 
     /// <summary>
     ///     The name for database model annotation.

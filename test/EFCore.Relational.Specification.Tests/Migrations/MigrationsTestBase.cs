@@ -935,7 +935,7 @@ public abstract class MigrationsTestBase<TFixture> : IClassFixture<TFixture>
                 Assert.Null(column.Comment);
             });
 
-    [Fact]
+    [ConditionalFact]
     public virtual Task Alter_column_set_collation()
         => Test(
             builder => builder.Entity("People").Property<string>("Name"),
@@ -951,7 +951,7 @@ public abstract class MigrationsTestBase<TFixture> : IClassFixture<TFixture>
                 }
             });
 
-    [Fact]
+    [ConditionalFact]
     public virtual Task Alter_column_reset_collation()
         => Test(
             builder => builder.Entity("People").Property<string>("Name"),
@@ -1042,6 +1042,12 @@ public abstract class MigrationsTestBase<TFixture> : IClassFixture<TFixture>
                 Assert.Same(table.Columns.Single(c => c.Name == "FirstName"), Assert.Single(index.Columns));
                 Assert.Equal("IX_People_FirstName", index.Name);
                 Assert.False(index.IsUnique);
+
+                if (index.IsDescending.Count > 0)
+                {
+                    Assert.Collection(index.IsDescending, descending => Assert.False(descending));
+                }
+
                 Assert.Null(index.Filter);
             });
 
@@ -1062,6 +1068,88 @@ public abstract class MigrationsTestBase<TFixture> : IClassFixture<TFixture>
                 var table = Assert.Single(model.Tables);
                 var index = Assert.Single(table.Indexes);
                 Assert.True(index.IsUnique);
+            });
+
+    [ConditionalFact]
+    public virtual Task Create_index_descending()
+        => Test(
+            builder => builder.Entity(
+                "People", e =>
+                {
+                    e.Property<int>("Id");
+                    e.Property<int>("X");
+                }),
+            builder => { },
+            builder => builder.Entity("People").HasIndex("X").IsDescending(true),
+            model =>
+            {
+                var table = Assert.Single(model.Tables);
+                var index = Assert.Single(table.Indexes);
+                Assert.Collection(index.IsDescending, Assert.True);
+            });
+
+    [ConditionalFact]
+    public virtual Task Create_index_descending_mixed()
+        => Test(
+            builder => builder.Entity(
+                "People", e =>
+                {
+                    e.Property<int>("Id");
+                    e.Property<int>("X");
+                    e.Property<int>("Y");
+                    e.Property<int>("Z");
+                }),
+            builder => { },
+            builder => builder.Entity("People")
+                .HasIndex("X", "Y", "Z")
+                .IsDescending(false, true, false),
+            model =>
+            {
+                var table = Assert.Single(model.Tables);
+                var index = Assert.Single(table.Indexes);
+                Assert.Collection(index.IsDescending, Assert.False, Assert.True, Assert.False);
+            });
+
+    [ConditionalFact]
+    public virtual Task Alter_index_make_unique()
+        => Test(
+            builder => builder.Entity(
+                "People", e =>
+                {
+                    e.Property<int>("Id");
+                    e.Property<int>("X");
+                }),
+            builder => builder.Entity("People").HasIndex("X"),
+            builder => builder.Entity("People").HasIndex("X").IsUnique(),
+            model =>
+            {
+                var table = Assert.Single(model.Tables);
+                var index = Assert.Single(table.Indexes);
+                Assert.True(index.IsUnique);
+            });
+
+    [ConditionalFact]
+    public virtual Task Alter_index_change_sort_order()
+        => Test(
+            builder => builder.Entity(
+                "People", e =>
+                {
+                    e.Property<int>("Id");
+                    e.Property<int>("X");
+                    e.Property<int>("Y");
+                    e.Property<int>("Z");
+                }),
+            builder => builder.Entity("People")
+                .HasIndex("X", "Y", "Z")
+                .IsDescending(true, false, true),
+            builder => builder.Entity("People")
+                .HasIndex("X", "Y", "Z")
+                .IsDescending(false, true, false),
+            model =>
+            {
+                var table = Assert.Single(model.Tables);
+                var index = Assert.Single(table.Indexes);
+                Assert.Collection(index.IsDescending, Assert.False, Assert.True, Assert.False);
             });
 
     [ConditionalFact]
@@ -1728,7 +1816,7 @@ public abstract class MigrationsTestBase<TFixture> : IClassFixture<TFixture>
             @"-- I <3 DDL");
     }
 
-    private class Person
+    protected class Person
     {
         public int Id { get; set; }
         public int AnotherId { get; set; }
@@ -1773,15 +1861,17 @@ public abstract class MigrationsTestBase<TFixture> : IClassFixture<TFixture>
         Action<ModelBuilder> buildSourceAction,
         Action<ModelBuilder> buildTargetAction,
         Action<DatabaseModel> asserter,
-        bool withConventions = true)
-        => Test(_ => { }, buildSourceAction, buildTargetAction, asserter, withConventions);
+        bool withConventions = true,
+        MigrationsSqlGenerationOptions migrationsSqlGenerationOptions = MigrationsSqlGenerationOptions.Default)
+        => Test(_ => { }, buildSourceAction, buildTargetAction, asserter, withConventions, migrationsSqlGenerationOptions);
 
     protected virtual Task Test(
         Action<ModelBuilder> buildCommonAction,
         Action<ModelBuilder> buildSourceAction,
         Action<ModelBuilder> buildTargetAction,
         Action<DatabaseModel> asserter,
-        bool withConventions = true)
+        bool withConventions = true,
+        MigrationsSqlGenerationOptions migrationsSqlGenerationOptions = MigrationsSqlGenerationOptions.Default)
     {
         var context = CreateContext();
         var modelDiffer = context.GetService<IMigrationsModelDiffer>();
@@ -1811,21 +1901,23 @@ public abstract class MigrationsTestBase<TFixture> : IClassFixture<TFixture>
         // Get the migration operations between the two models and test
         var operations = modelDiffer.GetDifferences(sourceModel.GetRelationalModel(), targetModel.GetRelationalModel());
 
-        return Test(sourceModel, targetModel, operations, asserter);
+        return Test(sourceModel, targetModel, operations, asserter, migrationsSqlGenerationOptions);
     }
 
     protected virtual Task Test(
         Action<ModelBuilder> buildSourceAction,
         MigrationOperation operation,
         Action<DatabaseModel> asserter,
-        bool withConventions = true)
-        => Test(buildSourceAction, new[] { operation }, asserter, withConventions);
+        bool withConventions = true,
+        MigrationsSqlGenerationOptions migrationsSqlGenerationOptions = MigrationsSqlGenerationOptions.Default)
+        => Test(buildSourceAction, new[] { operation }, asserter, withConventions, migrationsSqlGenerationOptions);
 
     protected virtual Task Test(
         Action<ModelBuilder> buildSourceAction,
         IReadOnlyList<MigrationOperation> operations,
         Action<DatabaseModel> asserter,
-        bool withConventions = true)
+        bool withConventions = true,
+        MigrationsSqlGenerationOptions migrationsSqlGenerationOptions = MigrationsSqlGenerationOptions.Default)
     {
         var sourceModelBuilder = CreateModelBuilder(withConventions);
         buildSourceAction(sourceModelBuilder);
@@ -1846,14 +1938,15 @@ public abstract class MigrationsTestBase<TFixture> : IClassFixture<TFixture>
             modelSnapshotNamespace: null, typeof(DbContext), "MigrationsTestSnapshot", preSnapshotSourceModel);
         var sourceModel = BuildModelFromSnapshotSource(sourceModelSnapshot);
 
-        return Test(sourceModel, targetModel: null, operations, asserter);
+        return Test(sourceModel, targetModel: null, operations, asserter, migrationsSqlGenerationOptions);
     }
 
     protected virtual async Task Test(
         IModel sourceModel,
         IModel targetModel,
         IReadOnlyList<MigrationOperation> operations,
-        Action<DatabaseModel> asserter)
+        Action<DatabaseModel> asserter,
+        MigrationsSqlGenerationOptions migrationsSqlGenerationOptions = MigrationsSqlGenerationOptions.Default)
     {
         var context = CreateContext();
         var serviceProvider = ((IInfrastructure<IServiceProvider>)context).Instance;
@@ -1870,14 +1963,17 @@ public abstract class MigrationsTestBase<TFixture> : IClassFixture<TFixture>
             using (Fixture.TestSqlLoggerFactory.SuspendRecordingEvents())
             {
                 await migrationsCommandExecutor.ExecuteNonQueryAsync(
-                    migrationsSqlGenerator.Generate(modelDiffer.GetDifferences(null, sourceModel.GetRelationalModel()), sourceModel),
+                    migrationsSqlGenerator.Generate(
+                        modelDiffer.GetDifferences(null, sourceModel.GetRelationalModel()),
+                        sourceModel,
+                        migrationsSqlGenerationOptions),
                     connection);
             }
 
             // Apply migrations to get from source to target, then reverse-engineer and execute the
             // test-provided assertions on the resulting database model
             await migrationsCommandExecutor.ExecuteNonQueryAsync(
-                migrationsSqlGenerator.Generate(operations, targetModel), connection);
+                migrationsSqlGenerator.Generate(operations, targetModel, migrationsSqlGenerationOptions), connection);
 
             var scaffoldedModel = databaseModelFactory.Create(
                 context.Database.GetDbConnection(),

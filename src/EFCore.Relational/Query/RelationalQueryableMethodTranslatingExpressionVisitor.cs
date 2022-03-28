@@ -184,7 +184,8 @@ public class RelationalQueryableMethodTranslatingExpressionVisitor : QueryableMe
 
         var selectExpression = (SelectExpression)source.QueryExpression;
         selectExpression.ApplyPredicate(_sqlExpressionFactory.Not(translation));
-        selectExpression.ReplaceProjection(new Dictionary<ProjectionMember, Expression>());
+        selectExpression.ReplaceProjection(new List<Expression>());
+        selectExpression.ApplyProjection();
         if (selectExpression.Limit == null
             && selectExpression.Offset == null)
         {
@@ -215,7 +216,8 @@ public class RelationalQueryableMethodTranslatingExpressionVisitor : QueryableMe
         }
 
         var selectExpression = (SelectExpression)source.QueryExpression;
-        selectExpression.ReplaceProjection(new Dictionary<ProjectionMember, Expression>());
+        selectExpression.ReplaceProjection(new List<Expression>());
+        selectExpression.ApplyProjection();
         if (selectExpression.Limit == null
             && selectExpression.Offset == null)
         {
@@ -284,8 +286,8 @@ public class RelationalQueryableMethodTranslatingExpressionVisitor : QueryableMe
             var projection = selectExpression.GetProjection(projectionBindingExpression);
             if (projection is SqlExpression sqlExpression)
             {
-                selectExpression.ReplaceProjection(new List<Expression>());
-                selectExpression.AddToProjection(sqlExpression);
+                selectExpression.ReplaceProjection(new List<Expression> { sqlExpression });
+                selectExpression.ApplyProjection();
 
                 translation = _sqlExpressionFactory.In(translation, selectExpression, false);
 
@@ -1080,11 +1082,16 @@ public class RelationalQueryableMethodTranslatingExpressionVisitor : QueryableMe
                 return null;
             }
 
+            var entityProjectionExpression = GetEntityProjectionExpression(entityShaperExpression);
             var foreignKey = navigation.ForeignKey;
             if (navigation.IsCollection)
             {
-                var innerShapedQuery = CreateShapedQueryExpression(
-                    targetEntityType, _sqlExpressionFactory.Select(targetEntityType));
+                var innerSelectExpression = BuildInnerSelectExpressionForOwnedTypeMappedToDifferentTable(
+                    entityProjectionExpression,
+                    navigation);
+                
+               var innerShapedQuery = CreateShapedQueryExpression(
+                    targetEntityType, innerSelectExpression);
 
                 var makeNullable = foreignKey.PrincipalKey.Properties
                     .Concat(foreignKey.Properties)
@@ -1132,7 +1139,6 @@ public class RelationalQueryableMethodTranslatingExpressionVisitor : QueryableMe
                     Expression.Quote(correlationPredicate));
             }
 
-            var entityProjectionExpression = GetEntityProjectionExpression(entityShaperExpression);
             var innerShaper = entityProjectionExpression.BindNavigation(navigation);
             if (innerShaper == null)
             {
@@ -1146,7 +1152,7 @@ public class RelationalQueryableMethodTranslatingExpressionVisitor : QueryableMe
                         : navigation.DeclaringEntityType.GetViewOrTableMappings().Select(tm => tm.Table)
                             .Except(navigation.DeclaringEntityType.BaseType.GetViewOrTableMappings().Select(tm => tm.Table))
                             .Single();
-                if (table.GetReferencingRowInternalForeignKeys(foreignKey.PrincipalEntityType)?.Contains(foreignKey) == true)
+                if (table.GetReferencingRowInternalForeignKeys(foreignKey.PrincipalEntityType).Contains(foreignKey) == true)
                 {
                     // Mapped to same table
                     // We get identifying column to figure out tableExpression to pull columns from and nullability of most principal side
@@ -1175,7 +1181,10 @@ public class RelationalQueryableMethodTranslatingExpressionVisitor : QueryableMe
                     // Owned types don't support inheritance See https://github.com/dotnet/efcore/issues/9630
                     // So there is no handling for dependent having TPT
                     table = targetEntityType.GetViewOrTableMappings().Single().Table;
-                    var innerSelectExpression = _sqlExpressionFactory.Select(targetEntityType);
+                    var innerSelectExpression =  BuildInnerSelectExpressionForOwnedTypeMappedToDifferentTable(
+                        entityProjectionExpression,
+                        navigation);
+
                     var innerShapedQuery = CreateShapedQueryExpression(targetEntityType, innerSelectExpression);
 
                     var makeNullable = foreignKey.PrincipalKey.Properties
@@ -1231,6 +1240,50 @@ public class RelationalQueryableMethodTranslatingExpressionVisitor : QueryableMe
                     targetEntityType,
                     (ProjectionBindingExpression)entityShaperExpression.ValueBufferExpression,
                     navigation);
+
+            SelectExpression BuildInnerSelectExpressionForOwnedTypeMappedToDifferentTable(
+                EntityProjectionExpression entityProjectionExpression,
+                INavigation navigation)
+            {
+                // just need any column - we use it only to extract the table it originated from
+                var sourceColumn = entityProjectionExpression
+                    .BindProperty(
+                        navigation.IsOnDependent
+                            ? foreignKey.Properties[0]
+                            : foreignKey.PrincipalKey.Properties[0]);
+
+                var sourceTable = FindRootTableExpressionForColumn(sourceColumn);
+                var ownedTable = new TableExpression(targetEntityType.GetTableMappings().Single().Table);
+
+                foreach (var annotation in sourceTable.GetAnnotations())
+                {
+                    ownedTable.SetAnnotation(annotation.Name, annotation.Value);
+                }
+
+                return _sqlExpressionFactory.Select(targetEntityType, ownedTable);
+            }
+
+            static TableExpressionBase FindRootTableExpressionForColumn(ColumnExpression column)
+            {
+                var table = column.Table;
+                if (table is JoinExpressionBase joinExpressionBase)
+                {
+                    table = joinExpressionBase.Table;
+                }
+                else if (table is SetOperationBase setOperationBase)
+                {
+                    table = setOperationBase.Source1;
+                }
+
+                if (table is SelectExpression selectExpression)
+                {
+                    var matchingProjection = (ColumnExpression)selectExpression.Projection.Where(p => p.Alias == column.Name).Single().Expression;
+
+                    return FindRootTableExpressionForColumn(matchingProjection);
+                }
+
+                return table;
+            }
         }
 
         private static Expression AddConvertToObject(Expression expression)

@@ -59,8 +59,14 @@ public class RelationalApiConsistencyTest : ApiConsistencyTestBase<RelationalApi
                 {
                     typeof(IReadOnlyCheckConstraint), (typeof(IMutableCheckConstraint),
                         typeof(IConventionCheckConstraint),
-                        null,
+                        typeof(IConventionCheckConstraintBuilder),
                         typeof(ICheckConstraint))
+                },
+                {
+                    typeof(IReadOnlyTrigger), (typeof(IMutableTrigger),
+                        typeof(IConventionTrigger),
+                        typeof(IConventionTriggerBuilder),
+                        typeof(ITrigger))
                 }
             };
 
@@ -81,7 +87,8 @@ public class RelationalApiConsistencyTest : ApiConsistencyTestBase<RelationalApi
             typeof(IViewColumnMapping),
             typeof(ITableIndex),
             typeof(IForeignKeyConstraint),
-            typeof(IUniqueConstraint)
+            typeof(IUniqueConstraint),
+            typeof(ITrigger)
         };
 
         public override HashSet<Type> FluentApiTypes { get; } = new()
@@ -194,13 +201,13 @@ public class RelationalApiConsistencyTest : ApiConsistencyTestBase<RelationalApi
                 new[] { typeof(EntityTypeBuilder), typeof(string), typeof(string), typeof(Action<TableBuilder>) }),
             typeof(RelationalEntityTypeBuilderExtensions).GetMethod(
                 nameof(RelationalEntityTypeBuilderExtensions.ToTable),
-                new[] { typeof(OwnedNavigationBuilder), typeof(Action<TableBuilder>) }),
+                new[] { typeof(OwnedNavigationBuilder), typeof(Action<OwnedNavigationTableBuilder>) }),
             typeof(RelationalEntityTypeBuilderExtensions).GetMethod(
                 nameof(RelationalEntityTypeBuilderExtensions.ToTable),
-                new[] { typeof(OwnedNavigationBuilder), typeof(string), typeof(Action<TableBuilder>) }),
+                new[] { typeof(OwnedNavigationBuilder), typeof(string), typeof(Action<OwnedNavigationTableBuilder>) }),
             typeof(RelationalEntityTypeBuilderExtensions).GetMethod(
                 nameof(RelationalEntityTypeBuilderExtensions.ToTable),
-                new[] { typeof(OwnedNavigationBuilder), typeof(string), typeof(string), typeof(Action<TableBuilder>) }),
+                new[] { typeof(OwnedNavigationBuilder), typeof(string), typeof(string), typeof(Action<OwnedNavigationTableBuilder>) }),
             typeof(RelationalIndexBuilderExtensions).GetMethod(
                 nameof(RelationalIndexBuilderExtensions.HasName),
                 new[] { typeof(IndexBuilder), typeof(string) })

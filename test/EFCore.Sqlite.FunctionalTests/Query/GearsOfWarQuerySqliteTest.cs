@@ -4852,7 +4852,7 @@ FROM ""Gears"" AS ""g""");
         AssertSql(
             @"SELECT ""t"".""Id"", ""g"".""Nickname"", ""g"".""SquadId"", ""g"".""AssignedCityName"", ""g"".""CityOfBirthName"", ""g"".""Discriminator"", ""g"".""FullName"", ""g"".""HasSoulPatch"", ""g"".""LeaderNickname"", ""g"".""LeaderSquadId"", ""g"".""Rank""
 FROM ""Tags"" AS ""t""
-LEFT JOIN ""Gears"" AS ""g"" ON ""t"".""GearNickName"" = ""g"".""Nickname"" AND ""t"".""GearSquadId"" = ""g"".""SquadId""
+LEFT JOIN ""Gears"" AS ""g"" ON ""t"".""GearNickName"" = ""g"".""Nickname"" AND ""t"".""GearSquadId"" = ""g"".""SquadId"" AND ""t"".""Note"" IS NOT NULL
 ORDER BY ""t"".""Id"", ""g"".""Nickname""");
     }
 
@@ -8067,6 +8067,32 @@ LEFT JOIN (
         await base.Select_Where_Navigation_Client(async);
 
         AssertSql();
+    }
+
+    public override async Task Where_subquery_equality_to_null_with_composite_key(bool async)
+    {
+        await base.Where_subquery_equality_to_null_with_composite_key(async);
+
+        AssertSql(
+            @"SELECT ""s"".""Id"", ""s"".""Banner"", ""s"".""Banner5"", ""s"".""InternalNumber"", ""s"".""Name""
+FROM ""Squads"" AS ""s""
+WHERE NOT (EXISTS (
+    SELECT 1
+    FROM ""Gears"" AS ""g""
+    WHERE ""s"".""Id"" = ""g"".""SquadId""))");
+    }
+
+    public override async Task Where_subquery_equality_to_null_without_composite_key(bool async)
+    {
+        await base.Where_subquery_equality_to_null_without_composite_key(async);
+
+        AssertSql(
+            @"SELECT ""g"".""Nickname"", ""g"".""SquadId"", ""g"".""AssignedCityName"", ""g"".""CityOfBirthName"", ""g"".""Discriminator"", ""g"".""FullName"", ""g"".""HasSoulPatch"", ""g"".""LeaderNickname"", ""g"".""LeaderSquadId"", ""g"".""Rank""
+FROM ""Gears"" AS ""g""
+WHERE NOT (EXISTS (
+    SELECT 1
+    FROM ""Weapons"" AS ""w""
+    WHERE ""g"".""FullName"" = ""w"".""OwnerFullName""))");
     }
 
     private void AssertSql(params string[] expected)

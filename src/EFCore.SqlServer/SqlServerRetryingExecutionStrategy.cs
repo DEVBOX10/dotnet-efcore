@@ -28,7 +28,7 @@ namespace Microsoft.EntityFrameworkCore;
 /// </remarks>
 public class SqlServerRetryingExecutionStrategy : ExecutionStrategy
 {
-    private readonly ICollection<int>? _additionalErrorNumbers;
+    private readonly HashSet<int>? _additionalErrorNumbers;
 
     /// <summary>
     ///     Creates a new instance of <see cref="SqlServerRetryingExecutionStrategy" />.
@@ -89,6 +89,21 @@ public class SqlServerRetryingExecutionStrategy : ExecutionStrategy
     /// <summary>
     ///     Creates a new instance of <see cref="SqlServerRetryingExecutionStrategy" />.
     /// </summary>
+    /// <remarks>
+    ///     Default values of 6 for the maximum retry count and 30 seconds for the maximum default delay are used.
+    /// </remarks>
+    /// <param name="dependencies">Parameter object containing service dependencies.</param>
+    /// <param name="errorNumbersToAdd">Additional SQL error numbers that should be considered transient.</param>
+    public SqlServerRetryingExecutionStrategy(
+        ExecutionStrategyDependencies dependencies,
+        IEnumerable<int> errorNumbersToAdd)
+        : this(dependencies, DefaultMaxRetryCount, DefaultMaxDelay, errorNumbersToAdd)
+    {
+    }
+
+    /// <summary>
+    ///     Creates a new instance of <see cref="SqlServerRetryingExecutionStrategy" />.
+    /// </summary>
     /// <param name="context">The context on which the operations will be invoked.</param>
     /// <param name="maxRetryCount">The maximum number of retry attempts.</param>
     /// <param name="maxRetryDelay">The maximum delay between retries.</param>
@@ -97,13 +112,13 @@ public class SqlServerRetryingExecutionStrategy : ExecutionStrategy
         DbContext context,
         int maxRetryCount,
         TimeSpan maxRetryDelay,
-        ICollection<int>? errorNumbersToAdd)
+        IEnumerable<int>? errorNumbersToAdd)
         : base(
             context,
             maxRetryCount,
             maxRetryDelay)
     {
-        _additionalErrorNumbers = errorNumbersToAdd;
+        _additionalErrorNumbers = errorNumbersToAdd?.ToHashSet();
     }
 
     /// <summary>
@@ -117,10 +132,10 @@ public class SqlServerRetryingExecutionStrategy : ExecutionStrategy
         ExecutionStrategyDependencies dependencies,
         int maxRetryCount,
         TimeSpan maxRetryDelay,
-        ICollection<int>? errorNumbersToAdd)
+        IEnumerable<int>? errorNumbersToAdd)
         : base(dependencies, maxRetryCount, maxRetryDelay)
     {
-        _additionalErrorNumbers = errorNumbersToAdd;
+        _additionalErrorNumbers = errorNumbersToAdd?.ToHashSet();
     }
 
     /// <summary>

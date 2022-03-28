@@ -42,18 +42,20 @@ public sealed partial class SelectExpression : TableExpressionBase
     private readonly List<TableReferenceExpression> _tableReferences = new();
     private readonly List<SqlExpression> _groupBy = new();
     private readonly List<OrderingExpression> _orderings = new();
-    private HashSet<string> _usedAliases = new();
 
     private readonly List<(ColumnExpression Column, ValueComparer Comparer)> _identifier = new();
     private readonly List<(ColumnExpression Column, ValueComparer Comparer)> _childIdentifiers = new();
-
     private readonly List<int> _tptLeftJoinTables = new();
+
+    private bool _mutable = true;
+    private HashSet<string> _usedAliases = new();
     private Dictionary<ProjectionMember, Expression> _projectionMapping = new();
     private List<Expression> _clientProjections = new();
     private readonly List<string?> _aliasForClientProjections = new();
 
     private SqlExpression? _groupingCorrelationPredicate;
     private Guid? _groupingParentSelectExpressionId;
+    private int? _groupingParentSelectExpressionTableCount;
     private CloningExpressionVisitor? _cloningExpressionVisitor;
 
     private SelectExpression(
@@ -62,8 +64,9 @@ public sealed partial class SelectExpression : TableExpressionBase
         List<TableExpressionBase> tables,
         List<TableReferenceExpression> tableReferences,
         List<SqlExpression> groupBy,
-        List<OrderingExpression> orderings)
-        : base(alias)
+        List<OrderingExpression> orderings,
+        IEnumerable<IAnnotation> annotations)
+        : base(alias, annotations)
     {
         _projection = projections;
         _tables = tables;
@@ -213,7 +216,7 @@ public sealed partial class SelectExpression : TableExpressionBase
         if ((entityType.BaseType != null || entityType.GetDirectlyDerivedTypes().Any())
             && entityType.FindDiscriminatorProperty() == null)
         {
-            throw new InvalidOperationException(RelationalStrings.SelectExpressionNonTPHWithCustomTable(entityType.DisplayName()));
+            throw new InvalidOperationException(RelationalStrings.SelectExpressionNonTphWithCustomTable(entityType.DisplayName()));
         }
 
         var table = tableExpressionBase switch
@@ -386,7 +389,73 @@ public sealed partial class SelectExpression : TableExpressionBase
     }
 
     /// <summary>
-    ///     Adds expressions from projection mapping to projection if not done already.
+    ///     Adds expressions from projection mapping to projection ignoring the shaper expression. This method should only be used
+    ///     when populating projection in subquery.
+    /// </summary>
+    public void ApplyProjection()
+    {
+        if (!_mutable)
+        {
+            throw new InvalidOperationException("Applying projection on already finalized select expression");
+        }
+
+        _mutable = false;
+        if (_clientProjections.Count > 0)
+        {
+            for (var i = 0; i < _clientProjections.Count; i++)
+            {
+                switch (_clientProjections[i])
+                {
+                    case EntityProjectionExpression entityProjectionExpression:
+                        AddEntityProjection(entityProjectionExpression);
+                        break;
+
+                    case SqlExpression sqlExpression:
+                        AddToProjection(sqlExpression, _aliasForClientProjections[i]);
+                        break;
+
+                    default:
+                        throw new InvalidOperationException(
+                            "Invalid type of projection to add when not associated with shaper expression.");
+                }
+
+            }
+
+            _clientProjections.Clear();
+        }
+        else
+        {
+            foreach (var (_, expression) in _projectionMapping)
+            {
+                if (expression is EntityProjectionExpression entityProjectionExpression)
+                {
+                    AddEntityProjection(entityProjectionExpression);
+                }
+                else
+                {
+                    AddToProjection((SqlExpression)expression);
+                }
+            }
+
+            _projectionMapping.Clear();
+        }
+
+        void AddEntityProjection(EntityProjectionExpression entityProjectionExpression)
+        {
+            foreach (var property in GetAllPropertiesInHierarchy(entityProjectionExpression.EntityType))
+            {
+                AddToProjection(entityProjectionExpression.BindProperty(property), null);
+            }
+
+            if (entityProjectionExpression.DiscriminatorExpression != null)
+            {
+                AddToProjection(entityProjectionExpression.DiscriminatorExpression, DiscriminatorColumnAlias);
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Adds expressions from projection mapping to projection and generate updated shaper expression for materialization.
     /// </summary>
     /// <param name="shaperExpression">Current shaper expression which will shape results of this select expression.</param>
     /// <param name="resultCardinality">The result cardinality of this query expression.</param>
@@ -397,11 +466,12 @@ public sealed partial class SelectExpression : TableExpressionBase
         ResultCardinality resultCardinality,
         QuerySplittingBehavior querySplittingBehavior)
     {
-        if (Projection.Any())
+        if (!_mutable)
         {
             throw new InvalidOperationException("Applying projection on already finalized select expression");
         }
 
+        _mutable = false;
         if (_clientProjections.Count > 0)
         {
             EntityShaperNullableMarkingExpressionVisitor? entityShaperNullableMarkingExpressionVisitor = null;
@@ -451,6 +521,8 @@ public sealed partial class SelectExpression : TableExpressionBase
             if (querySplittingBehavior == QuerySplittingBehavior.SplitQuery && containsCollection)
             {
                 baseSelectExpression = (SelectExpression)cloningExpressionVisitor!.Visit(this);
+                // We mark this as mutable because the split query will combine into this and take it over.
+                baseSelectExpression._mutable = true;
                 if (resultCardinality == ResultCardinality.Single
                     || resultCardinality == ResultCardinality.SingleOrDefault)
                 {
@@ -488,6 +560,7 @@ public sealed partial class SelectExpression : TableExpressionBase
                     // again so it does contain the single result subquery too. We erase projections for it since it would be non-empty.
                     earlierClientProjectionCount = _clientProjections.Count;
                     baseSelectExpression = (SelectExpression)cloningExpressionVisitor!.Visit(this);
+                    baseSelectExpression._mutable = true;
                     baseSelectExpression._projection.Clear();
                 }
 
@@ -610,7 +683,8 @@ public sealed partial class SelectExpression : TableExpressionBase
                         {
                             var outerSelectExpression = (SelectExpression)cloningExpressionVisitor!.Visit(baseSelectExpression!);
                             innerSelectExpression =
-                                (SelectExpression)new ColumnExpressionReplacingExpressionVisitor(this, outerSelectExpression._tableReferences)
+                                (SelectExpression)new ColumnExpressionReplacingExpressionVisitor(
+                                        this, outerSelectExpression._tableReferences)
                                     .Visit(innerSelectExpression);
 
                             if (outerSelectExpression.Limit != null
@@ -1239,6 +1313,7 @@ public sealed partial class SelectExpression : TableExpressionBase
         // We generate the cloned expression before changing identifier for this SelectExpression
         // because we are going to erase grouping for cloned expression.
         _groupingParentSelectExpressionId = Guid.NewGuid();
+
         var clonedSelectExpression = Clone();
         var correlationPredicate = groupByTerms.Zip(clonedSelectExpression._groupBy)
             .Select(e => sqlExpressionFactory.Equal(e.First, e.Second))
@@ -1246,6 +1321,7 @@ public sealed partial class SelectExpression : TableExpressionBase
         clonedSelectExpression._groupBy.Clear();
         clonedSelectExpression.ApplyPredicate(correlationPredicate);
         clonedSelectExpression._groupingCorrelationPredicate = clonedSelectExpression.Predicate;
+        _groupingParentSelectExpressionTableCount = _tables.Count;
 
         if (!_identifier.All(e => _groupBy.Contains(e.Column)))
         {
@@ -1438,7 +1514,8 @@ public sealed partial class SelectExpression : TableExpressionBase
     {
         // TODO: Introduce clone method? See issue#24460
         var select1 = new SelectExpression(
-            null, new List<ProjectionExpression>(), _tables.ToList(), _tableReferences.ToList(), _groupBy.ToList(), _orderings.ToList())
+            null, new List<ProjectionExpression>(), _tables.ToList(), _tableReferences.ToList(), _groupBy.ToList(), _orderings.ToList(),
+            GetAnnotations())
         {
             IsDistinct = IsDistinct,
             Predicate = Predicate,
@@ -1446,6 +1523,7 @@ public sealed partial class SelectExpression : TableExpressionBase
             Offset = Offset,
             Limit = Limit,
             _groupingParentSelectExpressionId = _groupingParentSelectExpressionId,
+            _groupingParentSelectExpressionTableCount = _groupingParentSelectExpressionTableCount,
             _groupingCorrelationPredicate = _groupingCorrelationPredicate
         };
         Offset = null;
@@ -1455,6 +1533,7 @@ public sealed partial class SelectExpression : TableExpressionBase
         Having = null;
         _groupingCorrelationPredicate = null;
         _groupingParentSelectExpressionId = null;
+        _groupingParentSelectExpressionTableCount = null;
         _groupBy.Clear();
         _orderings.Clear();
         _tables.Clear();
@@ -1600,6 +1679,11 @@ public sealed partial class SelectExpression : TableExpressionBase
         _tables.Add(setExpression);
         _tableReferences.Add(tableReferenceExpression);
 
+        // Mark both inner subqueries as immutable
+        select1._mutable = false;
+        select2._mutable = false;
+
+
         // We should apply _identifiers only when it is distinct and actual select expression had identifiers.
         if (distinct
             && outerIdentifiers.Length > 0)
@@ -1740,7 +1824,9 @@ public sealed partial class SelectExpression : TableExpressionBase
             new List<TableExpressionBase>(),
             new List<TableReferenceExpression>(),
             new List<SqlExpression>(),
-            new List<OrderingExpression>());
+            new List<OrderingExpression>(),
+            Enumerable.Empty<IAnnotation>());
+        dummySelectExpression._mutable = false;
 
         if (Orderings.Any()
             || Limit != null
@@ -2046,6 +2132,10 @@ public sealed partial class SelectExpression : TableExpressionBase
                 innerSelectExpression.Limit = null;
                 innerSelectExpression.Offset = null;
 
+                var originalInnerSelectPredicate = innerSelectExpression.GroupBy.Count > 0
+                    ? innerSelectExpression.Having
+                    : innerSelectExpression.Predicate;
+
                 joinPredicate = TryExtractJoinKey(this, innerSelectExpression, allowNonEquality: limit == null && offset == null);
                 if (joinPredicate != null)
                 {
@@ -2115,7 +2205,18 @@ public sealed partial class SelectExpression : TableExpressionBase
                         return;
                     }
 
-                    innerSelectExpression.ApplyPredicate(joinPredicate);
+                    if (originalInnerSelectPredicate != null)
+                    {
+                        if (innerSelectExpression.GroupBy.Count > 0)
+                        {
+                            innerSelectExpression.Having = originalInnerSelectPredicate;
+                        }
+                        else
+                        {
+                            innerSelectExpression.Predicate = originalInnerSelectPredicate;
+                        }
+                    }
+
                     joinPredicate = null;
                 }
 
@@ -2329,16 +2430,16 @@ public sealed partial class SelectExpression : TableExpressionBase
                             || sqlBinaryExpression.OperatorType == ExpressionType.LessThan
                             || sqlBinaryExpression.OperatorType == ExpressionType.LessThanOrEqual)))
                 {
-                    if (IsContainedColumn(outer, sqlBinaryExpression.Left)
-                        && IsContainedColumn(inner, sqlBinaryExpression.Right))
+                    if (IsContainedSql(outer, sqlBinaryExpression.Left)
+                        && IsContainedSql(inner, sqlBinaryExpression.Right))
                     {
                         outerColumnExpressions.Add(sqlBinaryExpression.Left);
 
                         return sqlBinaryExpression;
                     }
 
-                    if (IsContainedColumn(outer, sqlBinaryExpression.Right)
-                        && IsContainedColumn(inner, sqlBinaryExpression.Left))
+                    if (IsContainedSql(outer, sqlBinaryExpression.Right)
+                        && IsContainedSql(inner, sqlBinaryExpression.Left))
                     {
                         outerColumnExpressions.Add(sqlBinaryExpression.Right);
 
@@ -2354,14 +2455,14 @@ public sealed partial class SelectExpression : TableExpressionBase
                 // null checks are considered part of join key
                 if (sqlBinaryExpression.OperatorType == ExpressionType.NotEqual)
                 {
-                    if (IsContainedColumn(outer, sqlBinaryExpression.Left)
+                    if (IsContainedSql(outer, sqlBinaryExpression.Left)
                         && sqlBinaryExpression.Right is SqlConstantExpression rightConstant
                         && rightConstant.Value == null)
                     {
                         return sqlBinaryExpression;
                     }
 
-                    if (IsContainedColumn(outer, sqlBinaryExpression.Right)
+                    if (IsContainedSql(outer, sqlBinaryExpression.Right)
                         && sqlBinaryExpression.Left is SqlConstantExpression leftConstant
                         && leftConstant.Value == null)
                     {
@@ -2374,34 +2475,47 @@ public sealed partial class SelectExpression : TableExpressionBase
                 return null;
             }
 
-            static bool IsContainedColumn(SelectExpression selectExpression, SqlExpression sqlExpression)
+            static bool IsContainedSql(SelectExpression selectExpression, SqlExpression sqlExpression)
             {
                 switch (sqlExpression)
                 {
                     case ColumnExpression columnExpression:
                         return selectExpression.ContainsTableReference(columnExpression);
 
-                    case SqlConstantExpression sqlConstantExpression
-                        when sqlConstantExpression.Value == null:
-                        return true;
-
-                    case SqlBinaryExpression sqlBinaryExpression
-                        when sqlBinaryExpression.OperatorType == ExpressionType.AndAlso
-                        || sqlBinaryExpression.OperatorType == ExpressionType.OrElse
-                        || sqlBinaryExpression.OperatorType == ExpressionType.NotEqual:
-                        return IsContainedColumn(selectExpression, sqlBinaryExpression.Left)
-                            && IsContainedColumn(selectExpression, sqlBinaryExpression.Right);
-
                     case CaseExpression caseExpression
                         when caseExpression.ElseResult == null
                         && caseExpression.Operand == null
-                        && caseExpression.WhenClauses.Count == 1:
-                        return IsContainedColumn(selectExpression, caseExpression.WhenClauses[0].Test)
-                            && IsContainedColumn(selectExpression, caseExpression.WhenClauses[0].Result);
+                        && caseExpression.WhenClauses.Count == 1
+                        && caseExpression.WhenClauses[0].Result is ColumnExpression resultColumn:
+                        // We check condition in a separate function to avoid matching structure of condition outside of case block
+                        return IsContainedCondition(selectExpression, caseExpression.WhenClauses[0].Test)
+                            && selectExpression.ContainsTableReference(resultColumn);
 
                     default:
                         return false;
                 }
+            }
+
+            static bool IsContainedCondition(SelectExpression selectExpression, SqlExpression condition)
+            {
+                if (condition is not SqlBinaryExpression
+                    {
+                        OperatorType: ExpressionType.AndAlso or ExpressionType.OrElse or ExpressionType.NotEqual
+                    } sqlBinaryExpression)
+                {
+                    return false;
+                }
+
+                if (sqlBinaryExpression.OperatorType == ExpressionType.NotEqual)
+                {
+                    // We don't check left/right inverted because we generate this.
+                    return sqlBinaryExpression.Right is SqlConstantExpression { Value: null }
+                        && sqlBinaryExpression.Left is ColumnExpression column
+                        && selectExpression.ContainsTableReference(column);
+                }
+
+                return IsContainedCondition(selectExpression, sqlBinaryExpression.Left)
+                    && IsContainedCondition(selectExpression, sqlBinaryExpression.Right);
             }
 
             static void PopulateInnerKeyColumns(
@@ -2592,16 +2706,18 @@ public sealed partial class SelectExpression : TableExpressionBase
         var subqueryAlias = GenerateUniqueAlias(_usedAliases, "t");
         var subquery = new SelectExpression(
             subqueryAlias, new List<ProjectionExpression>(), _tables.ToList(), _tableReferences.ToList(), _groupBy.ToList(),
-            _orderings.ToList())
+            _orderings.ToList(), GetAnnotations())
         {
             IsDistinct = IsDistinct,
             Predicate = Predicate,
             Having = Having,
             Offset = Offset,
             Limit = Limit,
-            _groupingParentSelectExpressionId = _groupingParentSelectExpressionId
+            _groupingParentSelectExpressionId = _groupingParentSelectExpressionId,
+            _groupingParentSelectExpressionTableCount = _groupingParentSelectExpressionTableCount
         };
         subquery._usedAliases = _usedAliases;
+        subquery._mutable = false;
         _tables.Clear();
         _tableReferences.Clear();
         _groupBy.Clear();
@@ -3077,7 +3193,7 @@ public sealed partial class SelectExpression : TableExpressionBase
     /// <inheritdoc />
     protected override Expression VisitChildren(ExpressionVisitor visitor)
     {
-        if (_projection.Count == 0)
+        if (_mutable)
         {
             // If projection is not populated then we need to treat this as mutable object since it is not final yet.
             if (_clientProjections.Count > 0)
@@ -3236,7 +3352,7 @@ public sealed partial class SelectExpression : TableExpressionBase
             {
                 var newTableReferences = _tableReferences.ToList();
                 var newSelectExpression = new SelectExpression(
-                    Alias, newProjections, newTables, newTableReferences, newGroupBy, newOrderings)
+                    Alias, newProjections, newTables, newTableReferences, newGroupBy, newOrderings, GetAnnotations())
                 {
                     _clientProjections = _clientProjections,
                     _projectionMapping = _projectionMapping,
@@ -3248,9 +3364,10 @@ public sealed partial class SelectExpression : TableExpressionBase
                     Tags = Tags,
                     _usedAliases = _usedAliases,
                     _groupingCorrelationPredicate = groupingCorrelationPredicate,
-                    _groupingParentSelectExpressionId = _groupingParentSelectExpressionId
+                    _groupingParentSelectExpressionId = _groupingParentSelectExpressionId,
+                    _groupingParentSelectExpressionTableCount = _groupingParentSelectExpressionTableCount,
                 };
-
+                newSelectExpression._mutable = false;
                 newSelectExpression._tptLeftJoinTables.AddRange(_tptLeftJoinTables);
 
                 newSelectExpression._identifier.AddRange(identifier.Zip(_identifier).Select(e => (e.First, e.Second.Comparer)));
@@ -3339,6 +3456,8 @@ public sealed partial class SelectExpression : TableExpressionBase
         SqlExpression? limit,
         SqlExpression? offset)
     {
+        Check.DebugAssert(!_mutable, "SelectExpression shouldn't be mutable when calling this method.");
+
         var projectionMapping = new Dictionary<ProjectionMember, Expression>();
         foreach (var (projectionMember, expression) in _projectionMapping)
         {
@@ -3347,7 +3466,7 @@ public sealed partial class SelectExpression : TableExpressionBase
 
         var newTableReferences = _tableReferences.ToList();
         var newSelectExpression = new SelectExpression(
-            Alias, projections.ToList(), tables.ToList(), newTableReferences, groupBy.ToList(), orderings.ToList())
+            Alias, projections.ToList(), tables.ToList(), newTableReferences, groupBy.ToList(), orderings.ToList(), GetAnnotations())
         {
             _projectionMapping = projectionMapping,
             _clientProjections = _clientProjections.ToList(),
@@ -3358,6 +3477,8 @@ public sealed partial class SelectExpression : TableExpressionBase
             IsDistinct = IsDistinct,
             Tags = Tags
         };
+
+        newSelectExpression._mutable = false;
 
         // We don't copy identifiers because when we are doing reconstruction so projection is already applied.
         // Update method should not be used pre-projection application. There are other methods to change SelectExpression.
@@ -3492,6 +3613,8 @@ public sealed partial class SelectExpression : TableExpressionBase
             }
         }
 
+        PrintAnnotations(expressionPrinter);
+
         if (Alias != null)
         {
             indent?.Dispose();
@@ -3524,4 +3647,9 @@ public sealed partial class SelectExpression : TableExpressionBase
     public override int GetHashCode()
         // Since equality above is reference equality, hash code can also be based on reference.
         => RuntimeHelpers.GetHashCode(this);
+
+#if DEBUG
+    internal bool IsMutable()
+        => _mutable;
+#endif
 }

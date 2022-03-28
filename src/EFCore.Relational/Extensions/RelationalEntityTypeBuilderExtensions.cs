@@ -16,6 +16,79 @@ namespace Microsoft.EntityFrameworkCore;
 public static class RelationalEntityTypeBuilderExtensions
 {
     /// <summary>
+    ///     Configures TPC as the mapping strategy for the derived types. Each type will be mapped to a different database object.
+    ///     All properties will be mapped to columns on the corresponding object.
+    /// </summary>
+    /// <param name="entityTypeBuilder">The builder for the entity type being configured.</param>
+    /// <returns>The same builder instance so that multiple calls can be chained.</returns>
+    public static EntityTypeBuilder UseTpcMappingStrategy(this EntityTypeBuilder entityTypeBuilder)
+    {
+        entityTypeBuilder.Metadata.SetMappingStrategy(RelationalAnnotationNames.TpcMappingStrategy);
+
+        return entityTypeBuilder;
+    }
+
+    /// <summary>
+    ///     Configures TPH as the mapping strategy for the derived types. All types will be mapped to the same database object.
+    ///     This is the default mapping strategy.
+    /// </summary>
+    /// <param name="entityTypeBuilder">The builder for the entity type being configured.</param>
+    /// <returns>The same builder instance so that multiple calls can be chained.</returns>
+    public static EntityTypeBuilder UseTphMappingStrategy(this EntityTypeBuilder entityTypeBuilder)
+    {
+        entityTypeBuilder.Metadata.SetMappingStrategy(RelationalAnnotationNames.TphMappingStrategy);
+
+        return entityTypeBuilder;
+    }
+
+    /// <summary>
+    ///     Configures TPT as the mapping strategy for the derived types. Each type will be mapped to a different database object.
+    ///     Only the declared properties will be mapped to columns on the corresponding object.
+    /// </summary>
+    /// <param name="entityTypeBuilder">The builder for the entity type being configured.</param>
+    /// <returns>The same builder instance so that multiple calls can be chained.</returns>
+    public static EntityTypeBuilder UseTptMappingStrategy(this EntityTypeBuilder entityTypeBuilder)
+    {
+        entityTypeBuilder.Metadata.SetMappingStrategy(RelationalAnnotationNames.TptMappingStrategy);
+
+        return entityTypeBuilder;
+    }
+
+    /// <summary>
+    ///     Configures TPC as the mapping strategy for the derived types. Each type will be mapped to a different database object.
+    ///     All properties will be mapped to columns on the corresponding object.
+    /// </summary>
+    /// <param name="entityTypeBuilder">The builder for the entity type being configured.</param>
+    /// <returns>The same builder instance so that multiple calls can be chained.</returns>
+    public static EntityTypeBuilder<TEntity> UseTpcMappingStrategy<TEntity>(this EntityTypeBuilder<TEntity> entityTypeBuilder)
+        where TEntity : class
+        => (EntityTypeBuilder<TEntity>)((EntityTypeBuilder)entityTypeBuilder).UseTpcMappingStrategy();
+
+    /// <summary>
+    ///     Configures TPH as the mapping strategy for the derived types. All types will be mapped to the same database object.
+    ///     This is the default mapping strategy.
+    /// </summary>
+    /// <param name="entityTypeBuilder">The builder for the entity type being configured.</param>
+    /// <returns>The same builder instance so that multiple calls can be chained.</returns>
+    public static EntityTypeBuilder<TEntity> UseTphMappingStrategy<TEntity>(this EntityTypeBuilder<TEntity> entityTypeBuilder)
+        where TEntity : class
+        => (EntityTypeBuilder<TEntity>)((EntityTypeBuilder)entityTypeBuilder).UseTphMappingStrategy();
+
+    /// <summary>
+    ///     Configures TPT as the mapping strategy for the derived types. Each type will be mapped to a different database object.
+    ///     Only the declared properties will be mapped to columns on the corresponding object.
+    /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-migrations">Database migrations</see> for more information and examples.
+    /// </remarks>
+    /// <typeparam name="TEntity">The entity type being configured.</typeparam>
+    /// <param name="entityTypeBuilder">The builder for the entity type being configured.</param>
+    /// <returns>The same builder instance so that multiple calls can be chained.</returns>
+    public static EntityTypeBuilder<TEntity> UseTptMappingStrategy<TEntity>(this EntityTypeBuilder<TEntity> entityTypeBuilder)
+        where TEntity : class
+        => (EntityTypeBuilder<TEntity>)((EntityTypeBuilder)entityTypeBuilder).UseTptMappingStrategy();
+
+    /// <summary>
     ///     Configures the table that the entity type maps to when targeting a relational database.
     /// </summary>
     /// <remarks>
@@ -51,7 +124,7 @@ public static class RelationalEntityTypeBuilderExtensions
     {
         Check.NotNull(buildAction, nameof(buildAction));
 
-        buildAction(new TableBuilder(entityTypeBuilder.Metadata));
+        buildAction(new TableBuilder(null, null, entityTypeBuilder));
 
         return entityTypeBuilder;
     }
@@ -76,7 +149,7 @@ public static class RelationalEntityTypeBuilderExtensions
 
         entityTypeBuilder.Metadata.SetTableName(name);
         entityTypeBuilder.Metadata.SetSchema(null);
-        buildAction(new TableBuilder(entityTypeBuilder.Metadata));
+        buildAction(new TableBuilder(name, null, entityTypeBuilder));
 
         return entityTypeBuilder;
     }
@@ -114,7 +187,7 @@ public static class RelationalEntityTypeBuilderExtensions
     {
         Check.NotNull(buildAction, nameof(buildAction));
 
-        buildAction(new TableBuilder<TEntity>(null, null, entityTypeBuilder.Metadata));
+        buildAction(new TableBuilder<TEntity>(null, null, entityTypeBuilder));
 
         return entityTypeBuilder;
     }
@@ -141,7 +214,7 @@ public static class RelationalEntityTypeBuilderExtensions
 
         entityTypeBuilder.Metadata.SetTableName(name);
         entityTypeBuilder.Metadata.SetSchema(null);
-        buildAction(new TableBuilder<TEntity>(name, null, entityTypeBuilder.Metadata));
+        buildAction(new TableBuilder<TEntity>(name, null, entityTypeBuilder));
 
         return entityTypeBuilder;
     }
@@ -192,7 +265,7 @@ public static class RelationalEntityTypeBuilderExtensions
 
         entityTypeBuilder.Metadata.SetTableName(name);
         entityTypeBuilder.Metadata.SetSchema(schema);
-        buildAction(new TableBuilder(entityTypeBuilder.Metadata));
+        buildAction(new TableBuilder(name, schema, entityTypeBuilder));
 
         return entityTypeBuilder;
     }
@@ -240,7 +313,7 @@ public static class RelationalEntityTypeBuilderExtensions
 
         entityTypeBuilder.Metadata.SetTableName(name);
         entityTypeBuilder.Metadata.SetSchema(schema);
-        buildAction(new TableBuilder<TEntity>(name, schema, entityTypeBuilder.Metadata));
+        buildAction(new TableBuilder<TEntity>(name, schema, entityTypeBuilder));
 
         return entityTypeBuilder;
     }
@@ -277,11 +350,11 @@ public static class RelationalEntityTypeBuilderExtensions
     /// <returns>The same builder instance so that multiple calls can be chained.</returns>
     public static OwnedNavigationBuilder ToTable(
         this OwnedNavigationBuilder referenceOwnershipBuilder,
-        Action<TableBuilder> buildAction)
+        Action<OwnedNavigationTableBuilder> buildAction)
     {
         Check.NotNull(buildAction, nameof(buildAction));
 
-        buildAction(new TableBuilder(referenceOwnershipBuilder.OwnedEntityType));
+        buildAction(new OwnedNavigationTableBuilder(null, null, referenceOwnershipBuilder));
 
         return referenceOwnershipBuilder;
     }
@@ -297,13 +370,13 @@ public static class RelationalEntityTypeBuilderExtensions
     /// <returns>The same builder instance so that multiple calls can be chained.</returns>
     public static OwnedNavigationBuilder<TOwnerEntity, TRelatedEntity> ToTable<TOwnerEntity, TRelatedEntity>(
         this OwnedNavigationBuilder<TOwnerEntity, TRelatedEntity> referenceOwnershipBuilder,
-        Action<TableBuilder<TRelatedEntity>> buildAction)
+        Action<OwnedNavigationTableBuilder<TRelatedEntity>> buildAction)
         where TOwnerEntity : class
         where TRelatedEntity : class
     {
         Check.NotNull(buildAction, nameof(buildAction));
 
-        buildAction(new TableBuilder<TRelatedEntity>(null, null, referenceOwnershipBuilder.OwnedEntityType));
+        buildAction(new OwnedNavigationTableBuilder<TRelatedEntity>(null, null, referenceOwnershipBuilder));
 
         return referenceOwnershipBuilder;
     }
@@ -337,14 +410,14 @@ public static class RelationalEntityTypeBuilderExtensions
     public static OwnedNavigationBuilder ToTable(
         this OwnedNavigationBuilder referenceOwnershipBuilder,
         string? name,
-        Action<TableBuilder> buildAction)
+        Action<OwnedNavigationTableBuilder> buildAction)
     {
         Check.NullButNotEmpty(name, nameof(name));
         Check.NotNull(buildAction, nameof(buildAction));
 
         referenceOwnershipBuilder.OwnedEntityType.SetTableName(name);
         referenceOwnershipBuilder.OwnedEntityType.SetSchema(null);
-        buildAction(new TableBuilder(referenceOwnershipBuilder.OwnedEntityType));
+        buildAction(new OwnedNavigationTableBuilder(name, null, referenceOwnershipBuilder));
 
         return referenceOwnershipBuilder;
     }
@@ -362,7 +435,7 @@ public static class RelationalEntityTypeBuilderExtensions
     public static OwnedNavigationBuilder<TOwnerEntity, TRelatedEntity> ToTable<TOwnerEntity, TRelatedEntity>(
         this OwnedNavigationBuilder<TOwnerEntity, TRelatedEntity> referenceOwnershipBuilder,
         string? name,
-        Action<TableBuilder<TRelatedEntity>> buildAction)
+        Action<OwnedNavigationTableBuilder<TRelatedEntity>> buildAction)
         where TOwnerEntity : class
         where TRelatedEntity : class
     {
@@ -371,7 +444,7 @@ public static class RelationalEntityTypeBuilderExtensions
 
         referenceOwnershipBuilder.OwnedEntityType.SetTableName(name);
         referenceOwnershipBuilder.OwnedEntityType.SetSchema(null);
-        buildAction(new TableBuilder<TRelatedEntity>(name, null, referenceOwnershipBuilder.OwnedEntityType));
+        buildAction(new OwnedNavigationTableBuilder<TRelatedEntity>(name, null, referenceOwnershipBuilder));
 
         return referenceOwnershipBuilder;
     }
@@ -415,7 +488,7 @@ public static class RelationalEntityTypeBuilderExtensions
         this OwnedNavigationBuilder referenceOwnershipBuilder,
         string name,
         string? schema,
-        Action<TableBuilder> buildAction)
+        Action<OwnedNavigationTableBuilder> buildAction)
     {
         Check.NotNull(name, nameof(name));
         Check.NullButNotEmpty(schema, nameof(schema));
@@ -423,7 +496,7 @@ public static class RelationalEntityTypeBuilderExtensions
 
         referenceOwnershipBuilder.OwnedEntityType.SetTableName(name);
         referenceOwnershipBuilder.OwnedEntityType.SetSchema(schema);
-        buildAction(new TableBuilder(referenceOwnershipBuilder.OwnedEntityType));
+        buildAction(new OwnedNavigationTableBuilder(name, schema, referenceOwnershipBuilder));
 
         return referenceOwnershipBuilder;
     }
@@ -462,7 +535,7 @@ public static class RelationalEntityTypeBuilderExtensions
         this OwnedNavigationBuilder<TOwnerEntity, TRelatedEntity> referenceOwnershipBuilder,
         string name,
         string? schema,
-        Action<TableBuilder<TRelatedEntity>> buildAction)
+        Action<OwnedNavigationTableBuilder<TRelatedEntity>> buildAction)
         where TOwnerEntity : class
         where TRelatedEntity : class
     {
@@ -472,7 +545,7 @@ public static class RelationalEntityTypeBuilderExtensions
 
         referenceOwnershipBuilder.OwnedEntityType.SetTableName(name);
         referenceOwnershipBuilder.OwnedEntityType.SetSchema(schema);
-        buildAction(new TableBuilder<TRelatedEntity>(name, schema, referenceOwnershipBuilder.OwnedEntityType));
+        buildAction(new OwnedNavigationTableBuilder<TRelatedEntity>(name, schema, referenceOwnershipBuilder));
 
         return referenceOwnershipBuilder;
     }
@@ -1773,4 +1846,55 @@ public static class RelationalEntityTypeBuilderExtensions
             RelationalAnnotationNames.Comment,
             comment,
             fromDataAnnotation);
+
+    /// <summary>
+    ///     Configures a database trigger when targeting a relational database.
+    /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-triggers">Database triggers</see> for more information and examples.
+    /// </remarks>
+    /// <param name="entityTypeBuilder">The entity type builder.</param>
+    /// <param name="name">The name of the trigger.</param>
+    /// <param name="tableName">The name of the table on which this trigger is defined.</param>
+    /// <param name="tableSchema">The schema of the table on which this trigger is defined.</param>
+    /// <param name="fromDataAnnotation">Indicates whether the configuration was specified using a data annotation.</param>
+    /// <returns>The same builder instance if the check constraint was configured, <see langword="null" /> otherwise.</returns>
+    public static IConventionTriggerBuilder? HasTrigger(
+        this IConventionEntityTypeBuilder entityTypeBuilder,
+        string name,
+        string? tableName,
+        string? tableSchema,
+        bool fromDataAnnotation = false)
+        => InternalTriggerBuilder.HasTrigger(
+                entityTypeBuilder.Metadata,
+                name,
+                tableName,
+                tableSchema,
+                fromDataAnnotation ? ConfigurationSource.DataAnnotation : ConfigurationSource.Convention)
+            ?.Builder;
+
+    /// <summary>
+    ///     Returns a value indicating whether the trigger can be configured.
+    /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-triggers">Database triggers</see> for more information and examples.
+    /// </remarks>
+    /// <param name="entityTypeBuilder">The builder for the entity type being configured.</param>
+    /// <param name="name">The name of the trigger.</param>
+    /// <param name="tableName">The name of the table on which this trigger is defined.</param>
+    /// <param name="tableSchema">The schema of the table on which this trigger is defined.</param>
+    /// <param name="fromDataAnnotation">Indicates whether the configuration was specified using a data annotation.</param>
+    /// <returns><see langword="true" /> if the configuration can be applied.</returns>
+    public static bool CanHaveTrigger(
+        this IConventionEntityTypeBuilder entityTypeBuilder,
+        string name,
+        string? tableName,
+        string? tableSchema,
+        bool fromDataAnnotation = false)
+        => InternalTriggerBuilder.CanHaveTrigger(
+            entityTypeBuilder.Metadata,
+            name,
+            tableName,
+            tableSchema,
+            fromDataAnnotation ? ConfigurationSource.DataAnnotation : ConfigurationSource.Convention);
 }

@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.ComponentModel;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -18,15 +19,32 @@ public class TableBuilder
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     [EntityFrameworkInternal]
-    public TableBuilder(IMutableEntityType entityType)
+    public TableBuilder(string? name, string? schema, EntityTypeBuilder entityTypeBuilder)
     {
-        Metadata = entityType;
+        Name = name;
+        Schema = schema;
+        EntityTypeBuilder = entityTypeBuilder;
     }
+
+    /// <summary>
+    ///     The specified table name.
+    /// </summary>
+    public virtual string? Name { get; }
+
+    /// <summary>
+    ///     The specified table schema.
+    /// </summary>
+    public virtual string? Schema { get; }
 
     /// <summary>
     ///     The entity type being configured.
     /// </summary>
-    public virtual IMutableEntityType Metadata { get; }
+    public virtual IMutableEntityType Metadata => EntityTypeBuilder.Metadata;
+
+    /// <summary>
+    ///     The entity type builder.
+    /// </summary>
+    public virtual EntityTypeBuilder EntityTypeBuilder { get; }
 
     /// <summary>
     ///     Configures the table to be ignored by migrations.
@@ -42,6 +60,22 @@ public class TableBuilder
 
         return this;
     }
+
+    /// <summary>
+    ///     Configures a database trigger on the table.
+    /// </summary>
+    /// <param name="name">The name of the trigger.</param>
+    /// <returns>A builder that can be used to configure the database trigger.</returns>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-triggers">Database triggers</see> for more information and examples.
+    /// </remarks>
+    public virtual TriggerBuilder HasTrigger(string name)
+        => new((Trigger)InternalTriggerBuilder.HasTrigger(
+            (IConventionEntityType)Metadata,
+            name,
+            Name,
+            Schema,
+            ConfigurationSource.Explicit)!);
 
     #region Hidden System.Object members
 

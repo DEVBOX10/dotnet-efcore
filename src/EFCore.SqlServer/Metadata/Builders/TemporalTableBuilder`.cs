@@ -18,8 +18,8 @@ public class TemporalTableBuilder<TEntity> : TemporalTableBuilder
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     [EntityFrameworkInternal]
-    public TemporalTableBuilder(IMutableEntityType entityType)
-        : base(entityType)
+    public TemporalTableBuilder(EntityTypeBuilder entityTypeBuilder)
+        : base(entityTypeBuilder)
     {
     }
 
@@ -31,8 +31,20 @@ public class TemporalTableBuilder<TEntity> : TemporalTableBuilder
     ///     for more information and examples.
     /// </remarks>
     /// <param name="name">The name of the history table.</param>
+    /// <returns>The same builder instance so that multiple calls can be chained.</returns>
+    public new virtual TemporalTableBuilder<TEntity> UseHistoryTable(string name)
+        => (TemporalTableBuilder<TEntity>)base.UseHistoryTable(name);
+
+    /// <summary>
+    ///     Configures a history table for the entity mapped to a temporal table.
+    /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-temporal">Using SQL Server temporal tables with EF Core</see>
+    ///     for more information and examples.
+    /// </remarks>
+    /// <param name="name">The name of the history table.</param>
     /// <param name="schema">The schema of the history table.</param>
     /// <returns>The same builder instance so that multiple calls can be chained.</returns>
-    public new virtual TemporalTableBuilder<TEntity> UseHistoryTable(string name, string? schema = null)
+    public new virtual TemporalTableBuilder<TEntity> UseHistoryTable(string name, string? schema)
         => (TemporalTableBuilder<TEntity>)base.UseHistoryTable(name, schema);
 }

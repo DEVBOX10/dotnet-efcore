@@ -11,7 +11,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders;
 /// </summary>
 public class TemporalTableBuilder
 {
-    private readonly IMutableEntityType _entityType;
+    private readonly EntityTypeBuilder _entityTypeBuilder;
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -20,9 +20,9 @@ public class TemporalTableBuilder
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     [EntityFrameworkInternal]
-    public TemporalTableBuilder(IMutableEntityType entityType)
+    public TemporalTableBuilder(EntityTypeBuilder entityTypeBuilder)
     {
-        _entityType = entityType;
+        _entityTypeBuilder = entityTypeBuilder;
     }
 
     /// <summary>
@@ -35,11 +35,7 @@ public class TemporalTableBuilder
     /// <param name="name">The name of the history table.</param>
     /// <returns>The same builder instance so that multiple calls can be chained.</returns>
     public virtual TemporalTableBuilder UseHistoryTable(string name)
-    {
-        _entityType.SetHistoryTableName(name);
-
-        return this;
-    }
+        => UseHistoryTable(name, null);
 
     /// <summary>
     ///     Configures a history table for the entity mapped to a temporal table.
@@ -53,8 +49,8 @@ public class TemporalTableBuilder
     /// <returns>The same builder instance so that multiple calls can be chained.</returns>
     public virtual TemporalTableBuilder UseHistoryTable(string name, string? schema)
     {
-        _entityType.SetHistoryTableName(name);
-        _entityType.SetHistoryTableSchema(schema);
+        _entityTypeBuilder.Metadata.SetHistoryTableName(name);
+        _entityTypeBuilder.Metadata.SetHistoryTableSchema(schema);
 
         return this;
     }
@@ -70,9 +66,12 @@ public class TemporalTableBuilder
     /// <returns>An object that can be used to configure the period start property.</returns>
     public virtual TemporalPeriodPropertyBuilder HasPeriodStart(string propertyName)
     {
-        _entityType.SetPeriodStartPropertyName(propertyName);
+        _entityTypeBuilder.Metadata.SetPeriodStartPropertyName(propertyName);
+        var property = ConfigurePeriodProperty(propertyName);
 
-        return new TemporalPeriodPropertyBuilder(_entityType, propertyName);
+#pragma warning disable EF1001 // Internal EF Core API usage.
+        return new TemporalPeriodPropertyBuilder(new PropertyBuilder(property));
+#pragma warning restore EF1001 // Internal EF Core API usage.
     }
 
     /// <summary>
@@ -86,9 +85,30 @@ public class TemporalTableBuilder
     /// <returns>An object that can be used to configure the period end property.</returns>
     public virtual TemporalPeriodPropertyBuilder HasPeriodEnd(string propertyName)
     {
-        _entityType.SetPeriodEndPropertyName(propertyName);
+        _entityTypeBuilder.Metadata.SetPeriodEndPropertyName(propertyName);
+        var property = ConfigurePeriodProperty(propertyName);
 
-        return new TemporalPeriodPropertyBuilder(_entityType, propertyName);
+#pragma warning disable EF1001 // Internal EF Core API usage.
+        return new TemporalPeriodPropertyBuilder(new PropertyBuilder(property));
+#pragma warning restore EF1001 // Internal EF Core API usage.
+    }
+
+    private IMutableProperty ConfigurePeriodProperty(string propertyName)
+    {
+        // TODO: Configure the property explicitly, but remove it if it's no longer used, issue #15898
+        var conventionPropertyBuilder = _entityTypeBuilder.GetInfrastructure().Property(
+            typeof(DateTime),
+            propertyName,
+            setTypeConfigurationSource: false);
+
+        // if convention builder is null, it means the property with this name exists, but it has incorrect type
+        // we will throw in the model validation
+        if (conventionPropertyBuilder != null)
+        {
+            conventionPropertyBuilder.ValueGenerated(ValueGenerated.OnAddOrUpdate);
+        }
+
+        return _entityTypeBuilder.Metadata.FindProperty(propertyName)!;
     }
 
     #region Hidden System.Object members

@@ -113,6 +113,24 @@ public class Table : TableBase, ITable
     public virtual SortedDictionary<string, TableIndex> Indexes { get; }
         = new();
 
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    public virtual SortedDictionary<string, CheckConstraint> CheckConstraints { get; }
+        = new();
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    public virtual SortedDictionary<string, ITrigger> Triggers { get; }
+        = new();
+
     /// <inheritdoc />
     public virtual bool IsExcludedFromMigrations
         => EntityTypeMappings.First().EntityType.IsTableExcludedFromMigrations();
@@ -172,6 +190,22 @@ public class Table : TableBase, ITable
     {
         [DebuggerStepThrough]
         get => Indexes.Values;
+    }
+
+    /// <inheritdoc />
+    IEnumerable<ICheckConstraint> ITable.CheckConstraints
+    {
+        [DebuggerStepThrough]
+        get => EntityTypeMappings.First().EntityType is RuntimeEntityType
+            ? throw new InvalidOperationException(CoreStrings.RuntimeModelMissingData)
+            : CheckConstraints.Values;
+    }
+
+    /// <inheritdoc />
+    IEnumerable<ITrigger> ITable.Triggers
+    {
+        [DebuggerStepThrough]
+        get => Triggers.Values;
     }
 
     /// <inheritdoc />

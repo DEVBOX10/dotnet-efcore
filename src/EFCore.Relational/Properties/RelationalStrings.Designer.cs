@@ -27,6 +27,14 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             = new ResourceManager("Microsoft.EntityFrameworkCore.Properties.RelationalStrings", typeof(RelationalStrings).Assembly);
 
         /// <summary>
+        ///     The corresponding CLR type for entity type '{entityType}' cannot be instantiated, but the entity type was mapped to '{storeObject}' using the 'TPC' mapping strategy. Only instantiable types should be mapped. See https://go.microsoft.com/fwlink/?linkid=2130430 for more information.
+        /// </summary>
+        public static string AbstractTpc(object? entityType, object? storeObject)
+            => string.Format(
+                GetString("AbstractTpc", nameof(entityType), nameof(storeObject)),
+                entityType, storeObject);
+
+        /// <summary>
         ///     Unable to deserialize a sequence from model metadata. See inner exception for details.
         /// </summary>
         [Obsolete]
@@ -150,6 +158,14 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             => string.Format(
                 GetString("ConflictingRowValuesSensitive", nameof(firstEntityType), nameof(secondEntityType), nameof(keyValue), nameof(firstConflictingValue), nameof(secondConflictingValue), nameof(column)),
                 firstEntityType, secondEntityType, keyValue, firstConflictingValue, secondConflictingValue, column);
+
+        /// <summary>
+        ///     {numSortOrderProperties} values were provided in CreateIndexOperations.IsDescending, but the operation has {numColumns} columns.
+        /// </summary>
+        public static string CreateIndexOperationWithInvalidSortOrder(object? numSortOrderProperties, object? numColumns)
+            => string.Format(
+                GetString("CreateIndexOperationWithInvalidSortOrder", nameof(numSortOrderProperties), nameof(numColumns)),
+                numSortOrderProperties, numColumns);
 
         /// <summary>
         ///     There is no property mapped to the column '{table}.{column}' which is used in a data operation. Either add a property mapped to this column, or specify the column types in the data operation.
@@ -286,6 +302,14 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             => string.Format(
                 GetString("DeleteDataOperationValuesCountMismatch", nameof(valuesCount), nameof(columnsCount), nameof(table)),
                 valuesCount, columnsCount, table);
+
+        /// <summary>
+        ///     The derived entity type '{entityType}' was configured with the '{strategy}' mapping strategy. Only the root entity type should be configured with a mapping strategy. See https://go.microsoft.com/fwlink/?linkid=2130430 for more information.
+        /// </summary>
+        public static string DerivedStrategy(object? entityType, object? strategy)
+            => string.Format(
+                GetString("DerivedStrategy", nameof(entityType), nameof(strategy)),
+                entityType, strategy);
 
         /// <summary>
         ///     Using 'Distinct' operation on a projection containing a collection is not supported.
@@ -470,36 +494,44 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 foreignKeyProperties1, entityType1, foreignKeyProperties2, entityType2, table, foreignKeyName);
 
         /// <summary>
-        ///     The indexes {indexProperties1} on '{entityType1}' and {indexProperties2} on '{entityType2}' are both mapped to '{table}.{indexName}', but with different columns ({columnNames1} and {columnNames2}).
+        ///     The indexes {index1} on '{entityType1}' and {index2} on '{entityType2}' are both mapped to '{table}.{indexName}', but with different columns ({columnNames1} and {columnNames2}).
         /// </summary>
-        public static string DuplicateIndexColumnMismatch(object? indexProperties1, object? entityType1, object? indexProperties2, object? entityType2, object? table, object? indexName, object? columnNames1, object? columnNames2)
+        public static string DuplicateIndexColumnMismatch(object? index1, object? entityType1, object? index2, object? entityType2, object? table, object? indexName, object? columnNames1, object? columnNames2)
             => string.Format(
-                GetString("DuplicateIndexColumnMismatch", nameof(indexProperties1), nameof(entityType1), nameof(indexProperties2), nameof(entityType2), nameof(table), nameof(indexName), nameof(columnNames1), nameof(columnNames2)),
-                indexProperties1, entityType1, indexProperties2, entityType2, table, indexName, columnNames1, columnNames2);
+                GetString("DuplicateIndexColumnMismatch", nameof(index1), nameof(entityType1), nameof(index2), nameof(entityType2), nameof(table), nameof(indexName), nameof(columnNames1), nameof(columnNames2)),
+                index1, entityType1, index2, entityType2, table, indexName, columnNames1, columnNames2);
 
         /// <summary>
-        ///     The indexes {indexProperties1} on '{entityType1}' and {indexProperties2} on '{entityType2}' are both mapped to '{table}.{indexName}', but with different filters ('{filter1}' and '{filter2}').
+        ///     The indexes {index1} on '{entityType1}' and {index2} on '{entityType2}' are both mapped to '{table}.{indexName}', but with different filters ('{filter1}' and '{filter2}').
         /// </summary>
-        public static string DuplicateIndexFiltersMismatch(object? indexProperties1, object? entityType1, object? indexProperties2, object? entityType2, object? table, object? indexName, object? filter1, object? filter2)
+        public static string DuplicateIndexFiltersMismatch(object? index1, object? entityType1, object? index2, object? entityType2, object? table, object? indexName, object? filter1, object? filter2)
             => string.Format(
-                GetString("DuplicateIndexFiltersMismatch", nameof(indexProperties1), nameof(entityType1), nameof(indexProperties2), nameof(entityType2), nameof(table), nameof(indexName), nameof(filter1), nameof(filter2)),
-                indexProperties1, entityType1, indexProperties2, entityType2, table, indexName, filter1, filter2);
+                GetString("DuplicateIndexFiltersMismatch", nameof(index1), nameof(entityType1), nameof(index2), nameof(entityType2), nameof(table), nameof(indexName), nameof(filter1), nameof(filter2)),
+                index1, entityType1, index2, entityType2, table, indexName, filter1, filter2);
 
         /// <summary>
-        ///     The indexes {indexProperties1} on '{entityType1}' and {indexProperties2} on '{entityType2}' are both mapped to '{indexName}', but are declared on different tables ('{table1}' and '{table2}').
+        ///     The indexes {index1} on '{entityType1}' and {index2} on '{entityType2}' are both mapped to '{table}.{indexName}', but with different sort orders.
         /// </summary>
-        public static string DuplicateIndexTableMismatch(object? indexProperties1, object? entityType1, object? indexProperties2, object? entityType2, object? indexName, object? table1, object? table2)
+        public static string DuplicateIndexSortOrdersMismatch(object? index1, object? entityType1, object? index2, object? entityType2, object? table, object? indexName)
             => string.Format(
-                GetString("DuplicateIndexTableMismatch", nameof(indexProperties1), nameof(entityType1), nameof(indexProperties2), nameof(entityType2), nameof(indexName), nameof(table1), nameof(table2)),
-                indexProperties1, entityType1, indexProperties2, entityType2, indexName, table1, table2);
+                GetString("DuplicateIndexSortOrdersMismatch", nameof(index1), nameof(entityType1), nameof(index2), nameof(entityType2), nameof(table), nameof(indexName)),
+                index1, entityType1, index2, entityType2, table, indexName);
 
         /// <summary>
-        ///     The indexes {indexProperties1} on '{entityType1}' and {indexProperties2} on '{entityType2}' are both mapped to '{table}.{indexName}', but with different uniqueness configurations.
+        ///     The indexes {index1} on '{entityType1}' and {index2} on '{entityType2}' are both mapped to '{indexName}', but are declared on different tables ('{table1}' and '{table2}').
         /// </summary>
-        public static string DuplicateIndexUniquenessMismatch(object? indexProperties1, object? entityType1, object? indexProperties2, object? entityType2, object? table, object? indexName)
+        public static string DuplicateIndexTableMismatch(object? index1, object? entityType1, object? index2, object? entityType2, object? indexName, object? table1, object? table2)
             => string.Format(
-                GetString("DuplicateIndexUniquenessMismatch", nameof(indexProperties1), nameof(entityType1), nameof(indexProperties2), nameof(entityType2), nameof(table), nameof(indexName)),
-                indexProperties1, entityType1, indexProperties2, entityType2, table, indexName);
+                GetString("DuplicateIndexTableMismatch", nameof(index1), nameof(entityType1), nameof(index2), nameof(entityType2), nameof(indexName), nameof(table1), nameof(table2)),
+                index1, entityType1, index2, entityType2, indexName, table1, table2);
+
+        /// <summary>
+        ///     The indexes {index1} on '{entityType1}' and {index2} on '{entityType2}' are both mapped to '{table}.{indexName}', but with different uniqueness configurations.
+        /// </summary>
+        public static string DuplicateIndexUniquenessMismatch(object? index1, object? entityType1, object? index2, object? entityType2, object? table, object? indexName)
+            => string.Format(
+                GetString("DuplicateIndexUniquenessMismatch", nameof(index1), nameof(entityType1), nameof(index2), nameof(entityType2), nameof(table), nameof(indexName)),
+                index1, entityType1, index2, entityType2, table, indexName);
 
         /// <summary>
         ///     The keys {keyProperties1} on '{entityType1}' and {keyProperties2} on '{entityType2}' are both mapped to '{table}.{keyName}', but with different columns ({columnNames1} and {columnNames2}).
@@ -516,6 +548,14 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             => string.Format(
                 GetString("DuplicateKeyTableMismatch", nameof(keyProperties1), nameof(entityType1), nameof(keyProperties2), nameof(entityType2), nameof(keyName), nameof(table1), nameof(table2)),
                 keyProperties1, entityType1, keyProperties2, entityType2, keyName, table1, table2);
+
+        /// <summary>
+        ///     The trigger '{trigger}' cannot be added to the entity type '{entityType}' because another trigger with the same name already exists on entity type '{conflictingEntityType}'.
+        /// </summary>
+        public static string DuplicateTrigger(object? trigger, object? entityType, object? conflictingEntityType)
+            => string.Format(
+                GetString("DuplicateTrigger", nameof(trigger), nameof(entityType), nameof(conflictingEntityType)),
+                trigger, entityType, conflictingEntityType);
 
         /// <summary>
         ///     Either {param1} or {param2} must be null.
@@ -744,6 +784,14 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 entityType, baseEntityType);
 
         /// <summary>
+        ///     The mapping strategy '{mappingStrategy}' specified on '{entityType}' is not supported.
+        /// </summary>
+        public static string InvalidMappingStrategy(object? mappingStrategy, object? entityType)
+            => string.Format(
+                GetString("InvalidMappingStrategy", nameof(mappingStrategy), nameof(entityType)),
+                mappingStrategy, entityType);
+
+        /// <summary>
         ///     The specified 'MaxBatchSize' value '{value}' is not valid. It must be a positive number.
         /// </summary>
         public static string InvalidMaxBatchSize(object? value)
@@ -758,6 +806,14 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             => string.Format(
                 GetString("InvalidMinBatchSize", nameof(value)),
                 value);
+
+        /// <summary>
+        ///     The mapping strategy '{mappingStrategy}' used for '{entityType}' is not supported for keyless entity types.  See https://go.microsoft.com/fwlink/?linkid=2130430 for more information.
+        /// </summary>
+        public static string KeylessMappingStrategy(object? mappingStrategy, object? entityType)
+            => string.Format(
+                GetString("KeylessMappingStrategy", nameof(mappingStrategy), nameof(entityType)),
+                mappingStrategy, entityType);
 
         /// <summary>
         ///     Queries performing '{method}' operation must have a deterministic sort order. Rewrite the query to apply an 'OrderBy' operation on the sequence before calling '{method}'.
@@ -778,9 +834,9 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         /// <summary>
         ///     Using '{methodName}' on DbSet of '{entityType}' is not supported since '{entityType}' is part of hierarchy and does not contain a discriminator property.
         /// </summary>
-        public static string MethodOnNonTPHRootNotSupported(object? methodName, object? entityType)
+        public static string MethodOnNonTphRootNotSupported(object? methodName, object? entityType)
             => string.Format(
-                GetString("MethodOnNonTPHRootNotSupported", nameof(methodName), nameof(entityType)),
+                GetString("MethodOnNonTphRootNotSupported", nameof(methodName), nameof(entityType)),
                 methodName, entityType);
 
         /// <summary>
@@ -826,6 +882,18 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             => string.Format(
                 GetString("MissingParameterValue", nameof(parameter)),
                 parameter);
+
+        /// <summary>
+        ///     Cannot add commands to a completed ModificationCommandBatch.
+        /// </summary>
+        public static string ModificationCommandBatchAlreadyComplete
+            => GetString("ModificationCommandBatchAlreadyComplete");
+
+        /// <summary>
+        ///     Cannot execute an ModificationCommandBatch which hasn't been completed.
+        /// </summary>
+        public static string ModificationCommandBatchNotComplete
+            => GetString("ModificationCommandBatchNotComplete");
 
         /// <summary>
         ///     Cannot save changes for an entity of type '{entityType}' in state '{entityState}'. This may indicate a bug in Entity Framework, please open an issue at https://go.microsoft.com/fwlink/?linkid=2142044. Consider using 'DbContextOptionsBuilder.EnableSensitiveDataLogging' to see the key values of the entity.
@@ -904,19 +972,27 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 parameterName, functionName);
 
         /// <summary>
-        ///     Both '{entityType}' and '{otherEntityType}' are mapped to the table '{table}'. All the entity types in a hierarchy that don't have a discriminator must be mapped to different tables. See https://go.microsoft.com/fwlink/?linkid=2130430 for more information.
+        ///     The mapping strategy '{mappingStrategy}' specified on '{entityType}' is not supported for entity types with a discriminator.
         /// </summary>
-        public static string NonTPHTableClash(object? entityType, object? otherEntityType, object? table)
+        public static string NonTphMappingStrategy(object? mappingStrategy, object? entityType)
             => string.Format(
-                GetString("NonTPHTableClash", nameof(entityType), nameof(otherEntityType), nameof(table)),
+                GetString("NonTphMappingStrategy", nameof(mappingStrategy), nameof(entityType)),
+                mappingStrategy, entityType);
+
+        /// <summary>
+        ///     Both '{entityType}' and '{otherEntityType}' are mapped to the table '{table}'. All the entity types in a non-TPH hierarchy (one that doesn't have a discriminator) must be mapped to different tables. See https://go.microsoft.com/fwlink/?linkid=2130430 for more information.
+        /// </summary>
+        public static string NonTphTableClash(object? entityType, object? otherEntityType, object? table)
+            => string.Format(
+                GetString("NonTphTableClash", nameof(entityType), nameof(otherEntityType), nameof(table)),
                 entityType, otherEntityType, table);
 
         /// <summary>
-        ///     Both '{entityType}' and '{otherEntityType}' are mapped to the view '{view}'. All the entity types in a hierarchy that don't have a discriminator must be mapped to different views. See https://go.microsoft.com/fwlink/?linkid=2130430 for more information.
+        ///     Both '{entityType}' and '{otherEntityType}' are mapped to the view '{view}'. All the entity types in a non-TPH hierarchy (one that doesn't have a discriminator) must be mapped to different views. See https://go.microsoft.com/fwlink/?linkid=2130430 for more information.
         /// </summary>
-        public static string NonTPHViewClash(object? entityType, object? otherEntityType, object? view)
+        public static string NonTphViewClash(object? entityType, object? otherEntityType, object? view)
             => string.Format(
-                GetString("NonTPHViewClash", nameof(entityType), nameof(otherEntityType), nameof(view)),
+                GetString("NonTphViewClash", nameof(entityType), nameof(otherEntityType), nameof(view)),
                 entityType, otherEntityType, view);
 
         /// <summary>
@@ -978,12 +1054,6 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 property, entityType, table);
 
         /// <summary>
-        ///     The query contains usage of 'Any' or 'AnyAsync' operation after 'FromSqlRaw' or 'FromSqlInterpolated' method. Using this raw SQL query more than once isn't currently supported. Replace the use of 'Any' or 'AnyAsync' with 'Count' or 'CountAsync'. See https://go.microsoft.com/fwlink/?linkid=2174053 for more information.
-        /// </summary>
-        public static string QueryFromSqlInsideExists
-            => GetString("QueryFromSqlInsideExists");
-
-        /// <summary>
         ///     The entity type '{entityType}' is not mapped to a table, therefore the entities cannot be persisted to the database. Call 'ToTable' in 'OnModelCreating' to map it to a table.
         /// </summary>
         public static string ReadonlyEntitySaved(object? entityType)
@@ -1000,9 +1070,9 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         /// <summary>
         ///     Cannot create a 'SelectExpression' with a custom 'TableExpressionBase' since the result type '{entityType}' is part of a hierarchy and does not contain a discriminator property.
         /// </summary>
-        public static string SelectExpressionNonTPHWithCustomTable(object? entityType)
+        public static string SelectExpressionNonTphWithCustomTable(object? entityType)
             => string.Format(
-                GetString("SelectExpressionNonTPHWithCustomTable", nameof(entityType)),
+                GetString("SelectExpressionNonTphWithCustomTable", nameof(entityType)),
                 entityType);
 
         /// <summary>
@@ -1050,9 +1120,9 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         /// <summary>
         ///     The element type of the result of '{dbFunction}' is mapped to '{entityType}'. This is not supported since '{entityType}' is part of hierarchy and does not contain a discriminator property.
         /// </summary>
-        public static string TableValuedFunctionNonTPH(object? dbFunction, object? entityType)
+        public static string TableValuedFunctionNonTph(object? dbFunction, object? entityType)
             => string.Format(
-                GetString("TableValuedFunctionNonTPH", nameof(dbFunction), nameof(entityType)),
+                GetString("TableValuedFunctionNonTph", nameof(dbFunction), nameof(entityType)),
                 dbFunction, entityType);
 
         /// <summary>
@@ -1082,17 +1152,17 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         /// <summary>
         ///     '{entityType}' is mapped to the table '{table}' while '{otherEntityType}' is mapped to the table '{otherTable}'. Map all the entity types in the hierarchy to the same table, or remove the discriminator and map them all to different tables. See https://go.microsoft.com/fwlink/?linkid=2130430 for more information.
         /// </summary>
-        public static string TPHTableMismatch(object? entityType, object? table, object? otherEntityType, object? otherTable)
+        public static string TphTableMismatch(object? entityType, object? table, object? otherEntityType, object? otherTable)
             => string.Format(
-                GetString("TPHTableMismatch", nameof(entityType), nameof(table), nameof(otherEntityType), nameof(otherTable)),
+                GetString("TphTableMismatch", nameof(entityType), nameof(table), nameof(otherEntityType), nameof(otherTable)),
                 entityType, table, otherEntityType, otherTable);
 
         /// <summary>
         ///     '{entityType}' is mapped to the view '{view}' while '{otherEntityType}' is mapped to the view '{otherView}'. Map all the entity types in the hierarchy to the same view, or remove the discriminator and map them all to different views. See https://go.microsoft.com/fwlink/?linkid=2130430 for more information.
         /// </summary>
-        public static string TPHViewMismatch(object? entityType, object? view, object? otherEntityType, object? otherView)
+        public static string TphViewMismatch(object? entityType, object? view, object? otherEntityType, object? otherView)
             => string.Format(
-                GetString("TPHViewMismatch", nameof(entityType), nameof(view), nameof(otherEntityType), nameof(otherView)),
+                GetString("TphViewMismatch", nameof(entityType), nameof(view), nameof(otherEntityType), nameof(otherView)),
                 entityType, view, otherEntityType, otherView);
 
         /// <summary>
@@ -1112,6 +1182,22 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         /// </summary>
         public static string TransactionSuppressedMigrationInUserTransaction
             => GetString("TransactionSuppressedMigrationInUserTransaction");
+
+        /// <summary>
+        ///     Trigger '{trigger}' cannot be defined on entity type '{entityType}' since that entity type isn't mapped to a database table. See https://aka.ms/efcore-docs-triggers for more information on triggers.
+        /// </summary>
+        public static string TriggerOnUnmappedEntityType(object? trigger, object? entityType)
+            => string.Format(
+                GetString("TriggerOnUnmappedEntityType", nameof(trigger), nameof(entityType)),
+                trigger, entityType);
+
+        /// <summary>
+        ///     Trigger '{trigger}' with table '{triggerTable}' is defined on entity type '{entityType}', which is mapped to table '{entityTable}'. See https://aka.ms/efcore-docs-triggers for more information on triggers.
+        /// </summary>
+        public static string TriggerWithMismatchedTable(object? trigger, object? triggerTable, object? entityType, object? entityTable)
+            => string.Format(
+                GetString("TriggerWithMismatchedTable", nameof(trigger), nameof(triggerTable), nameof(entityType), nameof(entityTable)),
+                trigger, triggerTable, entityType, entityTable);
 
         /// <summary>
         ///     Unable to bind '{memberType}.{member}' to an entity projection of '{entityType}'.
@@ -1162,7 +1248,7 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 nodeType, expressionType);
 
         /// <summary>
-        ///     No relational type mapping can be found for property '{entity}.{property}' and the current provider doesn't specify a default store type for the properties of type '{clrType}'.
+        ///     No relational type mapping can be found for property '{entity}.{property}' and the current provider doesn't specify a default store type for the properties of type '{clrType}'. 
         /// </summary>
         public static string UnsupportedPropertyType(object? entity, object? property, object? clrType)
             => string.Format(
@@ -2035,6 +2121,28 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics.Internal
         }
 
         /// <summary>
+        ///     The foreign key {foreignKeyProperties} on the entity type '{entityType}' targeting '{principalEntityType}' cannot be represented in the database. '{principalEntityType}' is mapped using the table per concrete type meaning that the derived entities will not be present in {'principalTable'}. If this foreign key on '{entityType}' will never reference entities derived from '{principalEntityType}' then the foreign key constraint name can be specified explicitly to force it to be created.
+        /// </summary>
+        public static FallbackEventDefinition LogForeignKeyTpcPrincipal(IDiagnosticsLogger logger)
+        {
+            var definition = ((RelationalLoggingDefinitions)logger.Definitions).LogForeignKeyTpcPrincipal;
+            if (definition == null)
+            {
+                definition = NonCapturingLazyInitializer.EnsureInitialized(
+                    ref ((RelationalLoggingDefinitions)logger.Definitions).LogForeignKeyTpcPrincipal,
+                    logger,
+                    static logger => new FallbackEventDefinition(
+                        logger.Options,
+                        RelationalEventId.ForeignKeyTpcPrincipalWarning,
+                        LogLevel.Warning,
+                        "RelationalEventId.ForeignKeyTpcPrincipalWarning",
+                        _resourceManager.GetString("LogForeignKeyTpcPrincipal")!));
+            }
+
+            return (FallbackEventDefinition)definition;
+        }
+
+        /// <summary>
         ///     Generating down script for migration '{migration}'.
         /// </summary>
         public static EventDefinition<string> LogGeneratingDown(IDiagnosticsLogger logger)
@@ -2629,6 +2737,31 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics.Internal
             }
 
             return (EventDefinition)definition;
+        }
+
+        /// <summary>
+        ///     The property '{property}' on entity type '{entityType}' is configured with a database-generated default, however the entity type is mapped to the database using table per concrete class strategy. Make sure that the generated values are unique across all the tables, duplicated values could result in errors or data corruption.
+        /// </summary>
+        public static EventDefinition<string, string> LogTpcStoreGeneratedIdentity(IDiagnosticsLogger logger)
+        {
+            var definition = ((RelationalLoggingDefinitions)logger.Definitions).LogTpcStoreGeneratedIdentity;
+            if (definition == null)
+            {
+                definition = NonCapturingLazyInitializer.EnsureInitialized(
+                    ref ((RelationalLoggingDefinitions)logger.Definitions).LogTpcStoreGeneratedIdentity,
+                    logger,
+                    static logger => new EventDefinition<string, string>(
+                        logger.Options,
+                        RelationalEventId.TpcStoreGeneratedIdentityWarning,
+                        LogLevel.Warning,
+                        "RelationalEventId.TpcStoreGeneratedIdentityWarning",
+                        level => LoggerMessage.Define<string, string>(
+                            level,
+                            RelationalEventId.TpcStoreGeneratedIdentityWarning,
+                            _resourceManager.GetString("LogTpcStoreGeneratedIdentity")!)));
+            }
+
+            return (EventDefinition<string, string>)definition;
         }
 
         /// <summary>

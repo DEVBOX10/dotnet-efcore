@@ -3985,12 +3985,11 @@ ORDER BY [p].[Id]");
             AssertSql(
                 @"@p0='BaseEntity13079' (Nullable = false) (Size = 4000)
 
+SET IMPLICIT_TRANSACTIONS OFF;
 SET NOCOUNT ON;
 INSERT INTO [BaseEntities] ([Discriminator])
-VALUES (@p0);
-SELECT [Id]
-FROM [BaseEntities]
-WHERE @@ROWCOUNT = 1 AND [Id] = scope_identity();");
+OUTPUT INSERTED.[Id]
+VALUES (@p0);");
         }
     }
 
@@ -5365,10 +5364,10 @@ OUTER APPLY (
     SELECT [s].[ThingId], [t].[Id], [s].[Id] AS [Id0]
     FROM [Things] AS [t]
     LEFT JOIN [Subthings] AS [s] ON [t].[Id] = [s].[ThingId]
-    WHERE EXISTS (
-        SELECT 1
+    WHERE (
+        SELECT TOP(1) [v].[Id]
         FROM [Values] AS [v]
-        WHERE [e].[Id] = [v].[Entity11023Id]) AND ((
+        WHERE [e].[Id] = [v].[Entity11023Id]) IS NOT NULL AND ((
         SELECT TOP(1) [v0].[Id]
         FROM [Values] AS [v0]
         WHERE [e].[Id] = [v0].[Entity11023Id]) = [t].[Value11023Id] OR ((
@@ -5624,10 +5623,10 @@ OUTER APPLY (
     SELECT [a1].[Id], [a1].[ActivityTypeId], [a1].[CompetitionSeasonId], [a1].[Points], [c0].[Id] AS [Id0]
     FROM [ActivityTypePoints12456] AS [a1]
     INNER JOIN [CompetitionSeasons] AS [c0] ON [a1].[CompetitionSeasonId] = [c0].[Id]
-    WHERE [c0].[Id] = (
+    WHERE [a0].[Id] = [a1].[ActivityTypeId] AND [c0].[Id] = (
         SELECT TOP(1) [c1].[Id]
         FROM [CompetitionSeasons] AS [c1]
-        WHERE [c1].[StartDate] <= [a].[DateTime] AND [a].[DateTime] < [c1].[EndDate]) AND [a0].[Id] = [a1].[ActivityTypeId]
+        WHERE [c1].[StartDate] <= [a].[DateTime] AND [a].[DateTime] < [c1].[EndDate])
 ) AS [t]
 ORDER BY [a].[Id], [a0].[Id], [t].[Id]");
         }
@@ -9134,8 +9133,8 @@ WHERE JSON_VALUE([b].[JObject], '$.Author') = N'Maumar'");
 @p2='String Value' (Size = 12) (DbType = Object)
 @p3='2020-01-01T00:00:00.0000000' (Nullable = true) (DbType = Object)
 
+SET IMPLICIT_TRANSACTIONS OFF;
 SET NOCOUNT ON;
-DECLARE @inserted0 TABLE ([Id] int, [_Position] [int]);
 MERGE [BaseEntities] USING (
 VALUES (@p0, 0),
 (@p1, 1),
@@ -9144,11 +9143,7 @@ VALUES (@p0, 0),
 WHEN NOT MATCHED THEN
 INSERT ([Value])
 VALUES (i.[Value])
-OUTPUT INSERTED.[Id], i._Position
-INTO @inserted0;
-
-SELECT [i].[Id] FROM @inserted0 i
-ORDER BY [i].[_Position];");
+OUTPUT INSERTED.[Id], i._Position;");
         }
     }
 

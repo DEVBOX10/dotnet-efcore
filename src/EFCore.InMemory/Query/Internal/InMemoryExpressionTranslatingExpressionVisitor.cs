@@ -20,6 +20,24 @@ public class InMemoryExpressionTranslatingExpressionVisitor : ExpressionVisitor
 {
     private const string RuntimeParameterPrefix = QueryCompilationContext.QueryParameterPrefix + "entity_equality_";
 
+    private static readonly List<MethodInfo> SingleResultMethodInfos = new()
+    {
+        QueryableMethods.FirstWithPredicate,
+        QueryableMethods.FirstWithoutPredicate,
+        QueryableMethods.FirstOrDefaultWithPredicate,
+        QueryableMethods.FirstOrDefaultWithoutPredicate,
+        QueryableMethods.SingleWithPredicate,
+        QueryableMethods.SingleWithoutPredicate,
+        QueryableMethods.SingleOrDefaultWithPredicate,
+        QueryableMethods.SingleOrDefaultWithoutPredicate,
+        QueryableMethods.LastWithPredicate,
+        QueryableMethods.LastWithoutPredicate,
+        QueryableMethods.LastOrDefaultWithPredicate,
+        QueryableMethods.LastOrDefaultWithoutPredicate
+        //QueryableMethodProvider.ElementAtMethodInfo,
+        //QueryableMethodProvider.ElementAtOrDefaultMethodInfo
+    };
+
     private static readonly MemberInfo ValueBufferIsEmpty = typeof(ValueBuffer).GetMember(nameof(ValueBuffer.IsEmpty))[0];
 
     private static readonly MethodInfo ParameterValueExtractorMethod =
@@ -143,6 +161,50 @@ public class InMemoryExpressionTranslatingExpressionVisitor : ExpressionVisitor
             return Visit(ConvertObjectArrayEqualityComparison(binaryExpression.Left, binaryExpression.Right));
         }
 
+        if ((binaryExpression.NodeType == ExpressionType.Equal || binaryExpression.NodeType == ExpressionType.NotEqual)
+            && (binaryExpression.Left.IsNullConstantExpression() || binaryExpression.Right.IsNullConstantExpression()))
+        {
+            var nonNullExpression = binaryExpression.Left.IsNullConstantExpression() ? binaryExpression.Right : binaryExpression.Left;
+            if (nonNullExpression is MethodCallExpression nonNullMethodCallExpression
+                && nonNullMethodCallExpression.Method.DeclaringType == typeof(Queryable)
+                && nonNullMethodCallExpression.Method.IsGenericMethod
+                && SingleResultMethodInfos.Contains(nonNullMethodCallExpression.Method.GetGenericMethodDefinition()))
+            {
+                var source = nonNullMethodCallExpression.Arguments[0];
+                if (nonNullMethodCallExpression.Arguments.Count == 2)
+                {
+                    source = Expression.Call(
+                        QueryableMethods.Where.MakeGenericMethod(source.Type.GetSequenceType()),
+                        source,
+                        nonNullMethodCallExpression.Arguments[1]);
+                }
+
+                var translatedSubquery = _queryableMethodTranslatingExpressionVisitor.TranslateSubquery(source);
+                if (translatedSubquery != null)
+                {
+                    var projection = translatedSubquery.ShaperExpression;
+                    if (projection is NewExpression
+                        || RemoveConvert(projection) is EntityShaperExpression { IsNullable: false }
+                        || RemoveConvert(projection) is CollectionResultShaperExpression)
+                    {
+                        var anySubquery = Expression.Call(
+                            QueryableMethods.AnyWithoutPredicate.MakeGenericMethod(translatedSubquery.Type.GetSequenceType()),
+                            translatedSubquery);
+
+                        return Visit(
+                            binaryExpression.NodeType == ExpressionType.Equal
+                                ? Expression.Not(anySubquery)
+                                : anySubquery);
+                    }
+
+                    static Expression RemoveConvert(Expression e)
+                        => e is UnaryExpression { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked } unary
+                            ? RemoveConvert(unary.Operand)
+                            : e;
+                }
+            }
+        }
+
         var newLeft = Visit(binaryExpression.Left);
         var newRight = Visit(binaryExpression.Right);
 
@@ -178,19 +240,73 @@ public class InMemoryExpressionTranslatingExpressionVisitor : ExpressionVisitor
             var property = FindProperty(newLeft) ?? FindProperty(newRight);
             var comparer = property?.GetValueComparer();
 
-            if (comparer != null
-                && comparer.Type.IsAssignableFrom(newLeft.Type)
-                && comparer.Type.IsAssignableFrom(newRight.Type))
+            if (comparer != null)
             {
-                if (binaryExpression.NodeType == ExpressionType.Equal)
+                MethodInfo? objectEquals = null;
+                MethodInfo? exactMatch = null;
+
+                var converter = property?.GetValueConverter();
+                foreach (var candidate in comparer
+                             .GetType()
+                             .GetMethods(BindingFlags.Public | BindingFlags.Instance)
+                             .Where(
+                                 m => m.Name == "Equals" && m.GetParameters().Length == 2)
+                             .ToList())
                 {
-                    return comparer.ExtractEqualsBody(newLeft, newRight);
+                    var parameters = candidate.GetParameters();
+                    var leftType = parameters[0].ParameterType;
+                    var rightType = parameters[1].ParameterType;
+
+                    if (leftType == typeof(object)
+                        && rightType == typeof(object))
+                    {
+                        objectEquals = candidate;
+                        continue;
+                    }
+
+                    var matchingLeft = leftType.IsAssignableFrom(newLeft.Type)
+                        ? newLeft
+                        : converter != null && leftType.IsAssignableFrom(converter.ModelClrType)
+                            ? ReplacingExpressionVisitor.Replace(
+                                converter.ConvertFromProviderExpression.Parameters.Single(),
+                                newLeft,
+                                converter.ConvertFromProviderExpression.Body)
+                            : null;
+
+                    var matchingRight = rightType.IsAssignableFrom(newRight.Type)
+                        ? newRight
+                        : converter != null && rightType.IsAssignableFrom(converter.ModelClrType)
+                            ? ReplacingExpressionVisitor.Replace(
+                                converter.ConvertFromProviderExpression.Parameters.Single(),
+                                newRight,
+                                converter.ConvertFromProviderExpression.Body)
+                            : null;
+
+                    if (matchingLeft != null && matchingRight != null)
+                    {
+                        exactMatch = candidate;
+                        newLeft = matchingLeft;
+                        newRight = matchingRight;
+                        break;
+                    }
                 }
 
-                if (binaryExpression.NodeType == ExpressionType.NotEqual)
-                {
-                    return Expression.IsFalse(comparer.ExtractEqualsBody(newLeft, newRight));
-                }
+                var equalsExpression =
+                    exactMatch != null
+                        ? Expression.Call(
+                            Expression.Constant(comparer, comparer.GetType()),
+                            exactMatch,
+                            newLeft,
+                            newRight)
+                        : Expression.Call(
+                            Expression.Constant(comparer, comparer.GetType()),
+                            objectEquals!,
+                            Expression.Convert(newLeft, typeof(object)),
+                            Expression.Convert(newRight, typeof(object)));
+
+                return binaryExpression.NodeType == ExpressionType.NotEqual
+                    ? Expression.IsFalse(equalsExpression)
+                    : equalsExpression;
             }
         }
 

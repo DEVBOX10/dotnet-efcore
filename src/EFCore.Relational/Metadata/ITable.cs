@@ -51,9 +51,12 @@ public interface ITable : ITableBase
     /// <summary>
     ///     Gets the check constraints for this table.
     /// </summary>
-    IEnumerable<ICheckConstraint> CheckConstraints
-        => EntityTypeMappings.SelectMany(m => m.EntityType.GetDeclaredCheckConstraints())
-            .Distinct((x, y) => x!.Name == y!.Name);
+    IEnumerable<ICheckConstraint> CheckConstraints { get; }
+
+    /// <summary>
+    ///     Gets the triggers for this table.
+    /// </summary>
+    IEnumerable<ITrigger> Triggers { get; }
 
     /// <summary>
     ///     Gets the comment for this table.

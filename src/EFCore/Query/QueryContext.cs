@@ -17,7 +17,7 @@ namespace Microsoft.EntityFrameworkCore.Query;
 /// </summary>
 /// <remarks>
 ///     See <see href="https://aka.ms/efcore-docs-providers">Implementation of database providers and extensions</see>
-///     and <see href="https://aka.ms/efcore-how-queries-work">How EF Core queries work</see> for more information and examples.
+///     and <see href="https://aka.ms/efcore-docs-how-query-works">How EF Core queries work</see> for more information and examples.
 /// </remarks>
 public abstract class QueryContext : IParameterValues
 {
@@ -113,15 +113,9 @@ public abstract class QueryContext : IParameterValues
     /// </summary>
     /// <param name="standAlone">Whether a stand-alone <see cref="IStateManager" /> should be created to perform identity resolution.</param>
     public virtual void InitializeStateManager(bool standAlone = false)
-    {
-        Check.DebugAssert(
-            _stateManager == null,
-            "The 'InitializeStateManager' method has been called multiple times on the current query context. This method is intended to be called only once before query enumeration starts.");
-
-        _stateManager = standAlone
+        => _stateManager ??= standAlone
             ? new StateManager(Dependencies.StateManager.Dependencies)
             : Dependencies.StateManager;
-    }
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to

@@ -1,6 +1,8 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Data.Sqlite;
+
 namespace Microsoft.EntityFrameworkCore.Query;
 
 public class NorthwindKeylessEntitiesQuerySqliteTest : NorthwindKeylessEntitiesQueryRelationalTestBase<
@@ -15,7 +17,7 @@ public class NorthwindKeylessEntitiesQuerySqliteTest : NorthwindKeylessEntitiesQ
         //Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
     }
 
-    [ConditionalFact(Skip = "Issue#21627")]
-    public override void KeylessEntity_with_nav_defining_query()
-        => base.KeylessEntity_with_nav_defining_query();
+    public override Task KeylessEntity_with_nav_defining_query(bool async)
+        // FromSql mapping. Issue #21627.
+        => Assert.ThrowsAsync<SqliteException>(() => base.KeylessEntity_with_nav_defining_query(async));
 }

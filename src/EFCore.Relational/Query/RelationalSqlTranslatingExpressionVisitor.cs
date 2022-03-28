@@ -21,6 +21,24 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
 {
     private const string RuntimeParameterPrefix = QueryCompilationContext.QueryParameterPrefix + "entity_equality_";
 
+    private static readonly List<MethodInfo> SingleResultMethodInfos = new()
+    {
+        QueryableMethods.FirstWithPredicate,
+        QueryableMethods.FirstWithoutPredicate,
+        QueryableMethods.FirstOrDefaultWithPredicate,
+        QueryableMethods.FirstOrDefaultWithoutPredicate,
+        QueryableMethods.SingleWithPredicate,
+        QueryableMethods.SingleWithoutPredicate,
+        QueryableMethods.SingleOrDefaultWithPredicate,
+        QueryableMethods.SingleOrDefaultWithoutPredicate,
+        QueryableMethods.LastWithPredicate,
+        QueryableMethods.LastWithoutPredicate,
+        QueryableMethods.LastOrDefaultWithPredicate,
+        QueryableMethods.LastOrDefaultWithoutPredicate
+        //QueryableMethodProvider.ElementAtMethodInfo,
+        //QueryableMethodProvider.ElementAtOrDefaultMethodInfo
+    };
+
     private static readonly MethodInfo ParameterValueExtractorMethod =
         typeof(RelationalSqlTranslatingExpressionVisitor).GetTypeInfo().GetDeclaredMethod(nameof(ParameterValueExtractor))!;
 
@@ -284,6 +302,50 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
             right = rightOperand!;
         }
 
+        if ((binaryExpression.NodeType == ExpressionType.Equal || binaryExpression.NodeType == ExpressionType.NotEqual)
+            && (left.IsNullConstantExpression() || right.IsNullConstantExpression()))
+        {
+            var nonNullExpression = left.IsNullConstantExpression() ? right : left;
+            if (nonNullExpression is MethodCallExpression nonNullMethodCallExpression
+                && nonNullMethodCallExpression.Method.DeclaringType == typeof(Queryable)
+                && nonNullMethodCallExpression.Method.IsGenericMethod
+                && SingleResultMethodInfos.Contains(nonNullMethodCallExpression.Method.GetGenericMethodDefinition()))
+            {
+                var source = nonNullMethodCallExpression.Arguments[0];
+                if (nonNullMethodCallExpression.Arguments.Count == 2)
+                {
+                    source = Expression.Call(
+                        QueryableMethods.Where.MakeGenericMethod(source.Type.GetSequenceType()),
+                        source,
+                        nonNullMethodCallExpression.Arguments[1]);
+                }
+
+                var translatedSubquery = _queryableMethodTranslatingExpressionVisitor.TranslateSubquery(source);
+                if (translatedSubquery != null)
+                {
+                    var projection = translatedSubquery.ShaperExpression;
+                    if (projection is NewExpression
+                        || RemoveConvert(projection) is EntityShaperExpression { IsNullable: false }
+                        || RemoveConvert(projection) is CollectionResultExpression)
+                    {
+                        var anySubquery = Expression.Call(
+                            QueryableMethods.AnyWithoutPredicate.MakeGenericMethod(translatedSubquery.Type.GetSequenceType()),
+                            translatedSubquery);
+
+                        return Visit(
+                            binaryExpression.NodeType == ExpressionType.Equal
+                                ? Expression.Not(anySubquery)
+                                : anySubquery);
+                    }
+
+                    static Expression RemoveConvert(Expression e)
+                        => e is UnaryExpression { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked } unary
+                            ? RemoveConvert(unary.Operand)
+                            : e;
+                }
+            }
+        }
+
         var visitedLeft = Visit(left);
         var visitedRight = Visit(right);
 
@@ -429,8 +491,8 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
                     return sqlExpression;
                 }
 
-                subquery.ReplaceProjection(new List<Expression>());
-                subquery.AddToProjection(sqlExpression);
+                subquery.ReplaceProjection(new List<Expression> { sqlExpression });
+                subquery.ApplyProjection();
 
                 SqlExpression scalarSubqueryExpression = new ScalarSubqueryExpression(subquery);
 
@@ -706,7 +768,8 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
                         var predicate = GeneratePredicateTpt(entityProjection);
 
                         subSelectExpression.ApplyPredicate(predicate);
-                        subSelectExpression.ReplaceProjection(new Dictionary<ProjectionMember, Expression>());
+                        subSelectExpression.ReplaceProjection(new List<Expression>());
+                        subSelectExpression.ApplyProjection();
                         if (subSelectExpression.Limit == null
                             && subSelectExpression.Offset == null)
                         {
@@ -842,7 +905,7 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
 
     private Expression? TryBindMember(Expression? source, MemberIdentity member)
     {
-        if (!(source is EntityReferenceExpression entityReferenceExpression))
+        if (source is not EntityReferenceExpression entityReferenceExpression)
         {
             return null;
         }
@@ -940,8 +1003,8 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
             var projectionBindingExpression = (ProjectionBindingExpression)entityShaper.ValueBufferExpression;
             var entityProjectionExpression = (EntityProjectionExpression)subSelectExpression.GetProjection(projectionBindingExpression);
             var innerProjection = entityProjectionExpression.BindProperty(property);
-            subSelectExpression.ReplaceProjection(new List<Expression>());
-            subSelectExpression.AddToProjection(innerProjection);
+            subSelectExpression.ReplaceProjection(new List<Expression> { innerProjection });
+            subSelectExpression.ApplyProjection();
 
             return new ScalarSubqueryExpression(subSelectExpression);
         }
@@ -1009,7 +1072,7 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
     {
         result = null;
 
-        if (!(item is EntityReferenceExpression itemEntityReference))
+        if (item is not EntityReferenceExpression itemEntityReference)
         {
             return false;
         }
@@ -1299,7 +1362,7 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
         string baseParameterName,
         IProperty property)
     {
-        if (!(context.ParameterValues[baseParameterName] is IEnumerable<TEntity> baseListParameter))
+        if (context.ParameterValues[baseParameterName] is not IEnumerable<TEntity> baseListParameter)
         {
             return null;
         }
@@ -1337,7 +1400,7 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
     private static bool TranslationFailed(Expression? original, Expression? translation, out SqlExpression? castTranslation)
     {
         if (original != null
-            && !(translation is SqlExpression))
+            && translation is not SqlExpression)
         {
             castTranslation = null;
             return true;
@@ -1399,7 +1462,7 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
         protected override Expression VisitExtension(Expression extensionExpression)
         {
             if (extensionExpression is SqlExpression sqlExpression
-                && !(extensionExpression is SqlFragmentExpression))
+                && extensionExpression is not SqlFragmentExpression)
             {
                 if (sqlExpression.TypeMapping == null)
                 {

@@ -284,6 +284,12 @@
   <data name="NoSavepointRelease" xml:space="preserve">
     <value>SQL Server does not support releasing a savepoint.</value>
   </data>
+  <data name="SaveChangesFailedBecauseOfComputedColumnWithFunction" xml:space="preserve">
+    <value>Could not save changes because the target table has computed column with a function that performs data access. Please configure your entity type accordingly, see https://aka.ms/efcore-docs-sqlserver-save-changes-and-computed-columns for more information.</value>
+  </data>
+  <data name="SaveChangesFailedBecauseOfTriggers" xml:space="preserve">
+    <value>Could not save changes because the target table has database triggers. Please configure your entity type accordingly, see https://aka.ms/efcore-docs-sqlserver-save-changes-and-triggers for more information.</value>
+  </data>
   <data name="SequenceBadType" xml:space="preserve">
     <value>SQL Server sequences cannot be used to generate values for the property '{property}' on entity type '{entityType}' because the property type is '{propertyType}'. Sequences can only be used with integer properties.</value>
   </data>
@@ -299,8 +305,11 @@
   <data name="TemporalNavigationExpansionOnlySupportedForAsOf" xml:space="preserve">
     <value>Navigation expansion is only supported for '{operationName}' temporal operation. For other operations use join manually.</value>
   </data>
-  <data name="TemporalNotSupportedForTableSplitting" xml:space="preserve">
-    <value>Temporal tables are not supported for table splitting scenario. Table: '{table}'.</value>
+  <data name="TemporalNotSupportedForTableSplittingWithInconsistentPeriodMapping" xml:space="preserve">
+    <value>When multiple temporal entities are mapped to the same table, their period {periodType} properties must map to the same column. Issue happens for entity type '{entityType}' with period property '{periodProperty}' which is mapped to column '{periodColumn}'. Expected period column name is '{expectedColumnName}'.</value>
+  </data>
+  <data name="TemporalAllEntitiesMappedToSameTableMustBeTemporal" xml:space="preserve">
+    <value>Entity type '{entityType}' should be marked as temporal because it shares table mapping with another entity that has been marked as temporal. Alternatively, other entity types that share the same table must be non-temporal.</value>
   </data>
   <data name="TemporalOnlyOnRoot" xml:space="preserve">
     <value>Only root entity type should be marked as temporal. Entity type: '{entityType}'.</value>

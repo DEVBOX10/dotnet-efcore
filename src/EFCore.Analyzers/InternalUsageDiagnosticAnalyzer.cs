@@ -16,7 +16,8 @@ public sealed class InternalUsageDiagnosticAnalyzer : DiagnosticAnalyzer
     private static readonly int EFLen = "EntityFrameworkCore".Length;
 
     private static readonly DiagnosticDescriptor Descriptor
-        = new(
+        // HACK: Work around dotnet/roslyn-analyzers#5828 by not using target-typed new
+        = new DiagnosticDescriptor(
             Id,
             title: AnalyzerStrings.InternalUsageTitle,
             messageFormat: AnalyzerStrings.InternalUsageMessageFormat,
@@ -68,8 +69,8 @@ public sealed class InternalUsageDiagnosticAnalyzer : DiagnosticAnalyzer
             case OperationKind.MethodReference:
                 AnalyzeMember(context, ((IMethodReferenceOperation)context.Operation).Method);
                 break;
-            case OperationKind.ObjectCreation:
-                AnalyzeMember(context, ((IObjectCreationOperation)context.Operation).Constructor);
+            case OperationKind.ObjectCreation when ((IObjectCreationOperation)context.Operation).Constructor is { } constructor:
+                AnalyzeMember(context, constructor);
                 break;
             case OperationKind.Invocation:
                 AnalyzeInvocation(context, (IInvocationOperation)context.Operation);
