@@ -47,6 +47,7 @@ public class EntityFrameworkRelationalServicesBuilder : EntityFrameworkServicesB
             { typeof(IRowKeyValueFactoryFactory), new ServiceCharacteristics(ServiceLifetime.Singleton) },
             { typeof(IRowForeignKeyValueFactoryFactory), new ServiceCharacteristics(ServiceLifetime.Singleton) },
             { typeof(IRowIndexValueFactoryFactory), new ServiceCharacteristics(ServiceLifetime.Singleton) },
+            { typeof(IRowIdentityMapFactory), new ServiceCharacteristics(ServiceLifetime.Singleton) },
             { typeof(IParameterNameGeneratorFactory), new ServiceCharacteristics(ServiceLifetime.Singleton) },
             { typeof(IComparer<IReadOnlyModificationCommand>), new ServiceCharacteristics(ServiceLifetime.Singleton) },
             { typeof(IMigrationsIdGenerator), new ServiceCharacteristics(ServiceLifetime.Singleton) },
@@ -55,7 +56,6 @@ public class EntityFrameworkRelationalServicesBuilder : EntityFrameworkServicesB
             { typeof(IMigrationsAnnotationProvider), new ServiceCharacteristics(ServiceLifetime.Singleton) },
             { typeof(IMigrationCommandExecutor), new ServiceCharacteristics(ServiceLifetime.Singleton) },
             { typeof(IRelationalTypeMappingSource), new ServiceCharacteristics(ServiceLifetime.Singleton) },
-            { typeof(IRelationalValueBufferFactoryFactory), new ServiceCharacteristics(ServiceLifetime.Singleton) },
             { typeof(IUpdateSqlGenerator), new ServiceCharacteristics(ServiceLifetime.Singleton) },
             { typeof(IRelationalTransactionFactory), new ServiceCharacteristics(ServiceLifetime.Singleton) },
             { typeof(IRelationalCommandBuilderFactory), new ServiceCharacteristics(ServiceLifetime.Singleton) },
@@ -130,6 +130,7 @@ public class EntityFrameworkRelationalServicesBuilder : EntityFrameworkServicesB
         TryAdd<IRowKeyValueFactoryFactory, RowKeyValueFactoryFactory>();
         TryAdd<IRowForeignKeyValueFactoryFactory, RowForeignKeyValueFactoryFactory>();
         TryAdd<IRowIndexValueFactoryFactory, RowIndexValueFactoryFactory>();
+        TryAdd<IRowIdentityMapFactory, RowIdentityMapFactory>();
         TryAdd<IModelCustomizer, RelationalModelCustomizer>();
         TryAdd<IModelRuntimeInitializer, RelationalModelRuntimeInitializer>();
         TryAdd<IRelationalAnnotationProvider, RelationalAnnotationProvider>();
@@ -149,7 +150,6 @@ public class EntityFrameworkRelationalServicesBuilder : EntityFrameworkServicesB
         TryAdd<IMigrationsSqlGenerator, MigrationsSqlGenerator>();
         TryAdd<IExecutionStrategyFactory, RelationalExecutionStrategyFactory>();
         TryAdd<ITypeMappingSource>(p => p.GetRequiredService<IRelationalTypeMappingSource>());
-        TryAdd<IRelationalValueBufferFactoryFactory, TypedRelationalValueBufferFactoryFactory>();
         TryAdd<IDatabaseCreator>(p => p.GetRequiredService<IRelationalDatabaseCreator>());
         TryAdd<IDbContextTransactionManager>(p => p.GetRequiredService<IRelationalConnection>());
         TryAdd<IQueryContextFactory, RelationalQueryContextFactory>();
@@ -188,7 +188,6 @@ public class EntityFrameworkRelationalServicesBuilder : EntityFrameworkServicesB
             .AddDependencySingleton<RelationalAnnotationProviderDependencies>()
             .AddDependencySingleton<MigrationsAnnotationProviderDependencies>()
             .AddDependencySingleton<ParameterNameGeneratorDependencies>()
-            .AddDependencySingleton<RelationalValueBufferFactoryDependencies>()
             .AddDependencySingleton<RelationalTransactionFactoryDependencies>()
             .AddDependencySingleton<RelationalCommandBuilderDependencies>()
             .AddDependencySingleton<QuerySqlGeneratorDependencies>()

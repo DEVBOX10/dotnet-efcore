@@ -160,6 +160,22 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 firstEntityType, secondEntityType, keyValue, firstConflictingValue, secondConflictingValue, column);
 
         /// <summary>
+        ///     A seed entity for entity type '{entityType}' has the same key value as another seed entity mapped to the same table '{table}', but have different values for the column '{column}'. Consider using 'DbContextOptionsBuilder.EnableSensitiveDataLogging' to see the conflicting values.
+        /// </summary>
+        public static string ConflictingSeedValues(object? entityType, object? table, object? column)
+            => string.Format(
+                GetString("ConflictingSeedValues", nameof(entityType), nameof(table), nameof(column)),
+                entityType, table, column);
+
+        /// <summary>
+        ///     A seed entity for entity type '{entityType}' has the same key value {keyValue} as another seed entity mapped to the same table '{table}', but have different values for the column '{column}' - '{firstValue}', '{secondValue}'.
+        /// </summary>
+        public static string ConflictingSeedValuesSensitive(object? entityType, object? keyValue, object? table, object? column, object? firstValue, object? secondValue)
+            => string.Format(
+                GetString("ConflictingSeedValuesSensitive", nameof(entityType), nameof(keyValue), nameof(table), nameof(column), nameof(firstValue), nameof(secondValue)),
+                entityType, keyValue, table, column, firstValue, secondValue);
+
+        /// <summary>
         ///     {numSortOrderProperties} values were provided in CreateIndexOperations.IsDescending, but the operation has {numColumns} columns.
         /// </summary>
         public static string CreateIndexOperationWithInvalidSortOrder(object? numSortOrderProperties, object? numColumns)
@@ -558,6 +574,22 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 keyProperties1, entityType1, keyProperties2, entityType2, keyName, table1, table2);
 
         /// <summary>
+        ///     A seed entity for entity type '{entityType}' has the same key value as another seed entity mapped to the same table '{table}'. Key values should be unique across seed entities. Consider using 'DbContextOptionsBuilder.EnableSensitiveDataLogging' to see the conflicting values.
+        /// </summary>
+        public static string DuplicateSeedData(object? entityType, object? table)
+            => string.Format(
+                GetString("DuplicateSeedData", nameof(entityType), nameof(table)),
+                entityType, table);
+
+        /// <summary>
+        ///     A seed entity for entity type '{entityType}' has the same key value {keyValue} as another seed entity mapped to the same table '{table}'. Key values should be unique across seed entities.
+        /// </summary>
+        public static string DuplicateSeedDataSensitive(object? entityType, object? keyValue, object? table)
+            => string.Format(
+                GetString("DuplicateSeedDataSensitive", nameof(entityType), nameof(keyValue), nameof(table)),
+                entityType, keyValue, table);
+
+        /// <summary>
         ///     The trigger '{trigger}' cannot be added to the entity type '{entityType}' because another trigger with the same name already exists on entity type '{conflictingEntityType}'.
         /// </summary>
         public static string DuplicateTrigger(object? trigger, object? entityType, object? conflictingEntityType)
@@ -944,12 +976,6 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         /// </summary>
         public static string NoActiveTransaction
             => GetString("NoActiveTransaction");
-
-        /// <summary>
-        ///     A relational store has been configured without specifying either the DbConnection or connection string to use.
-        /// </summary>
-        public static string NoConnectionOrConnectionString
-            => GetString("NoConnectionOrConnectionString");
 
         /// <summary>
         ///     Cannot create a DbCommand for a non-relational query.
@@ -1812,6 +1838,31 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics.Internal
             }
 
             return (EventDefinition<string, string, System.Data.CommandType, int, string, string>)definition;
+        }
+
+        /// <summary>
+        ///     Initialized DbCommand for '{executionType}' ({elapsed}ms).
+        /// </summary>
+        public static EventDefinition<string, int> LogCommandInitialized(IDiagnosticsLogger logger)
+        {
+            var definition = ((RelationalLoggingDefinitions)logger.Definitions).LogCommandInitialized;
+            if (definition == null)
+            {
+                definition = NonCapturingLazyInitializer.EnsureInitialized(
+                    ref ((RelationalLoggingDefinitions)logger.Definitions).LogCommandInitialized,
+                    logger,
+                    static logger => new EventDefinition<string, int>(
+                        logger.Options,
+                        RelationalEventId.CommandInitialized,
+                        LogLevel.Debug,
+                        "RelationalEventId.CommandInitialized",
+                        level => LoggerMessage.Define<string, int>(
+                            level,
+                            RelationalEventId.CommandInitialized,
+                            _resourceManager.GetString("LogCommandInitialized")!)));
+            }
+
+            return (EventDefinition<string, int>)definition;
         }
 
         /// <summary>

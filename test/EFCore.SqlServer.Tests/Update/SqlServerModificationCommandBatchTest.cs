@@ -78,9 +78,6 @@ public class SqlServerModificationCommandBatchTest
                         new SqlServerSqlGenerationHelper(
                             new RelationalSqlGenerationHelperDependencies()),
                         typeMapper)),
-                new TypedRelationalValueBufferFactoryFactory(
-                    new RelationalValueBufferFactoryDependencies(
-                        typeMapper, new CoreSingletonOptions())),
                 new CurrentDbContext(new FakeDbContext()),
                 new FakeRelationalCommandDiagnosticsLogger()),
             maxBatchSize);
@@ -91,12 +88,12 @@ public class SqlServerModificationCommandBatchTest
             TestServiceFactory.Instance.Create<TypeMappingSourceDependencies>(),
             TestServiceFactory.Instance.Create<RelationalTypeMappingSourceDependencies>());
 
-    private static IModificationCommand CreateModificationCommand(
+    private static INonTrackedModificationCommand CreateModificationCommand(
         string name,
         string schema,
         bool sensitiveLoggingEnabled)
-        => new ModificationCommandFactory().CreateModificationCommand(
-            new ModificationCommandParameters(name, schema, sensitiveLoggingEnabled));
+        => new ModificationCommandFactory().CreateNonTrackedModificationCommand(
+            new NonTrackedModificationCommandParameters(name, schema, sensitiveLoggingEnabled));
 
     private class TestSqlServerModificationCommandBatch : SqlServerModificationCommandBatch
     {
