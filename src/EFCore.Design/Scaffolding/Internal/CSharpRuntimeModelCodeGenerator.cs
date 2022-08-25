@@ -547,6 +547,11 @@ public class CSharpRuntimeModelCodeGenerator : ICompiledModelCodeGenerator
                 Create(index, propertyVariables, parameters, nullable);
             }
 
+            foreach (var trigger in entityType.GetDeclaredTriggers())
+            {
+                Create(trigger, parameters);
+            }
+
             mainBuilder
                 .Append("return ")
                 .Append(entityTypeVariable)
@@ -672,6 +677,15 @@ public class CSharpRuntimeModelCodeGenerator : ICompiledModelCodeGenerator
         var valueComparerType = (Type?)property[CoreAnnotationNames.ValueComparerType];
         if (valueComparerType == null
             && property[CoreAnnotationNames.ValueComparer] != null)
+        {
+            throw new InvalidOperationException(
+                DesignStrings.CompiledModelValueComparer(
+                    property.DeclaringEntityType.ShortName(), property.Name, nameof(PropertyBuilder.HasConversion)));
+        }
+
+        var providerValueComparerType = (Type?)property[CoreAnnotationNames.ProviderValueComparerType];
+        if (providerValueComparerType == null
+            && property[CoreAnnotationNames.ProviderValueComparer] != null)
         {
             throw new InvalidOperationException(
                 DesignStrings.CompiledModelValueComparer(
@@ -806,6 +820,16 @@ public class CSharpRuntimeModelCodeGenerator : ICompiledModelCodeGenerator
             mainBuilder.AppendLine(",")
                 .Append("valueComparer: new ")
                 .Append(_code.Reference(valueComparerType))
+                .Append("()");
+        }
+
+        if (providerValueComparerType != null)
+        {
+            AddNamespace(providerValueComparerType, parameters.Namespaces);
+
+            mainBuilder.AppendLine(",")
+                .Append("providerValueComparer: new ")
+                .Append(_code.Reference(providerValueComparerType))
                 .Append("()");
         }
 
@@ -1301,6 +1325,26 @@ public class CSharpRuntimeModelCodeGenerator : ICompiledModelCodeGenerator
 
         mainBuilder
             .AppendLine("}");
+    }
+
+    private void Create(ITrigger trigger, CSharpRuntimeAnnotationCodeGeneratorParameters parameters)
+    {
+        var triggerVariable = _code.Identifier(trigger.ModelName, parameters.ScopeVariables, capitalize: false);
+
+        var mainBuilder = parameters.MainBuilder;
+        mainBuilder
+            .Append("var ").Append(triggerVariable).Append(" = ").Append(parameters.TargetName).AppendLine(".AddTrigger(")
+            .IncrementIndent()
+            .Append(_code.Literal(trigger.ModelName))
+            .AppendLine(");")
+            .DecrementIndent();
+
+        CreateAnnotations(
+            trigger,
+            _annotationCodeGenerator.Generate,
+            parameters with { TargetName = triggerVariable });
+
+        mainBuilder.AppendLine();
     }
 
     private void CreateAnnotations(

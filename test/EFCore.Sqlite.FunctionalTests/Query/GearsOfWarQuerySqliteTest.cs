@@ -102,6 +102,9 @@ public class GearsOfWarQuerySqliteTest : GearsOfWarQueryRelationalTestBase<Gears
         AssertSql();
     }
 
+    public override Task DateTimeOffsetNow_minus_timespan(bool async)
+        => AssertTranslationFailed(() => base.DateTimeOffsetNow_minus_timespan(async));
+
     public override async Task DateTimeOffset_Date_returns_datetime(bool async)
     {
         await AssertTranslationFailed(() => base.DateTimeOffset_Date_returns_datetime(async));
@@ -2075,8 +2078,12 @@ ORDER BY ""g"".""FullName""");
         await base.Group_by_on_StartsWith_with_null_parameter_as_argument(async);
 
         AssertSql(
-            @"SELECT 0
-FROM ""Gears"" AS ""g""");
+            @"SELECT ""t"".""Key""
+FROM (
+    SELECT 0 AS ""Key""
+    FROM ""Gears"" AS ""g""
+) AS ""t""
+GROUP BY ""t"".""Key""");
     }
 
     public override async Task Non_unicode_parameter_is_used_for_non_unicode_column(bool async)
@@ -2134,9 +2141,12 @@ WHERE ""t"".""Name"" IS NOT NULL");
         await base.GroupBy_with_boolean_grouping_key(async);
 
         AssertSql(
-            @"SELECT ""g"".""CityOfBirthName"", ""g"".""HasSoulPatch"", ""g"".""Nickname"" = 'Marcus' AS ""IsMarcus"", COUNT(*) AS ""Count""
-FROM ""Gears"" AS ""g""
-GROUP BY ""g"".""CityOfBirthName"", ""g"".""HasSoulPatch"", ""g"".""Nickname"" = 'Marcus'");
+            @"SELECT ""t"".""CityOfBirthName"", ""t"".""HasSoulPatch"", ""t"".""IsMarcus"", COUNT(*) AS ""Count""
+FROM (
+    SELECT ""g"".""CityOfBirthName"", ""g"".""HasSoulPatch"", ""g"".""Nickname"" = 'Marcus' AS ""IsMarcus""
+    FROM ""Gears"" AS ""g""
+) AS ""t""
+GROUP BY ""t"".""CityOfBirthName"", ""t"".""HasSoulPatch"", ""t"".""IsMarcus""");
     }
 
     public override async Task Correlated_collections_on_select_many(bool async)
@@ -5169,14 +5179,11 @@ FROM ""Weapons"" AS ""w""");
         await base.Concat_with_scalar_projection(async);
 
         AssertSql(
-            @"SELECT ""t"".""Nickname""
-FROM (
-    SELECT ""g"".""Nickname"", ""g"".""SquadId"", ""g"".""AssignedCityName"", ""g"".""CityOfBirthName"", ""g"".""Discriminator"", ""g"".""FullName"", ""g"".""HasSoulPatch"", ""g"".""LeaderNickname"", ""g"".""LeaderSquadId"", ""g"".""Rank""
-    FROM ""Gears"" AS ""g""
-    UNION ALL
-    SELECT ""g0"".""Nickname"", ""g0"".""SquadId"", ""g0"".""AssignedCityName"", ""g0"".""CityOfBirthName"", ""g0"".""Discriminator"", ""g0"".""FullName"", ""g0"".""HasSoulPatch"", ""g0"".""LeaderNickname"", ""g0"".""LeaderSquadId"", ""g0"".""Rank""
-    FROM ""Gears"" AS ""g0""
-) AS ""t""");
+            @"SELECT ""g"".""Nickname""
+FROM ""Gears"" AS ""g""
+UNION ALL
+SELECT ""g0"".""Nickname""
+FROM ""Gears"" AS ""g0""");
     }
 
     public override async Task Comparing_entities_using_Equals_inheritance(bool async)
@@ -6866,9 +6873,12 @@ LIMIT @__p_0");
         await base.Group_by_nullable_property_HasValue_and_project_the_grouping_key(async);
 
         AssertSql(
-            @"SELECT ""w"".""SynergyWithId"" IS NOT NULL
-FROM ""Weapons"" AS ""w""
-GROUP BY ""w"".""SynergyWithId"" IS NOT NULL");
+            @"SELECT ""t"".""Key""
+FROM (
+    SELECT ""w"".""SynergyWithId"" IS NOT NULL AS ""Key""
+    FROM ""Weapons"" AS ""w""
+) AS ""t""
+GROUP BY ""t"".""Key""");
     }
 
     public override async Task Query_with_complex_let_containing_ordering_and_filter_projecting_firstOrDefault_element_of_let(bool async)
@@ -7679,9 +7689,10 @@ LIMIT 1");
         Correlated_collection_with_groupby_with_complex_grouping_key_not_projecting_identifier_column_with_group_aggregate_in_final_projection(
             bool async)
     {
-        await base
-            .Correlated_collection_with_groupby_with_complex_grouping_key_not_projecting_identifier_column_with_group_aggregate_in_final_projection(
-                async);
+        Assert.Equal(
+            SqliteStrings.ApplyNotSupported,
+            (await Assert.ThrowsAsync<InvalidOperationException>(
+                () => base.Correlated_collection_with_groupby_with_complex_grouping_key_not_projecting_identifier_column_with_group_aggregate_in_final_projection(async))).Message);
 
         AssertSql();
     }
@@ -8093,6 +8104,39 @@ WHERE NOT (EXISTS (
     SELECT 1
     FROM ""Weapons"" AS ""w""
     WHERE ""g"".""FullName"" = ""w"".""OwnerFullName""))");
+    }
+
+    public override async Task Include_reference_on_derived_type_using_EF_Property(bool async)
+    {
+        await base.Include_reference_on_derived_type_using_EF_Property(async);
+
+        AssertSql(
+            @"SELECT ""l"".""Name"", ""l"".""Discriminator"", ""l"".""LocustHordeId"", ""l"".""ThreatLevel"", ""l"".""ThreatLevelByte"", ""l"".""ThreatLevelNullableByte"", ""l"".""DefeatedByNickname"", ""l"".""DefeatedBySquadId"", ""l"".""HighCommandId"", ""g"".""Nickname"", ""g"".""SquadId"", ""g"".""AssignedCityName"", ""g"".""CityOfBirthName"", ""g"".""Discriminator"", ""g"".""FullName"", ""g"".""HasSoulPatch"", ""g"".""LeaderNickname"", ""g"".""LeaderSquadId"", ""g"".""Rank""
+FROM ""LocustLeaders"" AS ""l""
+LEFT JOIN ""Gears"" AS ""g"" ON ""l"".""DefeatedByNickname"" = ""g"".""Nickname"" AND ""l"".""DefeatedBySquadId"" = ""g"".""SquadId""");
+    }
+
+    public override async Task Include_collection_on_derived_type_using_EF_Property(bool async)
+    {
+        await base.Include_collection_on_derived_type_using_EF_Property(async);
+
+        AssertSql(
+            @"SELECT ""g"".""Nickname"", ""g"".""SquadId"", ""g"".""AssignedCityName"", ""g"".""CityOfBirthName"", ""g"".""Discriminator"", ""g"".""FullName"", ""g"".""HasSoulPatch"", ""g"".""LeaderNickname"", ""g"".""LeaderSquadId"", ""g"".""Rank"", ""g0"".""Nickname"", ""g0"".""SquadId"", ""g0"".""AssignedCityName"", ""g0"".""CityOfBirthName"", ""g0"".""Discriminator"", ""g0"".""FullName"", ""g0"".""HasSoulPatch"", ""g0"".""LeaderNickname"", ""g0"".""LeaderSquadId"", ""g0"".""Rank""
+FROM ""Gears"" AS ""g""
+LEFT JOIN ""Gears"" AS ""g0"" ON ""g"".""Nickname"" = ""g0"".""LeaderNickname"" AND ""g"".""SquadId"" = ""g0"".""LeaderSquadId""
+ORDER BY ""g"".""Nickname"", ""g"".""SquadId"", ""g0"".""Nickname""");
+    }
+
+    public override async Task EF_Property_based_Include_navigation_on_derived_type(bool async)
+    {
+        await base.EF_Property_based_Include_navigation_on_derived_type(async);
+
+        AssertSql(
+            @"SELECT ""g"".""Nickname"", ""g"".""SquadId"", ""g"".""AssignedCityName"", ""g"".""CityOfBirthName"", ""g"".""Discriminator"", ""g"".""FullName"", ""g"".""HasSoulPatch"", ""g"".""LeaderNickname"", ""g"".""LeaderSquadId"", ""g"".""Rank"", ""g0"".""Nickname"", ""g0"".""SquadId"", ""g0"".""AssignedCityName"", ""g0"".""CityOfBirthName"", ""g0"".""Discriminator"", ""g0"".""FullName"", ""g0"".""HasSoulPatch"", ""g0"".""LeaderNickname"", ""g0"".""LeaderSquadId"", ""g0"".""Rank""
+FROM ""Gears"" AS ""g""
+LEFT JOIN ""Gears"" AS ""g0"" ON ""g"".""Nickname"" = ""g0"".""LeaderNickname"" AND ""g"".""SquadId"" = ""g0"".""LeaderSquadId""
+WHERE ""g"".""Discriminator"" = 'Officer'
+ORDER BY ""g"".""Nickname"", ""g"".""SquadId"", ""g0"".""Nickname""");
     }
 
     private void AssertSql(params string[] expected)

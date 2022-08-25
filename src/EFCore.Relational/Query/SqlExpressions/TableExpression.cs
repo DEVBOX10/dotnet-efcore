@@ -13,7 +13,7 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 ///     application or database provider code. If this is a problem for your application or provider, then please file
 ///     an issue at <see href="https://github.com/dotnet/efcore">github.com/dotnet/efcore</see>.
 /// </remarks>
-public sealed class TableExpression : TableExpressionBase, IClonableTableExpressionBase
+public sealed class TableExpression : TableExpressionBase, IClonableTableExpressionBase, ITableBasedExpression
 {
     internal TableExpression(ITableBase table)
         : this(table, annotations: null)
@@ -26,20 +26,6 @@ public sealed class TableExpression : TableExpressionBase, IClonableTableExpress
         Name = table.Name;
         Schema = table.Schema;
         Table = table;
-    }
-
-    /// <inheritdoc />
-    protected override void Print(ExpressionPrinter expressionPrinter)
-    {
-        if (!string.IsNullOrEmpty(Schema))
-        {
-            expressionPrinter.Append(Schema).Append(".");
-        }
-
-        expressionPrinter.Append(Name);
-        PrintAnnotations(expressionPrinter);
-
-        expressionPrinter.Append(" AS ").Append(Alias);
     }
 
     /// <summary>
@@ -68,8 +54,28 @@ public sealed class TableExpression : TableExpressionBase, IClonableTableExpress
     public ITableBase Table { get; }
 
     /// <inheritdoc />
-    public TableExpressionBase Clone()
-        => new TableExpression(Table, GetAnnotations()) { Alias = Alias };
+    protected override TableExpressionBase CreateWithAnnotations(IEnumerable<IAnnotation> annotations)
+        => new TableExpression(Table, annotations) { Alias = Alias };
+
+    /// <inheritdoc />
+    ITableBase ITableBasedExpression.Table => Table;
+
+    /// <inheritdoc />
+    protected override void Print(ExpressionPrinter expressionPrinter)
+    {
+        if (!string.IsNullOrEmpty(Schema))
+        {
+            expressionPrinter.Append(Schema).Append(".");
+        }
+
+        expressionPrinter.Append(Name);
+        PrintAnnotations(expressionPrinter);
+
+        expressionPrinter.Append(" AS ").Append(Alias);
+    }
+
+    /// <inheritdoc />
+    public TableExpressionBase Clone() => CreateWithAnnotations(GetAnnotations());
 
     /// <inheritdoc />
     public override bool Equals(object? obj)

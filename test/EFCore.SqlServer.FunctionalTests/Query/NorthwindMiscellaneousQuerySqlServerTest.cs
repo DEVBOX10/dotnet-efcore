@@ -168,7 +168,7 @@ WHERE [c].[CustomerID] = @__entity_equality_local_0_CustomerID AND @__entity_equ
 SELECT [c].[CustomerID]
 FROM [Customers] AS [c]
 INNER JOIN (
-    SELECT [c0].[CustomerID]
+    SELECT [c0].[CustomerID], [c0].[Address], [c0].[City], [c0].[CompanyName], [c0].[ContactName], [c0].[ContactTitle], [c0].[Country], [c0].[Fax], [c0].[Phone], [c0].[PostalCode], [c0].[Region]
     FROM [Customers] AS [c0]
     WHERE [c0].[CustomerID] = @__entity_equality_local_0_CustomerID
 ) AS [t] ON [c].[CustomerID] = [t].[CustomerID]
@@ -358,12 +358,12 @@ LEFT JOIN (
     WHERE [e].[EmployeeID] = -1
 ) AS [t] ON 1 = 1
 INNER JOIN (
-    SELECT [t1].[EmployeeID]
+    SELECT [t1].[EmployeeID], [t1].[City], [t1].[Country], [t1].[FirstName], [t1].[ReportsTo], [t1].[Title]
     FROM (
         SELECT NULL AS [empty]
     ) AS [e1]
     LEFT JOIN (
-        SELECT [e2].[EmployeeID]
+        SELECT [e2].[EmployeeID], [e2].[City], [e2].[Country], [e2].[FirstName], [e2].[ReportsTo], [e2].[Title]
         FROM [Employees] AS [e2]
         WHERE [e2].[EmployeeID] = -1
     ) AS [t1] ON 1 = 1
@@ -1281,7 +1281,7 @@ ORDER BY [c].[CustomerID]");
 
 SELECT COUNT(*)
 FROM (
-    SELECT TOP(@__p_0) [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate]
+    SELECT TOP(@__p_0) [o].[OrderID]
     FROM [Orders] AS [o]
     ORDER BY [o].[OrderID]
 ) AS [t]");
@@ -3644,8 +3644,8 @@ ORDER BY [t].[CustomerID]");
 FROM (
     SELECT DISTINCT [c].[CustomerID]
     FROM [Customers] AS [c]
-) AS [t]
-WHERE [t].[CustomerID] LIKE N'A%'");
+    WHERE [c].[CustomerID] LIKE N'A%'
+) AS [t]");
     }
 
     public override async Task Anonymous_complex_distinct_where(bool async)
@@ -3680,8 +3680,8 @@ ORDER BY [t].[A]");
 FROM (
     SELECT DISTINCT [c].[CustomerID] + COALESCE([c].[City], N'') AS [A]
     FROM [Customers] AS [c]
-) AS [t]
-WHERE [t].[A] IS NOT NULL AND ([t].[A] LIKE N'A%')");
+    WHERE [c].[CustomerID] + COALESCE([c].[City], N'') LIKE N'A%'
+) AS [t]");
     }
 
     public override async Task Anonymous_complex_orderby(bool async)
@@ -3748,8 +3748,8 @@ ORDER BY [t].[Property]");
 FROM (
     SELECT DISTINCT [c].[CustomerID] AS [Property]
     FROM [Customers] AS [c]
-) AS [t]
-WHERE [t].[Property] LIKE N'A%'");
+    WHERE [c].[CustomerID] LIKE N'A%'
+) AS [t]");
     }
 
     public override async Task DTO_complex_distinct_where(bool async)
@@ -3784,8 +3784,8 @@ ORDER BY [t].[Property]");
 FROM (
     SELECT DISTINCT [c].[CustomerID] + COALESCE([c].[City], N'') AS [Property]
     FROM [Customers] AS [c]
-) AS [t]
-WHERE [t].[Property] IS NOT NULL AND ([t].[Property] LIKE N'A%')");
+    WHERE [c].[CustomerID] + COALESCE([c].[City], N'') LIKE N'A%'
+) AS [t]");
     }
 
     public override async Task DTO_complex_orderby(bool async)
@@ -3900,7 +3900,7 @@ FROM (
 
 SELECT COUNT(*)
 FROM (
-    SELECT TOP(@__p_0) [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+    SELECT TOP(@__p_0) [c].[CustomerID]
     FROM [Customers] AS [c]
 ) AS [t]");
     }
@@ -3914,7 +3914,7 @@ FROM (
 
 SELECT COUNT(*)
 FROM (
-    SELECT TOP(@__p_0) [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+    SELECT TOP(@__p_0) [c].[CustomerID], [c].[Country]
     FROM [Customers] AS [c]
     ORDER BY [c].[Country]
 ) AS [t]");
@@ -3929,7 +3929,7 @@ FROM (
 
 SELECT COUNT_BIG(*)
 FROM (
-    SELECT TOP(@__p_0) [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+    SELECT TOP(@__p_0) [c].[CustomerID]
     FROM [Customers] AS [c]
 ) AS [t]");
     }
@@ -3943,7 +3943,7 @@ FROM (
 
 SELECT COUNT_BIG(*)
 FROM (
-    SELECT TOP(@__p_0) [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+    SELECT TOP(@__p_0) [c].[CustomerID], [c].[Country]
     FROM [Customers] AS [c]
     ORDER BY [c].[Country]
 ) AS [t]");
@@ -4019,7 +4019,7 @@ FROM (
 
 SELECT COUNT(*)
 FROM (
-    SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+    SELECT [c].[CustomerID]
     FROM [Customers] AS [c]
     ORDER BY (SELECT 1)
     OFFSET @__p_0 ROWS
@@ -4035,7 +4035,7 @@ FROM (
 
 SELECT COUNT(*)
 FROM (
-    SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+    SELECT [c].[CustomerID], [c].[Country]
     FROM [Customers] AS [c]
     ORDER BY [c].[Country]
     OFFSET @__p_0 ROWS
@@ -4051,7 +4051,7 @@ FROM (
 
 SELECT COUNT_BIG(*)
 FROM (
-    SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+    SELECT [c].[CustomerID]
     FROM [Customers] AS [c]
     ORDER BY (SELECT 1)
     OFFSET @__p_0 ROWS
@@ -4067,7 +4067,7 @@ FROM (
 
 SELECT COUNT_BIG(*)
 FROM (
-    SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+    SELECT [c].[CustomerID], [c].[Country]
     FROM [Customers] AS [c]
     ORDER BY [c].[Country]
     OFFSET @__p_0 ROWS
@@ -4439,10 +4439,10 @@ OFFSET @__p_0 ROWS FETCH NEXT @__p_1 ROWS ONLY");
 
 SELECT COUNT(*)
 FROM (
-    SELECT TOP(@__p_0) [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate], [t].[CustomerID] AS [CustomerID0], [t].[Address], [t].[City], [t].[CompanyName], [t].[ContactName], [t].[ContactTitle], [t].[Country], [t].[Fax], [t].[Phone], [t].[PostalCode], [t].[Region]
+    SELECT TOP(@__p_0) [o].[OrderID], [t].[CustomerID]
     FROM [Orders] AS [o]
     INNER JOIN (
-        SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+        SELECT [c].[CustomerID]
         FROM [Customers] AS [c]
         WHERE [c].[CustomerID] = N'ALFKI'
     ) AS [t] ON [o].[CustomerID] = [t].[CustomerID]
@@ -6319,6 +6319,13 @@ FROM [Orders] AS [o]");
     public override async Task Select_subquery_recursive_trivial_returning_queryable(bool async)
     {
         await base.Select_subquery_recursive_trivial_returning_queryable(async);
+
+        AssertSql();
+    }
+
+    public override async Task EF_Property_include_on_incorrect_property_throws(bool async)
+    {
+        await base.EF_Property_include_on_incorrect_property_throws(async);
 
         AssertSql();
     }

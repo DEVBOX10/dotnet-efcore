@@ -58,14 +58,14 @@ public class SqlNullabilityProcessor
     protected virtual IReadOnlyDictionary<string, object?> ParameterValues { get; private set; }
 
     /// <summary>
-    ///     Processes a <see cref="SelectExpression" /> to apply null semantics and optimize it.
+    ///     Processes a query expression to apply null semantics and optimize it.
     /// </summary>
-    /// <param name="selectExpression">A select expression to process.</param>
+    /// <param name="queryExpression">A query expression to process.</param>
     /// <param name="parameterValues">A dictionary of parameter values in use.</param>
-    /// <param name="canCache">A bool value indicating whether the select expression can be cached.</param>
-    /// <returns>An optimized select expression.</returns>
-    public virtual SelectExpression Process(
-        SelectExpression selectExpression,
+    /// <param name="canCache">A bool value indicating whether the query expression can be cached.</param>
+    /// <returns>An optimized query expression.</returns>
+    public virtual Expression Process(
+        Expression queryExpression,
         IReadOnlyDictionary<string, object?> parameterValues,
         out bool canCache)
     {
@@ -74,10 +74,46 @@ public class SqlNullabilityProcessor
         _nullValueColumns.Clear();
         ParameterValues = parameterValues;
 
-        var result = Visit(selectExpression);
+        var result = queryExpression switch
+        {
+            SelectExpression selectExpression => (Expression)Visit(selectExpression),
+            DeleteExpression deleteExpression => deleteExpression.Update(Visit(deleteExpression.SelectExpression)),
+            UpdateExpression updateExpression => VisitUpdate(updateExpression),
+            _ => throw new InvalidOperationException(),
+        };
+
         canCache = _canCache;
 
         return result;
+    }
+
+    private UpdateExpression VisitUpdate(UpdateExpression updateExpression)
+    {
+        var selectExpression = Visit(updateExpression.SelectExpression);
+        List<ColumnValueSetter>? columnValueSetters = null;
+        for (var (i, n) = (0, updateExpression.ColumnValueSetters.Count); i < n; i++)
+        {
+            var columnValueSetter = updateExpression.ColumnValueSetters[i];
+            var newValue = Visit(columnValueSetter.Value, out _);
+            if (columnValueSetters != null)
+            {
+                columnValueSetters.Add(new ColumnValueSetter(columnValueSetter.Column, newValue));
+            }
+            else if (!ReferenceEquals(newValue, columnValueSetter.Value))
+            {
+                columnValueSetters = new(n);
+                for (var j = 0; j < i; j++)
+                {
+                    columnValueSetters.Add(updateExpression.ColumnValueSetters[j]);
+                }
+                columnValueSetters.Add(new ColumnValueSetter(columnValueSetter.Column, newValue));
+            }
+        }
+
+        return selectExpression != updateExpression.SelectExpression
+            || columnValueSetters != null
+            ? updateExpression.Update(selectExpression, columnValueSetters ?? updateExpression.ColumnValueSetters)
+            : updateExpression;
     }
 
     /// <summary>
@@ -348,6 +384,8 @@ public class SqlNullabilityProcessor
         var nullValueColumnsCount = _nullValueColumns.Count;
         var result = sqlExpression switch
         {
+            AtTimeZoneExpression sqlAtTimeZoneExpression
+                => VisitAtTimeZone(sqlAtTimeZoneExpression, allowOptimizedExpansion, out nullable),
             CaseExpression caseExpression
                 => VisitCase(caseExpression, allowOptimizedExpansion, out nullable),
             CollateExpression collateExpression
@@ -378,6 +416,8 @@ public class SqlNullabilityProcessor
                 => VisitSqlParameter(sqlParameterExpression, allowOptimizedExpansion, out nullable),
             SqlUnaryExpression sqlUnaryExpression
                 => VisitSqlUnary(sqlUnaryExpression, allowOptimizedExpansion, out nullable),
+            JsonScalarExpression jsonScalarExpression
+                => VisitJsonScalar(jsonScalarExpression, allowOptimizedExpansion, out nullable),
             _ => VisitCustomSqlExpression(sqlExpression, allowOptimizedExpansion, out nullable)
         };
 
@@ -403,6 +443,25 @@ public class SqlNullabilityProcessor
         out bool nullable)
         => throw new InvalidOperationException(
             RelationalStrings.UnhandledExpressionInVisitor(sqlExpression, sqlExpression.GetType(), nameof(SqlNullabilityProcessor)));
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    protected virtual SqlExpression VisitAtTimeZone(
+        AtTimeZoneExpression atTimeZoneExpression,
+        bool allowOptimizedExpansion,
+        out bool nullable)
+    {
+        var operand = Visit(atTimeZoneExpression.Operand, out var operandNullable);
+        var timeZone = Visit(atTimeZoneExpression.TimeZone, out var timeZoneNullable);
+
+        nullable = operandNullable || timeZoneNullable;
+
+        return atTimeZoneExpression.Update(operand, timeZone);
+    }
 
     /// <summary>
     ///     Visits a <see cref="CaseExpression" /> and computes its nullability.
@@ -1094,6 +1153,23 @@ public class SqlNullabilityProcessor
             : updated;
     }
 
+    /// <summary>
+    ///     Visits a <see cref="JsonScalarExpression" /> and computes its nullability.
+    /// </summary>
+    /// <param name="jsonScalarExpression">A json scalar expression to visit.</param>
+    /// <param name="allowOptimizedExpansion">A bool value indicating if optimized expansion which considers null value as false value is allowed.</param>
+    /// <param name="nullable">A bool value indicating whether the sql expression is nullable.</param>
+    /// <returns>An optimized sql expression.</returns>
+    protected virtual SqlExpression VisitJsonScalar(
+        JsonScalarExpression jsonScalarExpression,
+        bool allowOptimizedExpansion,
+        out bool nullable)
+    {
+        nullable = jsonScalarExpression.IsNullable;
+
+        return jsonScalarExpression;
+    }
+
     private static bool? TryGetBoolConstantValue(SqlExpression? expression)
         => expression is SqlConstantExpression constantExpression
             && constantExpression.Value is bool boolValue
@@ -1555,7 +1631,7 @@ public class SqlNullabilityProcessor
                         sqlBinaryOperand.TypeMapping)!;
                 }
             }
-                break;
+            break;
         }
 
         return sqlUnaryExpression;
@@ -1765,7 +1841,7 @@ public class SqlNullabilityProcessor
                     return result;
                 }
             }
-                break;
+            break;
         }
 
         return sqlUnaryExpression;

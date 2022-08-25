@@ -59,7 +59,7 @@ public class CommandBatchPreparer : ICommandBatchPreparer
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    public virtual IEnumerable<(ModificationCommandBatch Batch, bool HasMore)> BatchCommands(
+    public virtual IEnumerable<ModificationCommandBatch> BatchCommands(
         IList<IUpdateEntry> entries,
         IUpdateAdapter updateAdapter)
     {
@@ -92,9 +92,9 @@ public class CommandBatchPreparer : ICommandBatchPreparer
                                 batch.ModificationCommands.SelectMany(c => c.Entries), batch.ModificationCommands.Count);
                         }
 
-                        batch.Complete();
+                        batch.Complete(moreBatchesExpected: true);
 
-                        yield return (batch, true);
+                        yield return batch;
                     }
                     else
                     {
@@ -104,9 +104,9 @@ public class CommandBatchPreparer : ICommandBatchPreparer
                         foreach (var command in batch.ModificationCommands)
                         {
                             batch = StartNewBatch(parameterNameGenerator, command);
-                            batch.Complete();
+                            batch.Complete(moreBatchesExpected: true);
 
-                            yield return (batch, true);
+                            yield return batch;
                         }
                     }
 
@@ -125,9 +125,9 @@ public class CommandBatchPreparer : ICommandBatchPreparer
                         batch.ModificationCommands.SelectMany(c => c.Entries), batch.ModificationCommands.Count);
                 }
 
-                batch.Complete();
+                batch.Complete(moreBatchesExpected: hasMoreCommandSets);
 
-                yield return (batch, hasMoreCommandSets);
+                yield return batch;
             }
             else
             {
@@ -137,9 +137,10 @@ public class CommandBatchPreparer : ICommandBatchPreparer
                 for (var commandIndex = 0; commandIndex < batch.ModificationCommands.Count; commandIndex++)
                 {
                     var singleCommandBatch = StartNewBatch(parameterNameGenerator, batch.ModificationCommands[commandIndex]);
-                    singleCommandBatch.Complete();
+                    singleCommandBatch.Complete(
+                        moreBatchesExpected: hasMoreCommandSets || commandIndex < batch.ModificationCommands.Count - 1);
 
-                    yield return (singleCommandBatch, hasMoreCommandSets || commandIndex < batch.ModificationCommands.Count - 1);
+                    yield return singleCommandBatch;
                 }
             }
         }
@@ -167,8 +168,7 @@ public class CommandBatchPreparer : ICommandBatchPreparer
         Func<string> generateParameterName)
     {
         var commands = new List<IModificationCommand>();
-        Dictionary<(string Name, string? Schema), SharedTableEntryMap<IModificationCommand>>? sharedTablesCommandsMap =
-            null;
+        Dictionary<(string Name, string? Schema), SharedTableEntryMap<IModificationCommand>>? sharedTablesCommandsMap = null;
         foreach (var entry in entries)
         {
             if (entry.SharedIdentityEntry != null
@@ -177,22 +177,33 @@ public class CommandBatchPreparer : ICommandBatchPreparer
                 continue;
             }
 
-            var mappings = entry.EntityType.GetTableMappings();
-            IModificationCommand? firstCommands = null;
-            foreach (var mapping in mappings)
+            var foundMapping = false;
+
+            foreach (var tableMapping in entry.EntityType.GetTableMappings())
             {
-                var table = mapping.Table;
+                var sprocMapping = entry.EntityState switch
+                {
+                    EntityState.Added => tableMapping.InsertStoredProcedureMapping,
+                    EntityState.Modified => tableMapping.UpdateStoredProcedureMapping,
+                    EntityState.Deleted => tableMapping.DeleteStoredProcedureMapping,
+
+                    _ => throw new ArgumentOutOfRangeException("Unexpected entry.EntityState: " + entry.EntityState)
+                };
+
+                var table = tableMapping.Table;
 
                 IModificationCommand command;
                 var isMainEntry = true;
                 if (table.IsShared)
                 {
-                    sharedTablesCommandsMap ??= new Dictionary<(string, string?), SharedTableEntryMap<IModificationCommand>>();
+                    Check.DebugAssert(sprocMapping is null, "Shared table with sproc mapping");
+
+                    sharedTablesCommandsMap ??= new();
 
                     var tableKey = (table.Name, table.Schema);
                     if (!sharedTablesCommandsMap.TryGetValue(tableKey, out var sharedCommandsMap))
                     {
-                        sharedCommandsMap = new SharedTableEntryMap<IModificationCommand>(table, updateAdapter);
+                        sharedCommandsMap = new(table, updateAdapter);
                         sharedTablesCommandsMap.Add(tableKey, sharedCommandsMap);
                     }
 
@@ -208,21 +219,17 @@ public class CommandBatchPreparer : ICommandBatchPreparer
                 {
                     command = Dependencies.ModificationCommandFactory.CreateModificationCommand(
                         new ModificationCommandParameters(
-                            table, _sensitiveLoggingEnabled, _detailedErrorsEnabled, comparer: null, generateParameterName,
-                            Dependencies.UpdateLogger));
+                            table, sprocMapping?.StoreStoredProcedure, _sensitiveLoggingEnabled, _detailedErrorsEnabled,
+                            comparer: null, generateParameterName, Dependencies.UpdateLogger));
                 }
 
                 command.AddEntry(entry, isMainEntry);
                 commands.Add(command);
 
-                if (firstCommands == null)
-                {
-                    Check.DebugAssert(firstCommands == null, "firstCommand == null");
-                    firstCommands = command;
-                }
+                foundMapping = true;
             }
 
-            if (firstCommands == null)
+            if (!foundMapping)
             {
                 throw new InvalidOperationException(RelationalStrings.ReadonlyEntitySaved(entry.EntityType.DisplayName()));
             }
@@ -252,6 +259,11 @@ public class CommandBatchPreparer : ICommandBatchPreparer
                 foreach (var entry in sharedCommandsMap.GetAllEntries(command.Entries[0]))
                 {
                     if (entry.EntityState != EntityState.Unchanged)
+                    {
+                        continue;
+                    }
+
+                    if (entry.EntityType.IsMappedToJson())
                     {
                         continue;
                     }
@@ -612,7 +624,7 @@ public class CommandBatchPreparer : ICommandBatchPreparer
             var column = columns[columnIndex];
             object? originalValue = null;
             object? currentValue = null;
-            RelationalTypeMapping? typeMapping = null;
+            ValueComparer? providerValueComparer = null;
             for (var entryIndex = 0; entryIndex < command.Entries.Count; entryIndex++)
             {
                 var entry = command.Entries[entryIndex];
@@ -641,12 +653,12 @@ public class CommandBatchPreparer : ICommandBatchPreparer
                             break;
                     }
 
-                    typeMapping = columnMapping!.TypeMapping;
+                    providerValueComparer = property.GetProviderValueComparer();
                 }
             }
 
-            if (typeMapping != null
-                && !typeMapping.ProviderValueComparer.Equals(originalValue, currentValue))
+            if (providerValueComparer != null
+                && !providerValueComparer.Equals(originalValue, currentValue))
             {
                 return true;
             }

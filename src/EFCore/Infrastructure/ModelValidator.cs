@@ -60,6 +60,7 @@ public class ModelValidator : IModelValidator
         ValidateQueryFilters(model, logger);
         ValidateData(model, logger);
         ValidateTypeMappings(model, logger);
+        ValidateTriggers(model, logger);
         LogShadowProperties(model, logger);
     }
 
@@ -114,16 +115,6 @@ public class ModelValidator : IModelValidator
                     throw new InvalidOperationException(
                         CoreStrings.SkipNavigationNoInverse(
                             skipNavigation.Name, skipNavigation.DeclaringEntityType.DisplayName()));
-                }
-
-                if (skipNavigation.IsShadowProperty())
-                {
-                    throw new InvalidOperationException(
-                        CoreStrings.ShadowManyToManyNavigation(
-                            skipNavigation.DeclaringEntityType.DisplayName(),
-                            skipNavigation.Name,
-                            skipNavigation.Inverse.DeclaringEntityType.DisplayName(),
-                            skipNavigation.Inverse.Name));
                 }
             }
         }
@@ -330,7 +321,7 @@ public class ModelValidator : IModelValidator
                                 ignoredMember, entityType.DisplayName(), property.DeclaringEntityType.DisplayName()));
                     }
 
-                    Check.DebugAssert(false, "Should never get here...");
+                    Check.DebugFail("Should never get here...");
                 }
 
                 var navigation = entityType.FindNavigation(ignoredMember);
@@ -343,7 +334,7 @@ public class ModelValidator : IModelValidator
                                 ignoredMember, entityType.DisplayName(), navigation.DeclaringEntityType.DisplayName()));
                     }
 
-                    Check.DebugAssert(false, "Should never get here...");
+                    Check.DebugFail("Should never get here...");
                 }
 
                 var skipNavigation = entityType.FindSkipNavigation(ignoredMember);
@@ -356,7 +347,7 @@ public class ModelValidator : IModelValidator
                                 ignoredMember, entityType.DisplayName(), skipNavigation.DeclaringEntityType.DisplayName()));
                     }
 
-                    Check.DebugAssert(false, "Should never get here...");
+                    Check.DebugFail("Should never get here...");
                 }
 
                 var serviceProperty = entityType.FindServiceProperty(ignoredMember);
@@ -369,7 +360,7 @@ public class ModelValidator : IModelValidator
                                 ignoredMember, entityType.DisplayName(), serviceProperty.DeclaringEntityType.DisplayName()));
                     }
 
-                    Check.DebugAssert(false, "Should never get here...");
+                    Check.DebugFail("Should never get here...");
                 }
             }
         }
@@ -604,11 +595,18 @@ public class ModelValidator : IModelValidator
                 continue;
             }
 
-            var discriminatorValue = derivedType.GetDiscriminatorValue();
+            var discriminatorValue = derivedType[CoreAnnotationNames.DiscriminatorValue];
             if (discriminatorValue == null)
             {
                 throw new InvalidOperationException(
                     CoreStrings.NoDiscriminatorValue(derivedType.DisplayName()));
+            }
+
+            if (!discriminatorProperty.ClrType.IsInstanceOfType(discriminatorValue))
+            {
+                throw new InvalidOperationException(
+                    CoreStrings.DiscriminatorValueIncompatible(
+                        discriminatorValue, derivedType.DisplayName(), discriminatorProperty.ClrType.DisplayName()));
             }
 
             if (discriminatorValues.TryGetValue(discriminatorValue, out var duplicateEntityType))
@@ -678,6 +676,8 @@ public class ModelValidator : IModelValidator
 
                 foreach (var referencingFk in entityType.GetReferencingForeignKeys().Where(
                              fk => !fk.IsOwnership
+                                 && (fk.PrincipalEntityType != fk.DeclaringEntityType
+                                     || !fk.Properties.SequenceEqual(entityType.FindPrimaryKey()!.Properties))
                                  && !Contains(fk.DeclaringEntityType.FindOwnership(), fk)))
                 {
                     throw new InvalidOperationException(
@@ -732,8 +732,7 @@ public class ModelValidator : IModelValidator
         {
             foreach (var declaredForeignKey in entityType.GetDeclaredForeignKeys())
             {
-                if (declaredForeignKey.PrincipalEntityType == declaredForeignKey.DeclaringEntityType
-                    && declaredForeignKey.PrincipalKey.Properties.SequenceEqual(declaredForeignKey.Properties))
+                if (IsRedundant(declaredForeignKey))
                 {
                     logger.RedundantForeignKeyWarning(declaredForeignKey);
                 }
@@ -776,6 +775,15 @@ public class ModelValidator : IModelValidator
                         d => d.GetForeignKeys()
                             .Any(fk => fk.Properties.Contains(property)));
     }
+
+    /// <summary>
+    ///     Returns a value indicating whether the given foreign key is redundant.
+    /// </summary>
+    /// <param name="foreignKey">A foreign key.</param>
+    /// <returns>A value indicating whether the given foreign key is redundant.</returns>
+    protected virtual bool IsRedundant(IForeignKey foreignKey)
+        => foreignKey.PrincipalEntityType == foreignKey.DeclaringEntityType
+            && foreignKey.PrincipalKey.Properties.SequenceEqual(foreignKey.Properties);
 
     /// <summary>
     ///     Validates the mapping/configuration of properties mapped to fields in the model.
@@ -867,6 +875,24 @@ public class ModelValidator : IModelValidator
                     || property.IsUniqueIndex())
                 {
                     _ = property.GetCurrentValueComparer(); // Will throw if there is no way to compare
+                }
+
+                var providerComparer = property.GetProviderValueComparer();
+                if (providerComparer == null)
+                {
+                    continue;
+                }
+
+                var typeMapping = property.GetTypeMapping();
+                var actualProviderClrType = (typeMapping.Converter?.ProviderClrType ?? typeMapping.ClrType).UnwrapNullableType();
+
+                if (providerComparer.Type.UnwrapNullableType() != actualProviderClrType)
+                {
+                    throw new InvalidOperationException(CoreStrings.ComparerPropertyMismatch(
+                        providerComparer.Type.ShortDisplayName(),
+                        property.DeclaringEntityType.DisplayName(),
+                        property.Name,
+                        actualProviderClrType.ShortDisplayName()));
                 }
             }
         }
@@ -1051,6 +1077,17 @@ public class ModelValidator : IModelValidator
                 identityMap.Add(keyValues, entry);
             }
         }
+    }
+
+    /// <summary>
+    ///     Validates triggers.
+    /// </summary>
+    /// <param name="model">The model to validate.</param>
+    /// <param name="logger">The logger to use.</param>
+    protected virtual void ValidateTriggers(
+        IModel model,
+        IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
+    {
     }
 
     /// <summary>

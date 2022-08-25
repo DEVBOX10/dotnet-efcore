@@ -33,21 +33,13 @@ public abstract class DataAnnotationTestBase<TFixture> : IClassFixture<TFixture>
     {
     }
 
+    protected abstract TestHelpers TestHelpers { get; }
+
     public virtual ModelBuilder CreateModelBuilder()
-    {
-        var context = CreateContext();
-        return new ModelBuilder(
-            context.GetService<IConventionSetBuilder>().CreateConventionSet(),
-            context.GetService<ModelDependencies>());
-    }
+        => TestHelpers.CreateConventionBuilder(CreateContext().GetInfrastructure());
 
     protected virtual IModel Validate(ModelBuilder modelBuilder)
-    {
-        var context = CreateContext();
-        var modelRuntimeInitializer = context.GetService<IModelRuntimeInitializer>();
-        var logger = context.GetService<IDiagnosticsLogger<DbLoggerCategory.Model.Validation>>();
-        return modelRuntimeInitializer.Initialize((IModel)modelBuilder.Model, designTime: true, logger);
-    }
+        => ((TestHelpers.TestModelBuilder)modelBuilder).FinalizeModel(designTime: true);
 
     protected class Person
     {
@@ -868,7 +860,7 @@ public abstract class DataAnnotationTestBase<TFixture> : IClassFixture<TFixture>
     }
 
     [ConditionalFact]
-    public virtual ModelBuilder DatabaseGeneratedOption_Identity_does_not_throw_on_noninteger_properties()
+    public virtual IModel DatabaseGeneratedOption_Identity_does_not_throw_on_noninteger_properties()
     {
         var modelBuilder = CreateModelBuilder();
 
@@ -894,9 +886,7 @@ public abstract class DataAnnotationTestBase<TFixture> : IClassFixture<TFixture>
         Assert.Equal(ValueGenerated.OnAdd, guidProperty.ValueGenerated);
         Assert.True(guidProperty.RequiresValueGenerator());
 
-        Validate(modelBuilder);
-
-        return modelBuilder;
+        return Validate(modelBuilder);
     }
 
     public class GeneratedEntityNonInteger
@@ -1571,54 +1561,6 @@ public abstract class DataAnnotationTestBase<TFixture> : IClassFixture<TFixture>
 
         [InverseProperty(nameof(Profile2))]
         public virtual Profile15 Profile4 { get; set; }
-    }
-
-    [ConditionalFact]
-    public virtual void ForeignKey_to_ForeignKey_on_many_to_many()
-    {
-        var modelBuilder = CreateModelBuilder();
-
-        modelBuilder.Entity<Login16>(
-            entity =>
-            {
-                entity.HasMany(d => d.Profile16s)
-                    .WithMany(p => p.Login16s)
-                    .UsingEntity<Dictionary<string, object>>(
-                        "Login16Profile16",
-                        l => l.HasOne<Profile16>().WithMany().HasForeignKey("Profile16Id"),
-                        r => r.HasOne<Login16>().WithMany().HasForeignKey("Login16Id"),
-                        j =>
-                        {
-                            j.HasKey("Login16Id", "Profile16Id");
-
-                            j.ToTable("Login16Profile16");
-                        });
-            });
-
-        var model = Validate(modelBuilder);
-
-        var login = modelBuilder.Model.FindEntityType(typeof(Login16));
-        var logins = login.FindSkipNavigation(nameof(Login16.Profile16s));
-        var join = logins.JoinEntityType;
-        Assert.Equal(2, join.GetProperties().Count());
-        Assert.False(GetProperty<Login16>(model, "Login16Id").IsForeignKey());
-        Assert.False(GetProperty<Profile16>(model, "Profile16Id").IsForeignKey());
-    }
-
-    public class Login16
-    {
-        public int Login16Id { get; set; }
-
-        [ForeignKey("Login16Id")]
-        public virtual ICollection<Profile16> Profile16s { get; set; }
-    }
-
-    public class Profile16
-    {
-        public int Profile16Id { get; set; }
-
-        [ForeignKey("Profile16Id")]
-        public virtual ICollection<Login16> Login16s { get; set; }
     }
 
     [ConditionalFact]
@@ -2823,7 +2765,8 @@ public abstract class DataAnnotationTestBase<TFixture> : IClassFixture<TFixture>
 
     public abstract class DataAnnotationFixtureBase : SharedStoreFixtureBase<PoolableDbContext>
     {
-        protected override string StoreName { get; } = "DataAnnotations";
+        protected override string StoreName
+            => "DataAnnotations";
 
         protected override void OnModelCreating(ModelBuilder modelBuilder, DbContext context)
         {
@@ -2846,7 +2789,8 @@ public abstract class DataAnnotationTestBase<TFixture> : IClassFixture<TFixture>
                     .Log(CoreEventId.ConflictingKeylessAndKeyAttributesWarning));
 
         protected override bool ShouldLogCategory(string logCategory)
-            => logCategory == DbLoggerCategory.Model.Name;
+            => logCategory == DbLoggerCategory.Model.Name
+                || logCategory == DbLoggerCategory.Model.Validation.Name;
 
         protected override void Seed(PoolableDbContext context)
         {

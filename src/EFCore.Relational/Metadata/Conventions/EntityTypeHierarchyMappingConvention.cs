@@ -40,6 +40,7 @@ public class EntityTypeHierarchyMappingConvention : IModelFinalizingConvention
         IConventionModelBuilder modelBuilder,
         IConventionContext<IConventionModelBuilder> context)
     {
+        var allRoots = new HashSet<IConventionEntityType>();
         var nonTphRoots = new HashSet<IConventionEntityType>();
 
         foreach (var entityType in modelBuilder.Metadata.GetEntityTypes())
@@ -49,10 +50,24 @@ public class EntityTypeHierarchyMappingConvention : IModelFinalizingConvention
                 continue;
             }
 
-            var mappingStrategy = entityType.GetMappingStrategy();
+            var root = entityType.GetRootType();
+            allRoots.Add(root);
+            var mappingStrategy = (string?)entityType[RelationalAnnotationNames.MappingStrategy];
+            if (mappingStrategy == null)
+            {
+                mappingStrategy = (string?)root[RelationalAnnotationNames.MappingStrategy];
+                if (mappingStrategy == null
+                    && root.GetDiscriminatorPropertyConfigurationSource() == ConfigurationSource.Explicit)
+                {
+                    mappingStrategy = RelationalAnnotationNames.TphMappingStrategy;
+                    root.Builder.UseMappingStrategy(RelationalAnnotationNames.TphMappingStrategy);
+                    continue;
+                }
+            }
+            
             if (mappingStrategy == RelationalAnnotationNames.TpcMappingStrategy)
             {
-                nonTphRoots.Add(entityType.GetRootType());
+                nonTphRoots.Add(root);
                 continue;
             }
 
@@ -65,6 +80,7 @@ public class EntityTypeHierarchyMappingConvention : IModelFinalizingConvention
                         || entityType.GetSchema() != entityType.BaseType.GetSchema())
                     {
                         mappingStrategy = RelationalAnnotationNames.TptMappingStrategy;
+                        root.Builder.UseMappingStrategy(mappingStrategy);
                     }
                 }
 
@@ -91,7 +107,7 @@ public class EntityTypeHierarchyMappingConvention : IModelFinalizingConvention
                         }
                     }
 
-                    nonTphRoots.Add(entityType.GetRootType());
+                    nonTphRoots.Add(root);
                     continue;
                 }
             }
@@ -101,13 +117,20 @@ public class EntityTypeHierarchyMappingConvention : IModelFinalizingConvention
                 && (viewName != entityType.BaseType.GetViewName()
                     || entityType.GetViewSchema() != entityType.BaseType.GetViewSchema()))
             {
-                nonTphRoots.Add(entityType.GetRootType());
+                nonTphRoots.Add(root);
+                continue;
             }
         }
 
         foreach (var root in nonTphRoots)
         {
+            allRoots.Remove(root);
             root.Builder.HasNoDiscriminator();
+        }
+        
+        foreach (var root in allRoots)
+        {
+            root.Builder.UseMappingStrategy(RelationalAnnotationNames.TphMappingStrategy);
         }
     }
 }

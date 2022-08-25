@@ -51,6 +51,14 @@ public class RelationalScaffoldingModelFactoryTest
     }
 
     [ConditionalFact]
+    public void Capitalize_DatabaseName()
+    {
+        var database = new DatabaseModel { DatabaseName = "northwind" };
+        var model = _factory.Create(database, new ModelReverseEngineerOptions { UseDatabaseNames = false });
+        Assert.Equal("Northwind", model.GetDatabaseName());
+    }
+
+    [ConditionalFact]
     public void Creates_entity_types()
     {
         var info = new DatabaseModel
@@ -101,7 +109,6 @@ public class RelationalScaffoldingModelFactoryTest
                 Assert.NotNull(view.FindAnnotation(RelationalAnnotationNames.ViewDefinitionSql));
             }
         );
-        Assert.Empty(model.GetEntityTypeErrors().Values);
     }
 
     [ConditionalFact]
@@ -130,6 +137,27 @@ public class RelationalScaffoldingModelFactoryTest
         var model = _factory.Create(info, new ModelReverseEngineerOptions());
         Assert.Equal(2, model.GetEntityTypes().Select(et => et.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count());
     }
+
+    [ConditionalTheory]
+    [InlineData("PascalCase")]
+    [InlineData("camelCase")]
+    [InlineData("snake-case")]
+    [InlineData("MixedCASE")]
+    [InlineData("separated_by_underscores")]
+    [InlineData("PascalCase_withUnderscore")]
+    [InlineData("ALL_CAPS")]
+    [InlineData("numbers0Dont1Affect23Upper45Case678To9LowerCase10Boundary999")]
+    [InlineData("We1!*~&%rdCh@r^act()0rs")]
+    public void Get_DatabaseName(string expectedValue)
+    {
+        var options = new ModelReverseEngineerOptions { UseDatabaseNames = true };
+
+        var database = new DatabaseModel { DatabaseName = expectedValue };
+        var model = _factory.Create(database, options);
+        Assert.Equal(expectedValue, model.GetDatabaseName());
+
+    }
+
 
     [ConditionalFact]
     public void Loads_column_types()
@@ -199,7 +227,7 @@ public class RelationalScaffoldingModelFactoryTest
             },
             col1 =>
             {
-                Assert.Equal("created", col1.GetColumnBaseName());
+                Assert.Equal("created", col1.GetColumnName());
                 Assert.Equal(ValueGenerated.OnAdd, col1.ValueGenerated);
             },
             col2 =>
@@ -210,12 +238,12 @@ public class RelationalScaffoldingModelFactoryTest
             },
             col3 =>
             {
-                Assert.Equal("modified", col3.GetColumnBaseName());
+                Assert.Equal("modified", col3.GetColumnName());
                 Assert.Equal(ValueGenerated.OnAddOrUpdate, col3.ValueGenerated);
             },
             col4 =>
             {
-                Assert.Equal("occupation", col4.GetColumnBaseName());
+                Assert.Equal("occupation", col4.GetColumnName());
                 Assert.Equal(typeof(string), col4.ClrType);
                 Assert.False(col4.IsColumnNullable());
                 Assert.Null(col4.GetMaxLength());
@@ -487,7 +515,7 @@ public class RelationalScaffoldingModelFactoryTest
         var model = (EntityType)_factory.Create(info, new ModelReverseEngineerOptions()).GetEntityTypes().Single();
 
         Assert.Equal("MyPk", model.FindPrimaryKey().GetName());
-        Assert.Equal(keyProps, model.FindPrimaryKey().Properties.Select(p => p.GetColumnBaseName()).ToArray());
+        Assert.Equal(keyProps, model.FindPrimaryKey().Properties.Select(p => p.GetColumnName()).ToArray());
     }
 
     [ConditionalFact]
@@ -1410,7 +1438,7 @@ public class RelationalScaffoldingModelFactoryTest
             new DatabaseIndex
             {
                 Table = Table,
-                Name = "IX_empty",
+                Name = "IX_unspecified",
                 Columns = { table.Columns[0], table.Columns[1], table.Columns[2] }
             });
 
@@ -1447,14 +1475,14 @@ public class RelationalScaffoldingModelFactoryTest
 
         var entityType = model.FindEntityType("SomeTable")!;
 
-        var emptyIndex = Assert.Single(entityType.GetIndexes(), i => i.Name == "IX_empty");
-        Assert.Null(emptyIndex.IsDescending);
+        var unspecifiedIndex = Assert.Single(entityType.GetIndexes(), i => i.Name == "IX_unspecified");
+        Assert.Null(unspecifiedIndex.IsDescending);
 
         var allAscendingIndex = Assert.Single(entityType.GetIndexes(), i => i.Name == "IX_all_ascending");
         Assert.Null(allAscendingIndex.IsDescending);
 
         var allDescendingIndex = Assert.Single(entityType.GetIndexes(), i => i.Name == "IX_all_descending");
-        Assert.Equal(new[] { true, true, true }, allDescendingIndex.IsDescending);
+        Assert.Equal(Array.Empty<bool>(), allDescendingIndex.IsDescending);
 
         var mixedIndex = Assert.Single(entityType.GetIndexes(), i => i.Name == "IX_mixed");
         Assert.Equal(new[] { false, true, false }, mixedIndex.IsDescending);
@@ -1513,12 +1541,12 @@ public class RelationalScaffoldingModelFactoryTest
                     s1 =>
                     {
                         Assert.Equal("SanItized", s1.Name);
-                        Assert.Equal("San itized", s1.GetColumnBaseName());
+                        Assert.Equal("San itized", s1.GetColumnName());
                     },
                     s2 =>
                     {
                         Assert.Equal("SanItized1", s2.Name);
-                        Assert.Equal("San+itized", s2.GetColumnBaseName());
+                        Assert.Equal("San+itized", s2.GetColumnName());
                     });
             },
             ef2 =>
@@ -1527,7 +1555,7 @@ public class RelationalScaffoldingModelFactoryTest
                 Assert.Equal("EF1", ef2.Name);
                 var id = Assert.Single(ef2.GetProperties());
                 Assert.Equal("Id", id.Name);
-                Assert.Equal("Id", id.GetColumnBaseName());
+                Assert.Equal("Id", id.GetColumnName());
             });
     }
 
@@ -2173,7 +2201,7 @@ public class RelationalScaffoldingModelFactoryTest
             new ModelReverseEngineerOptions { UseDatabaseNames = useDatabaseNames, NoPluralize = noPluralize });
 
         var user = Assert.Single(model.GetEntityTypes().Where(e => e.GetTableName() == userTableName));
-        var id = Assert.Single(user.GetProperties().Where(p => p.GetColumnBaseName() == "id"));
+        var id = Assert.Single(user.GetProperties().Where(p => p.GetColumnName() == "id"));
         var foreignKey = Assert.Single(user.GetReferencingForeignKeys());
         if (useDatabaseNames && noPluralize)
         {

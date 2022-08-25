@@ -218,80 +218,16 @@ public class SqliteSqlTranslatingExpressionVisitor : RelationalSqlTranslatingExp
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    public override SqlExpression? TranslateAverage(SqlExpression sqlExpression)
+    protected override Expression VisitMethodCall(MethodCallExpression methodCallExpression)
     {
-        var visitedExpression = base.TranslateAverage(sqlExpression);
-        var argumentType = GetProviderType(visitedExpression);
-        if (argumentType == typeof(decimal))
+        // EF.Default
+        if (methodCallExpression.Method.IsEFDefaultMethod())
         {
-            throw new NotSupportedException(
-                SqliteStrings.AggregateOperationNotSupported(nameof(Queryable.Average), argumentType.ShortDisplayName()));
+            AddTranslationErrorDetails(SqliteStrings.DefaultNotSupported);
+            return QueryCompilationContext.NotTranslatedExpression;
         }
 
-        return visitedExpression;
-    }
-
-    /// <summary>
-    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
-    ///     any release. You should only use it directly in your code with extreme caution and knowing that
-    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
-    /// </summary>
-    public override SqlExpression? TranslateMax(SqlExpression sqlExpression)
-    {
-        var visitedExpression = base.TranslateMax(sqlExpression);
-        var argumentType = GetProviderType(visitedExpression);
-        if (argumentType == typeof(DateTimeOffset)
-            || argumentType == typeof(decimal)
-            || argumentType == typeof(TimeSpan)
-            || argumentType == typeof(ulong))
-        {
-            throw new NotSupportedException(
-                SqliteStrings.AggregateOperationNotSupported(nameof(Queryable.Max), argumentType.ShortDisplayName()));
-        }
-
-        return visitedExpression;
-    }
-
-    /// <summary>
-    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
-    ///     any release. You should only use it directly in your code with extreme caution and knowing that
-    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
-    /// </summary>
-    public override SqlExpression? TranslateMin(SqlExpression sqlExpression)
-    {
-        var visitedExpression = base.TranslateMin(sqlExpression);
-        var argumentType = GetProviderType(visitedExpression);
-        if (argumentType == typeof(DateTimeOffset)
-            || argumentType == typeof(decimal)
-            || argumentType == typeof(TimeSpan)
-            || argumentType == typeof(ulong))
-        {
-            throw new NotSupportedException(
-                SqliteStrings.AggregateOperationNotSupported(nameof(Queryable.Min), argumentType.ShortDisplayName()));
-        }
-
-        return visitedExpression;
-    }
-
-    /// <summary>
-    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
-    ///     any release. You should only use it directly in your code with extreme caution and knowing that
-    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
-    /// </summary>
-    public override SqlExpression? TranslateSum(SqlExpression sqlExpression)
-    {
-        var visitedExpression = base.TranslateSum(sqlExpression);
-        var argumentType = GetProviderType(visitedExpression);
-        if (argumentType == typeof(decimal))
-        {
-            throw new NotSupportedException(
-                SqliteStrings.AggregateOperationNotSupported(nameof(Queryable.Sum), argumentType.ShortDisplayName()));
-        }
-
-        return visitedExpression;
+        return base.VisitMethodCall(methodCallExpression);
     }
 
     private static Type? GetProviderType(SqlExpression? expression)

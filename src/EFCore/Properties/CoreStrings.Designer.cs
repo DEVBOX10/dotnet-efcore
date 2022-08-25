@@ -14,10 +14,10 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
 {
     /// <summary>
     ///     <para>
-    ///		    String resources used in EF exceptions, etc.
+    ///         String resources used in EF exceptions, etc.
     ///     </para>
     ///     <para>
-    ///		    These strings are exposed publicly for use by database providers and extensions.
+    ///         These strings are exposed publicly for use by database providers and extensions.
     ///         It is unusual for application code to need these strings.
     ///     </para>
     /// </summary>
@@ -575,6 +575,48 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 entityType, entityClrType, genericType);
 
         /// <summary>
+        ///     Debug view threw {message}. Please report this at https://github.com/dotnet/efcore
+        /// </summary>
+        public static string DebugViewError(object? message)
+            => string.Format(
+                GetString("DebugViewError", nameof(message)),
+                message);
+
+        /// <summary>
+        ///     Error creating query expression: {message}.
+        /// </summary>
+        public static string DebugViewQueryExpressionError(object? message)
+            => string.Format(
+                GetString("DebugViewQueryExpressionError", nameof(message)),
+                message);
+
+        /// <summary>
+        ///     Error creating query string: {message}.
+        /// </summary>
+        public static string DebugViewQueryStringError(object? message)
+            => string.Format(
+                GetString("DebugViewQueryStringError", nameof(message)),
+                message);
+
+        /// <summary>
+        ///     The EF.Default&lt;T&gt; property may only be used within Entity Framework ExecuteUpdate method.
+        /// </summary>
+        public static string DefaultMethodInvoked
+            => GetString("DefaultMethodInvoked");
+
+        /// <summary>
+        ///     The [DeleteBehavior] attribute may only be specified on navigation properties, and is not supported not on properties making up the foreign key.
+        /// </summary>
+        public static string DeleteBehaviorAttributeNotOnNavigationProperty
+            => GetString("DeleteBehaviorAttributeNotOnNavigationProperty");
+
+        /// <summary>
+        ///     The [DeleteBehavior] attribute may only be specified on dependent side of the relationship.
+        /// </summary>
+        public static string DeleteBehaviorAttributeOnPrincipalProperty
+            => GetString("DeleteBehaviorAttributeOnPrincipalProperty");
+
+        /// <summary>
         ///     You are configuring a relationship between '{dependentEntityType}' and '{principalEntityType}' but have specified a foreign key on '{entityType}'. The foreign key must be defined on a type that is part of the relationship.
         /// </summary>
         public static string DependentEntityTypeNotInRelationship(object? dependentEntityType, object? principalEntityType, object? entityType)
@@ -655,12 +697,12 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 property, entityType);
 
         /// <summary>
-        ///     Cannot set discriminator value '{value}' for discriminator property '{discriminator}' because it is not assignable to type '{discriminatorType}'.
+        ///     The discriminator value '{value}' for the entity type '{entityType}' because it is not assignable to type '{discriminatorType}'.
         /// </summary>
-        public static string DiscriminatorValueIncompatible(object? value, object? discriminator, object? discriminatorType)
+        public static string DiscriminatorValueIncompatible(object? value, object? entityType, object? discriminatorType)
             => string.Format(
-                GetString("DiscriminatorValueIncompatible", nameof(value), nameof(discriminator), nameof(discriminatorType)),
-                value, discriminator, discriminatorType);
+                GetString("DiscriminatorValueIncompatible", nameof(value), nameof(entityType), nameof(discriminatorType)),
+                value, entityType, discriminatorType);
 
         /// <summary>
         ///     The annotation '{annotation}' cannot be added because an annotation with the same name already exists on the object {annotatable}
@@ -749,6 +791,14 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             => string.Format(
                 GetString("DuplicatePropertyInKey", nameof(propertyList), nameof(property)),
                 propertyList, property);
+
+        /// <summary>
+        ///     The trigger '{trigger}' cannot be added to the entity type '{entityType}' because another trigger with the same name already exists on entity type '{conflictingEntityType}'.
+        /// </summary>
+        public static string DuplicateTrigger(object? trigger, object? entityType, object? conflictingEntityType)
+            => string.Format(
+                GetString("DuplicateTrigger", nameof(trigger), nameof(entityType), nameof(conflictingEntityType)),
+                trigger, entityType, conflictingEntityType);
 
         /// <summary>
         ///     Cannot translate '{comparisonOperator}' on a subquery expression of entity type '{entityType}' because it has a composite primary key. See https://go.microsoft.com/fwlink/?linkid=2141942 for information on how to rewrite your query.
@@ -1480,14 +1530,6 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 field, property, entityType);
 
         /// <summary>
-        ///     Unable to set up a many-to-many relationship between the entity types '{principalEntityType}' and '{declaringEntityType}' because one of the navigations was not specified. Provide a navigation in the 'HasMany' call in 'OnModelCreating'. Consider adding a private property for this.
-        /// </summary>
-        public static string MissingInverseManyToManyNavigation(object? principalEntityType, object? declaringEntityType)
-            => string.Format(
-                GetString("MissingInverseManyToManyNavigation", nameof(principalEntityType), nameof(declaringEntityType)),
-                principalEntityType, declaringEntityType);
-
-        /// <summary>
         ///     Runtime metadata changes are not allowed when the model hasn't been marked as read-only.
         /// </summary>
         public static string ModelMutable
@@ -1682,14 +1724,6 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             => string.Format(
                 GetString("NoClrNavigation", nameof(navigation), nameof(entityType)),
                 navigation, entityType);
-
-        /// <summary>
-        ///     Cannot set the discriminator value for entity type '{entityType}' because the root entity type '{rootEntityType}' doesn't have a discriminator property configured.
-        /// </summary>
-        public static string NoDiscriminatorForValue(object? entityType, object? rootEntityType)
-            => string.Format(
-                GetString("NoDiscriminatorForValue", nameof(entityType), nameof(rootEntityType)),
-                entityType, rootEntityType);
 
         /// <summary>
         ///     The entity type '{entityType}' is part of a hierarchy, but does not have a discriminator property configured.
@@ -1966,6 +2000,30 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             => GetString("PoolingOptionsModified");
 
         /// <summary>
+        ///     The derived type '{derivedType}' cannot have the [PrimaryKey] attribute since primary keys may only be declared on the root type. Move the attribute to '{rootType}', or remove '{rootType}' from the model by using [NotMapped] attribute or calling 'EntityTypeBuilder.Ignore' on the base type in 'OnModelCreating'.
+        /// </summary>
+        public static string PrimaryKeyAttributeOnDerivedEntity(object? derivedType, object? rootType)
+            => string.Format(
+                GetString("PrimaryKeyAttributeOnDerivedEntity", nameof(derivedType), nameof(rootType)),
+                derivedType, rootType);
+
+        /// <summary>
+        ///     The [PrimaryKey] attribute on the entity type '{entityType}' is invalid because the property '{propertyName}' was marked as unmapped by [NotMapped] attribute or 'Ignore()' in 'OnModelCreating'. A primary key cannot use unmapped properties.
+        /// </summary>
+        public static string PrimaryKeyDefinedOnIgnoredProperty(object? entityType, object? propertyName)
+            => string.Format(
+                GetString("PrimaryKeyDefinedOnIgnoredProperty", nameof(entityType), nameof(propertyName)),
+                entityType, propertyName);
+
+        /// <summary>
+        ///     The [PrimaryKey] attribute on the entity type '{entityType}' references properties {properties}, but no property with name '{propertyName}' exists on that entity type or any of its base types.
+        /// </summary>
+        public static string PrimaryKeyDefinedOnNonExistentProperty(object? entityType, object? properties, object? propertyName)
+            => string.Format(
+                GetString("PrimaryKeyDefinedOnNonExistentProperty", nameof(entityType), nameof(properties), nameof(propertyName)),
+                entityType, properties, propertyName);
+
+        /// <summary>
         ///     When creating the relationship between '{navigationSpecification1}' and '{navigationSpecification2}' the entity type '{targetEntityType}' cannot be set as principal.
         /// </summary>
         public static string PrincipalEndIncompatibleNavigations(object? navigationSpecification1, object? navigationSpecification2, object? targetEntityType)
@@ -1996,30 +2054,6 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             => string.Format(
                 GetString("PrincipalOwnedType", nameof(referencingEntityTypeOrNavigation), nameof(referencedEntityTypeOrNavigation), nameof(ownedType)),
                 referencingEntityTypeOrNavigation, referencedEntityTypeOrNavigation, ownedType);
-
-        /// <summary>
-        ///     The derived type '{derivedType}' cannot have the [PrimaryKey] attribute since primary keys may only be declared on the root type. Move the attribute to '{rootType}', or remove '{rootType}' from the model by using [NotMapped] attribute or calling 'EntityTypeBuilder.Ignore' on the base type in 'OnModelCreating'.
-        /// </summary>
-        public static string PrimaryKeyAttributeOnDerivedEntity(object? derivedType, object? rootType)
-            => string.Format(
-                GetString("PrimaryKeyAttributeOnDerivedEntity", nameof(derivedType), nameof(rootType)),
-                derivedType, rootType);
-
-        /// <summary>
-        ///     The [PrimaryKey] attribute on the entity type '{entityType}' is invalid because the property '{propertyName}' was marked as unmapped by [NotMapped] attribute or 'Ignore()' in 'OnModelCreating'. A primary key cannot use unmapped properties.
-        /// </summary>
-        public static string PrimaryKeyDefinedOnIgnoredProperty(object? entityType, object? propertyName)
-            => string.Format(
-                GetString("PrimaryKeyDefinedOnIgnoredProperty", nameof(entityType), nameof(propertyName)),
-                entityType, propertyName);
-
-        /// <summary>
-        ///     The [PrimaryKey] attribute on the entity type '{entityType}' references properties {properties}, but no property with name '{propertyName}' exists on that entity type or any of its base types.
-        /// </summary>
-        public static string PrimaryKeyDefinedOnNonExistentProperty(object? entityType, object? properties, object? propertyName)
-            => string.Format(
-                GetString("PrimaryKeyDefinedOnNonExistentProperty", nameof(entityType), nameof(properties), nameof(propertyName)),
-                entityType, properties, propertyName);
 
         /// <summary>
         ///     '{property}' cannot be used as a property on entity type '{entityType}' because it is configured as a navigation.
@@ -2488,14 +2522,6 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         /// </summary>
         public static string SetOperationWithDifferentIncludesInOperands
             => GetString("SetOperationWithDifferentIncludesInOperands");
-
-        /// <summary>
-        ///     Unable to set up a many-to-many relationship between '{leftEntityType}.{leftNavigation}' and '{rightEntityType}.{rightNavigation}' because one or both of the navigations don't have a corresponding CLR property. Consider adding a corresponding private property to the entity CLR type.
-        /// </summary>
-        public static string ShadowManyToManyNavigation(object? leftEntityType, object? leftNavigation, object? rightEntityType, object? rightNavigation)
-            => string.Format(
-                GetString("ShadowManyToManyNavigation", nameof(leftEntityType), nameof(leftNavigation), nameof(rightEntityType), nameof(rightNavigation)),
-                leftEntityType, leftNavigation, rightEntityType, rightNavigation);
 
         /// <summary>
         ///     The shared-type entity type '{entityType}' cannot have a base type.
@@ -3155,7 +3181,7 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics.Internal
                     static logger => new EventDefinition<string, string, string?, string?, string>(
                         logger.Options,
                         CoreEventId.ContextInitialized,
-                        LogLevel.Information,
+                        LogLevel.Debug,
                         "CoreEventId.ContextInitialized",
                         level => LoggerMessage.Define<string, string, string?, string?, string>(
                             level,

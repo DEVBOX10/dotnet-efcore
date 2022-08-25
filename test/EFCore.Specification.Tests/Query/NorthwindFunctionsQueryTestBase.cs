@@ -163,6 +163,111 @@ public abstract class NorthwindFunctionsQueryTestBase<TFixture> : QueryTestBase<
 
     [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
+    public virtual Task String_Join_over_non_nullable_column(bool async)
+        => AssertQuery(
+            async,
+            ss => ss.Set<Customer>()
+                .GroupBy(c => c.City)
+                .Select(g => new
+                {
+                    City = g.Key,
+                    Customers = string.Join("|", g.Select(e => e.CustomerID))
+                }),
+            elementSorter: x => x.City,
+            elementAsserter: (e, a) =>
+            {
+                Assert.Equal(e.City, a.City);
+
+                // Ordering inside the string isn't specified server-side, split and reorder
+                Assert.Equal(
+                    e.Customers.Split("|").OrderBy(id => id).ToArray(),
+                    a.Customers.Split("|").OrderBy(id => id).ToArray());
+            });
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task String_Join_with_predicate(bool async)
+        => AssertQuery(
+            async,
+            ss => ss.Set<Customer>()
+                .GroupBy(c => c.City)
+                .Select(g => new
+                {
+                    City = g.Key,
+                    Customers = string.Join("|", g.Where(e => e.ContactName.Length > 10).Select(e => e.CustomerID))
+                }),
+            elementSorter: x => x.City,
+            elementAsserter: (e, a) =>
+            {
+                Assert.Equal(e.City, a.City);
+
+                // Ordering inside the string isn't specified server-side, split and reorder
+                Assert.Equal(
+                    e.Customers.Split("|").OrderBy(id => id).ToArray(),
+                    a.Customers.Split("|").OrderBy(id => id).ToArray());
+            });
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task String_Join_with_ordering(bool async)
+        => AssertQuery(
+            async,
+            ss => ss.Set<Customer>()
+                .GroupBy(c => c.City)
+                .Select(g => new
+                {
+                    City = g.Key,
+                    Customers = string.Join("|", g.OrderByDescending(e => e.CustomerID).Select(e => e.CustomerID))
+                }),
+            elementSorter: x => x.City);
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task String_Join_over_nullable_column(bool async)
+        => AssertQuery(
+            async,
+            ss => ss.Set<Customer>()
+                .GroupBy(c => c.City)
+                .Select(g => new
+                {
+                    City = g.Key,
+                    Regions = string.Join("|", g.Select(e => e.Region))
+                }),
+            elementSorter: x => x.City,
+            elementAsserter: (e, a) =>
+            {
+                Assert.Equal(e.City, a.City);
+
+                // Ordering inside the string isn't specified server-side, split and reorder
+                Assert.Equal(
+                    e.Regions.Split("|").OrderBy(id => id).ToArray(),
+                    a.Regions.Split("|").OrderBy(id => id).ToArray());
+            });
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task String_Concat(bool async)
+        => AssertQuery(
+            async,
+            ss => ss.Set<Customer>()
+                .GroupBy(c => c.City)
+                .Select(g => new
+                {
+                    City = g.Key,
+                    Customers = string.Concat(g.Select(e => e.CustomerID))
+                }),
+            elementSorter: x => x.City,
+            elementAsserter: (e, a) =>
+            {
+                Assert.Equal(e.City, a.City);
+
+                // The best we can do for Concat without server-side ordering is sort the characters (concatenating without ordering
+                // and without a delimiter is somewhat dubious anyway).
+                Assert.Equal(e.Customers.OrderBy(c => c).ToArray(), a.Customers.OrderBy(c => c).ToArray());
+            });
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
     public virtual async Task String_Compare_simple_zero(bool async)
     {
         await AssertQuery(
@@ -803,6 +908,82 @@ public abstract class NorthwindFunctionsQueryTestBase<TFixture> : QueryTestBase<
 
     [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
+    public virtual Task Sum_over_round_works_correctly_in_projection(bool async)
+        => AssertQuery(
+            async,
+            ss => ss.Set<Order>()
+                .Where(o => o.OrderID < 10300)
+                .Select(o => new
+                {
+                    o.OrderID,
+                    Sum = o.OrderDetails.Sum(i => Math.Round(i.UnitPrice, 2))
+                }),
+            elementSorter: e => e.OrderID,
+            elementAsserter: (e, a) =>
+            {
+                Assert.Equal(e.OrderID, a.OrderID);
+                Assert.Equal(e.Sum, a.Sum);
+            });
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task Sum_over_round_works_correctly_in_projection_2(bool async)
+        => AssertQuery(
+            async,
+            ss => ss.Set<Order>()
+                .Where(o => o.OrderID < 10300)
+                .Select(o => new
+                {
+                    o.OrderID,
+                    Sum = o.OrderDetails.Select(i => i.UnitPrice * i.UnitPrice).Sum(i => Math.Round(i, 2))
+                }),
+            elementSorter: e => e.OrderID,
+            elementAsserter: (e, a) =>
+            {
+                Assert.Equal(e.OrderID, a.OrderID);
+                Assert.Equal(e.Sum, a.Sum);
+            });
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task Sum_over_truncate_works_correctly_in_projection(bool async)
+        => AssertQuery(
+            async,
+            ss => ss.Set<Order>()
+                .Where(o => o.OrderID < 10300)
+                .Select(o => new
+                {
+                    o.OrderID,
+                    Sum = o.OrderDetails.Sum(i => Math.Truncate(i.UnitPrice))
+                }),
+            elementSorter: e => e.OrderID,
+            elementAsserter: (e, a) =>
+            {
+                Assert.Equal(e.OrderID, a.OrderID);
+                Assert.Equal(e.Sum, a.Sum);
+            });
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task Sum_over_truncate_works_correctly_in_projection_2(bool async)
+        => AssertQuery(
+            async,
+            ss => ss.Set<Order>()
+                .Where(o => o.OrderID < 10300)
+                .Select(o => new
+                {
+                    o.OrderID,
+                    Sum = o.OrderDetails.Select(i => i.UnitPrice * i.UnitPrice).Sum(i => Math.Truncate(i))
+                }),
+            elementSorter: e => e.OrderID,
+            elementAsserter: (e, a) =>
+            {
+                Assert.Equal(e.OrderID, a.OrderID);
+                Assert.Equal(e.Sum, a.Sum);
+            });
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
     public virtual Task Select_math_round_int(bool async)
         => AssertQuery(
             async,
@@ -1406,38 +1587,66 @@ public abstract class NorthwindFunctionsQueryTestBase<TFixture> : QueryTestBase<
     [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
     public virtual Task Indexof_with_emptystring(bool async)
-        => AssertQueryScalar(
+        => AssertQuery(
             async,
-            ss => ss.Set<Customer>().Where(c => c.CustomerID == "ALFKI").Select(c => c.ContactName.IndexOf(string.Empty)));
+            ss => ss.Set<Customer>().Where(c => c.ContactName.IndexOf(string.Empty) == 0),
+            entryCount: 91);
 
     [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
-    public virtual Task Indexof_with_one_arg(bool async)
-        => AssertQueryScalar(
+    public virtual Task Indexof_with_one_constant_arg(bool async)
+        => AssertQuery(
             async,
-            ss => ss.Set<Customer>().Where(c => c.CustomerID == "ALFKI").Select(c => c.ContactName.IndexOf("a")));
+            ss => ss.Set<Customer>().Where(c => c.ContactName.IndexOf("a") == 1),
+            entryCount: 32);
 
     [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
-    public virtual Task Indexof_with_starting_position(bool async)
-        => AssertQueryScalar(
+    public virtual Task Indexof_with_one_parameter_arg(bool async)
+    {
+        var pattern = "a";
+
+        return AssertQuery(
             async,
-            ss => ss.Set<Customer>().Where(c => c.CustomerID == "ALFKI").Select(c => c.ContactName.IndexOf("a", 3)));
+            ss => ss.Set<Customer>().Where(c => c.ContactName.IndexOf(pattern) == 1),
+            entryCount: 32);
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task Indexof_with_constant_starting_position(bool async)
+        => AssertQuery(
+            async,
+            ss => ss.Set<Customer>().Where(c => c.ContactName.IndexOf("a", 2) == 4),
+            entryCount: 15);
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task Indexof_with_parameter_starting_position(bool async)
+    {
+        var start = 2;
+
+        return AssertQuery(
+            async,
+            ss => ss.Set<Customer>().Where(c => c.ContactName.IndexOf("a", start) == 4),
+            entryCount: 15);
+    }
 
     [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
     public virtual Task Replace_with_emptystring(bool async)
         => AssertQuery(
             async,
-            ss => ss.Set<Customer>().Where(c => c.CustomerID == "ALFKI").Select(c => c.ContactName.Replace("ari", string.Empty)));
+            ss => ss.Set<Customer>().Where(c => c.ContactName.Replace("ia", string.Empty) == "Mar Anders"),
+            entryCount: 1);
 
     [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
     public virtual Task Replace_using_property_arguments(bool async)
         => AssertQuery(
             async,
-            ss => ss.Set<Customer>().Where(c => c.CustomerID == "ALFKI")
-                .Select(c => c.ContactName.Replace(c.ContactName, c.CustomerID)));
+            ss => ss.Set<Customer>().Where(c => c.ContactName.Replace(c.ContactName, c.CustomerID) == c.CustomerID),
+            entryCount: 91);
 
     [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]

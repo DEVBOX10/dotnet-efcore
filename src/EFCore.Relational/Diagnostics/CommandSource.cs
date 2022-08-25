@@ -24,7 +24,7 @@ public enum CommandSource
 
     /// <summary>
     ///     The command was generated from a call to <see cref="DbContext.SaveChanges()"/> or
-    ///     <see cref="DbContext.SaveChangesAsync(System.Threading.CancellationToken)"/>
+    ///     <see cref="DbContext.SaveChangesAsync(CancellationToken)"/>
     /// </summary>
     SaveChanges,
 
@@ -34,7 +34,9 @@ public enum CommandSource
     Migrations,
 
     /// <summary>
-    ///     The command was generated from a call to <see cref="RelationalQueryableExtensions.FromSqlRaw{TEntity}"/> or
+    ///     The command was generated from a call to
+    ///     <see cref="RelationalQueryableExtensions.FromSql{TEntity}"/>,
+    ///     <see cref="RelationalQueryableExtensions.FromSqlRaw{TEntity}"/> or
     ///     <see cref="RelationalQueryableExtensions.FromSqlInterpolated{TEntity}"/> 
     /// </summary>
     FromSqlQuery,
@@ -42,7 +44,9 @@ public enum CommandSource
     /// <summary>
     ///     The command was generated from a call to
     ///     <see cref="RelationalDatabaseFacadeExtensions.ExecuteSqlRaw(DatabaseFacade,string,object[])"/>,
-    ///     <see cref="RelationalDatabaseFacadeExtensions.ExecuteSqlRawAsync(DatabaseFacade,string,System.Threading.CancellationToken)"/>,
+    ///     <see cref="RelationalDatabaseFacadeExtensions.ExecuteSqlRawAsync(DatabaseFacade,string,CancellationToken)"/>,
+    ///     <see cref="RelationalDatabaseFacadeExtensions.ExecuteSql"/>,
+    ///     <see cref="RelationalDatabaseFacadeExtensions.ExecuteSqlAsync"/>,
     ///     <see cref="RelationalDatabaseFacadeExtensions.ExecuteSqlInterpolated"/>,
     ///     or <see cref="RelationalDatabaseFacadeExtensions.ExecuteSqlInterpolatedAsync"/>.
     /// </summary>
@@ -61,5 +65,18 @@ public enum CommandSource
     /// <summary>
     ///     The command was generated as part of a bulk update.
     /// </summary>
-    BulkUpdate
+    [Obsolete("Use ExecuteDelete or ExecuteUpdate instead.")]
+    BulkUpdate,
+
+    /// <summary>
+    ///     The command was generated as part of an 'ExecuteDelete' operation.
+    /// </summary>
+    ExecuteDelete = 9,
+
+    /// <summary>
+    ///     The command was generated as part of an 'ExecuteUpdate' operation.
+    /// </summary>
+#pragma warning disable CS0618 // Type or member is obsolete
+    ExecuteUpdate = BulkUpdate,
+#pragma warning restore CS0618 // Type or member is obsolete
 }

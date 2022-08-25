@@ -410,11 +410,12 @@ public abstract class Ef6GroupByTestBase<TFixture> : QueryTestBase<TFixture>
                   group p by p.Category
                   into g
                   select new { Category = g.Key, AveragePrice = g.Average(p => p.UnitPrice) },
-            ss => from p in ss.Set<ProductForLinq>()
-                  group p by p.Category
-                  into g
-                  select new { Category = g.Key, AveragePrice = Math.Round(g.Average(p => p.UnitPrice) - 0.0000005m, 6) },
-            elementSorter: e => (e.Category, e.AveragePrice));
+            elementSorter: e => (e.Category, e.AveragePrice),
+            elementAsserter: (e, a) =>
+            {
+                AssertEqual(e.Category, a.Category);
+                Assert.Equal(e.AveragePrice, a.AveragePrice, 5);
+            });
 
     [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
@@ -644,7 +645,7 @@ public abstract class Ef6GroupByTestBase<TFixture> : QueryTestBase<TFixture>
                 Assert.Equal(l.Id, r.Id);
                 Assert.Equal(l.Age, r.Age);
                 Assert.Equal(l.Style, r.Style);
-                Assert.Equal(l.Values, r.Values);
+                AssertCollection(l.Values, r.Values, elementSorter: e => (e.Id, e.Style, e.Age));
             });
 
     [ConditionalTheory] // From #19506
@@ -771,6 +772,8 @@ public abstract class Ef6GroupByTestBase<TFixture> : QueryTestBase<TFixture>
 
     public abstract class Ef6GroupByFixtureBase : SharedStoreFixtureBase<ArubaContext>, IQueryFixtureBase
     {
+        private ArubaData _expectedData;
+
         protected override string StoreName
             => "Ef6GroupByTest";
 
@@ -813,103 +816,108 @@ public abstract class Ef6GroupByTestBase<TFixture> : QueryTestBase<TFixture>
             => new ArubaData(context);
 
         public virtual ISetSource GetExpectedData()
-            => new ArubaData();
-
-        public IReadOnlyDictionary<Type, object> GetEntitySorters()
-            => new Dictionary<Type, Func<object, object>>
+        {
+            if (_expectedData == null)
             {
-                { typeof(CustomerForLinq), e => ((CustomerForLinq)e)?.Id },
-                { typeof(OrderForLinq), e => ((OrderForLinq)e)?.Id },
-                { typeof(Person), e => ((Person)e)?.Id },
-                { typeof(Shoes), e => ((Shoes)e)?.Id },
-                { typeof(Feet), e => ((Feet)e)?.Id }
-            }.ToDictionary(e => e.Key, e => (object)e.Value);
+                _expectedData = new ArubaData();
+            }
 
-        public IReadOnlyDictionary<Type, object> GetEntityAsserters()
-            => new Dictionary<Type, Action<object, object>>
+            return _expectedData;
+        }
+
+        public IReadOnlyDictionary<Type, object> EntitySorters { get; } = new Dictionary<Type, Func<object, object>>
+        {
+            { typeof(CustomerForLinq), e => ((CustomerForLinq)e)?.Id },
+            { typeof(OrderForLinq), e => ((OrderForLinq)e)?.Id },
+            { typeof(Person), e => ((Person)e)?.Id },
+            { typeof(Shoes), e => ((Shoes)e)?.Id },
+            { typeof(Feet), e => ((Feet)e)?.Id }
+        }.ToDictionary(e => e.Key, e => (object)e.Value);
+
+        public IReadOnlyDictionary<Type, object> EntityAsserters { get; } = new Dictionary<Type, Action<object, object>>
+        {
             {
+                typeof(CustomerForLinq), (e, a) =>
                 {
-                    typeof(CustomerForLinq), (e, a) =>
+                    Assert.Equal(e == null, a == null);
+
+                    if (a != null)
                     {
-                        Assert.Equal(e == null, a == null);
+                        var ee = (CustomerForLinq)e;
+                        var aa = (CustomerForLinq)a;
 
-                        if (a != null)
-                        {
-                            var ee = (CustomerForLinq)e;
-                            var aa = (CustomerForLinq)a;
-
-                            Assert.Equal(ee.Id, aa.Id);
-                            Assert.Equal(ee.Region, aa.Region);
-                            Assert.Equal(ee.CompanyName, aa.CompanyName);
-                        }
-                    }
-                },
-                {
-                    typeof(OrderForLinq), (e, a) =>
-                    {
-                        Assert.Equal(e == null, a == null);
-
-                        if (a != null)
-                        {
-                            var ee = (OrderForLinq)e;
-                            var aa = (OrderForLinq)a;
-
-                            Assert.Equal(ee.Id, aa.Id);
-                            Assert.Equal(ee.Total, aa.Total);
-                            Assert.Equal(ee.OrderDate, aa.OrderDate);
-                        }
-                    }
-                },
-                {
-                    typeof(Person), (e, a) =>
-                    {
-                        Assert.Equal(e == null, a == null);
-
-                        if (a != null)
-                        {
-                            var ee = (Person)e;
-                            var aa = (Person)a;
-
-                            Assert.Equal(ee.Id, aa.Id);
-                            Assert.Equal(ee.Age, aa.Age);
-                            Assert.Equal(ee.FirstName, aa.FirstName);
-                            Assert.Equal(ee.MiddleInitial, aa.MiddleInitial);
-                            Assert.Equal(ee.LastName, aa.LastName);
-                        }
-                    }
-                },
-                {
-                    typeof(Shoes), (e, a) =>
-                    {
-                        Assert.Equal(e == null, a == null);
-
-                        if (a != null)
-                        {
-                            var ee = (Shoes)e;
-                            var aa = (Shoes)a;
-
-                            Assert.Equal(ee.Id, aa.Id);
-                            Assert.Equal(ee.Age, aa.Age);
-                            Assert.Equal(ee.Style, aa.Style);
-                        }
-                    }
-                },
-                {
-                    typeof(Feet), (e, a) =>
-                    {
-                        Assert.Equal(e == null, a == null);
-
-                        if (a != null)
-                        {
-                            var ee = (Feet)e;
-                            var aa = (Feet)a;
-
-                            Assert.Equal(ee.Id, aa.Id);
-                            Assert.Equal(ee.Size, aa.Size);
-                        }
+                        Assert.Equal(ee.Id, aa.Id);
+                        Assert.Equal(ee.Region, aa.Region);
+                        Assert.Equal(ee.CompanyName, aa.CompanyName);
                     }
                 }
-            }.ToDictionary(e => e.Key, e => (object)e.Value);
+            },
+            {
+                typeof(OrderForLinq), (e, a) =>
+                {
+                    Assert.Equal(e == null, a == null);
+
+                    if (a != null)
+                    {
+                        var ee = (OrderForLinq)e;
+                        var aa = (OrderForLinq)a;
+
+                        Assert.Equal(ee.Id, aa.Id);
+                        Assert.Equal(ee.Total, aa.Total);
+                        Assert.Equal(ee.OrderDate, aa.OrderDate);
+                    }
+                }
+            },
+            {
+                typeof(Person), (e, a) =>
+                {
+                    Assert.Equal(e == null, a == null);
+
+                    if (a != null)
+                    {
+                        var ee = (Person)e;
+                        var aa = (Person)a;
+
+                        Assert.Equal(ee.Id, aa.Id);
+                        Assert.Equal(ee.Age, aa.Age);
+                        Assert.Equal(ee.FirstName, aa.FirstName);
+                        Assert.Equal(ee.MiddleInitial, aa.MiddleInitial);
+                        Assert.Equal(ee.LastName, aa.LastName);
+                    }
+                }
+            },
+            {
+                typeof(Shoes), (e, a) =>
+                {
+                    Assert.Equal(e == null, a == null);
+
+                    if (a != null)
+                    {
+                        var ee = (Shoes)e;
+                        var aa = (Shoes)a;
+
+                        Assert.Equal(ee.Id, aa.Id);
+                        Assert.Equal(ee.Age, aa.Age);
+                        Assert.Equal(ee.Style, aa.Style);
+                    }
+                }
+            },
+            {
+                typeof(Feet), (e, a) =>
+                {
+                    Assert.Equal(e == null, a == null);
+
+                    if (a != null)
+                    {
+                        var ee = (Feet)e;
+                        var aa = (Feet)a;
+
+                        Assert.Equal(ee.Id, aa.Id);
+                        Assert.Equal(ee.Size, aa.Size);
+                    }
+                }
+            }
+        }.ToDictionary(e => e.Key, e => (object)e.Value);
     }
 
     public class ArubaContext : PoolableDbContext

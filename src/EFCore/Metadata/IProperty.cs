@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Collections;
 using Microsoft.EntityFrameworkCore.Internal;
 
 namespace Microsoft.EntityFrameworkCore.Metadata;
@@ -84,13 +83,17 @@ public interface IProperty : IReadOnlyProperty, IPropertyBase
     ///     Gets the <see cref="ValueComparer" /> for this property.
     /// </summary>
     /// <returns>The comparer.</returns>
-    [DebuggerStepThrough]
     new ValueComparer GetValueComparer();
 
     /// <summary>
     ///     Gets the <see cref="ValueComparer" /> to use with keys for this property.
     /// </summary>
     /// <returns>The comparer.</returns>
-    [DebuggerStepThrough]
     new ValueComparer GetKeyValueComparer();
+
+    /// <summary>
+    ///     Gets the <see cref="ValueComparer" /> to use for the provider values for this property.
+    /// </summary>
+    /// <returns>The comparer.</returns>
+    new ValueComparer GetProviderValueComparer();
 }

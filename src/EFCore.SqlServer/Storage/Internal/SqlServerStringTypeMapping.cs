@@ -152,13 +152,11 @@ public class SqlServerStringTypeMapping : StringTypeMapping
             // 8000 bytes if no size facet specified, if the data will fit so as to avoid query cache
             // fragmentation by setting lots of different Size values otherwise set to the max bounded length
             // if the value will fit, otherwise set to -1 (unbounded) to avoid SQL client size inference.
-            if (length != null
-                && length <= _maxSpecificSize)
+            if (length <= _maxSpecificSize)
             {
                 parameter.Size = _maxSpecificSize;
             }
-            else if (length != null
-                     && length <= _maxSize)
+            else if (length <= _maxSize)
             {
                 parameter.Size = _maxSize;
             }
@@ -187,7 +185,7 @@ public class SqlServerStringTypeMapping : StringTypeMapping
         var lastConcatStartPoint = 0;
         var concatCount = 1;
         var concatStartList = new List<int>();
-        var castApplied = false;
+        var insideConcat = false;
         for (i = 0; i < stringValue.Length; i++)
         {
             var lineFeed = stringValue[i] == '\n';
@@ -282,12 +280,7 @@ public class SqlServerStringTypeMapping : StringTypeMapping
 
         for (var j = concatStartList.Count - 1; j >= 0; j--)
         {
-            if (castApplied && j == 0)
-            {
-                builder.Insert(concatStartList[j], "CAST(");
-            }
-
-            builder.Insert(concatStartList[j], "CONCAT(");
+            builder.Insert(concatStartList[j], "CONCAT(CAST(");
             builder.Append(')');
         }
 
@@ -307,7 +300,7 @@ public class SqlServerStringTypeMapping : StringTypeMapping
         {
             if (builder.Length != 0)
             {
-                if (!castApplied)
+                if (!insideConcat)
                 {
                     builder.Append(" AS ");
                     if (_isUtf16)
@@ -316,7 +309,7 @@ public class SqlServerStringTypeMapping : StringTypeMapping
                     }
 
                     builder.Append("varchar(max))");
-                    castApplied = true;
+                    insideConcat = true;
                 }
 
                 builder.Append(", ");
@@ -331,6 +324,7 @@ public class SqlServerStringTypeMapping : StringTypeMapping
                 {
                     lastConcatStartPoint = builder.Length;
                     concatCount = 1;
+                    insideConcat = false;
                 }
             }
         }

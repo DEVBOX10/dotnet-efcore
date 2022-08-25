@@ -96,6 +96,14 @@ public class RuntimeModelConvention : IModelFinalizedConvention
                         convention.ProcessIndexAnnotations(annotations, source, target, runtime));
             }
 
+            foreach (var trigger in entityType.GetDeclaredTriggers())
+            {
+                var runtimeTrigger = Create(trigger, runtimeEntityType);
+                CreateAnnotations(
+                    trigger, runtimeTrigger, static (convention, annotations, source, target, runtime) =>
+                        convention.ProcessTriggerAnnotations(annotations, source, target, runtime));
+            }
+
             runtimeEntityType.ConstructorBinding = Create(entityType.ConstructorBinding, runtimeEntityType);
             runtimeEntityType.ServiceOnlyConstructorBinding =
                 Create(((IRuntimeEntityType)entityType).ServiceOnlyConstructorBinding, runtimeEntityType);
@@ -249,7 +257,7 @@ public class RuntimeModelConvention : IModelFinalizedConvention
     /// <param name="runtimeEntityType">The target entity type that will contain the annotations.</param>
     /// <param name="runtime">Indicates whether the given annotations are runtime annotations.</param>
     protected virtual void ProcessEntityTypeAnnotations(
-        IDictionary<string, object?> annotations,
+        Dictionary<string, object?> annotations,
         IEntityType entityType,
         RuntimeEntityType runtimeEntityType,
         bool runtime)
@@ -348,6 +356,7 @@ public class RuntimeModelConvention : IModelFinalizedConvention
             property.GetValueConverter(),
             property.GetValueComparer(),
             property.GetKeyValueComparer(),
+            property.GetProviderValueComparer(),
             property.GetTypeMapping());
 
     /// <summary>
@@ -418,7 +427,7 @@ public class RuntimeModelConvention : IModelFinalizedConvention
     /// <param name="runtimeKey">The target key that will contain the annotations.</param>
     /// <param name="runtime">Indicates whether the given annotations are runtime annotations.</param>
     protected virtual void ProcessKeyAnnotations(
-        IDictionary<string, object?> annotations,
+        Dictionary<string, object?> annotations,
         IKey key,
         RuntimeKey runtimeKey,
         bool runtime)
@@ -478,6 +487,34 @@ public class RuntimeModelConvention : IModelFinalizedConvention
             foreignKey.IsRequired,
             foreignKey.IsRequiredDependent,
             foreignKey.IsOwnership);
+    }
+
+    private static RuntimeTrigger Create(ITrigger trigger, RuntimeEntityType runtimeEntityType)
+        => runtimeEntityType.AddTrigger(trigger.ModelName);
+
+    /// <summary>
+    ///     Updates the trigger annotations that will be set on the read-only object.
+    /// </summary>
+    /// <param name="annotations">The annotations to be processed.</param>
+    /// <param name="trigger">The source trigger.</param>
+    /// <param name="runtimeTrigger">The target trigger that will contain the annotations.</param>
+    /// <param name="runtime">Indicates whether the given annotations are runtime annotations.</param>
+    protected virtual void ProcessTriggerAnnotations(
+        Dictionary<string, object?> annotations,
+        ITrigger trigger,
+        RuntimeTrigger runtimeTrigger,
+        bool runtime)
+    {
+        if (!runtime)
+        {
+            foreach (var (key, _) in annotations)
+            {
+                if (CoreAnnotationNames.AllNames.Contains(key))
+                {
+                    annotations.Remove(key);
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -616,7 +653,7 @@ public class RuntimeModelConvention : IModelFinalizedConvention
     }
 
     /// <summary>
-    ///     A visitor that rewrites <see cref="QueryRootExpression" /> encountered in an expression to use a different entity type.
+    ///     A visitor that rewrites <see cref="EntityQueryRootExpression" /> encountered in an expression to use a different entity type.
     /// </summary>
     protected class QueryRootRewritingExpressionVisitor : ExpressionVisitor
     {
@@ -632,7 +669,7 @@ public class RuntimeModelConvention : IModelFinalizedConvention
         }
 
         /// <summary>
-        ///     Rewrites <see cref="QueryRootExpression" /> encountered in an expression to use a different entity type.
+        ///     Rewrites <see cref="EntityQueryRootExpression" /> encountered in an expression to use a different entity type.
         /// </summary>
         /// <param name="expression">The query expression to rewrite.</param>
         public Expression Rewrite(Expression expression)
@@ -640,8 +677,8 @@ public class RuntimeModelConvention : IModelFinalizedConvention
 
         /// <inheritdoc />
         protected override Expression VisitExtension(Expression extensionExpression)
-            => extensionExpression is QueryRootExpression queryRootExpression
-                ? queryRootExpression.UpdateEntityType(_model.FindEntityType(queryRootExpression.EntityType.Name)!)
+            => extensionExpression is EntityQueryRootExpression entityQueryRootExpression
+                ? entityQueryRootExpression.UpdateEntityType(_model.FindEntityType(entityQueryRootExpression.EntityType.Name)!)
                 : base.VisitExtension(extensionExpression);
     }
 }

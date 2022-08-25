@@ -95,7 +95,7 @@ public class ForeignKeyPropertyDiscoveryConvention :
 
         if (shouldBeRequired)
         {
-            relationshipBuilder.IsRequired(true);
+            relationshipBuilder = relationshipBuilder.IsRequired(true) ?? relationshipBuilder;
         }
 
         var newRelationshipBuilder = DiscoverProperties(relationshipBuilder, context)!;
@@ -222,6 +222,16 @@ public class ForeignKeyPropertyDiscoveryConvention :
                             foreignKey.PrincipalEntityType,
                             foreignKey.PrincipalKey.Properties);
                     }
+                    // Try to use PK properties on owner if configured explicitly or on CLR properties
+                    else if (foreignKey.IsOwnership
+                             && (!ConfigurationSource.Convention.Overrides(foreignKey.DeclaringEntityType.GetPrimaryKeyConfigurationSource())
+                                 || (foreignKey.DeclaringEntityType.FindPrimaryKey()?.Properties.All(p => !p.IsShadowProperty()) ?? false)))
+                    {
+                        foreignKeyProperties = GetCompatiblePrimaryKeyProperties(
+                            foreignKey.DeclaringEntityType,
+                            foreignKey.PrincipalEntityType,
+                            foreignKey.PrincipalKey.Properties);
+                    }
                     else if (invertible)
                     {
                         foreignKeyProperties = FindCandidateForeignKeyProperties(foreignKey, onDependent: true, matchPk: true);
@@ -289,15 +299,15 @@ public class ForeignKeyPropertyDiscoveryConvention :
             .Concat(
                 foreignKey.DeclaringEntityType.GetDerivedTypes()
                     .SelectMany(et => et.FindDeclaredForeignKeys(foreignKeyProperties)))
-            .Count();
+            .Count() - 1;
         if (foreignKey.Properties.SequenceEqual(foreignKeyProperties))
         {
-            return conflictingFKCount > 1
+            return conflictingFKCount > 0 && !foreignKey.IsOwnership
                 ? ((ForeignKey)foreignKey).Builder.ReuniquifyImplicitProperties(true)
                 : relationshipBuilder;
         }
 
-        if (conflictingFKCount > 0)
+        if (conflictingFKCount == 0)
         {
             return ((ForeignKey)foreignKey).Builder.ReuniquifyImplicitProperties(false);
         }
@@ -399,7 +409,9 @@ public class ForeignKeyPropertyDiscoveryConvention :
             var referencedProperty = propertiesToReference[i];
             var property = TryGetProperty(
                 dependentEntityType,
-                baseName, referencedProperty.Name);
+                baseName,
+                referencedProperty.Name,
+                matchImplicitProperties: propertiesToReference.Count != 1);
 
             if (property == null)
             {
@@ -410,13 +422,21 @@ public class ForeignKeyPropertyDiscoveryConvention :
             foreignKeyProperties[i] = property;
         }
 
+        if (matchFound
+            && foreignKeyProperties.Length != 1
+            && foreignKeyProperties.All(p => p.IsImplicitlyCreated()
+                && ConfigurationSource.Convention.Overrides(p.GetConfigurationSource())))
+        {
+            return false;
+        }
+        
         if (!matchFound
             && propertiesToReference.Count == 1
             && baseName.Length > 0)
         {
             var property = TryGetProperty(
                 dependentEntityType,
-                baseName, "Id");
+                baseName, "Id", matchImplicitProperties: false);
 
             if (property != null)
             {
@@ -494,11 +514,13 @@ public class ForeignKeyPropertyDiscoveryConvention :
         return true;
     }
 
-    private static IConventionProperty? TryGetProperty(IConventionEntityType entityType, string prefix, string suffix)
+    private static IConventionProperty? TryGetProperty(
+        IConventionEntityType entityType, string prefix, string suffix, bool matchImplicitProperties)
     {
         foreach (var property in entityType.GetProperties())
         {
             if ((!property.IsImplicitlyCreated()
+                    || matchImplicitProperties
                     || !ConfigurationSource.Convention.Overrides(property.GetConfigurationSource()))
                 && property.Name.Length == prefix.Length + suffix.Length
                 && property.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
@@ -761,16 +783,25 @@ public class ForeignKeyPropertyDiscoveryConvention :
             .SelectMany(t => t.GetDeclaredForeignKeys()).ToList();
         foreach (var foreignKey in foreignKeys)
         {
-            if (foreignKey.IsUnique)
+            if (!foreignKey.IsUnique
+                || !foreignKey.IsInModel)
             {
-                DiscoverProperties(foreignKey.Builder, context);
+                continue;
             }
+
+            DiscoverProperties(foreignKey.Builder, context);
         }
 
         var referencingForeignKeys = entityTypeBuilder.Metadata.GetDerivedTypesInclusive()
             .SelectMany(t => t.GetDeclaredReferencingForeignKeys()).ToList();
         foreach (var referencingForeignKey in referencingForeignKeys)
         {
+            if (referencingForeignKey.IsSelfReferencing()
+                || !referencingForeignKey.IsInModel)
+            {
+                continue;
+            }
+
             DiscoverProperties(referencingForeignKey.Builder, context);
         }
     }

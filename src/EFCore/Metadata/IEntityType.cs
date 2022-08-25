@@ -23,6 +23,12 @@ public interface IEntityType : IReadOnlyEntityType, ITypeBase
     InstantiationBinding? ConstructorBinding { get; }
 
     /// <summary>
+    ///     Gets the <see cref="InstantiationBinding" /> for the preferred constructor when creating instances with only service
+    ///     properties initialized.
+    /// </summary>
+    InstantiationBinding? ServiceOnlyConstructorBinding { get; }
+
+    /// <summary>
     ///     Returns the <see cref="IProperty" /> that will be used for storing a discriminator value.
     /// </summary>
     new IProperty? FindDiscriminatorProperty()
@@ -458,7 +464,7 @@ public interface IEntityType : IReadOnlyEntityType, ITypeBase
     ///     <see cref="FindNavigation(string)" /> to find a navigation property.
     /// </remarks>
     /// <param name="name">The property name.</param>
-    /// <returns>The property, or <see langword="null" /> if none is found.</returns>
+    /// <returns>The property.</returns>
     new IProperty GetProperty(string name)
         => (IProperty)((IReadOnlyEntityType)this).GetProperty(name);
 
@@ -558,4 +564,16 @@ public interface IEntityType : IReadOnlyEntityType, ITypeBase
     /// </remarks>
     /// <returns>The service properties defined on this entity type.</returns>
     new IEnumerable<IServiceProperty> GetServiceProperties();
+
+    /// <summary>
+    ///     Finds a trigger with the given name.
+    /// </summary>
+    /// <param name="name">The trigger name.</param>
+    /// <returns>The trigger or <see langword="null" /> if no trigger with the given name was found.</returns>
+    new ITrigger? FindDeclaredTrigger(string name);
+
+    /// <summary>
+    ///     Returns the declared triggers on the entity type.
+    /// </summary>
+    new IEnumerable<ITrigger> GetDeclaredTriggers();
 }

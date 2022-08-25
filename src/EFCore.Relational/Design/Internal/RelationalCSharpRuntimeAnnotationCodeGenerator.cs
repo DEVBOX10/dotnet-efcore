@@ -1,6 +1,8 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using System.Data;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace Microsoft.EntityFrameworkCore.Design.Internal;
@@ -166,16 +168,16 @@ public class RelationalCSharpRuntimeAnnotationCodeGenerator : CSharpRuntimeAnnot
         mainBuilder.AppendLine(");").DecrementIndent()
             .AppendLine();
 
-        var parameterParameters = parameters with { TargetName = functionVariable };
+        parameters = parameters with { TargetName = functionVariable };
         foreach (var parameter in function.Parameters)
         {
-            Create(parameter, parameterParameters);
+            Create(parameter, parameters);
         }
 
         CreateAnnotations(
             function,
             Generate,
-            parameters with { TargetName = functionVariable });
+            parameters);
 
         mainBuilder
             .Append(functionsVariable).Append("[").Append(code.Literal(function.ModelName)).Append("] = ").Append(functionVariable)
@@ -287,7 +289,7 @@ public class RelationalCSharpRuntimeAnnotationCodeGenerator : CSharpRuntimeAnnot
 
         mainBuilder
             .Append(sequencesVariable).Append("[(").Append(code.Literal(sequence.Name)).Append(", ")
-            .Append(code.UnknownLiteral(sequence.Schema)).Append(")] = ")
+            .Append(code.Literal(sequence.Schema)).Append(")] = ")
             .Append(sequenceVariable).AppendLine(";")
             .AppendLine();
     }
@@ -310,6 +312,9 @@ public class RelationalCSharpRuntimeAnnotationCodeGenerator : CSharpRuntimeAnnot
             annotations.Remove(RelationalAnnotationNames.ViewMappings);
             annotations.Remove(RelationalAnnotationNames.SqlQueryMappings);
             annotations.Remove(RelationalAnnotationNames.FunctionMappings);
+            annotations.Remove(RelationalAnnotationNames.InsertStoredProcedureMappings);
+            annotations.Remove(RelationalAnnotationNames.DeleteStoredProcedureMappings);
+            annotations.Remove(RelationalAnnotationNames.UpdateStoredProcedureMappings);
             annotations.Remove(RelationalAnnotationNames.DefaultMappings);
         }
         else
@@ -327,59 +332,200 @@ public class RelationalCSharpRuntimeAnnotationCodeGenerator : CSharpRuntimeAnnot
             annotations[RelationalAnnotationNames.FunctionName] = entityType.GetFunctionName();
 
             if (annotations.TryGetAndRemove(
-                    RelationalAnnotationNames.Triggers,
-                    out SortedDictionary<string, ITrigger> triggers))
+                    RelationalAnnotationNames.MappingFragments,
+                    out IReadOnlyStoreObjectDictionary<IEntityTypeMappingFragment> fragments))
             {
-                parameters.Namespaces.Add(typeof(SortedDictionary<,>).Namespace!);
-                var triggersVariable = Dependencies.CSharpHelper.Identifier("triggers", parameters.ScopeVariables, capitalize: false);
+                AddNamespace(typeof(StoreObjectDictionary<RuntimeEntityTypeMappingFragment>), parameters.Namespaces);
+                AddNamespace(typeof(StoreObjectIdentifier), parameters.Namespaces);
+                var fragmentsVariable = Dependencies.CSharpHelper.Identifier("fragments", parameters.ScopeVariables, capitalize: false);
                 parameters.MainBuilder
-                    .Append("var ").Append(triggersVariable).AppendLine(" = new SortedDictionary<string, ITrigger>();").AppendLine();
+                    .Append("var ").Append(fragmentsVariable).AppendLine(" = new StoreObjectDictionary<RuntimeEntityTypeMappingFragment>();");
 
-                foreach (var (_, trigger) in triggers)
+                foreach (var fragment in fragments.GetValues())
                 {
-                    Create(trigger, triggersVariable, parameters);
+                    Create(fragment, fragmentsVariable, parameters);
                 }
 
-                GenerateSimpleAnnotation(RelationalAnnotationNames.Triggers, triggersVariable, parameters);
+                GenerateSimpleAnnotation(RelationalAnnotationNames.MappingFragments, fragmentsVariable, parameters);
+            }
+
+            if (annotations.TryGetAndRemove(
+                    RelationalAnnotationNames.InsertStoredProcedure,
+                    out StoredProcedure insertStoredProcedure))
+            {
+                var sprocVariable = Dependencies.CSharpHelper.Identifier("insertSproc", parameters.ScopeVariables, capitalize: false);
+
+                Create(insertStoredProcedure, sprocVariable, parameters);
+
+                GenerateSimpleAnnotation(RelationalAnnotationNames.InsertStoredProcedure, sprocVariable, parameters);
+                parameters.MainBuilder.AppendLine();
+            }
+
+            if (annotations.TryGetAndRemove(
+                    RelationalAnnotationNames.DeleteStoredProcedure,
+                    out StoredProcedure deleteStoredProcedure))
+            {
+                var sprocVariable = Dependencies.CSharpHelper.Identifier("deleteSproc", parameters.ScopeVariables, capitalize: false);
+
+                Create(deleteStoredProcedure, sprocVariable, parameters);
+
+                GenerateSimpleAnnotation(RelationalAnnotationNames.DeleteStoredProcedure, sprocVariable, parameters);
+                parameters.MainBuilder.AppendLine();
+            }
+
+            if (annotations.TryGetAndRemove(
+                    RelationalAnnotationNames.UpdateStoredProcedure,
+                    out StoredProcedure updateStoredProcedure))
+            {
+                var sprocVariable = Dependencies.CSharpHelper.Identifier("updateSproc", parameters.ScopeVariables, capitalize: false);
+
+                Create(updateStoredProcedure, sprocVariable, parameters);
+
+                GenerateSimpleAnnotation(RelationalAnnotationNames.UpdateStoredProcedure, sprocVariable, parameters);
+                parameters.MainBuilder.AppendLine();
             }
         }
 
         base.Generate(entityType, parameters);
     }
 
-    private void Create(ITrigger trigger, string triggersVariable, CSharpRuntimeAnnotationCodeGeneratorParameters parameters)
+    private void Create(
+        IEntityTypeMappingFragment fragment,
+        string fragmentsVariable,
+        CSharpRuntimeAnnotationCodeGeneratorParameters parameters)
     {
+        var storeObject = fragment.StoreObject;
         var code = Dependencies.CSharpHelper;
-        var triggerVariable = code.Identifier(trigger.ModelName, parameters.ScopeVariables, capitalize: false);
+        var overrideVariable =
+            code.Identifier(storeObject.Name + "Fragment", parameters.ScopeVariables, capitalize: false);
         var mainBuilder = parameters.MainBuilder;
         mainBuilder
-            .Append("var ").Append(triggerVariable).AppendLine(" = new RuntimeTrigger(").IncrementIndent()
-            .Append(parameters.TargetName).AppendLine(",")
-            .Append(code.Literal(trigger.ModelName)).AppendLine(",")
-            .Append(code.UnknownLiteral(trigger.Name)).AppendLine(",")
-            .Append(code.Literal(trigger.TableName)).AppendLine(",")
-            .Append(code.UnknownLiteral(trigger.TableSchema))
-            .AppendLine(");")
-            .DecrementIndent()
-            .AppendLine();
+            .Append("var ").Append(overrideVariable).AppendLine(" = new RuntimeEntityTypeMappingFragment(").IncrementIndent()
+            .Append(parameters.TargetName).AppendLine(",");
+
+        AppendLiteral(storeObject, mainBuilder, code);
+        mainBuilder.AppendLine(",")
+            .Append(code.Literal(fragment.IsTableExcludedFromMigrations)).AppendLine(");").DecrementIndent();
 
         CreateAnnotations(
-            trigger,
+            fragment,
             Generate,
-            parameters with { TargetName = triggerVariable });
+            parameters with { TargetName = overrideVariable });
+
+        mainBuilder.Append(fragmentsVariable).Append(".Add(");
+        AppendLiteral(storeObject, mainBuilder, code);
 
         mainBuilder
-            .Append(triggersVariable).Append("[").Append(code.Literal(trigger.ModelName)).Append("] = ")
-            .Append(triggerVariable).AppendLine(";")
-            .AppendLine();
+            .Append(", ")
+            .Append(overrideVariable).AppendLine(");");
     }
 
     /// <summary>
     ///     Generates code to create the given annotations.
     /// </summary>
-    /// <param name="trigger">The trigger to which the annotations are applied.</param>
+    /// <param name="fragment">The fragment to which the annotations are applied.</param>
     /// <param name="parameters">Additional parameters used during code generation.</param>
-    public virtual void Generate(ITrigger trigger, CSharpRuntimeAnnotationCodeGeneratorParameters parameters)
+    public virtual void Generate(IEntityTypeMappingFragment fragment, CSharpRuntimeAnnotationCodeGeneratorParameters parameters)
+        => GenerateSimpleAnnotations(parameters);
+
+    private void Create(IStoredProcedure storedProcedure, string sprocVariable, CSharpRuntimeAnnotationCodeGeneratorParameters parameters)
+    {
+        AddNamespace(typeof(RuntimeStoredProcedure), parameters.Namespaces);
+        AddNamespace(typeof(ParameterDirection), parameters.Namespaces);
+
+        var code = Dependencies.CSharpHelper;
+        var mainBuilder = parameters.MainBuilder;
+        mainBuilder
+            .Append("var ").Append(sprocVariable).AppendLine(" = new RuntimeStoredProcedure(").IncrementIndent()
+            .Append(parameters.TargetName).AppendLine(",")
+            .Append(code.Literal(storedProcedure.Name)).AppendLine(",")
+            .Append(code.Literal(storedProcedure.Schema)).AppendLine(",")
+            .Append(code.Literal(storedProcedure.IsRowsAffectedReturned))
+            .AppendLine(");")
+            .DecrementIndent()
+            .AppendLine();
+
+        parameters = parameters with { TargetName = sprocVariable };
+        foreach (var parameter in storedProcedure.Parameters)
+        {
+            Create(parameter, parameters);
+        }
+
+        foreach (var resultColumn in storedProcedure.ResultColumns)
+        {
+            Create(resultColumn, parameters);
+        }
+
+        CreateAnnotations(
+            storedProcedure,
+            Generate,
+            parameters);
+    }
+
+    /// <summary>
+    ///     Generates code to create the given annotations.
+    /// </summary>
+    /// <param name="storedProcedure">The stored procedure to which the annotations are applied.</param>
+    /// <param name="parameters">Additional parameters used during code generation.</param>
+    public virtual void Generate(IStoredProcedure storedProcedure, CSharpRuntimeAnnotationCodeGeneratorParameters parameters)
+        => GenerateSimpleAnnotations(parameters);
+
+    private void Create(IStoredProcedureParameter parameter, CSharpRuntimeAnnotationCodeGeneratorParameters parameters)
+    {
+        var code = Dependencies.CSharpHelper;
+        var mainBuilder = parameters.MainBuilder;
+        var parameterVariable = code.Identifier(parameter.Name, parameters.ScopeVariables, capitalize: false);
+
+        mainBuilder
+            .Append("var ").Append(parameterVariable).Append(" = ")
+            .Append(parameters.TargetName).AppendLine(".AddParameter(").IncrementIndent()
+            .Append(code.Literal(parameter.Name)).Append(", ")
+            .Append(code.Literal(parameter.Direction)).Append(", ")
+            .Append(code.Literal(parameter.ForRowsAffected)).Append(", ")
+            .Append(code.Literal(parameter.PropertyName!)).Append(", ")
+            .Append(code.Literal(parameter.ForOriginalValue))
+            .AppendLine(");").DecrementIndent();
+
+        CreateAnnotations(
+            parameter,
+            Generate,
+            parameters with { TargetName = parameterVariable });
+    }
+
+    /// <summary>
+    ///     Generates code to create the given annotations.
+    /// </summary>
+    /// <param name="storedProcedure">The stored procedure to which the annotations are applied.</param>
+    /// <param name="parameters">Additional parameters used during code generation.</param>
+    public virtual void Generate(IStoredProcedureParameter storedProcedure, CSharpRuntimeAnnotationCodeGeneratorParameters parameters)
+        => GenerateSimpleAnnotations(parameters);
+
+    private void Create(IStoredProcedureResultColumn resultColumn, CSharpRuntimeAnnotationCodeGeneratorParameters parameters)
+    {
+        var code = Dependencies.CSharpHelper;
+        var mainBuilder = parameters.MainBuilder;
+        var resultColumnVariable = code.Identifier(resultColumn.Name, parameters.ScopeVariables, capitalize: false);
+
+        mainBuilder
+            .Append("var ").Append(resultColumnVariable).Append(" = ")
+            .Append(parameters.TargetName).AppendLine(".AddResultColumn(").IncrementIndent()
+            .Append(code.Literal(resultColumn.Name)).Append(", ")
+            .Append(code.Literal(resultColumn.ForRowsAffected)).Append(", ")
+            .Append(code.Literal(resultColumn.PropertyName!))
+            .AppendLine(");").DecrementIndent();
+
+        CreateAnnotations(
+            resultColumn,
+            Generate,
+            parameters with { TargetName = resultColumnVariable });
+    }
+
+    /// <summary>
+    ///     Generates code to create the given annotations.
+    /// </summary>
+    /// <param name="storedProcedure">The stored procedure to which the annotations are applied.</param>
+    /// <param name="parameters">Additional parameters used during code generation.</param>
+    public virtual void Generate(IStoredProcedureResultColumn storedProcedure, CSharpRuntimeAnnotationCodeGeneratorParameters parameters)
         => GenerateSimpleAnnotations(parameters);
 
     /// <summary>
@@ -400,6 +546,11 @@ public class RelationalCSharpRuntimeAnnotationCodeGenerator : CSharpRuntimeAnnot
             annotations.Remove(RelationalAnnotationNames.ViewColumnMappings);
             annotations.Remove(RelationalAnnotationNames.SqlQueryColumnMappings);
             annotations.Remove(RelationalAnnotationNames.FunctionColumnMappings);
+            annotations.Remove(RelationalAnnotationNames.InsertStoredProcedureParameterMappings);
+            annotations.Remove(RelationalAnnotationNames.InsertStoredProcedureResultColumnMappings);
+            annotations.Remove(RelationalAnnotationNames.DeleteStoredProcedureParameterMappings);
+            annotations.Remove(RelationalAnnotationNames.UpdateStoredProcedureParameterMappings);
+            annotations.Remove(RelationalAnnotationNames.UpdateStoredProcedureResultColumnMappings);
             annotations.Remove(RelationalAnnotationNames.DefaultColumnMappings);
         }
         else
@@ -410,19 +561,21 @@ public class RelationalCSharpRuntimeAnnotationCodeGenerator : CSharpRuntimeAnnot
 
             if (annotations.TryGetAndRemove(
                     RelationalAnnotationNames.RelationalOverrides,
-                    out SortedDictionary<StoreObjectIdentifier, object> overrides))
+                    out IReadOnlyStoreObjectDictionary<IRelationalPropertyOverrides> tableOverrides))
             {
-                parameters.Namespaces.Add(typeof(SortedDictionary<StoreObjectIdentifier, object>).Namespace!);
+                AddNamespace(typeof(StoreObjectDictionary<RuntimeRelationalPropertyOverrides>), parameters.Namespaces);
+                AddNamespace(typeof(StoreObjectIdentifier), parameters.Namespaces);
                 var overridesVariable = Dependencies.CSharpHelper.Identifier("overrides", parameters.ScopeVariables, capitalize: false);
-                parameters.MainBuilder
-                    .Append("var ").Append(overridesVariable).AppendLine(" = new SortedDictionary<StoreObjectIdentifier, object>();");
+                parameters.MainBuilder.AppendLine()
+                    .Append("var ").Append(overridesVariable).AppendLine(" = new StoreObjectDictionary<RuntimeRelationalPropertyOverrides>();");
 
-                foreach (var (key, value) in overrides)
+                foreach (var overrides in tableOverrides.GetValues())
                 {
-                    Create((IRelationalPropertyOverrides)value, key, overridesVariable, parameters);
+                    Create(overrides, overridesVariable, parameters);
                 }
 
                 GenerateSimpleAnnotation(RelationalAnnotationNames.RelationalOverrides, overridesVariable, parameters);
+                parameters.MainBuilder.AppendLine();
             }
         }
 
@@ -431,52 +584,34 @@ public class RelationalCSharpRuntimeAnnotationCodeGenerator : CSharpRuntimeAnnot
 
     private void Create(
         IRelationalPropertyOverrides overrides,
-        StoreObjectIdentifier storeObject,
         string overridesVariable,
         CSharpRuntimeAnnotationCodeGeneratorParameters parameters)
     {
+        var storeObject = overrides.StoreObject;
         var code = Dependencies.CSharpHelper;
         var overrideVariable =
             code.Identifier(parameters.TargetName + Capitalize(storeObject.Name), parameters.ScopeVariables, capitalize: false);
         var mainBuilder = parameters.MainBuilder;
         mainBuilder
             .Append("var ").Append(overrideVariable).AppendLine(" = new RuntimeRelationalPropertyOverrides(").IncrementIndent()
-            .Append(parameters.TargetName).AppendLine(",")
-            .Append(code.Literal(overrides.ColumnNameOverridden)).AppendLine(",")
-            .Append(code.UnknownLiteral(overrides.ColumnName)).AppendLine(");").DecrementIndent();
+            .Append(parameters.TargetName).AppendLine(",");
+        AppendLiteral(storeObject, mainBuilder, code);
+
+        mainBuilder.AppendLine(",")
+            .Append(code.Literal(overrides.IsColumnNameOverridden)).AppendLine(",")
+            .Append(code.Literal(overrides.ColumnName)).AppendLine(");").DecrementIndent();
 
         CreateAnnotations(
             overrides,
-            GenerateOverrides,
+            Generate,
             parameters with { TargetName = overrideVariable });
 
-        mainBuilder.Append(overridesVariable).Append("[StoreObjectIdentifier.");
-
-        switch (storeObject.StoreObjectType)
-        {
-            case StoreObjectType.Table:
-                mainBuilder
-                    .Append("Table(").Append(code.Literal(storeObject.Name))
-                    .Append(", ").Append(code.UnknownLiteral(storeObject.Schema)).Append(")");
-                break;
-            case StoreObjectType.View:
-                mainBuilder
-                    .Append("View(").Append(code.Literal(storeObject.Name))
-                    .Append(", ").Append(code.UnknownLiteral(storeObject.Schema)).Append(")");
-                break;
-            case StoreObjectType.SqlQuery:
-                mainBuilder
-                    .Append("SqlQuery(").Append(code.Literal(storeObject.Name)).Append(")");
-                break;
-            case StoreObjectType.Function:
-                mainBuilder
-                    .Append("DbFunction(").Append(code.Literal(storeObject.Name)).Append(")");
-                break;
-        }
+        mainBuilder.Append(overridesVariable).Append(".Add(");
+        AppendLiteral(storeObject, mainBuilder, code);
 
         mainBuilder
-            .Append("] = ")
-            .Append(overrideVariable).AppendLine(";");
+            .Append(", ")
+            .Append(overrideVariable).AppendLine(");");
     }
 
     /// <summary>
@@ -484,7 +619,7 @@ public class RelationalCSharpRuntimeAnnotationCodeGenerator : CSharpRuntimeAnnot
     /// </summary>
     /// <param name="overrides">The property overrides to which the annotations are applied.</param>
     /// <param name="parameters">Additional parameters used during code generation.</param>
-    public virtual void GenerateOverrides(IAnnotatable overrides, CSharpRuntimeAnnotationCodeGeneratorParameters parameters)
+    public virtual void Generate(IRelationalPropertyOverrides overrides, CSharpRuntimeAnnotationCodeGeneratorParameters parameters)
         => GenerateSimpleAnnotations(parameters);
 
     /// <inheritdoc />
@@ -551,6 +686,50 @@ public class RelationalCSharpRuntimeAnnotationCodeGenerator : CSharpRuntimeAnnot
                 }
 
                 return char.ToUpperInvariant(@string[0]) + @string[1..];
+        }
+    }
+
+    private static void AppendLiteral(StoreObjectIdentifier storeObject, IndentedStringBuilder builder, ICSharpHelper code)
+    {
+        builder.Append("StoreObjectIdentifier.");
+        switch (storeObject.StoreObjectType)
+        {
+            case StoreObjectType.Table:
+                builder
+                    .Append("Table(").Append(code.Literal(storeObject.Name))
+                    .Append(", ").Append(code.Literal(storeObject.Schema)).Append(")");
+                break;
+            case StoreObjectType.View:
+                builder
+                    .Append("View(").Append(code.Literal(storeObject.Name))
+                    .Append(", ").Append(code.Literal(storeObject.Schema)).Append(")");
+                break;
+            case StoreObjectType.SqlQuery:
+                builder
+                    .Append("SqlQuery(").Append(code.Literal(storeObject.Name)).Append(")");
+                break;
+            case StoreObjectType.Function:
+                builder
+                    .Append("DbFunction(").Append(code.Literal(storeObject.Name)).Append(")");
+                break;
+            case StoreObjectType.InsertStoredProcedure:
+                builder
+                    .Append("InsertStoredProcedure(").Append(code.Literal(storeObject.Name))
+                    .Append(", ").Append(code.Literal(storeObject.Schema)).Append(")");
+                break;
+            case StoreObjectType.DeleteStoredProcedure:
+                builder
+                    .Append("DeleteStoredProcedure(").Append(code.Literal(storeObject.Name))
+                    .Append(", ").Append(code.Literal(storeObject.Schema)).Append(")");
+                break;
+            case StoreObjectType.UpdateStoredProcedure:
+                builder
+                    .Append("UpdateStoredProcedure(").Append(code.Literal(storeObject.Name))
+                    .Append(", ").Append(code.Literal(storeObject.Schema)).Append(")");
+                break;
+            default:
+                Check.DebugFail("Unexpected StoreObjectType: " + storeObject.StoreObjectType);
+                break;
         }
     }
 }

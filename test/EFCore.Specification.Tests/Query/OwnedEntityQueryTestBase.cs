@@ -7,8 +7,6 @@ namespace Microsoft.EntityFrameworkCore;
 
 public abstract class OwnedEntityQueryTestBase : NonSharedModelTestBase
 {
-    public static IEnumerable<object[]> IsAsyncData = new[] { new object[] { false }, new object[] { true } };
-
     protected override string StoreName
         => "OwnedEntityQueryTests";
 
@@ -231,7 +229,8 @@ public abstract class OwnedEntityQueryTestBase : NonSharedModelTestBase
         var query = context.Warehouses.Select(
             x => new WarehouseModel
             {
-                WarehouseCode = x.WarehouseCode, DestinationCountryCodes = x.DestinationCountries.Select(c => c.CountryCode).ToArray()
+                WarehouseCode = x.WarehouseCode,
+                DestinationCountryCodes = x.DestinationCountries.Select(c => c.CountryCode).ToArray()
             }).AsNoTracking();
 
         var result = async

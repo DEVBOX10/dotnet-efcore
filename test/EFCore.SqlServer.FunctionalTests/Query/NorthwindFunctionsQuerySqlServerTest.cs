@@ -238,6 +238,63 @@ FROM [Customers] AS [c]
 WHERE [c].[ContactName] LIKE N'%M%'");
     }
 
+    [SqlServerCondition(SqlServerCondition.SupportsFunctions2017)]
+    public override async Task String_Join_over_non_nullable_column(bool async)
+    {
+        await base.String_Join_over_non_nullable_column(async);
+
+        AssertSql(
+            @"SELECT [c].[City], COALESCE(STRING_AGG([c].[CustomerID], N'|'), N'') AS [Customers]
+FROM [Customers] AS [c]
+GROUP BY [c].[City]");
+    }
+
+    [SqlServerCondition(SqlServerCondition.SupportsFunctions2017)]
+    public override async Task String_Join_over_nullable_column(bool async)
+    {
+        await base.String_Join_over_nullable_column(async);
+
+        AssertSql(
+            @"SELECT [c].[City], COALESCE(STRING_AGG(COALESCE([c].[Region], N''), N'|'), N'') AS [Regions]
+FROM [Customers] AS [c]
+GROUP BY [c].[City]");
+    }
+
+    [SqlServerCondition(SqlServerCondition.SupportsFunctions2017)]
+    public override async Task String_Join_with_predicate(bool async)
+    {
+        await base.String_Join_with_predicate(async);
+
+        AssertSql(
+            @"SELECT [c].[City], COALESCE(STRING_AGG(CASE
+    WHEN CAST(LEN([c].[ContactName]) AS int) > 10 THEN [c].[CustomerID]
+END, N'|'), N'') AS [Customers]
+FROM [Customers] AS [c]
+GROUP BY [c].[City]");
+    }
+
+    [SqlServerCondition(SqlServerCondition.SupportsFunctions2017)]
+    public override async Task String_Join_with_ordering(bool async)
+    {
+        await base.String_Join_with_ordering(async);
+
+        AssertSql(
+            @"SELECT [c].[City], COALESCE(STRING_AGG([c].[CustomerID], N'|') WITHIN GROUP (ORDER BY [c].[CustomerID] DESC), N'') AS [Customers]
+FROM [Customers] AS [c]
+GROUP BY [c].[City]");
+    }
+
+    [SqlServerCondition(SqlServerCondition.SupportsFunctions2017)]
+    public override async Task String_Concat(bool async)
+    {
+        await base.String_Concat(async);
+
+        AssertSql(
+            @"SELECT [c].[City], COALESCE(STRING_AGG([c].[CustomerID], N''), N'') AS [Customers]
+FROM [Customers] AS [c]
+GROUP BY [c].[City]");
+    }
+
     public override async Task String_Compare_simple_zero(bool async)
     {
         await base.String_Compare_simple_zero(async);
@@ -772,6 +829,58 @@ WHERE POWER(CAST([o].[Discount] AS float), 2.0E0) > 0.05000000074505806E0");
             @"SELECT [o].[OrderID], [o].[ProductID], [o].[Discount], [o].[Quantity], [o].[UnitPrice]
 FROM [Order Details] AS [o]
 WHERE [o].[Quantity] < CAST(5 AS smallint) AND ROUND([o].[UnitPrice], 0) > 10.0");
+    }
+
+    public override async Task Sum_over_round_works_correctly_in_projection(bool async)
+    {
+        await base.Sum_over_round_works_correctly_in_projection(async);
+
+        AssertSql(
+            @"SELECT [o].[OrderID], (
+    SELECT COALESCE(SUM(ROUND([o0].[UnitPrice], 2)), 0.0)
+    FROM [Order Details] AS [o0]
+    WHERE [o].[OrderID] = [o0].[OrderID]) AS [Sum]
+FROM [Orders] AS [o]
+WHERE [o].[OrderID] < 10300");
+    }
+
+    public override async Task Sum_over_round_works_correctly_in_projection_2(bool async)
+    {
+        await base.Sum_over_round_works_correctly_in_projection_2(async);
+
+        AssertSql(
+            @"SELECT [o].[OrderID], (
+    SELECT COALESCE(SUM(ROUND([o0].[UnitPrice] * [o0].[UnitPrice], 2)), 0.0)
+    FROM [Order Details] AS [o0]
+    WHERE [o].[OrderID] = [o0].[OrderID]) AS [Sum]
+FROM [Orders] AS [o]
+WHERE [o].[OrderID] < 10300");
+    }
+
+    public override async Task Sum_over_truncate_works_correctly_in_projection(bool async)
+    {
+        await base.Sum_over_truncate_works_correctly_in_projection(async);
+
+        AssertSql(
+            @"SELECT [o].[OrderID], (
+    SELECT COALESCE(SUM(ROUND([o0].[UnitPrice], 0, 1)), 0.0)
+    FROM [Order Details] AS [o0]
+    WHERE [o].[OrderID] = [o0].[OrderID]) AS [Sum]
+FROM [Orders] AS [o]
+WHERE [o].[OrderID] < 10300");
+    }
+
+    public override async Task Sum_over_truncate_works_correctly_in_projection_2(bool async)
+    {
+        await base.Sum_over_truncate_works_correctly_in_projection_2(async);
+
+        AssertSql(
+            @"SELECT [o].[OrderID], (
+    SELECT COALESCE(SUM(ROUND([o0].[UnitPrice] * [o0].[UnitPrice], 0, 1)), 0.0)
+    FROM [Order Details] AS [o0]
+    WHERE [o].[OrderID] = [o0].[OrderID]) AS [Sum]
+FROM [Orders] AS [o]
+WHERE [o].[OrderID] < 10300");
     }
 
     public override async Task Select_math_round_int(bool async)
@@ -1571,35 +1680,55 @@ WHERE [o].[CustomerID] = N'ALFKI' AND ((CONVERT(nvarchar(max), [o].[OrderDate]) 
         await base.Indexof_with_emptystring(async);
 
         AssertSql(
-            @"SELECT 0
-FROM [Customers] AS [c]
-WHERE [c].[CustomerID] = N'ALFKI'");
+            @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+FROM [Customers] AS [c]");
     }
 
-    public override async Task Indexof_with_one_arg(bool async)
+    public override async Task Indexof_with_one_constant_arg(bool async)
     {
-        await base.Indexof_with_one_arg(async);
+        await base.Indexof_with_one_constant_arg(async);
 
         AssertSql(
-            @"SELECT CASE
-    WHEN N'a' = N'' THEN 0
-    ELSE CAST(CHARINDEX(N'a', [c].[ContactName]) AS int) - 1
-END
+            @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE [c].[CustomerID] = N'ALFKI'");
+WHERE (CAST(CHARINDEX(N'a', [c].[ContactName]) AS int) - 1) = 1");
     }
 
-    public override async Task Indexof_with_starting_position(bool async)
+    public override async Task Indexof_with_one_parameter_arg(bool async)
     {
-        await base.Indexof_with_starting_position(async);
+        await base.Indexof_with_one_parameter_arg(async);
 
         AssertSql(
-            @"SELECT CASE
-    WHEN N'a' = N'' THEN 0
-    ELSE CAST(CHARINDEX(N'a', [c].[ContactName], 3 + 1) AS int) - 1
-END
+            @"@__pattern_0='a' (Size = 4000)
+
+SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE [c].[CustomerID] = N'ALFKI'");
+WHERE CASE
+    WHEN @__pattern_0 = N'' THEN 0
+    ELSE CAST(CHARINDEX(@__pattern_0, [c].[ContactName]) AS int) - 1
+END = 1");
+    }
+
+    public override async Task Indexof_with_constant_starting_position(bool async)
+    {
+        await base.Indexof_with_constant_starting_position(async);
+
+        AssertSql(
+            @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+FROM [Customers] AS [c]
+WHERE (CAST(CHARINDEX(N'a', [c].[ContactName], 3) AS int) - 1) = 4");
+    }
+
+    public override async Task Indexof_with_parameter_starting_position(bool async)
+    {
+        await base.Indexof_with_parameter_starting_position(async);
+
+        AssertSql(
+            @"@__start_0='2'
+
+SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+FROM [Customers] AS [c]
+WHERE (CAST(CHARINDEX(N'a', [c].[ContactName], @__start_0 + 1) AS int) - 1) = 4");
     }
 
     public override async Task Replace_with_emptystring(bool async)
@@ -1607,9 +1736,9 @@ WHERE [c].[CustomerID] = N'ALFKI'");
         await base.Replace_with_emptystring(async);
 
         AssertSql(
-            @"SELECT REPLACE([c].[ContactName], N'ari', N'')
+            @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE [c].[CustomerID] = N'ALFKI'");
+WHERE REPLACE([c].[ContactName], N'ia', N'') = N'Mar Anders'");
     }
 
     public override async Task Replace_using_property_arguments(bool async)
@@ -1617,9 +1746,9 @@ WHERE [c].[CustomerID] = N'ALFKI'");
         await base.Replace_using_property_arguments(async);
 
         AssertSql(
-            @"SELECT REPLACE([c].[ContactName], [c].[ContactName], [c].[CustomerID])
+            @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE [c].[CustomerID] = N'ALFKI'");
+WHERE REPLACE([c].[ContactName], [c].[ContactName], [c].[CustomerID]) = [c].[CustomerID]");
     }
 
     public override async Task Substring_with_one_arg_with_zero_startindex(bool async)
@@ -1701,10 +1830,7 @@ WHERE [c].[CustomerID] = N'ALFKI'");
         await base.Substring_with_two_args_with_Index_of(async);
 
         AssertSql(
-            @"SELECT SUBSTRING([c].[ContactName], CASE
-    WHEN N'a' = N'' THEN 0
-    ELSE CAST(CHARINDEX(N'a', [c].[ContactName]) AS int) - 1
-END + 1, 3)
+            @"SELECT SUBSTRING([c].[ContactName], (CAST(CHARINDEX(N'a', [c].[ContactName]) AS int) - 1) + 1, 3)
 FROM [Customers] AS [c]
 WHERE [c].[CustomerID] = N'ALFKI'");
     }
@@ -1939,6 +2065,65 @@ WHERE 0 = 1");
 
     public override Task Datetime_subtraction_TotalDays(bool async)
         => AssertTranslationFailed(() => base.Datetime_subtraction_TotalDays(async));
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual async Task StandardDeviation(bool async)
+    {
+        await using var ctx = CreateContext();
+
+        var query = ctx.Set<OrderDetail>()
+            .GroupBy(od => od.ProductID)
+            .Select(g => new
+            {
+                ProductID = g.Key,
+                SampleStandardDeviation = EF.Functions.StandardDeviationSample(g.Select(od => od.UnitPrice)),
+                PopulationStandardDeviation = EF.Functions.StandardDeviationPopulation(g.Select(od => od.UnitPrice))
+            });
+
+        var results = async
+            ? await query.ToListAsync()
+            : query.ToList();
+
+        var product9 = results.Single(r => r.ProductID == 9);
+        Assert.Equal(8.675943752699023, product9.SampleStandardDeviation.Value, 5);
+        Assert.Equal(7.759999999999856, product9.PopulationStandardDeviation.Value, 5);
+
+        AssertSql(
+            @"SELECT [o].[ProductID], STDEV([o].[UnitPrice]) AS [SampleStandardDeviation], STDEVP([o].[UnitPrice]) AS [PopulationStandardDeviation]
+FROM [Order Details] AS [o]
+GROUP BY [o].[ProductID]");
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual async Task Variance(bool async)
+    {
+        await using var ctx = CreateContext();
+
+        var query = ctx.Set<OrderDetail>()
+            .GroupBy(od => od.ProductID)
+            .Select(
+                g => new
+                {
+                    ProductID = g.Key,
+                    SampleStandardDeviation = EF.Functions.VarianceSample(g.Select(od => od.UnitPrice)),
+                    PopulationStandardDeviation = EF.Functions.VariancePopulation(g.Select(od => od.UnitPrice))
+                });
+
+        var results = async
+            ? await query.ToListAsync()
+            : query.ToList();
+
+        var product9 = results.Single(r => r.ProductID == 9);
+        Assert.Equal(75.2719999999972, product9.SampleStandardDeviation.Value, 5);
+        Assert.Equal(60.217599999997766, product9.PopulationStandardDeviation.Value, 5);
+
+        AssertSql(
+            @"SELECT [o].[ProductID], VAR([o].[UnitPrice]) AS [SampleStandardDeviation], VARP([o].[UnitPrice]) AS [PopulationStandardDeviation]
+FROM [Order Details] AS [o]
+GROUP BY [o].[ProductID]");
+    }
 
     private void AssertSql(params string[] expected)
         => Fixture.TestSqlLoggerFactory.AssertBaseline(expected);

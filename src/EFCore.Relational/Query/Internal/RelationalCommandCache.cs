@@ -3,7 +3,6 @@
 
 using System.Collections;
 using System.Collections.Concurrent;
-using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace Microsoft.EntityFrameworkCore.Query.Internal;
@@ -21,7 +20,7 @@ public class RelationalCommandCache : IPrintableExpression
 
     private readonly IMemoryCache _memoryCache;
     private readonly IQuerySqlGeneratorFactory _querySqlGeneratorFactory;
-    private readonly SelectExpression _selectExpression;
+    private readonly Expression _queryExpression;
     private readonly RelationalParameterBasedSqlProcessor _relationalParameterBasedSqlProcessor;
 
     /// <summary>
@@ -34,14 +33,12 @@ public class RelationalCommandCache : IPrintableExpression
         IMemoryCache memoryCache,
         IQuerySqlGeneratorFactory querySqlGeneratorFactory,
         IRelationalParameterBasedSqlProcessorFactory relationalParameterBasedSqlProcessorFactory,
-        SelectExpression selectExpression,
-        IReadOnlyList<ReaderColumn?>? readerColumns,
+        Expression queryExpression,
         bool useRelationalNulls)
     {
         _memoryCache = memoryCache;
         _querySqlGeneratorFactory = querySqlGeneratorFactory;
-        _selectExpression = selectExpression;
-        ReaderColumns = readerColumns;
+        _queryExpression = queryExpression;
         _relationalParameterBasedSqlProcessor = relationalParameterBasedSqlProcessorFactory.Create(useRelationalNulls);
     }
 
@@ -51,17 +48,9 @@ public class RelationalCommandCache : IPrintableExpression
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    public virtual IReadOnlyList<ReaderColumn?>? ReaderColumns { get; }
-
-    /// <summary>
-    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
-    ///     any release. You should only use it directly in your code with extreme caution and knowing that
-    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
-    /// </summary>
     public virtual IRelationalCommandTemplate GetRelationalCommandTemplate(IReadOnlyDictionary<string, object?> parameters)
     {
-        var cacheKey = new CommandCacheKey(_selectExpression, parameters);
+        var cacheKey = new CommandCacheKey(_queryExpression, parameters);
 
         if (_memoryCache.TryGetValue(cacheKey, out IRelationalCommandTemplate? relationalCommandTemplate))
         {
@@ -79,9 +68,9 @@ public class RelationalCommandCache : IPrintableExpression
             {
                 if (!_memoryCache.TryGetValue(cacheKey, out relationalCommandTemplate))
                 {
-                    var selectExpression = _relationalParameterBasedSqlProcessor.Optimize(
-                        _selectExpression, parameters, out var canCache);
-                    relationalCommandTemplate = _querySqlGeneratorFactory.Create().GetCommand(selectExpression);
+                    var queryExpression = _relationalParameterBasedSqlProcessor.Optimize(
+                        _queryExpression, parameters, out var canCache);
+                    relationalCommandTemplate = _querySqlGeneratorFactory.Create().GetCommand(queryExpression);
 
                     if (canCache)
                     {
@@ -106,22 +95,22 @@ public class RelationalCommandCache : IPrintableExpression
     /// </summary>
     void IPrintableExpression.Print(ExpressionPrinter expressionPrinter)
     {
-        expressionPrinter.AppendLine("RelationalCommandCache.SelectExpression(");
+        expressionPrinter.AppendLine("RelationalCommandCache.QueryExpression(");
         using (expressionPrinter.Indent())
         {
-            expressionPrinter.Visit(_selectExpression);
+            expressionPrinter.Visit(_queryExpression);
             expressionPrinter.Append(")");
         }
     }
 
     private readonly struct CommandCacheKey : IEquatable<CommandCacheKey>
     {
-        private readonly SelectExpression _selectExpression;
+        private readonly Expression _queryExpression;
         private readonly IReadOnlyDictionary<string, object?> _parameterValues;
 
-        public CommandCacheKey(SelectExpression selectExpression, IReadOnlyDictionary<string, object?> parameterValues)
+        public CommandCacheKey(Expression queryExpression, IReadOnlyDictionary<string, object?> parameterValues)
         {
-            _selectExpression = selectExpression;
+            _queryExpression = queryExpression;
             _parameterValues = parameterValues;
         }
 
@@ -131,7 +120,8 @@ public class RelationalCommandCache : IPrintableExpression
 
         public bool Equals(CommandCacheKey commandCacheKey)
         {
-            if (!ReferenceEquals(_selectExpression, commandCacheKey._selectExpression))
+            // Intentionally reference equal, don't check internal components
+            if (!ReferenceEquals(_queryExpression, commandCacheKey._queryExpression))
             {
                 return false;
             }

@@ -2051,7 +2051,7 @@ FROM [LevelOne] AS [l]
 WHERE (
     SELECT COUNT(*)
     FROM (
-        SELECT TOP(10) [l0].[Id], [l0].[Date], [l0].[Name], [l0].[OneToMany_Optional_Self_Inverse1Id], [l0].[OneToMany_Required_Self_Inverse1Id], [l0].[OneToOne_Optional_Self1Id], [l1].[Id] AS [Id0], [l1].[Date] AS [Date0], [l1].[Level1_Optional_Id], [l1].[Level1_Required_Id], [l1].[Name] AS [Name0], [l1].[OneToMany_Optional_Inverse2Id], [l1].[OneToMany_Optional_Self_Inverse2Id], [l1].[OneToMany_Required_Inverse2Id], [l1].[OneToMany_Required_Self_Inverse2Id], [l1].[OneToOne_Optional_PK_Inverse2Id], [l1].[OneToOne_Optional_Self2Id]
+        SELECT TOP(10) [l0].[Id], [l1].[Id] AS [Id0]
         FROM [LevelOne] AS [l0]
         LEFT JOIN [LevelTwo] AS [l1] ON [l0].[Id] = [l1].[Level1_Optional_Id]
         WHERE (
@@ -3195,17 +3195,14 @@ END = N'L4 01'");
         await base.Union_over_entities_with_different_nullability(async);
 
         AssertSql(
-            @"SELECT [t].[Id]
-FROM (
-    SELECT [l].[Id], [l].[Date], [l].[Name], [l].[OneToMany_Optional_Self_Inverse1Id], [l].[OneToMany_Required_Self_Inverse1Id], [l].[OneToOne_Optional_Self1Id], [l0].[Id] AS [Id0], [l0].[Date] AS [Date0], [l0].[Level1_Optional_Id], [l0].[Level1_Required_Id], [l0].[Name] AS [Name0], [l0].[OneToMany_Optional_Inverse2Id], [l0].[OneToMany_Optional_Self_Inverse2Id], [l0].[OneToMany_Required_Inverse2Id], [l0].[OneToMany_Required_Self_Inverse2Id], [l0].[OneToOne_Optional_PK_Inverse2Id], [l0].[OneToOne_Optional_Self2Id]
-    FROM [LevelOne] AS [l]
-    LEFT JOIN [LevelTwo] AS [l0] ON [l].[Id] = [l0].[Level1_Optional_Id]
-    UNION ALL
-    SELECT [l2].[Id], [l2].[Date], [l2].[Name], [l2].[OneToMany_Optional_Self_Inverse1Id], [l2].[OneToMany_Required_Self_Inverse1Id], [l2].[OneToOne_Optional_Self1Id], [l1].[Id] AS [Id0], [l1].[Date] AS [Date0], [l1].[Level1_Optional_Id], [l1].[Level1_Required_Id], [l1].[Name] AS [Name0], [l1].[OneToMany_Optional_Inverse2Id], [l1].[OneToMany_Optional_Self_Inverse2Id], [l1].[OneToMany_Required_Inverse2Id], [l1].[OneToMany_Required_Self_Inverse2Id], [l1].[OneToOne_Optional_PK_Inverse2Id], [l1].[OneToOne_Optional_Self2Id]
-    FROM [LevelTwo] AS [l1]
-    LEFT JOIN [LevelOne] AS [l2] ON [l1].[Level1_Optional_Id] = [l2].[Id]
-    WHERE [l2].[Id] IS NULL
-) AS [t]");
+            @"SELECT [l].[Id]
+FROM [LevelOne] AS [l]
+LEFT JOIN [LevelTwo] AS [l0] ON [l].[Id] = [l0].[Level1_Optional_Id]
+UNION ALL
+SELECT [l2].[Id]
+FROM [LevelTwo] AS [l1]
+LEFT JOIN [LevelOne] AS [l2] ON [l1].[Level1_Optional_Id] = [l2].[Id]
+WHERE [l2].[Id] IS NULL");
     }
 
     public override async Task Including_reference_navigation_and_projecting_collection_navigation_2(bool async)
@@ -3397,9 +3394,14 @@ LEFT JOIN [LevelTwo] AS [l1] ON [l].[Id] = [l1].[OneToOne_Optional_PK_Inverse2Id
 FROM [LevelOne] AS [l]
 LEFT JOIN [LevelTwo] AS [l0] ON [l].[Id] = [l0].[Id]
 LEFT JOIN [LevelThree] AS [l1] ON [l0].[Id] = [l1].[Id]
-LEFT JOIN [LevelTwo] AS [l2] ON [l].[Id] = [l2].[Id]
 GROUP BY [l1].[Name]
-HAVING MIN(COALESCE([l2].[Id], 0) + COALESCE([l2].[Id], 0)) > 0");
+HAVING (
+    SELECT MIN(COALESCE([l5].[Id], 0) + COALESCE([l5].[Id], 0))
+    FROM [LevelOne] AS [l2]
+    LEFT JOIN [LevelTwo] AS [l3] ON [l2].[Id] = [l3].[Id]
+    LEFT JOIN [LevelThree] AS [l4] ON [l3].[Id] = [l4].[Id]
+    LEFT JOIN [LevelTwo] AS [l5] ON [l2].[Id] = [l5].[Id]
+    WHERE [l1].[Name] = [l4].[Name] OR ([l1].[Name] IS NULL AND [l4].[Name] IS NULL)) > 0");
     }
 
     public override async Task Nested_object_constructed_from_group_key_properties(bool async)
@@ -3552,14 +3554,17 @@ LEFT JOIN [LevelOne] AS [l1] ON [l].[Level1_Optional_Id] = [l1].[Id]");
         await base.Composite_key_join_on_groupby_aggregate_projecting_only_grouping_key(async);
 
         AssertSql(
-            @"SELECT [t].[Key]
+            @"SELECT [t0].[Key]
 FROM [LevelOne] AS [l]
 INNER JOIN (
-    SELECT [l0].[Id] % 3 AS [Key], COALESCE(SUM([l0].[Id]), 0) AS [Sum]
-    FROM [LevelTwo] AS [l0]
-    GROUP BY [l0].[Id] % 3
-) AS [t] ON [l].[Id] = [t].[Key] AND CAST(1 AS bit) = CASE
-    WHEN [t].[Sum] > 10 THEN CAST(1 AS bit)
+    SELECT [t].[Key], COALESCE(SUM([t].[Id]), 0) AS [Sum]
+    FROM (
+        SELECT [l0].[Id], [l0].[Id] % 3 AS [Key]
+        FROM [LevelTwo] AS [l0]
+    ) AS [t]
+    GROUP BY [t].[Key]
+) AS [t0] ON [l].[Id] = [t0].[Key] AND CAST(1 AS bit) = CASE
+    WHEN [t0].[Sum] > 10 THEN CAST(1 AS bit)
     ELSE CAST(0 AS bit)
 END");
     }
@@ -3842,9 +3847,14 @@ GROUP BY [l1].[Name]");
 FROM [LevelOne] AS [l]
 LEFT JOIN [LevelTwo] AS [l0] ON [l].[Id] = [l0].[Id]
 LEFT JOIN [LevelThree] AS [l1] ON [l0].[Id] = [l1].[Id]
-LEFT JOIN [LevelTwo] AS [l2] ON [l].[Id] = [l2].[Id]
 GROUP BY [l1].[Name]
-HAVING MIN(COALESCE([l2].[Id], 0)) > 0");
+HAVING (
+    SELECT MIN(COALESCE([l5].[Id], 0))
+    FROM [LevelOne] AS [l2]
+    LEFT JOIN [LevelTwo] AS [l3] ON [l2].[Id] = [l3].[Id]
+    LEFT JOIN [LevelThree] AS [l4] ON [l3].[Id] = [l4].[Id]
+    LEFT JOIN [LevelTwo] AS [l5] ON [l2].[Id] = [l5].[Id]
+    WHERE [l1].[Name] = [l4].[Name] OR ([l1].[Name] IS NULL AND [l4].[Name] IS NULL)) > 0");
     }
 
     public override async Task Simple_level1_level2_level3_include(bool async)
@@ -3949,6 +3959,43 @@ FROM [LevelOne] AS [l]");
         AssertSql(
             @"SELECT [l].[Id], [l].[OneToOne_Optional_PK_Inverse2Id], [l].[OneToMany_Required_Inverse2Id], [l].[OneToMany_Optional_Inverse2Id], [l].[OneToOne_Optional_Self2Id], [l].[OneToMany_Required_Self_Inverse2Id], [l].[OneToMany_Optional_Self_Inverse2Id]
 FROM [LevelTwo] AS [l]");
+    }
+
+    public override async Task Multiple_required_navigation_using_multiple_selects_with_EF_Property_Include(bool async)
+    {
+        await base.Multiple_required_navigation_using_multiple_selects_with_EF_Property_Include(async);
+
+        AssertSql();
+    }
+
+    public override async Task SelectMany_with_EF_Property_Include1(bool async)
+    {
+        await base.SelectMany_with_EF_Property_Include1(async);
+
+        AssertSql(
+            @"SELECT [l0].[Id], [l0].[Date], [l0].[Level1_Optional_Id], [l0].[Level1_Required_Id], [l0].[Name], [l0].[OneToMany_Optional_Inverse2Id], [l0].[OneToMany_Optional_Self_Inverse2Id], [l0].[OneToMany_Required_Inverse2Id], [l0].[OneToMany_Required_Self_Inverse2Id], [l0].[OneToOne_Optional_PK_Inverse2Id], [l0].[OneToOne_Optional_Self2Id], [l1].[Id], [l1].[Level2_Optional_Id], [l1].[Level2_Required_Id], [l1].[Name], [l1].[OneToMany_Optional_Inverse3Id], [l1].[OneToMany_Optional_Self_Inverse3Id], [l1].[OneToMany_Required_Inverse3Id], [l1].[OneToMany_Required_Self_Inverse3Id], [l1].[OneToOne_Optional_PK_Inverse3Id], [l1].[OneToOne_Optional_Self3Id]
+FROM [LevelOne] AS [l]
+INNER JOIN [LevelTwo] AS [l0] ON [l].[Id] = [l0].[OneToMany_Optional_Inverse2Id]
+LEFT JOIN [LevelThree] AS [l1] ON [l0].[Id] = [l1].[Level2_Required_Id]");
+    }
+
+    public override async Task Multiple_SelectMany_with_EF_Property_Include(bool async)
+    {
+        await base.Multiple_SelectMany_with_EF_Property_Include(async);
+
+        AssertSql(
+            @"SELECT [l1].[Id], [l1].[Level2_Optional_Id], [l1].[Level2_Required_Id], [l1].[Name], [l1].[OneToMany_Optional_Inverse3Id], [l1].[OneToMany_Optional_Self_Inverse3Id], [l1].[OneToMany_Required_Inverse3Id], [l1].[OneToMany_Required_Self_Inverse3Id], [l1].[OneToOne_Optional_PK_Inverse3Id], [l1].[OneToOne_Optional_Self3Id], [l2].[Id], [l2].[Level3_Optional_Id], [l2].[Level3_Required_Id], [l2].[Name], [l2].[OneToMany_Optional_Inverse4Id], [l2].[OneToMany_Optional_Self_Inverse4Id], [l2].[OneToMany_Required_Inverse4Id], [l2].[OneToMany_Required_Self_Inverse4Id], [l2].[OneToOne_Optional_PK_Inverse4Id], [l2].[OneToOne_Optional_Self4Id]
+FROM [LevelOne] AS [l]
+INNER JOIN [LevelTwo] AS [l0] ON [l].[Id] = [l0].[OneToMany_Optional_Inverse2Id]
+INNER JOIN [LevelThree] AS [l1] ON [l0].[Id] = [l1].[OneToMany_Optional_Inverse3Id]
+LEFT JOIN [LevelFour] AS [l2] ON [l1].[Id] = [l2].[Level3_Required_Id]");
+    }
+
+    public override async Task Multiple_required_navigation_with_EF_Property_Include(bool async)
+    {
+        await base.Multiple_required_navigation_with_EF_Property_Include(async);
+
+        AssertSql();
     }
 
     private void AssertSql(params string[] expected)

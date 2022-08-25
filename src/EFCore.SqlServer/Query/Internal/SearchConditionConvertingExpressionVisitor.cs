@@ -166,6 +166,15 @@ public class SearchConditionConvertingExpressionVisitor : SqlExpressionVisitor
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
+    protected override Expression VisitDelete(DeleteExpression deleteExpression)
+        => deleteExpression.Update((SelectExpression)Visit(deleteExpression.SelectExpression));
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
     protected override Expression VisitDistinct(DistinctExpression distinctExpression)
     {
         var parentSearchCondition = _isSearchCondition;
@@ -304,6 +313,23 @@ public class SearchConditionConvertingExpressionVisitor : SqlExpressionVisitor
             ? selectExpression.Update(
                 projections, tables, predicate, groupBy, havingExpression, orderings, limit, offset)
             : selectExpression;
+    }
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    protected override Expression VisitAtTimeZone(AtTimeZoneExpression atTimeZoneExpression)
+    {
+        var parentSearchCondition = _isSearchCondition;
+        _isSearchCondition = false;
+        var operand = (SqlExpression)Visit(atTimeZoneExpression.Operand);
+        var timeZone = (SqlExpression)Visit(atTimeZoneExpression.TimeZone);
+        _isSearchCondition = parentSearchCondition;
+
+        return atTimeZoneExpression.Update(operand, timeZone);
     }
 
     /// <summary>
@@ -506,7 +532,12 @@ public class SearchConditionConvertingExpressionVisitor : SqlExpressionVisitor
     /// </summary>
     protected override Expression VisitOrdering(OrderingExpression orderingExpression)
     {
+        var parentSearchCondition = _isSearchCondition;
+        _isSearchCondition = false;
+
         var expression = (SqlExpression)Visit(orderingExpression.Expression);
+
+        _isSearchCondition = parentSearchCondition;
 
         return orderingExpression.Update(expression);
     }
@@ -688,5 +719,55 @@ public class SearchConditionConvertingExpressionVisitor : SqlExpressionVisitor
         _isSearchCondition = parentSearchCondition;
 
         return unionExpression.Update(source1, source2);
+    }
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    protected override Expression VisitUpdate(UpdateExpression updateExpression)
+    {
+        var selectExpression = (SelectExpression)Visit(updateExpression.SelectExpression);
+        var parentSearchCondition = _isSearchCondition;
+        _isSearchCondition = false;
+        List<ColumnValueSetter>? columnValueSetters = null;
+        for (var (i, n) = (0, updateExpression.ColumnValueSetters.Count); i < n; i++)
+        {
+            var columnValueSetter = updateExpression.ColumnValueSetters[i];
+            var newValue = (SqlExpression)Visit(columnValueSetter.Value);
+            if (columnValueSetters != null)
+            {
+                columnValueSetters.Add(new ColumnValueSetter(columnValueSetter.Column, newValue));
+            }
+            else if (!ReferenceEquals(newValue, columnValueSetter.Value))
+            {
+                columnValueSetters = new();
+                for (var j = 0; j < i; j++)
+                {
+                    columnValueSetters.Add(updateExpression.ColumnValueSetters[j]);
+                }
+                columnValueSetters.Add(new ColumnValueSetter(columnValueSetter.Column, newValue));
+            }
+        }
+        _isSearchCondition = parentSearchCondition;
+        return updateExpression.Update(selectExpression, columnValueSetters ?? updateExpression.ColumnValueSetters);
+    }
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    protected override Expression VisitJsonScalar(JsonScalarExpression jsonScalarExpression)
+    {
+        var parentSearchCondition = _isSearchCondition;
+        _isSearchCondition = false;
+        var jsonPath = (SqlExpression)Visit(jsonScalarExpression.Path);
+        _isSearchCondition = parentSearchCondition;
+
+        return jsonScalarExpression.Update(jsonScalarExpression.JsonColumn, jsonPath);
     }
 }

@@ -596,7 +596,7 @@ ORDER BY [c].[Id]");
             @"SELECT [o].[CustomerId], [o].[OrderDate]
 FROM [Orders] AS [o]
 INNER JOIN (
-    SELECT [g].[OrderId]
+    SELECT [c].[Id], [c].[FirstName], [c].[LastName], [g].[OrderId], [g].[CustomerId], [g].[OrderDate]
     FROM [Customers] AS [c]
     CROSS APPLY [dbo].[GetOrdersWithMultipleProducts]([c].[Id]) AS [g]
 ) AS [t] ON [o].[Id] = [t].[OrderId]");
@@ -814,7 +814,8 @@ ORDER BY [a].[Id], [g].[Year]");
 
     public class SqlServer : UdfFixtureBase
     {
-        protected override string StoreName { get; } = "UDFDbFunctionSqlServerTests";
+        protected override string StoreName
+            => "UDFDbFunctionSqlServerTests";
 
         protected override ITestStoreFactory TestStoreFactory
             => SqlServerTestStoreFactory.Instance;

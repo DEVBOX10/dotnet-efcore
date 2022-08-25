@@ -102,6 +102,18 @@ public class NorthwindFunctionsQuerySqliteTest : NorthwindFunctionsQueryRelation
     public override Task Where_math_round(bool async)
         => AssertTranslationFailed(() => base.Where_math_round(async));
 
+    public override Task Sum_over_round_works_correctly_in_projection(bool async)
+        => AssertTranslationFailed(() => base.Sum_over_round_works_correctly_in_projection(async));
+
+    public override Task Sum_over_round_works_correctly_in_projection_2(bool async)
+        => AssertTranslationFailed(() => base.Sum_over_round_works_correctly_in_projection_2(async));
+
+    public override Task Sum_over_truncate_works_correctly_in_projection(bool async)
+        => AssertTranslationFailed(() => base.Sum_over_truncate_works_correctly_in_projection(async));
+
+    public override Task Sum_over_truncate_works_correctly_in_projection_2(bool async)
+        => AssertTranslationFailed(() => base.Sum_over_truncate_works_correctly_in_projection_2(async));
+
     public override Task Where_math_round2(bool async)
         => AssertTranslationFailed(() => base.Where_math_round2(async));
 
@@ -312,6 +324,64 @@ FROM ""Customers"" AS ""c""
 WHERE 'M' = '' OR instr(""c"".""ContactName"", 'M') > 0");
     }
 
+    public override async Task String_Join_over_non_nullable_column(bool async)
+    {
+        await base.String_Join_over_non_nullable_column(async);
+
+        AssertSql(
+            @"SELECT ""c"".""City"", COALESCE(group_concat(""c"".""CustomerID"", '|'), '') AS ""Customers""
+FROM ""Customers"" AS ""c""
+GROUP BY ""c"".""City""");
+    }
+
+    public override async Task String_Join_over_nullable_column(bool async)
+    {
+        await base.String_Join_over_nullable_column(async);
+
+        AssertSql(
+            @"SELECT ""c"".""City"", COALESCE(group_concat(COALESCE(""c"".""Region"", ''), '|'), '') AS ""Regions""
+FROM ""Customers"" AS ""c""
+GROUP BY ""c"".""City""");
+    }
+
+    public override async Task String_Join_with_predicate(bool async)
+    {
+        await base.String_Join_with_predicate(async);
+
+        AssertSql(
+            @"SELECT ""c"".""City"", COALESCE(group_concat(CASE
+    WHEN length(""c"".""ContactName"") > 10 THEN ""c"".""CustomerID""
+END, '|'), '') AS ""Customers""
+FROM ""Customers"" AS ""c""
+GROUP BY ""c"".""City""");
+    }
+
+    public override async Task String_Join_with_ordering(bool async)
+    {
+        // SQLite does not support input ordering on aggregate methods; the below does client evaluation.
+        await base.String_Join_with_ordering(async);
+
+        AssertSql(
+            @"SELECT ""t"".""City"", ""c0"".""CustomerID""
+FROM (
+    SELECT ""c"".""City""
+    FROM ""Customers"" AS ""c""
+    GROUP BY ""c"".""City""
+) AS ""t""
+LEFT JOIN ""Customers"" AS ""c0"" ON ""t"".""City"" = ""c0"".""City""
+ORDER BY ""t"".""City"", ""c0"".""CustomerID"" DESC");
+    }
+
+    public override async Task String_Concat(bool async)
+    {
+        await base.String_Concat(async);
+
+        AssertSql(
+            @"SELECT ""c"".""City"", COALESCE(group_concat(""c"".""CustomerID"", ''), '') AS ""Customers""
+FROM ""Customers"" AS ""c""
+GROUP BY ""c"".""City""");
+    }
+
     public override async Task IsNullOrWhiteSpace_in_predicate(bool async)
     {
         await base.IsNullOrWhiteSpace_in_predicate(async);
@@ -327,19 +397,57 @@ WHERE ""c"".""Region"" IS NULL OR trim(""c"".""Region"") = ''");
         await base.Indexof_with_emptystring(async);
 
         AssertSql(
-            @"SELECT instr(""c"".""ContactName"", '') - 1
+            @"SELECT ""c"".""CustomerID"", ""c"".""Address"", ""c"".""City"", ""c"".""CompanyName"", ""c"".""ContactName"", ""c"".""ContactTitle"", ""c"".""Country"", ""c"".""Fax"", ""c"".""Phone"", ""c"".""PostalCode"", ""c"".""Region""
 FROM ""Customers"" AS ""c""
-WHERE ""c"".""CustomerID"" = 'ALFKI'");
+WHERE (instr(""c"".""ContactName"", '') - 1) = 0");
     }
+
+    public override async Task Indexof_with_one_constant_arg(bool async)
+    {
+        await base.Indexof_with_one_constant_arg(async);
+
+        AssertSql(
+            @"SELECT ""c"".""CustomerID"", ""c"".""Address"", ""c"".""City"", ""c"".""CompanyName"", ""c"".""ContactName"", ""c"".""ContactTitle"", ""c"".""Country"", ""c"".""Fax"", ""c"".""Phone"", ""c"".""PostalCode"", ""c"".""Region""
+FROM ""Customers"" AS ""c""
+WHERE (instr(""c"".""ContactName"", 'a') - 1) = 1");
+    }
+
+    public override async Task Indexof_with_one_parameter_arg(bool async)
+    {
+        await base.Indexof_with_one_parameter_arg(async);
+
+        AssertSql(
+            @"@__pattern_0='a' (Size = 1)
+
+SELECT ""c"".""CustomerID"", ""c"".""Address"", ""c"".""City"", ""c"".""CompanyName"", ""c"".""ContactName"", ""c"".""ContactTitle"", ""c"".""Country"", ""c"".""Fax"", ""c"".""Phone"", ""c"".""PostalCode"", ""c"".""Region""
+FROM ""Customers"" AS ""c""
+WHERE (instr(""c"".""ContactName"", @__pattern_0) - 1) = 1");
+    }
+
+    public override Task Indexof_with_constant_starting_position(bool async)
+        => AssertTranslationFailed(() => base.Indexof_with_constant_starting_position(async));
+
+    public override Task Indexof_with_parameter_starting_position(bool async)
+        => AssertTranslationFailed(() => base.Indexof_with_parameter_starting_position(async));
 
     public override async Task Replace_with_emptystring(bool async)
     {
         await base.Replace_with_emptystring(async);
 
         AssertSql(
-            @"SELECT replace(""c"".""ContactName"", 'ari', '')
+            @"SELECT ""c"".""CustomerID"", ""c"".""Address"", ""c"".""City"", ""c"".""CompanyName"", ""c"".""ContactName"", ""c"".""ContactTitle"", ""c"".""Country"", ""c"".""Fax"", ""c"".""Phone"", ""c"".""PostalCode"", ""c"".""Region""
 FROM ""Customers"" AS ""c""
-WHERE ""c"".""CustomerID"" = 'ALFKI'");
+WHERE replace(""c"".""ContactName"", 'ia', '') = 'Mar Anders'");
+    }
+
+    public override async Task Replace_using_property_arguments(bool async)
+    {
+        await base.Replace_using_property_arguments(async);
+
+        AssertSql(
+            @"SELECT ""c"".""CustomerID"", ""c"".""Address"", ""c"".""City"", ""c"".""CompanyName"", ""c"".""ContactName"", ""c"".""ContactTitle"", ""c"".""Country"", ""c"".""Fax"", ""c"".""Phone"", ""c"".""PostalCode"", ""c"".""Region""
+FROM ""Customers"" AS ""c""
+WHERE replace(""c"".""ContactName"", ""c"".""ContactName"", ""c"".""CustomerID"") = ""c"".""CustomerID""");
     }
 
     public override async Task Substring_with_one_arg_with_zero_startindex(bool async)

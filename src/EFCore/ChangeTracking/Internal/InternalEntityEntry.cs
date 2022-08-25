@@ -71,6 +71,15 @@ public sealed partial class InternalEntityEntry : IUpdateEntry
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
+    public DbContext Context
+        => StateManager.Context;
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
     public object Entity { get; }
 
     /// <summary>
@@ -286,7 +295,7 @@ public sealed partial class InternalEntityEntry : IUpdateEntry
             _stateData.EntityState = oldState;
         }
 
-        StateManager.StateChanging(this, newState);
+        FireStateChanging(newState);
 
         if (newState == EntityState.Unchanged
             && oldState == EntityState.Modified)
@@ -388,6 +397,20 @@ public sealed partial class InternalEntityEntry : IUpdateEntry
         }
     }
 
+    private void FireStateChanging(EntityState newState)
+    {
+        if (EntityState != EntityState.Detached)
+        {
+            StateManager.OnStateChanging(this, newState);
+        }
+        else
+        {
+            StateManager.OnTracking(this, newState, fromQuery: false);
+        }
+        
+        StateManager.ChangingState(this, newState);
+    }
+
     private void FireStateChanged(EntityState oldState)
     {
         StateManager.InternalEntityEntryNotifier.StateChanged(this, oldState, fromQuery: false);
@@ -414,7 +437,7 @@ public sealed partial class InternalEntityEntry : IUpdateEntry
                         .ServiceDelegate(
                             new MaterializationContext(
                                 ValueBuffer.Empty,
-                                StateManager.Context),
+                                Context),
                             EntityType,
                             Entity);
             }
@@ -436,6 +459,8 @@ public sealed partial class InternalEntityEntry : IUpdateEntry
     /// </summary>
     public void MarkUnchangedFromQuery()
     {
+        StateManager.OnTracking(this, EntityState.Unchanged, fromQuery: true);
+
         StateManager.InternalEntityEntryNotifier.StateChanging(this, EntityState.Unchanged);
 
         _stateData.EntityState = EntityState.Unchanged;
@@ -553,7 +578,7 @@ public sealed partial class InternalEntityEntry : IUpdateEntry
         {
             if (changeState)
             {
-                StateManager.StateChanging(this, EntityState.Modified);
+                FireStateChanging(EntityState.Modified);
 
                 SetServiceProperties(currentState, EntityState.Modified);
 
@@ -576,7 +601,7 @@ public sealed partial class InternalEntityEntry : IUpdateEntry
                  && !isModified
                  && !_stateData.AnyPropertiesFlagged(PropertyFlag.Modified))
         {
-            StateManager.StateChanging(this, EntityState.Unchanged);
+            FireStateChanging(EntityState.Unchanged);
             _stateData.EntityState = EntityState.Unchanged;
             StateManager.ChangedCount--;
             FireStateChanged(currentState);
@@ -893,14 +918,15 @@ public sealed partial class InternalEntityEntry : IUpdateEntry
     /// </summary>
     public object GetOrCreateCollection(INavigationBase navigationBase, bool forMaterialization)
         => navigationBase.IsShadowProperty()
-            ? GetOrCreateCollectionTyped(navigationBase)
+            ? GetOrCreateShadowCollection(navigationBase)
             : navigationBase.GetCollectionAccessor()!.GetOrCreate(Entity, forMaterialization);
 
-    private ICollection<object> GetOrCreateCollectionTyped(INavigationBase navigation)
+    private object GetOrCreateShadowCollection(INavigationBase navigation)
     {
-        if (!(_shadowValues[navigation.GetShadowIndex()] is ICollection<object> collection))
+        var collection = _shadowValues[navigation.GetShadowIndex()]; 
+        if (collection == null)
         {
-            collection = new HashSet<object>();
+            collection = navigation.GetCollectionAccessor()!.Create();
             _shadowValues[navigation.GetShadowIndex()] = collection;
         }
 
@@ -913,10 +939,13 @@ public sealed partial class InternalEntityEntry : IUpdateEntry
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    public bool CollectionContains(INavigationBase navigationBase, InternalEntityEntry value)
-        => navigationBase.IsShadowProperty()
-            ? GetOrCreateCollectionTyped(navigationBase).Contains(value.Entity)
-            : navigationBase.GetCollectionAccessor()!.Contains(Entity, value.Entity);
+    public bool CollectionContains(INavigationBase navigationBase, object value)
+    {
+        var collectionAccessor = navigationBase.GetCollectionAccessor()!;
+        return navigationBase.IsShadowProperty()
+            ? collectionAccessor.ContainsStandalone(GetOrCreateShadowCollection(navigationBase), value)
+            : collectionAccessor.Contains(Entity, value);
+    }
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -926,18 +955,19 @@ public sealed partial class InternalEntityEntry : IUpdateEntry
     /// </summary>
     public bool AddToCollection(
         INavigationBase navigationBase,
-        InternalEntityEntry value,
+        object value,
         bool forMaterialization)
     {
+        var collectionAccessor = navigationBase.GetCollectionAccessor()!;
         if (!navigationBase.IsShadowProperty())
         {
-            return navigationBase.GetCollectionAccessor()!.Add(Entity, value.Entity, forMaterialization);
+            return collectionAccessor.Add(Entity, value, forMaterialization);
         }
 
-        var collection = GetOrCreateCollectionTyped(navigationBase);
-        if (!collection.Contains(value.Entity))
+        var collection = GetOrCreateShadowCollection(navigationBase);
+        if (!collectionAccessor.ContainsStandalone(collection, value))
         {
-            collection.Add(value.Entity);
+            collectionAccessor.AddStandalone(collection, value);
             return true;
         }
 
@@ -950,10 +980,13 @@ public sealed partial class InternalEntityEntry : IUpdateEntry
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    public bool RemoveFromCollection(INavigationBase navigationBase, InternalEntityEntry value)
-        => navigationBase.IsShadowProperty()
-            ? GetOrCreateCollectionTyped(navigationBase).Remove(value.Entity)
-            : navigationBase.GetCollectionAccessor()!.Remove(Entity, value.Entity);
+    public bool RemoveFromCollection(INavigationBase navigationBase, object value)
+    {
+        var collectionAccessor = navigationBase.GetCollectionAccessor()!;
+        return navigationBase.IsShadowProperty()
+            ? collectionAccessor.RemoveStandalone(GetOrCreateShadowCollection(navigationBase), value)
+            : collectionAccessor.Remove(Entity, value);
+    }
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -1300,7 +1333,7 @@ public sealed partial class InternalEntityEntry : IUpdateEntry
                     if (valueType == CurrentValueType.StoreGenerated)
                     {
                         var defaultValue = asProperty!.ClrType.GetDefaultValue();
-                        if (!AreEqual(currentValue, defaultValue, asProperty!))
+                        if (!AreEqual(currentValue, defaultValue, asProperty))
                         {
                             WritePropertyValue(asProperty, defaultValue, isMaterialization);
                         }
@@ -1311,13 +1344,13 @@ public sealed partial class InternalEntityEntry : IUpdateEntry
                     else
                     {
                         var defaultValue = asProperty!.ClrType.GetDefaultValue();
-                        if (!AreEqual(currentValue, defaultValue, asProperty!))
+                        if (!AreEqual(currentValue, defaultValue, asProperty))
                         {
                             WritePropertyValue(asProperty, defaultValue, isMaterialization);
                         }
 
                         if (_storeGeneratedValues.TryGetValue(storeGeneratedIndex, out var generatedValue)
-                            && !AreEqual(generatedValue, defaultValue, asProperty!))
+                            && !AreEqual(generatedValue, defaultValue, asProperty))
                         {
                             _storeGeneratedValues.SetValue(asProperty, defaultValue, storeGeneratedIndex);
                         }
@@ -1660,7 +1693,7 @@ public sealed partial class InternalEntityEntry : IUpdateEntry
                     || HasTemporaryValue(property)
                     || HasDefaultValue(property)))
             || (property.ValueGenerated.ForUpdate()
-                && (EntityState == EntityState.Modified || EntityState == EntityState.Deleted)
+                && (EntityState is EntityState.Modified or EntityState.Deleted)
                 && (property.GetAfterSaveBehavior() == PropertySaveBehavior.Ignore
                     || !IsModified(property)));
 
@@ -1777,6 +1810,13 @@ public sealed partial class InternalEntityEntry : IUpdateEntry
         foreach (var propertyBase in GetNotificationProperties(EntityType, eventArgs.PropertyName))
         {
             StateManager.InternalEntityEntryNotifier.PropertyChanging(this, propertyBase);
+
+            if (propertyBase is INavigationBase navigation
+                && navigation.IsCollection
+                && GetCurrentValue(propertyBase) != null)
+            {
+                StateManager.Dependencies.InternalEntityEntrySubscriber.UnsubscribeCollectionChanged(this, navigation);
+            }
         }
     }
 
@@ -1793,6 +1833,13 @@ public sealed partial class InternalEntityEntry : IUpdateEntry
         foreach (var propertyBase in GetNotificationProperties(EntityType, eventArgs.PropertyName))
         {
             StateManager.InternalEntityEntryNotifier.PropertyChanged(this, propertyBase, setModified: true);
+
+            if (propertyBase is INavigationBase navigation
+                && navigation.IsCollection
+                && GetCurrentValue(propertyBase) != null)
+            {
+                StateManager.Dependencies.InternalEntityEntrySubscriber.SubscribeCollectionChanged(this, navigation);
+            }
         }
     }
 

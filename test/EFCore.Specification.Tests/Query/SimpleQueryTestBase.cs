@@ -7,8 +7,6 @@ namespace Microsoft.EntityFrameworkCore;
 
 public abstract class SimpleQueryTestBase : NonSharedModelTestBase
 {
-    public static IEnumerable<object[]> IsAsyncData = new[] { new object[] { false }, new object[] { true } };
-
     protected override string StoreName
         => "SimpleQueryTests";
 
@@ -1133,5 +1131,228 @@ public abstract class SimpleQueryTestBase : NonSharedModelTestBase
         public DateTime? SomeNullableDateTime { get; set; }
         public DateTime? SomeOtherNullableDateTime { get; set; }
         public Parent26744 Parent { get; set; }
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual async Task Flattened_GroupJoin_on_interface_generic(bool async)
+    {
+        var contextFactory = await InitializeAsync<Context27343>(seed: c => c.Seed());
+        using var context = contextFactory.CreateContext();
+
+        var entitySet = context.Parents.AsQueryable<IDocumentType27343>();
+
+        var query = from p in entitySet
+                    join c in context.Set<Child27343>()
+                        on p.Id equals c.Id into grouping
+                    from c in grouping.DefaultIfEmpty()
+                    select c;
+
+        var result = async
+            ? await query.ToListAsync()
+            : query.ToList();
+
+        Assert.Empty(result);
+    }
+
+    protected class Context27343 : DbContext
+    {
+        public Context27343(DbContextOptions options)
+            : base(options)
+        {
+        }
+
+        public DbSet<Parent27343> Parents { get; set; }
+
+        public void Seed()
+        {
+
+            SaveChanges();
+        }
+    }
+
+    protected interface IDocumentType27343
+    {
+        public int Id { get; }
+    }
+
+    protected class Parent27343 : IDocumentType27343
+    {
+        public int Id { get; set; }
+        public List<Child27343> Children { get; set; }
+    }
+
+    protected class Child27343
+    {
+        public int Id { get; set; }
+        public int SomeInteger { get; set; }
+        public DateTime? SomeNullableDateTime { get; set; }
+        public DateTime? SomeOtherNullableDateTime { get; set; }
+        public Parent27343 Parent { get; set; }
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task Hierarchy_query_with_abstract_type_sibling(bool async)
+    {
+        return Hierarchy_query_with_abstract_type_sibling_helper(async, null);
+    }
+
+    public virtual async Task Hierarchy_query_with_abstract_type_sibling_helper(bool async, Action<ModelBuilder> onModelCreating)
+    {
+        var contextFactory = await InitializeAsync<Context28196>(onModelCreating: onModelCreating, seed: c => c.Seed());
+        using var context = contextFactory.CreateContext();
+
+        var query = context.Animals.OfType<Pet>().Where(a => a.Species.StartsWith("F"));
+
+        var result = async
+            ? await query.ToListAsync()
+            : query.ToList();
+    }
+
+    protected class Context28196 : DbContext
+    {
+        public Context28196(DbContextOptions options)
+            : base(options)
+        {
+        }
+
+        public DbSet<Animal> Animals { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Animal>().Property(e => e.Id).ValueGeneratedNever();
+            modelBuilder.Entity<Pet>();
+            modelBuilder.Entity<Cat>();
+            modelBuilder.Entity<Dog>();
+            modelBuilder.Entity<FarmAnimal>();
+        }
+
+        public void Seed()
+        {
+            AddRange(
+                new Cat
+                {
+                    Id = 1,
+                    Name = "Alice",
+                    Species = "Felis catus",
+                    EdcuationLevel = "MBA"
+                },
+                new Cat
+                {
+                    Id = 2,
+                    Name = "Mac",
+                    Species = "Felis catus",
+                    EdcuationLevel = "BA"
+                },
+                new Dog
+                {
+                    Id = 3,
+                    Name = "Toast",
+                    Species = "Canis familiaris",
+                    FavoriteToy = "Mr. Squirrel"
+                },
+                new FarmAnimal
+                {
+                    Id = 4,
+                    Value = 100.0,
+                    Species = "Ovis aries"
+                });
+
+            SaveChanges();
+        }
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual async Task Pushdown_does_not_add_grouping_key_to_projection_when_distinct_is_applied(bool async)
+    {
+        var contextFactory = await InitializeAsync<Context28039>();
+        using var db = contextFactory.CreateContext();
+
+
+        var queryResults = (from i in db.IndexData.Where(a => a.Parcel == "some condition")
+                                .Select(a => new SearchResult { ParcelNumber = a.Parcel, RowId = a.RowId })
+                            group i by new { i.ParcelNumber, i.RowId }
+                            into grp
+                            where grp.Count() == 1
+                            select grp.Key.ParcelNumber).Distinct();
+
+        var jsonLookup = (from dcv in db.TableData.Where(a => a.TableId == 123)
+                          join wos in queryResults
+                              on dcv.ParcelNumber equals wos
+                          orderby dcv.ParcelNumber
+                          select dcv.JSON).Take(123456);
+
+
+        var result = async
+            ? await jsonLookup.ToListAsync()
+            : jsonLookup.ToList();
+    }
+
+    protected class Context28039 : DbContext
+    {
+        public Context28039(DbContextOptions options)
+            : base(options)
+        {
+        }
+
+        public DbSet<IndexData> IndexData { get; set; }
+        public DbSet<TableData> TableData { get; set; }
+    }
+
+    public class TableData : EntityBase
+    {
+        public int TableId { get; set; }
+        public string ParcelNumber { get; set; }
+        public short RowId { get; set; }
+        public string JSON { get; set; }
+
+    }
+
+    public abstract class EntityBase
+    {
+        [Key]
+        public int ID { get; set; }
+    }
+
+    public class IndexData : EntityBase
+    {
+        public string Parcel { get; set; }
+        public int RowId { get; set; }
+    }
+
+    internal class SearchResult
+    {
+        public string ParcelNumber { get; set; }
+        public int RowId { get; set; }
+        public string DistinctValue { get; set; }
+    }
+
+
+    protected abstract class Animal
+    {
+        public int Id { get; set; }
+        public string Species { get; set; }
+    }
+
+    protected class FarmAnimal : Animal
+    {
+        public double Value { get; set; }
+    }
+
+    protected abstract class Pet : Animal
+    {
+        public string Name { get; set; }
+    }
+
+    protected class Cat : Pet
+    {
+        public string EdcuationLevel { get; set; }
+    }
+
+    protected class Dog : Pet
+    {
+        public string FavoriteToy { get; set; }
     }
 }

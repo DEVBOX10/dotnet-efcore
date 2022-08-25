@@ -50,6 +50,9 @@ public class TPTGearsOfWarQuerySqliteTest : TPTGearsOfWarQueryRelationalTestBase
     public override Task DateTimeOffset_Contains_Less_than_Greater_than(bool async)
         => AssertTranslationFailed(() => base.DateTimeOffset_Contains_Less_than_Greater_than(async));
 
+    public override Task DateTimeOffsetNow_minus_timespan(bool async)
+        => AssertTranslationFailed(() => base.DateTimeOffsetNow_minus_timespan(async));
+
     public override Task DateTimeOffset_Date_returns_datetime(bool async)
         => AssertTranslationFailed(() => base.DateTimeOffset_Date_returns_datetime(async));
 
@@ -193,6 +196,12 @@ public class TPTGearsOfWarQuerySqliteTest : TPTGearsOfWarQueryRelationalTestBase
             SqliteStrings.ApplyNotSupported,
             (await Assert.ThrowsAsync<InvalidOperationException>(
                 () => base.Correlated_collections_with_Distinct(async))).Message);
+
+    public override async Task Correlated_collection_with_groupby_with_complex_grouping_key_not_projecting_identifier_column_with_group_aggregate_in_final_projection(bool async)
+        => Assert.Equal(
+            SqliteStrings.ApplyNotSupported,
+            (await Assert.ThrowsAsync<InvalidOperationException>(
+                () => base.Correlated_collection_with_groupby_with_complex_grouping_key_not_projecting_identifier_column_with_group_aggregate_in_final_projection(async))).Message);
 
     public override async Task Negate_on_binary_expression(bool async)
     {

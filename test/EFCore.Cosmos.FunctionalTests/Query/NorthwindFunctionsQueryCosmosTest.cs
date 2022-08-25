@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Text.RegularExpressions;
 using Microsoft.Azure.Cosmos;
 using Microsoft.EntityFrameworkCore.TestModels.Northwind;
 
@@ -349,6 +350,18 @@ WHERE (((c[""Discriminator""] = ""OrderDetail"") AND (c[""Quantity""] < 5)) AND 
 FROM root c
 WHERE (((c[""Discriminator""] = ""OrderDetail"") AND (c[""Quantity""] < 5)) AND (ROUND(c[""UnitPrice""]) > 10.0))");
     }
+
+    public override Task Sum_over_round_works_correctly_in_projection(bool async)
+        => AssertTranslationFailed(() => base.Sum_over_round_works_correctly_in_projection(async));
+
+    public override Task Sum_over_round_works_correctly_in_projection_2(bool async)
+        => AssertTranslationFailed(() => base.Sum_over_round_works_correctly_in_projection_2(async));
+
+    public override Task Sum_over_truncate_works_correctly_in_projection(bool async)
+        => AssertTranslationFailed(() => base.Sum_over_truncate_works_correctly_in_projection(async));
+
+    public override Task Sum_over_truncate_works_correctly_in_projection_2(bool async)
+        => AssertTranslationFailed(() => base.Sum_over_truncate_works_correctly_in_projection_2(async));
 
     public override async Task Select_math_round_int(bool async)
     {
@@ -807,19 +820,53 @@ WHERE ((c[""Discriminator""] = ""Customer"") AND (LOWER(c[""CustomerID""]) = ""a
         await base.Indexof_with_emptystring(async);
 
         AssertSql(
-            @"SELECT INDEX_OF(c[""ContactName""], """") AS c
+            @"SELECT c
 FROM root c
-WHERE ((c[""Discriminator""] = ""Customer"") AND (c[""CustomerID""] = ""ALFKI""))");
+WHERE ((c[""Discriminator""] = ""Customer"") AND (INDEX_OF(c[""ContactName""], """") = 0))");
     }
 
-    public override async Task Indexof_with_starting_position(bool async)
+    public override async Task Indexof_with_one_constant_arg(bool async)
     {
-        await base.Indexof_with_starting_position(async);
+        await base.Indexof_with_one_constant_arg(async);
 
         AssertSql(
-            @"SELECT INDEX_OF(c[""ContactName""], ""a"", 3) AS c
+            @"SELECT c
 FROM root c
-WHERE ((c[""Discriminator""] = ""Customer"") AND (c[""CustomerID""] = ""ALFKI""))");
+WHERE ((c[""Discriminator""] = ""Customer"") AND (INDEX_OF(c[""ContactName""], ""a"") = 1))");
+    }
+
+    public override async Task Indexof_with_one_parameter_arg(bool async)
+    {
+        await base.Indexof_with_one_parameter_arg(async);
+
+        AssertSql(
+            @"@__pattern_0='a'
+
+SELECT c
+FROM root c
+WHERE ((c[""Discriminator""] = ""Customer"") AND (INDEX_OF(c[""ContactName""], @__pattern_0) = 1))");
+    }
+
+    public override async Task Indexof_with_constant_starting_position(bool async)
+    {
+        await base.Indexof_with_constant_starting_position(async);
+
+        AssertSql(
+            @"SELECT c
+FROM root c
+WHERE ((c[""Discriminator""] = ""Customer"") AND (INDEX_OF(c[""ContactName""], ""a"", 2) = 4))");
+    }
+
+    public override async Task Indexof_with_parameter_starting_position(bool async)
+    {
+        await base.Indexof_with_parameter_starting_position(async);
+
+        AssertSql(
+            @"@__start_0='2'
+
+SELECT c
+FROM root c
+WHERE ((c[""Discriminator""] = ""Customer"") AND (INDEX_OF(c[""ContactName""], ""a"", @__start_0) = 4))");
     }
 
     public override async Task Replace_with_emptystring(bool async)
@@ -827,9 +874,9 @@ WHERE ((c[""Discriminator""] = ""Customer"") AND (c[""CustomerID""] = ""ALFKI"")
         await base.Replace_with_emptystring(async);
 
         AssertSql(
-            @"SELECT REPLACE(c[""ContactName""], ""ari"", """") AS c
+            @"SELECT c
 FROM root c
-WHERE ((c[""Discriminator""] = ""Customer"") AND (c[""CustomerID""] = ""ALFKI""))");
+WHERE ((c[""Discriminator""] = ""Customer"") AND (REPLACE(c[""ContactName""], ""ia"", """") = ""Mar Anders""))");
     }
 
     public override async Task Replace_using_property_arguments(bool async)
@@ -837,9 +884,9 @@ WHERE ((c[""Discriminator""] = ""Customer"") AND (c[""CustomerID""] = ""ALFKI"")
         await base.Replace_using_property_arguments(async);
 
         AssertSql(
-            @"SELECT REPLACE(c[""ContactName""], c[""ContactName""], c[""CustomerID""]) AS c
+            @"SELECT c
 FROM root c
-WHERE ((c[""Discriminator""] = ""Customer"") AND (c[""CustomerID""] = ""ALFKI""))");
+WHERE ((c[""Discriminator""] = ""Customer"") AND (REPLACE(c[""ContactName""], c[""ContactName""], c[""CustomerID""]) = c[""CustomerID""]))");
     }
 
     public override async Task Substring_with_one_arg_with_zero_startindex(bool async)
@@ -1158,19 +1205,127 @@ WHERE ((c[""Discriminator""] = ""Order"") AND false)");
 
     public override async Task Regex_IsMatch_MethodCall(bool async)
     {
-        // Cosmos client evaluation. Issue #17246.
-        await AssertTranslationFailed(() => base.Regex_IsMatch_MethodCall(async));
+        await base.Regex_IsMatch_MethodCall(async);
 
-        AssertSql();
+        AssertSql(
+           @"SELECT c
+FROM root c
+WHERE ((c[""Discriminator""] = ""Customer"") AND RegexMatch(c[""CustomerID""], ""^T""))");
     }
 
     public override async Task Regex_IsMatch_MethodCall_constant_input(bool async)
     {
-        // Cosmos client evaluation. Issue #17246.
-        await AssertTranslationFailed(() => base.Regex_IsMatch_MethodCall_constant_input(async));
+        await base.Regex_IsMatch_MethodCall_constant_input(async);
 
-        AssertSql();
+        AssertSql(
+           @"SELECT c
+FROM root c
+WHERE ((c[""Discriminator""] = ""Customer"") AND RegexMatch(""ALFKI"", c[""CustomerID""]))");
     }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual async Task Regex_IsMatch_MethodCall_With_Option_None(bool async)
+    {
+        await AssertQuery(
+            async,
+            ss => ss.Set<Customer>().Where(o => Regex.IsMatch(o.CustomerID, "^T", RegexOptions.None)),
+            entryCount: 6);
+
+        AssertSql(
+           @"SELECT c
+FROM root c
+WHERE ((c[""Discriminator""] = ""Customer"") AND RegexMatch(c[""CustomerID""], ""^T""))");
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual async Task Regex_IsMatch_MethodCall_With_Option_IgnoreCase(bool async)
+    {
+        await AssertQuery(
+            async,
+            ss => ss.Set<Customer>().Where(o => Regex.IsMatch(o.CustomerID, "^T", RegexOptions.IgnoreCase)),
+            entryCount: 6);
+
+        AssertSql(
+         @"SELECT c
+FROM root c
+WHERE ((c[""Discriminator""] = ""Customer"") AND RegexMatch(c[""CustomerID""], ""^T"", ""i""))");
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual async Task Regex_IsMatch_MethodCall_With_Option_Multiline(bool async)
+    {
+        await AssertQuery(
+            async,
+            ss => ss.Set<Customer>().Where(o => Regex.IsMatch(o.CustomerID, "^T", RegexOptions.Multiline)),
+            entryCount: 6);
+
+        AssertSql(
+         @"SELECT c
+FROM root c
+WHERE ((c[""Discriminator""] = ""Customer"") AND RegexMatch(c[""CustomerID""], ""^T"", ""m""))");
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual async Task Regex_IsMatch_MethodCall_With_Option_Singleline(bool async)
+    {
+        await AssertQuery(
+            async,
+            ss => ss.Set<Customer>().Where(o => Regex.IsMatch(o.CustomerID, "^T", RegexOptions.Singleline)),
+            entryCount: 6);
+
+        AssertSql(
+          @"SELECT c
+FROM root c
+WHERE ((c[""Discriminator""] = ""Customer"") AND RegexMatch(c[""CustomerID""], ""^T"", ""s""))");
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual async Task Regex_IsMatch_MethodCall_With_Option_IgnorePatternWhitespace(bool async)
+    {
+        await AssertQuery(
+            async,
+            ss => ss.Set<Customer>().Where(o => Regex.IsMatch(o.CustomerID, "^T", RegexOptions.IgnorePatternWhitespace)),
+            entryCount: 6);
+
+        AssertSql(
+           @"SELECT c
+FROM root c
+WHERE ((c[""Discriminator""] = ""Customer"") AND RegexMatch(c[""CustomerID""], ""^T"", ""x""))");
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual async Task Regex_IsMatch_MethodCall_With_Options_IgnoreCase_And_IgnorePatternWhitespace(bool async)
+    {
+        await AssertQuery(
+            async,
+            ss => ss.Set<Customer>().Where(o => Regex.IsMatch(o.CustomerID, "^T", RegexOptions.IgnoreCase | RegexOptions.IgnorePatternWhitespace)),
+            entryCount: 6);
+
+        AssertSql(
+          @"SELECT c
+FROM root c
+WHERE ((c[""Discriminator""] = ""Customer"") AND RegexMatch(c[""CustomerID""], ""^T"", ""ix""))");
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task Regex_IsMatch_MethodCall_With_Unsupported_Option(bool async)
+        => AssertTranslationFailed(() => AssertQuery(
+            async,
+            ss => ss.Set<Customer>().Where(o => Regex.IsMatch(o.CustomerID, "^T", RegexOptions.RightToLeft))));
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task Regex_IsMatch_MethodCall_With_Any_Unsupported_Option(bool async)
+        => AssertTranslationFailed(() => AssertQuery(
+            async,
+            ss => ss.Set<Customer>().Where(o => Regex.IsMatch(o.CustomerID, "^T", RegexOptions.IgnoreCase | RegexOptions.RightToLeft))));
 
     [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
@@ -1292,15 +1447,20 @@ FROM root c
 WHERE ((c[""Discriminator""] = ""OrderDetail"") AND (c[""Quantity""] < 5))");
     }
 
-    public override async Task Indexof_with_one_arg(bool async)
-    {
-        await base.Indexof_with_one_arg(async);
+    public override Task String_Join_over_non_nullable_column(bool async)
+        => AssertTranslationFailed(() => base.String_Join_over_non_nullable_column(async));
 
-        AssertSql(
-            @"SELECT INDEX_OF(c[""ContactName""], ""a"") AS c
-FROM root c
-WHERE ((c[""Discriminator""] = ""Customer"") AND (c[""CustomerID""] = ""ALFKI""))");
-    }
+    public override Task String_Join_with_predicate(bool async)
+        => AssertTranslationFailed(() => base.String_Join_with_predicate(async));
+
+    public override Task String_Join_with_ordering(bool async)
+        => AssertTranslationFailed(() => base.String_Join_with_ordering(async));
+
+    public override Task String_Join_over_nullable_column(bool async)
+        => AssertTranslationFailed(() => base.String_Join_over_nullable_column(async));
+
+    public override Task String_Concat(bool async)
+        => AssertTranslationFailed(() => base.String_Concat(async));
 
     private void AssertSql(params string[] expected)
         => Fixture.TestSqlLoggerFactory.AssertBaseline(expected);

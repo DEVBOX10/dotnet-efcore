@@ -1620,14 +1620,11 @@ FROM (
         await base.Concat_with_scalar_projection(async);
 
         AssertSql(
-            @"SELECT [t].[Nickname]
-FROM (
-    SELECT [g].[Nickname], [g].[SquadId], [g].[AssignedCityName], [g].[CityOfBirthName], [g].[Discriminator], [g].[FullName], [g].[HasSoulPatch], [g].[LeaderNickname], [g].[LeaderSquadId], [g].[Rank]
-    FROM [Gears] AS [g]
-    UNION ALL
-    SELECT [g0].[Nickname], [g0].[SquadId], [g0].[AssignedCityName], [g0].[CityOfBirthName], [g0].[Discriminator], [g0].[FullName], [g0].[HasSoulPatch], [g0].[LeaderNickname], [g0].[LeaderSquadId], [g0].[Rank]
-    FROM [Gears] AS [g0]
-) AS [t]");
+            @"SELECT [g].[Nickname]
+FROM [Gears] AS [g]
+UNION ALL
+SELECT [g0].[Nickname]
+FROM [Gears] AS [g0]");
     }
 
     public override async Task Select_navigation_with_concat_and_count(bool async)
@@ -2532,6 +2529,145 @@ FROM [Missions] AS [m]");
             @"SELECT COUNT(*)
 FROM [Missions] AS [m]
 WHERE [m].[Timeline] = '1902-01-02T10:00:00.1234567+01:30'");
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual async Task Where_AtTimeZone_datetimeoffset_constant(bool async)
+    {
+        using var context = CreateContext();
+
+        var query = context.Set<Mission>().Where(
+            m => EF.Functions.AtTimeZone(m.Timeline, "UTC") == new DateTimeOffset(2, 3, 1, 13, 0, 0, TimeSpan.Zero));
+
+        var missions = async
+            ? await query.ToListAsync()
+            : query.ToList();
+
+        var mission = Assert.Single(missions);
+        Assert.Equal(2, mission.Id);
+
+        AssertSql(
+            @"SELECT [m].[Id], [m].[BriefingDocument], [m].[BriefingDocumentFileExtension], [m].[CodeName], [m].[Duration], [m].[Rating], [m].[Timeline]
+FROM [Missions] AS [m]
+WHERE ([m].[Timeline] AT TIME ZONE 'UTC') = '0002-03-01T13:00:00.0000000+00:00'");
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual async Task Where_AtTimeZone_datetimeoffset_parameter(bool async)
+    {
+        using var context = CreateContext();
+
+        var dateTime = new DateTimeOffset(2, 3, 1, 13, 0, 0, TimeSpan.Zero);
+        var timeZone = "UTC";
+        var query = context.Set<Mission>().Where(m => m.Timeline == EF.Functions.AtTimeZone(dateTime, timeZone));
+
+        var missions = async
+            ? await query.ToListAsync()
+            : query.ToList();
+
+        var mission = Assert.Single(missions);
+        Assert.Equal(2, mission.Id);
+
+        AssertSql(
+                @"@__dateTime_1='0002-03-01T13:00:00.0000000+00:00'
+@__timeZone_2='UTC' (Size = 8000) (DbType = AnsiString)
+
+SELECT [m].[Id], [m].[BriefingDocument], [m].[BriefingDocumentFileExtension], [m].[CodeName], [m].[Duration], [m].[Rating], [m].[Timeline]
+FROM [Missions] AS [m]
+WHERE [m].[Timeline] = (@__dateTime_1 AT TIME ZONE @__timeZone_2)");
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual async Task Where_AtTimeZone_datetimeoffset_column(bool async)
+    {
+        using var context = CreateContext();
+
+        var query = context.Set<Mission>()
+            .Where(m => EF.Functions.AtTimeZone(m.Timeline, "UTC") == new DateTimeOffset(2, 3, 1, 13, 0, 0, TimeSpan.Zero));
+
+        var missions = async
+            ? await query.ToListAsync()
+            : query.ToList();
+
+        var mission = Assert.Single(missions);
+        Assert.Equal(2, mission.Id);
+
+        AssertSql(
+                @"SELECT [m].[Id], [m].[BriefingDocument], [m].[BriefingDocumentFileExtension], [m].[CodeName], [m].[Duration], [m].[Rating], [m].[Timeline]
+FROM [Missions] AS [m]
+WHERE ([m].[Timeline] AT TIME ZONE 'UTC') = '0002-03-01T13:00:00.0000000+00:00'");
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual async Task Where_AtTimeZone_datetime_constant(bool async)
+    {
+        using var context = CreateContext();
+
+        var query = context.Set<Mission>().Where(m => m.Timeline == EF.Functions.AtTimeZone(new DateTime(10, 5, 3, 12, 0, 0), "UTC"));
+
+        var missions = async
+            ? await query.ToListAsync()
+            : query.ToList();
+
+        var mission = Assert.Single(missions);
+        Assert.Equal(3, mission.Id);
+
+        AssertSql(
+            @"SELECT [m].[Id], [m].[BriefingDocument], [m].[BriefingDocumentFileExtension], [m].[CodeName], [m].[Duration], [m].[Rating], [m].[Timeline]
+FROM [Missions] AS [m]
+WHERE [m].[Timeline] = (CAST('0010-05-03T12:00:00.0000000' AS datetime2) AT TIME ZONE 'UTC')");
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual async Task Where_AtTimeZone_datetime_parameter(bool async)
+    {
+        using var context = CreateContext();
+
+        var dateTime = new DateTime(10, 5, 3, 12, 0, 0);
+        var timeZone = "UTC";
+        var query = context.Set<Mission>().Where(m => m.Timeline == EF.Functions.AtTimeZone(dateTime, timeZone));
+
+        var missions = async
+            ? await query.ToListAsync()
+            : query.ToList();
+
+        var mission = Assert.Single(missions);
+        Assert.Equal(3, mission.Id);
+
+        AssertSql(
+                @"@__dateTime_1='0010-05-03T12:00:00.0000000'
+@__timeZone_2='UTC' (Size = 8000) (DbType = AnsiString)
+
+SELECT [m].[Id], [m].[BriefingDocument], [m].[BriefingDocumentFileExtension], [m].[CodeName], [m].[Duration], [m].[Rating], [m].[Timeline]
+FROM [Missions] AS [m]
+WHERE [m].[Timeline] = (@__dateTime_1 AT TIME ZONE @__timeZone_2)");
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual async Task Where_AtTimeZone_datetime_column(bool async)
+    {
+        using var context = CreateContext();
+
+        var query = context.Set<CogTag>()
+            .Where(ct => EF.Functions.AtTimeZone(ct.IssueDate, "UTC") == new DateTimeOffset(15, 3, 7, 0, 0, 0, TimeSpan.Zero));
+
+        var missions = async
+            ? await query.ToListAsync()
+            : query.ToList();
+
+        var mission = Assert.Single(missions);
+        Assert.Equal(Guid.Parse("A7BE028A-0CF2-448F-AB55-CE8BC5D8CF69"), mission.Id);
+
+        AssertSql(
+            @"SELECT [t].[Id], [t].[GearNickName], [t].[GearSquadId], [t].[IssueDate], [t].[Note]
+FROM [Tags] AS [t]
+WHERE ([t].[IssueDate] AT TIME ZONE 'UTC') = '0015-03-07T00:00:00.0000000+00:00'");
     }
 
     public override async Task Orderby_added_for_client_side_GroupJoin_composite_dependent_to_principal_LOJ_when_incomplete_key_is_used(
@@ -5738,6 +5874,9 @@ FROM [Missions] AS [m]
 WHERE @__start_0 <= CAST(CONVERT(date, [m].[Timeline]) AS datetimeoffset) AND [m].[Timeline] < @__end_1 AND [m].[Timeline] = '1902-01-02T10:00:00.1234567+01:30'");
     }
 
+    public override Task DateTimeOffsetNow_minus_timespan(bool async)
+        => AssertTranslationFailed(() => base.DateTimeOffsetNow_minus_timespan(async));
+
     public override async Task Navigation_inside_interpolated_string_expanded(bool async)
     {
         await base.Navigation_inside_interpolated_string_expanded(async);
@@ -6250,15 +6389,15 @@ GROUP BY [g].[CityOfBirthName], [g].[HasSoulPatch]");
         await base.GroupBy_with_boolean_grouping_key(async);
 
         AssertSql(
-            @"SELECT [g].[CityOfBirthName], [g].[HasSoulPatch], CASE
-    WHEN [g].[Nickname] = N'Marcus' THEN CAST(1 AS bit)
-    ELSE CAST(0 AS bit)
-END AS [IsMarcus], COUNT(*) AS [Count]
-FROM [Gears] AS [g]
-GROUP BY [g].[CityOfBirthName], [g].[HasSoulPatch], CASE
-    WHEN [g].[Nickname] = N'Marcus' THEN CAST(1 AS bit)
-    ELSE CAST(0 AS bit)
-END");
+            @"SELECT [t].[CityOfBirthName], [t].[HasSoulPatch], [t].[IsMarcus], COUNT(*) AS [Count]
+FROM (
+    SELECT [g].[CityOfBirthName], [g].[HasSoulPatch], CASE
+        WHEN [g].[Nickname] = N'Marcus' THEN CAST(1 AS bit)
+        ELSE CAST(0 AS bit)
+    END AS [IsMarcus]
+    FROM [Gears] AS [g]
+) AS [t]
+GROUP BY [t].[CityOfBirthName], [t].[HasSoulPatch], [t].[IsMarcus]");
     }
 
     public override async Task GroupBy_with_boolean_groupin_key_thru_navigation_access(bool async)
@@ -6289,8 +6428,12 @@ GROUP BY [c].[Name]");
         await base.Group_by_on_StartsWith_with_null_parameter_as_argument(async);
 
         AssertSql(
-            @"SELECT CAST(0 AS bit)
-FROM [Gears] AS [g]");
+            @"SELECT [t].[Key]
+FROM (
+    SELECT CAST(0 AS bit) AS [Key]
+    FROM [Gears] AS [g]
+) AS [t]
+GROUP BY [t].[Key]");
     }
 
     public override async Task Group_by_with_having_StartsWith_with_null_parameter_as_argument(bool async)
@@ -6681,15 +6824,15 @@ WHERE [s].[Banner5] = @__byteArrayParam_0");
         await base.Group_by_nullable_property_HasValue_and_project_the_grouping_key(async);
 
         AssertSql(
-            @"SELECT CASE
-    WHEN [w].[SynergyWithId] IS NOT NULL THEN CAST(1 AS bit)
-    ELSE CAST(0 AS bit)
-END
-FROM [Weapons] AS [w]
-GROUP BY CASE
-    WHEN [w].[SynergyWithId] IS NOT NULL THEN CAST(1 AS bit)
-    ELSE CAST(0 AS bit)
-END");
+            @"SELECT [t].[Key]
+FROM (
+    SELECT CASE
+        WHEN [w].[SynergyWithId] IS NOT NULL THEN CAST(1 AS bit)
+        ELSE CAST(0 AS bit)
+    END AS [Key]
+    FROM [Weapons] AS [w]
+) AS [t]
+GROUP BY [t].[Key]");
     }
 
     public override async Task Group_by_nullable_property_and_project_the_grouping_key_HasValue(bool async)
@@ -7716,6 +7859,27 @@ OUTER APPLY (
 ORDER BY [g].[Nickname], [g].[SquadId], [t].[IsAutomatic]");
     }
 
+    public override async Task
+        Correlated_collection_with_groupby_with_complex_grouping_key_not_projecting_identifier_column_with_group_aggregate_in_final_projection(bool async)
+    {
+        await base
+            .Correlated_collection_with_groupby_with_complex_grouping_key_not_projecting_identifier_column_with_group_aggregate_in_final_projection(async);
+
+        AssertSql(
+            @"SELECT [g].[Nickname], [g].[SquadId], [t0].[Key], [t0].[Count]
+FROM [Gears] AS [g]
+OUTER APPLY (
+    SELECT [t].[Key], COUNT(*) AS [Count]
+    FROM (
+        SELECT CAST(LEN([w].[Name]) AS int) AS [Key]
+        FROM [Weapons] AS [w]
+        WHERE [g].[FullName] = [w].[OwnerFullName]
+    ) AS [t]
+    GROUP BY [t].[Key]
+) AS [t0]
+ORDER BY [g].[Nickname], [g].[SquadId]");
+    }
+
     public override async Task Correlated_collection_via_SelectMany_with_Distinct_missing_indentifying_columns_in_projection(bool async)
     {
         await base.Correlated_collection_via_SelectMany_with_Distinct_missing_indentifying_columns_in_projection(async);
@@ -8207,17 +8371,6 @@ LEFT JOIN (
 ORDER BY [g].[Nickname], [g].[SquadId], [s].[Id]");
     }
 
-    public override async Task
-        Correlated_collection_with_groupby_with_complex_grouping_key_not_projecting_identifier_column_with_group_aggregate_in_final_projection(
-            bool async)
-    {
-        await base
-            .Correlated_collection_with_groupby_with_complex_grouping_key_not_projecting_identifier_column_with_group_aggregate_in_final_projection(
-                async);
-
-        AssertSql();
-    }
-
     public override async Task Correlated_collection_with_distinct_not_projecting_identifier_column_also_projecting_complex_expressions(
         bool async)
     {
@@ -8495,6 +8648,39 @@ WHERE NOT (EXISTS (
     SELECT 1
     FROM [Weapons] AS [w]
     WHERE [g].[FullName] = [w].[OwnerFullName]))");
+    }
+
+    public override async Task Include_reference_on_derived_type_using_EF_Property(bool async)
+    {
+        await base.Include_reference_on_derived_type_using_EF_Property(async);
+
+        AssertSql(
+            @"SELECT [l].[Name], [l].[Discriminator], [l].[LocustHordeId], [l].[ThreatLevel], [l].[ThreatLevelByte], [l].[ThreatLevelNullableByte], [l].[DefeatedByNickname], [l].[DefeatedBySquadId], [l].[HighCommandId], [g].[Nickname], [g].[SquadId], [g].[AssignedCityName], [g].[CityOfBirthName], [g].[Discriminator], [g].[FullName], [g].[HasSoulPatch], [g].[LeaderNickname], [g].[LeaderSquadId], [g].[Rank]
+FROM [LocustLeaders] AS [l]
+LEFT JOIN [Gears] AS [g] ON [l].[DefeatedByNickname] = [g].[Nickname] AND [l].[DefeatedBySquadId] = [g].[SquadId]");
+    }
+
+    public override async Task Include_collection_on_derived_type_using_EF_Property(bool async)
+    {
+        await base.Include_collection_on_derived_type_using_EF_Property(async);
+
+        AssertSql(
+            @"SELECT [g].[Nickname], [g].[SquadId], [g].[AssignedCityName], [g].[CityOfBirthName], [g].[Discriminator], [g].[FullName], [g].[HasSoulPatch], [g].[LeaderNickname], [g].[LeaderSquadId], [g].[Rank], [g0].[Nickname], [g0].[SquadId], [g0].[AssignedCityName], [g0].[CityOfBirthName], [g0].[Discriminator], [g0].[FullName], [g0].[HasSoulPatch], [g0].[LeaderNickname], [g0].[LeaderSquadId], [g0].[Rank]
+FROM [Gears] AS [g]
+LEFT JOIN [Gears] AS [g0] ON [g].[Nickname] = [g0].[LeaderNickname] AND [g].[SquadId] = [g0].[LeaderSquadId]
+ORDER BY [g].[Nickname], [g].[SquadId], [g0].[Nickname]");
+    }
+
+    public override async Task EF_Property_based_Include_navigation_on_derived_type(bool async)
+    {
+        await base.EF_Property_based_Include_navigation_on_derived_type(async);
+
+        AssertSql(
+            @"SELECT [g].[Nickname], [g].[SquadId], [g].[AssignedCityName], [g].[CityOfBirthName], [g].[Discriminator], [g].[FullName], [g].[HasSoulPatch], [g].[LeaderNickname], [g].[LeaderSquadId], [g].[Rank], [g0].[Nickname], [g0].[SquadId], [g0].[AssignedCityName], [g0].[CityOfBirthName], [g0].[Discriminator], [g0].[FullName], [g0].[HasSoulPatch], [g0].[LeaderNickname], [g0].[LeaderSquadId], [g0].[Rank]
+FROM [Gears] AS [g]
+LEFT JOIN [Gears] AS [g0] ON [g].[Nickname] = [g0].[LeaderNickname] AND [g].[SquadId] = [g0].[LeaderSquadId]
+WHERE [g].[Discriminator] = N'Officer'
+ORDER BY [g].[Nickname], [g].[SquadId], [g0].[Nickname]");
     }
 
     private void AssertSql(params string[] expected)

@@ -97,6 +97,18 @@ public abstract class ModelValidatorTestBase
     {
     }
 
+    protected class G
+    {
+        public int Id { get; set; }
+
+        public int? P0 { get; set; }
+        public int? P1 { get; set; }
+        public int? P2 { get; set; }
+        public int? P3 { get; set; }
+
+        public A A { get; set; }
+    }
+
     protected abstract class Abstract : A
     {
     }
@@ -391,7 +403,7 @@ public abstract class ModelValidatorTestBase
             new NullDbContextLogger());
     }
 
-    protected virtual TestHelpers.TestModelBuilder CreateConventionalModelBuilder(
+    protected virtual TestHelpers.TestModelBuilder CreateConventionModelBuilder(
         Action<ModelConfigurationBuilder> configure = null,
         bool sensitiveDataLoggingEnabled = false)
         => TestHelpers.CreateConventionBuilder(

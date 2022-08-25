@@ -199,6 +199,14 @@ public abstract class GearsOfWarQueryTestBase<TFixture> : QueryTestBase<TFixture
 
     [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
+    public virtual Task EF_Property_based_Include_navigation_on_derived_type(bool async)
+        => AssertQuery(
+            async,
+            ss => ss.Set<Gear>().OfType<Officer>().Include(o => EF.Property<Officer>(o, "Reports")),
+            elementAsserter: (e, a) => AssertInclude(e, a, new ExpectedInclude<Officer>(o => o.Reports)));
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
     public virtual Task Select_Where_Navigation_Included(bool async)
         => AssertQuery(
             async,
@@ -2932,6 +2940,14 @@ public abstract class GearsOfWarQueryTestBase<TFixture> : QueryTestBase<TFixture
 
     [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
+    public virtual Task Include_reference_on_derived_type_using_EF_Property(bool async)
+        => AssertQuery(
+            async,
+            ss => ss.Set<LocustLeader>().Include(lc => EF.Property<Gear>((LocustCommander)lc, "DefeatedBy")),
+            elementAsserter: (e, a) => AssertInclude(e, a, new ExpectedInclude<LocustCommander>(lc => lc.DefeatedBy)));
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
     public virtual Task Include_reference_on_derived_type_using_string_nested1(bool async)
         => AssertQuery(
             async,
@@ -2984,6 +3000,14 @@ public abstract class GearsOfWarQueryTestBase<TFixture> : QueryTestBase<TFixture
         => AssertQuery(
             async,
             ss => ss.Set<Gear>().Include("Reports"),
+            elementAsserter: (e, a) => AssertInclude(e, a, new ExpectedInclude<Officer>(o => o.Reports)));
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task Include_collection_on_derived_type_using_EF_Property(bool async)
+        => AssertQuery(
+            async,
+            ss => ss.Set<Gear>().Include(o => EF.Property<ICollection<Gear>>((Officer)o, "Reports")),
             elementAsserter: (e, a) => AssertInclude(e, a, new ExpectedInclude<Officer>(o => o.Reports)));
 
     [ConditionalTheory]
@@ -5364,6 +5388,17 @@ public abstract class GearsOfWarQueryTestBase<TFixture> : QueryTestBase<TFixture
 
     [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
+    public virtual Task DateTimeOffsetNow_minus_timespan(bool async)
+    {
+        var timeSpan = new TimeSpan(1000);
+
+        return AssertQuery(
+            async,
+            ss => ss.Set<Mission>().Where(e => e.Timeline > DateTimeOffset.Now - timeSpan));
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
     public virtual Task Navigation_inside_interpolated_string_expanded(bool async)
         => AssertQuery(
             async,
@@ -5929,7 +5964,7 @@ public abstract class GearsOfWarQueryTestBase<TFixture> : QueryTestBase<TFixture
         return AssertQueryScalar(
             async,
             ss => ss.Set<Gear>().GroupBy(g => g.FullName.StartsWith(prm)).Select(g => g.Key),
-            ss => ss.Set<Gear>().Select(g => false));
+            ss => ss.Set<Gear>().GroupBy(g => false).Select(g => g.Key));
     }
 
     [ConditionalTheory]

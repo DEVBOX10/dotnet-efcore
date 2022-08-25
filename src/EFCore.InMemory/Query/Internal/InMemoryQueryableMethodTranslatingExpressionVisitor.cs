@@ -535,7 +535,7 @@ public class InMemoryQueryableMethodTranslatingExpressionVisitor : QueryableMeth
         var left = RemapLambdaBody(outer, outerKeySelector);
         var right = RemapLambdaBody(inner, innerKeySelector);
 
-        var joinCondition = TranslateExpression(Expression.Equal(left, right));
+        var joinCondition = TranslateExpression(EntityFrameworkCore.Infrastructure.ExpressionExtensions.CreateEqualsExpression(left, right));
 
         var (outerKeyBody, innerKeyBody) = DecomposeJoinCondition(joinCondition);
 
@@ -1145,9 +1145,6 @@ public class InMemoryQueryableMethodTranslatingExpressionVisitor : QueryableMeth
 
     private sealed class SharedTypeEntityExpandingExpressionVisitor : ExpressionVisitor
     {
-        private static readonly MethodInfo ObjectEqualsMethodInfo
-            = typeof(object).GetRuntimeMethod(nameof(object.Equals), new[] { typeof(object), typeof(object) })!;
-
         private readonly InMemoryExpressionTranslatingExpressionVisitor _expressionTranslator;
 
         private InMemoryQueryExpression _queryExpression;
@@ -1192,6 +1189,7 @@ public class InMemoryQueryableMethodTranslatingExpressionVisitor : QueryableMeth
         protected override Expression VisitExtension(Expression extensionExpression)
             => extensionExpression is EntityShaperExpression
                 || extensionExpression is ShapedQueryExpression
+                || extensionExpression is GroupByShaperExpression
                     ? extensionExpression
                     : base.VisitExtension(extensionExpression);
 
@@ -1253,8 +1251,7 @@ public class InMemoryQueryableMethodTranslatingExpressionVisitor : QueryableMeth
                         : foreignKey.Properties,
                     makeNullable);
 
-                var keyComparison = Expression.Call(
-                    ObjectEqualsMethodInfo, AddConvertToObject(outerKey), AddConvertToObject(innerKey));
+                var keyComparison = EntityFrameworkCore.Infrastructure.ExpressionExtensions.CreateEqualsExpression(outerKey, innerKey);
 
                 var predicate = makeNullable
                     ? Expression.AndAlso(
@@ -1324,11 +1321,6 @@ public class InMemoryQueryableMethodTranslatingExpressionVisitor : QueryableMeth
 
             return innerShaper;
         }
-
-        private static Expression AddConvertToObject(Expression expression)
-            => expression.Type.IsValueType
-                ? Expression.Convert(expression, typeof(object))
-                : expression;
     }
 
     private ShapedQueryExpression TranslateTwoParameterSelector(ShapedQueryExpression source, LambdaExpression resultSelector)

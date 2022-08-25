@@ -1078,7 +1078,7 @@ public static class SqlServerDbFunctionsExtensions
 
     /// <summary>
     ///     Validate if the given string is a valid date.
-    ///     Corresponds to the SQL Server's <c>ISDATE('date')</c>.
+    ///     Corresponds to SQL Server's <c>ISDATE('date')</c>.
     /// </summary>
     /// <remarks>
     ///     See <see href="https://aka.ms/efcore-docs-database-functions">Database functions</see>, and
@@ -1096,7 +1096,7 @@ public static class SqlServerDbFunctionsExtensions
     /// <summary>
     ///     Initializes a new instance of the <see cref="DateTime" /> structure to the specified year, month, day, hour, minute, second,
     ///     and millisecond.
-    ///     Corresponds to the SQL Server's <c>DATETIMEFROMPARTS(year, month, day, hour, minute, second, millisecond)</c>.
+    ///     Corresponds to SQL Server's <c>DATETIMEFROMPARTS(year, month, day, hour, minute, second, millisecond)</c>.
     /// </summary>
     /// <remarks>
     ///     See <see href="https://aka.ms/efcore-docs-database-functions">Database functions</see>, and
@@ -1128,7 +1128,7 @@ public static class SqlServerDbFunctionsExtensions
 
     /// <summary>
     ///     Initializes a new instance of the <see cref="DateTime" /> structure to the specified year, month, day.
-    ///     Corresponds to the SQL Server's <c>DATEFROMPARTS(year, month, day)</c>.
+    ///     Corresponds to SQL Server's <c>DATEFROMPARTS(year, month, day)</c>.
     /// </summary>
     /// <remarks>
     ///     See <see href="https://aka.ms/efcore-docs-database-functions">Database functions</see>, and
@@ -1150,7 +1150,7 @@ public static class SqlServerDbFunctionsExtensions
     /// <summary>
     ///     Initializes a new instance of the <see cref="DateTime" /> structure to the specified year, month, day, hour, minute, second,
     ///     fractions, and precision.
-    ///     Corresponds to the SQL Server's <c>DATETIME2FROMPARTS(year, month, day, hour, minute, seconds, fractions, precision)</c>.
+    ///     Corresponds to SQL Server's <c>DATETIME2FROMPARTS(year, month, day, hour, minute, seconds, fractions, precision)</c>.
     /// </summary>
     /// <remarks>
     ///     See <see href="https://aka.ms/efcore-docs-database-functions">Database functions</see>, and
@@ -1185,7 +1185,7 @@ public static class SqlServerDbFunctionsExtensions
     /// <summary>
     ///     Initializes a new instance of the <see cref="DateTimeOffset" /> structure to the specified year, month, day, hour, minute,
     ///     second, fractions, hourOffset, minuteOffset and precision.
-    ///     Corresponds to the SQL Server's
+    ///     Corresponds to SQL Server's
     ///     <c>
     ///         DATETIMEOFFSETFROMPARTS(year, month, day, hour, minute, seconds, fractions, hour_offset,
     ///         minute_offset, precision)
@@ -1228,7 +1228,7 @@ public static class SqlServerDbFunctionsExtensions
 
     /// <summary>
     ///     Initializes a new instance of the <see cref="DateTime" /> structure to the specified year, month, day, hour and minute.
-    ///     Corresponds to the SQL Server's <c>SMALLDATETIMEFROMPARTS(year, month, day, hour, minute)</c>.
+    ///     Corresponds to SQL Server's <c>SMALLDATETIMEFROMPARTS(year, month, day, hour, minute)</c>.
     /// </summary>
     /// <remarks>
     ///     See <see href="https://aka.ms/efcore-docs-database-functions">Database functions</see>, and
@@ -1253,7 +1253,7 @@ public static class SqlServerDbFunctionsExtensions
 
     /// <summary>
     ///     Initializes a new instance of the <see cref="TimeSpan" /> structure to the specified hour, minute, second, fractions, and
-    ///     precision. Corresponds to the SQL Server's <c>TIMEFROMPARTS(hour, minute, seconds, fractions, precision)</c>.
+    ///     precision. Corresponds to SQL Server's <c>TIMEFROMPARTS(hour, minute, seconds, fractions, precision)</c>.
     /// </summary>
     /// <remarks>
     ///     See <see href="https://aka.ms/efcore-docs-database-functions">Database functions</see>, and
@@ -1424,7 +1424,7 @@ public static class SqlServerDbFunctionsExtensions
 
     /// <summary>
     ///     Validate if the given string is a valid numeric.
-    ///     Corresponds to the SQL Server's <c>ISNUMERIC(expression)</c>.
+    ///     Corresponds to the SQL Server <c>ISNUMERIC(expression)</c>.
     /// </summary>
     /// <remarks>
     ///     See <see href="https://aka.ms/efcore-docs-database-functions">Database functions</see>, and
@@ -1438,4 +1438,346 @@ public static class SqlServerDbFunctionsExtensions
         this DbFunctions _,
         string expression)
         => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(IsNumeric)));
+
+    /// <summary>
+    ///     Converts <paramref name="dateTime" /> to the corresponding <c>datetimeoffset</c> in the target <paramref name="timeZone" />.
+    ///     Corresponds to the SQL Server <c>AT TIME ZONE</c> construct.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         Note that the <see cref="DateTime.Kind" /> of <paramref name="dateTime" /> is not taken into account when performing the
+    ///         conversion; the offset for the provided time zone is simply applied as-is.
+    ///     </para>
+    ///     <para>
+    ///         See <see href="https://aka.ms/efcore-docs-database-functions">Database functions</see>, and
+    ///         <see href="https://aka.ms/efcore-docs-sqlserver">Accessing SQL Server and SQL Azure databases with EF Core</see>
+    ///         for more information and examples.
+    ///     </para>
+    /// </remarks>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="dateTime">The value to convert to <c>datetimeoffset</c>.</param>
+    /// <param name="timeZone">A valid SQL Server time zone ID.</param>
+    /// <returns>The <c>datetimeoffset</c> resulting from the conversion.</returns>
+    /// <seealso href="https://docs.microsoft.com/sql/t-sql/queries/at-time-zone-transact-sql">SQL Server documentation for <c>AT TIME ZONE</c>.</seealso>
+    public static DateTimeOffset AtTimeZone(
+        this DbFunctions _,
+        DateTime dateTime,
+        string timeZone)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(AtTimeZone)));
+
+    /// <summary>
+    ///     Converts <paramref name="dateTimeOffset" /> to the time zone specified by <paramref name="timeZone"/>.
+    ///     Corresponds to the SQL Server <c>AT TIME ZONE</c> construct.
+    /// </summary>
+    /// <remarks>
+    ///     See <see href="https://aka.ms/efcore-docs-database-functions">Database functions</see>, and
+    ///     <see href="https://aka.ms/efcore-docs-sqlserver">Accessing SQL Server and SQL Azure databases with EF Core</see>
+    ///     for more information and examples.
+    /// </remarks>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="dateTimeOffset">The value on which to perform the time zone conversion.</param>
+    /// <param name="timeZone">A valid SQL Server time zone ID.</param>
+    /// <returns>The <c>datetimeoffset</c> resulting from the conversion.</returns>
+    /// <seealso href="https://docs.microsoft.com/sql/t-sql/queries/at-time-zone-transact-sql">SQL Server documentation for <c>AT TIME ZONE</c>.</seealso>
+    public static DateTimeOffset AtTimeZone(
+        this DbFunctions _,
+        DateTimeOffset dateTimeOffset,
+        string timeZone)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(AtTimeZone)));
+
+    #region Sample standard deviation
+
+    /// <summary>
+    ///     Returns the sample standard deviation of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>STDEV</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed sample standard deviation.</returns>
+    public static double? StandardDeviationSample(this DbFunctions _, IEnumerable<byte> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(StandardDeviationSample)));
+
+    /// <summary>
+    ///     Returns the sample standard deviation of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>STDEV</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed sample standard deviation.</returns>
+    public static double? StandardDeviationSample(this DbFunctions _, IEnumerable<short> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(StandardDeviationSample)));
+
+    /// <summary>
+    ///     Returns the sample standard deviation of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>STDEV</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed sample standard deviation.</returns>
+    public static double? StandardDeviationSample(this DbFunctions _, IEnumerable<int> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(StandardDeviationSample)));
+
+    /// <summary>
+    ///     Returns the sample standard deviation of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>STDEV</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed sample standard deviation.</returns>
+    public static double? StandardDeviationSample(this DbFunctions _, IEnumerable<long> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(StandardDeviationSample)));
+
+    /// <summary>
+    ///     Returns the sample standard deviation of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>STDEV</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed sample standard deviation.</returns>
+    public static double? StandardDeviationSample(this DbFunctions _, IEnumerable<float> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(StandardDeviationSample)));
+
+    /// <summary>
+    ///     Returns the sample standard deviation of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>STDEV</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed sample standard deviation.</returns>
+    public static double? StandardDeviationSample(this DbFunctions _, IEnumerable<double> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(StandardDeviationSample)));
+
+    /// <summary>
+    ///     Returns the sample standard deviation of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>STDEV</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed sample standard deviation.</returns>
+    public static double? StandardDeviationSample(this DbFunctions _, IEnumerable<decimal> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(StandardDeviationSample)));
+
+    #endregion Sample standard deviation
+
+    #region Population standard deviation
+
+    /// <summary>
+    ///     Returns the population standard deviation of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>STDEVP</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed population standard deviation.</returns>
+    public static double? StandardDeviationPopulation(this DbFunctions _, IEnumerable<byte> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(StandardDeviationPopulation)));
+
+    /// <summary>
+    ///     Returns the population standard deviation of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>STDEVP</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed population standard deviation.</returns>
+    public static double? StandardDeviationPopulation(this DbFunctions _, IEnumerable<short> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(StandardDeviationPopulation)));
+
+    /// <summary>
+    ///     Returns the population standard deviation of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>STDEVP</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed population standard deviation.</returns>
+    public static double? StandardDeviationPopulation(this DbFunctions _, IEnumerable<int> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(StandardDeviationPopulation)));
+
+    /// <summary>
+    ///     Returns the population standard deviation of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>STDEVP</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed population standard deviation.</returns>
+    public static double? StandardDeviationPopulation(this DbFunctions _, IEnumerable<long> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(StandardDeviationPopulation)));
+
+    /// <summary>
+    ///     Returns the population standard deviation of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>STDEVP</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed population standard deviation.</returns>
+    public static double? StandardDeviationPopulation(this DbFunctions _, IEnumerable<float> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(StandardDeviationPopulation)));
+
+    /// <summary>
+    ///     Returns the population standard deviation of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>STDEVP</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed population standard deviation.</returns>
+    public static double? StandardDeviationPopulation(this DbFunctions _, IEnumerable<double> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(StandardDeviationPopulation)));
+
+    /// <summary>
+    ///     Returns the population standard deviation of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>STDEVP</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed population standard deviation.</returns>
+    public static double? StandardDeviationPopulation(this DbFunctions _, IEnumerable<decimal> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(StandardDeviationPopulation)));
+
+    #endregion Population standard deviation
+
+    #region Sample variance
+
+    /// <summary>
+    ///     Returns the sample variance of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>VAR</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed sample variance.</returns>
+    public static double? VarianceSample(this DbFunctions _, IEnumerable<byte> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(VarianceSample)));
+
+    /// <summary>
+    ///     Returns the sample variance of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>VAR</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed sample variance.</returns>
+    public static double? VarianceSample(this DbFunctions _, IEnumerable<short> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(VarianceSample)));
+
+    /// <summary>
+    ///     Returns the sample variance of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>VAR</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed sample variance.</returns>
+    public static double? VarianceSample(this DbFunctions _, IEnumerable<int> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(VarianceSample)));
+
+    /// <summary>
+    ///     Returns the sample variance of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>VAR</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed sample variance.</returns>
+    public static double? VarianceSample(this DbFunctions _, IEnumerable<long> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(VarianceSample)));
+
+    /// <summary>
+    ///     Returns the sample variance of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>VAR</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed sample variance.</returns>
+    public static double? VarianceSample(this DbFunctions _, IEnumerable<float> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(VarianceSample)));
+
+    /// <summary>
+    ///     Returns the sample variance of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>VAR</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed sample variance.</returns>
+    public static double? VarianceSample(this DbFunctions _, IEnumerable<double> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(VarianceSample)));
+
+    /// <summary>
+    ///     Returns the sample variance of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>VAR</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed sample variance.</returns>
+    public static double? VarianceSample(this DbFunctions _, IEnumerable<decimal> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(VarianceSample)));
+
+    #endregion Sample variance
+
+    #region Population variance
+
+    /// <summary>
+    ///     Returns the population variance of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>VARP</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed population variance.</returns>
+    public static double? VariancePopulation(this DbFunctions _, IEnumerable<byte> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(VariancePopulation)));
+
+    /// <summary>
+    ///     Returns the population variance of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>VARP</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed population variance.</returns>
+    public static double? VariancePopulation(this DbFunctions _, IEnumerable<short> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(VariancePopulation)));
+
+    /// <summary>
+    ///     Returns the population variance of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>VARP</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed population variance.</returns>
+    public static double? VariancePopulation(this DbFunctions _, IEnumerable<int> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(VariancePopulation)));
+
+    /// <summary>
+    ///     Returns the population variance of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>VARP</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed population variance.</returns>
+    public static double? VariancePopulation(this DbFunctions _, IEnumerable<long> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(VariancePopulation)));
+
+    /// <summary>
+    ///     Returns the population variance of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>VARP</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed population variance.</returns>
+    public static double? VariancePopulation(this DbFunctions _, IEnumerable<float> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(VariancePopulation)));
+
+    /// <summary>
+    ///     Returns the population variance of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>VARP</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed population variance.</returns>
+    public static double? VariancePopulation(this DbFunctions _, IEnumerable<double> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(VariancePopulation)));
+
+    /// <summary>
+    ///     Returns the population variance of all values in the specified expression.
+    ///     Corresponds to SQL Server's <c>VARP</c>.
+    /// </summary>
+    /// <param name="_">The <see cref="DbFunctions" /> instance.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The computed population variance.</returns>
+    public static double? VariancePopulation(this DbFunctions _, IEnumerable<decimal> values)
+        => throw new InvalidOperationException(CoreStrings.FunctionOnClient(nameof(VariancePopulation)));
+
+    #endregion Population variance
 }
