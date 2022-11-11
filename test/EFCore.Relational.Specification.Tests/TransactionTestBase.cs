@@ -37,7 +37,7 @@ public abstract class TransactionTestBase<TFixture> : IClassFixture<TFixture>
         {
             context.Database.AutoTransactionBehavior = AutoTransactionBehavior.Never;
 
-            context.Add(
+            await context.AddAsync(
                 new TransactionCustomer { Id = -77, Name = "Bobble" });
 
             context.Entry(context.Set<TransactionOrder>().OrderBy(c => c.Id).Last()).State = EntityState.Added;
@@ -80,7 +80,7 @@ public abstract class TransactionTestBase<TFixture> : IClassFixture<TFixture>
         {
             context.Database.AutoTransactionsEnabled = false;
 
-            context.Add(
+            await context.AddAsync(
                 new TransactionCustomer { Id = -77, Name = "Bobble" });
 
             context.Entry(context.Set<TransactionOrder>().OrderBy(c => c.Id).Last()).State = EntityState.Added;
@@ -123,7 +123,7 @@ public abstract class TransactionTestBase<TFixture> : IClassFixture<TFixture>
         {
             context.Database.AutoTransactionBehavior = AutoTransactionBehavior.Always;
 
-            context.Add(
+            await context.AddAsync(
                 new TransactionCustomer { Id = -77, Name = "Bobble" });
 
             context.Entry(context.Set<TransactionOrder>().OrderBy(c => c.Id).Last()).State = EntityState.Added;
@@ -147,8 +147,7 @@ public abstract class TransactionTestBase<TFixture> : IClassFixture<TFixture>
             Assert.Equal(
                 new List<int>
                 {
-                    1,
-                    2,
+                    1, 2,
                 },
                 context.Set<TransactionCustomer>().OrderBy(c => c.Id).Select(e => e.Id).ToList());
         }
@@ -163,7 +162,7 @@ public abstract class TransactionTestBase<TFixture> : IClassFixture<TFixture>
         {
             Assert.Equal(AutoTransactionBehavior.WhenNeeded, context.Database.AutoTransactionBehavior);
 
-            context.Add(
+            await context.AddAsync(
                 new TransactionCustomer { Id = 77, Name = "Bobble" });
 
             context.Entry(context.Set<TransactionCustomer>().OrderBy(c => c.Id).Last()).State = EntityState.Added;
@@ -197,7 +196,7 @@ public abstract class TransactionTestBase<TFixture> : IClassFixture<TFixture>
                 context.Database.EnlistTransaction(transaction);
                 context.Database.AutoTransactionBehavior = autoTransactionBehavior;
 
-                context.Add(
+                await context.AddAsync(
                     new TransactionCustomer { Id = -77, Name = "Bobble" });
 
                 context.Entry(context.Set<TransactionCustomer>().OrderBy(c => c.Id).Last()).State = EntityState.Added;
@@ -255,7 +254,8 @@ public abstract class TransactionTestBase<TFixture> : IClassFixture<TFixture>
     [InlineData(false, AutoTransactionBehavior.Never)]
     [InlineData(false, AutoTransactionBehavior.Always)]
     public virtual async Task SaveChanges_uses_enlisted_transaction_after_connection_closed(
-        bool async, AutoTransactionBehavior autoTransactionBehavior)
+        bool async,
+        AutoTransactionBehavior autoTransactionBehavior)
     {
         if (!AmbientTransactionsSupported)
         {
@@ -269,7 +269,7 @@ public abstract class TransactionTestBase<TFixture> : IClassFixture<TFixture>
                 context.Database.EnlistTransaction(transaction);
                 context.Database.AutoTransactionBehavior = autoTransactionBehavior;
 
-                context.Add(
+                await context.AddAsync(
                     new TransactionCustomer { Id = 77, Name = "Bobble" });
 
                 context.Entry(context.Set<TransactionCustomer>().OrderBy(c => c.Id).Last()).State = EntityState.Added;
@@ -305,7 +305,8 @@ public abstract class TransactionTestBase<TFixture> : IClassFixture<TFixture>
     [InlineData(false, AutoTransactionBehavior.Never)]
     [InlineData(false, AutoTransactionBehavior.Always)]
     public virtual async Task SaveChanges_uses_enlisted_transaction_connectionString(
-        bool async, AutoTransactionBehavior autoTransactionBehavior)
+        bool async,
+        AutoTransactionBehavior autoTransactionBehavior)
     {
         if (!AmbientTransactionsSupported)
         {
@@ -319,7 +320,7 @@ public abstract class TransactionTestBase<TFixture> : IClassFixture<TFixture>
             context.Database.EnlistTransaction(transaction);
             context.Database.AutoTransactionBehavior = autoTransactionBehavior;
 
-            context.Add(
+            await context.AddAsync(
                 new TransactionCustomer { Id = 77, Name = "Bobble" });
 
             context.Entry(context.Set<TransactionCustomer>().OrderBy(c => c.Id).Last()).State = EntityState.Added;
@@ -361,7 +362,7 @@ public abstract class TransactionTestBase<TFixture> : IClassFixture<TFixture>
             {
                 context.Database.AutoTransactionBehavior = autoTransactionBehavior;
 
-                context.Add(
+                await context.AddAsync(
                     new TransactionCustomer { Id = -77, Name = "Bobble" });
 
                 context.Entry(context.Set<TransactionCustomer>().OrderBy(c => c.Id).Last()).State = EntityState.Added;
@@ -415,7 +416,9 @@ public abstract class TransactionTestBase<TFixture> : IClassFixture<TFixture>
     [InlineData(false, AutoTransactionBehavior.WhenNeeded)]
     [InlineData(false, AutoTransactionBehavior.Never)]
     [InlineData(false, AutoTransactionBehavior.Always)]
-    public virtual async Task SaveChanges_uses_ambient_transaction_with_connectionString(bool async, AutoTransactionBehavior autoTransactionBehavior)
+    public virtual async Task SaveChanges_uses_ambient_transaction_with_connectionString(
+        bool async,
+        AutoTransactionBehavior autoTransactionBehavior)
     {
         if (!AmbientTransactionsSupported)
         {
@@ -432,7 +435,7 @@ public abstract class TransactionTestBase<TFixture> : IClassFixture<TFixture>
                 connection = context.Database.GetDbConnection();
                 Assert.Equal(ConnectionState.Closed, connection.State);
 
-                context.Add(
+                await context.AddAsync(
                     new TransactionCustomer { Id = 77, Name = "Bobble" });
 
                 context.Entry(context.Set<TransactionCustomer>().OrderBy(c => c.Id).Last()).State = EntityState.Added;
@@ -624,7 +627,7 @@ public abstract class TransactionTestBase<TFixture> : IClassFixture<TFixture>
 
             Assert.Equal(ConnectionState.Open, connection.State);
 
-            context.Add(
+            await context.AddAsync(
                 new TransactionCustomer { Id = 77, Name = "Bobble" });
 
             if (async)
@@ -662,7 +665,8 @@ public abstract class TransactionTestBase<TFixture> : IClassFixture<TFixture>
     [InlineData(false, AutoTransactionBehavior.Never)]
     [InlineData(false, AutoTransactionBehavior.Always)]
     public virtual async Task SaveChanges_uses_explicit_transaction_without_committing(
-        bool async, AutoTransactionBehavior autoTransactionBehavior)
+        bool async,
+        AutoTransactionBehavior autoTransactionBehavior)
     {
         using (var context = CreateContext())
         {
@@ -747,7 +751,8 @@ public abstract class TransactionTestBase<TFixture> : IClassFixture<TFixture>
     [InlineData(false, AutoTransactionBehavior.Never)]
     [InlineData(false, AutoTransactionBehavior.Always)]
     public virtual async Task SaveChanges_uses_explicit_transaction_with_failure_behavior(
-        bool async, AutoTransactionBehavior autoTransactionBehavior)
+        bool async,
+        AutoTransactionBehavior autoTransactionBehavior)
     {
         using (var context = CreateContext())
         {
@@ -1347,7 +1352,7 @@ public abstract class TransactionTestBase<TFixture> : IClassFixture<TFixture>
                 ? await context.Database.BeginTransactionAsync()
                 : context.Database.BeginTransaction();
 
-            context.Add(new TransactionCustomer { Id = 77, Name = "Bobble" });
+            await context.AddAsync(new TransactionCustomer { Id = 77, Name = "Bobble" });
 
             if (async)
             {
@@ -1358,8 +1363,8 @@ public abstract class TransactionTestBase<TFixture> : IClassFixture<TFixture>
                 context.SaveChanges();
             }
 
-            context.Add(new TransactionCustomer { Id = 78, Name = "Hobble" });
-            context.Add(new TransactionCustomer { Id = 1, Name = "Gobble" }); // Cause SaveChanges failure
+            await context.AddAsync(new TransactionCustomer { Id = 78, Name = "Hobble" });
+            await context.AddAsync(new TransactionCustomer { Id = 1, Name = "Gobble" }); // Cause SaveChanges failure
 
             if (async)
             {
@@ -1392,7 +1397,7 @@ public abstract class TransactionTestBase<TFixture> : IClassFixture<TFixture>
                 ? await context.Database.BeginTransactionAsync()
                 : context.Database.BeginTransaction();
 
-            context.Add(new TransactionCustomer { Id = -77, Name = "Bobble" });
+            await context.AddAsync(new TransactionCustomer { Id = -77, Name = "Bobble" });
 
             if (async)
             {
@@ -1403,8 +1408,8 @@ public abstract class TransactionTestBase<TFixture> : IClassFixture<TFixture>
                 context.SaveChanges();
             }
 
-            context.Add(new TransactionCustomer { Id = -78, Name = "Hobble" });
-            context.Add(new TransactionOrder { Id = 100 }); // Cause SaveChanges failure
+            await context.AddAsync(new TransactionCustomer { Id = -78, Name = "Hobble" });
+            await context.AddAsync(new TransactionOrder { Id = 100 }); // Cause SaveChanges failure
 
             if (async)
             {

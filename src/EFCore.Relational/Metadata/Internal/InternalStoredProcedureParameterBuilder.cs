@@ -22,7 +22,8 @@ public class InternalStoredProcedureParameterBuilder :
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     public InternalStoredProcedureParameterBuilder(
-        StoredProcedureParameter parameter, IConventionModelBuilder modelBuilder)
+        StoredProcedureParameter parameter,
+        IConventionModelBuilder modelBuilder)
         : base(parameter, modelBuilder)
     {
     }
@@ -43,7 +44,7 @@ public class InternalStoredProcedureParameterBuilder :
         }
 
         Metadata.SetName(name, configurationSource);
-        
+
         return this;
     }
 
@@ -58,7 +59,7 @@ public class InternalStoredProcedureParameterBuilder :
         ConfigurationSource configurationSource)
         => configurationSource.Overrides(Metadata.GetNameConfigurationSource())
             || Metadata.Name == name;
-    
+
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
     ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
@@ -75,7 +76,7 @@ public class InternalStoredProcedureParameterBuilder :
         }
 
         Metadata.SetDirection(direction, configurationSource);
-        
+
         return this;
     }
 
@@ -112,7 +113,8 @@ public class InternalStoredProcedureParameterBuilder :
     /// <inheritdoc />
     [DebuggerStepThrough]
     IConventionStoredProcedureParameterBuilder? IConventionStoredProcedureParameterBuilder.HasDirection(
-        ParameterDirection direction, bool fromDataAnnotation)
+        ParameterDirection direction,
+        bool fromDataAnnotation)
         => HasDirection(direction, fromDataAnnotation ? ConfigurationSource.DataAnnotation : ConfigurationSource.Convention);
 
     /// <inheritdoc />

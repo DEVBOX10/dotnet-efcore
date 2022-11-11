@@ -864,6 +864,7 @@ public class ModelValidator : IModelValidator
                     var type = converter.ModelClrType;
                     if (type != typeof(string)
                         && !(type == typeof(byte[]) && property.IsKey()) // Already special-cased elsewhere
+                        && !property.IsForeignKey()
                         && type.TryGetSequenceType() != null)
                     {
                         logger.CollectionWithoutComparer(property);
@@ -888,11 +889,12 @@ public class ModelValidator : IModelValidator
 
                 if (providerComparer.Type.UnwrapNullableType() != actualProviderClrType)
                 {
-                    throw new InvalidOperationException(CoreStrings.ComparerPropertyMismatch(
-                        providerComparer.Type.ShortDisplayName(),
-                        property.DeclaringEntityType.DisplayName(),
-                        property.Name,
-                        actualProviderClrType.ShortDisplayName()));
+                    throw new InvalidOperationException(
+                        CoreStrings.ComparerPropertyMismatch(
+                            providerComparer.Type.ShortDisplayName(),
+                            property.DeclaringEntityType.DisplayName(),
+                            property.Name,
+                            actualProviderClrType.ShortDisplayName()));
                 }
             }
         }
@@ -927,19 +929,24 @@ public class ModelValidator : IModelValidator
                 }
             }
 
-            var requiredNavigationWithQueryFilter = entityType
-                .GetNavigations()
-                .FirstOrDefault(
-                    n => !n.IsCollection
-                        && n.ForeignKey.IsRequired
-                        && n.IsOnDependent
-                        && n.ForeignKey.PrincipalEntityType.GetQueryFilter() != null
-                        && n.ForeignKey.DeclaringEntityType.GetQueryFilter() == null);
-
-            if (requiredNavigationWithQueryFilter != null)
+            if (!entityType.IsOwned())
             {
-                logger.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning(
-                    requiredNavigationWithQueryFilter.ForeignKey);
+                // Owned type doesn't allow to define query filter
+                // So we don't check navigations there. We assume the owner will propagate filtering
+                var requiredNavigationWithQueryFilter = entityType
+                    .GetNavigations()
+                    .FirstOrDefault(
+                        n => !n.IsCollection
+                            && n.ForeignKey.IsRequired
+                            && n.IsOnDependent
+                            && n.ForeignKey.PrincipalEntityType.GetRootType().GetQueryFilter() != null
+                            && n.ForeignKey.DeclaringEntityType.GetRootType().GetQueryFilter() == null);
+
+                if (requiredNavigationWithQueryFilter != null)
+                {
+                    logger.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning(
+                        requiredNavigationWithQueryFilter.ForeignKey);
+                }
             }
         }
     }

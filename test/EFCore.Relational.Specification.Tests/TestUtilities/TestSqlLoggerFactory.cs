@@ -102,10 +102,11 @@ public class TestSqlLoggerFactory : ListLoggerFactory
             }
 
             var sql = string.Join(
-                "," + indent + "//" + indent, SqlStatements.Skip(offset).Take(count).Select(sql => "@\"" + sql.Replace("\"", "\"\"") + "\""));
+                "," + indent + "//" + indent,
+                SqlStatements.Skip(offset).Take(count).Select(sql => "\"\"\"" + FileNewLine + sql + FileNewLine + "\"\"\""));
 
             var newBaseLine = $@"        Assert{(forUpdate ? "ExecuteUpdate" : "")}Sql(
-            {string.Join("," + indent + "//" + indent, SqlStatements.Skip(offset).Take(count).Select(sql => "@\"" + sql.Replace("\"", "\"\"") + "\""))});
+{sql});
 
 ";
 
@@ -156,13 +157,14 @@ public class TestSqlLoggerFactory : ListLoggerFactory
 
         void RewriteSourceWithNewBaseline(string fileName, int lineNumber)
         {
-            var fileInfo = _queryBaselineRewritingFileInfos.GetOrAdd(fileName, _ => new());
+            var fileInfo = _queryBaselineRewritingFileInfos.GetOrAdd(fileName, _ => new QueryBaselineRewritingFileInfo());
             lock (fileInfo.Lock)
             {
                 // First, adjust our lineNumber to take into account any baseline rewriting that already occured in this file
+                var origLineNumber = lineNumber;
                 foreach (var displacement in fileInfo.LineDisplacements)
                 {
-                    if (displacement.Key < lineNumber)
+                    if (displacement.Key < origLineNumber)
                     {
                         lineNumber += displacement.Value;
                     }
@@ -178,13 +180,16 @@ public class TestSqlLoggerFactory : ListLoggerFactory
                     // First have Roslyn parse the file
                     SyntaxTree syntaxTree;
                     using (var stream = File.OpenRead(fileName))
+                    using (var bufferedStream = new BufferedStream(stream))
                     {
-                        syntaxTree = CSharpSyntaxTree.ParseText(SourceText.From(stream));
+                        syntaxTree = CSharpSyntaxTree.ParseText(SourceText.From(bufferedStream));
                     }
 
-                    // Read through the source file, copying contents to a temp file (with the baseline changE)
-                    using (var inputStream = File.OpenRead(fileName))
-                    using (var outputStream = File.Open(fileName + ".tmp", FileMode.Create, FileAccess.Write))
+                    // Read through the source file, copying contents to a temp file (with the baseline change)
+                    using (var inputFileStream = File.OpenRead(fileName))
+                    using (var inputStream = new BufferedStream(inputFileStream))
+                    using (var outputFileStream = File.Open(fileName + ".tmp", FileMode.Create, FileAccess.Write))
+                    using (var outputStream = new BufferedStream(outputFileStream))
                     {
                         // Detect whether a byte-order mark (BOM) exists, to write out the same
                         var buffer = new byte[3];
@@ -276,7 +281,7 @@ public class TestSqlLoggerFactory : ListLoggerFactory
                         indentBuilder.Append("    ");
                         var indent = indentBuilder.ToString();
                         var newBaseLine = $@"Assert{(forUpdate ? "ExecuteUpdate" : "")}Sql(
-{indent}{string.Join("," + Environment.NewLine + indent + "//" + Environment.NewLine + indent, SqlStatements.Skip(offset).Take(count).Select(sql => "@\"" + sql.Replace("\"", "\"\"") + "\""))})";
+{string.Join("," + Environment.NewLine + indent + "//" + Environment.NewLine, SqlStatements.Skip(offset).Take(count).Select(sql => "\"\"\"" + Environment.NewLine + sql + Environment.NewLine + "\"\"\""))})";
                         var numNewlinesInRewritten = newBaseLine.Count(c => c is '\n' or '\r');
 
                         writer.Write(newBaseLine);
@@ -286,7 +291,7 @@ public class TestSqlLoggerFactory : ListLoggerFactory
                         var lineDiff = numNewlinesInRewritten - numNewlinesInOrigin;
                         if (lineDiff != 0)
                         {
-                            fileInfo.LineDisplacements[lineNumber] = lineDiff;
+                            fileInfo.LineDisplacements[origLineNumber] = lineDiff;
                         }
 
                         // Copy the rest of the file contents as-is
@@ -405,13 +410,13 @@ public class TestSqlLoggerFactory : ListLoggerFactory
     {
         public QueryBaselineRewritingFileInfo() { }
 
-        public object Lock { get; set; } = new();
+        public object Lock { get; } = new();
 
         /// <summary>
         ///     Contains information on where previous baseline rewriting caused line numbers to shift; this is used in adjusting line
         ///     numbers for later errors. The keys are (pre-rewriting) line numbers, and the values are offsets that have been applied to
         ///     them.
         /// </summary>
-        public SortedDictionary<int, int> LineDisplacements = new();
+        public readonly SortedDictionary<int, int> LineDisplacements = new();
     }
 }

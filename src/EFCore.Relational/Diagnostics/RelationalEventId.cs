@@ -81,6 +81,7 @@ public static class RelationalEventId
         // Query events
         QueryClientEvaluationWarning = CoreEventId.RelationalBaseId + 500,
         QueryPossibleUnintendedUseOfEqualsWarning,
+
         // ReSharper disable twice InconsistentNaming
         Obsolete_QueryPossibleExceptionWithAggregateOperatorWarning,
         Obsolete_ValueConversionSqlLiteralWarning,
@@ -101,13 +102,15 @@ public static class RelationalEventId
         ForeignKeyTpcPrincipalWarning,
         TpcStoreGeneratedIdentityWarning,
         KeyPropertiesNotMappedToTable,
+        StoredProcedureConcurrencyTokenNotMapped,
 
         // Update events
         BatchReadyForExecution = CoreEventId.RelationalBaseId + 700,
         BatchSmallerThanMinBatchSize,
         BatchExecutorFailedToRollbackToSavepoint,
         BatchExecutorFailedToReleaseSavepoint,
-        OptionalDependentWithAllNullPropertiesWarning
+        OptionalDependentWithAllNullPropertiesWarning,
+        UnexpectedTrailingResultSetWhenSaving,
     }
 
     private static readonly string _connectionPrefix = DbLoggerCategory.Database.Connection.Name + ".";
@@ -209,7 +212,7 @@ public static class RelationalEventId
     public static readonly EventId ConnectionError = MakeConnectionId(Id.ConnectionError);
 
     /// <summary>
-    ///     A <see cref="DbConnection"/> is about to be created by EF.
+    ///     A <see cref="DbConnection" /> is about to be created by EF.
     /// </summary>
     /// <remarks>
     ///     <para>
@@ -222,7 +225,7 @@ public static class RelationalEventId
     public static readonly EventId ConnectionCreating = MakeConnectionId(Id.ConnectionCreating);
 
     /// <summary>
-    ///     A <see cref="DbConnection"/> has been created by EF.
+    ///     A <see cref="DbConnection" /> has been created by EF.
     /// </summary>
     /// <remarks>
     ///     <para>
@@ -233,7 +236,7 @@ public static class RelationalEventId
     ///     </para>
     /// </remarks>
     public static readonly EventId ConnectionCreated = MakeConnectionId(Id.ConnectionCreated);
-    
+
     private static readonly string _sqlPrefix = DbLoggerCategory.Database.Command.Name + ".";
 
     private static EventId MakeCommandId(Id id)
@@ -871,6 +874,20 @@ public static class RelationalEventId
         MakeValidationId(Id.KeyPropertiesNotMappedToTable);
 
     /// <summary>
+    ///     An entity type is mapped to the stored procedure with a concurrency token not mapped to any original value parameter.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         This event is in the <see cref="DbLoggerCategory.Model.Validation" /> category.
+    ///     </para>
+    ///     <para>
+    ///         This event uses the <see cref="StoredProcedurePropertyEventData" /> payload when used with a <see cref="DiagnosticSource" />.
+    ///     </para>
+    /// </remarks>
+    public static readonly EventId StoredProcedureConcurrencyTokenNotMapped =
+        MakeValidationId(Id.StoredProcedureConcurrencyTokenNotMapped);
+
+    /// <summary>
     ///     A foreign key specifies properties which don't map to the related tables.
     /// </summary>
     /// <remarks>
@@ -1001,4 +1018,16 @@ public static class RelationalEventId
     /// </remarks>
     public static readonly EventId OptionalDependentWithAllNullPropertiesWarning
         = MakeUpdateId(Id.OptionalDependentWithAllNullPropertiesWarning);
+
+    /// <summary>
+    ///     An unexpected trailing result set was found when reading the results of a SaveChanges operation; this may indicate that a stored
+    ///     procedure returned a result set without being configured for it in the EF model. Check your stored procedure definitions.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         This event is in the <see cref="DbLoggerCategory.Update" /> category.
+    ///     </para>
+    /// </remarks>
+    public static readonly EventId UnexpectedTrailingResultSetWhenSaving =
+        MakeUpdateId(Id.UnexpectedTrailingResultSetWhenSaving);
 }

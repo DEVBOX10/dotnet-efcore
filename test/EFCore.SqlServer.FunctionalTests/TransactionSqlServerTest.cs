@@ -27,7 +27,8 @@ public class TransactionSqlServerTest : TransactionTestBase<TransactionSqlServer
 
     // Test relies on savepoints, which are disabled when MARS is enabled
     public override Task SaveChanges_uses_explicit_transaction_with_failure_behavior(
-        bool async, AutoTransactionBehavior autoTransactionBehavior)
+        bool async,
+        AutoTransactionBehavior autoTransactionBehavior)
         => new SqlConnectionStringBuilder(TestStore.ConnectionString).MultipleActiveResultSets
             ? Task.CompletedTask
             : base.SaveChanges_uses_explicit_transaction_with_failure_behavior(async, autoTransactionBehavior);
@@ -45,7 +46,7 @@ public class TransactionSqlServerTest : TransactionTestBase<TransactionSqlServer
         var orderId = 300;
         foreach (var _ in context.Set<TransactionCustomer>())
         {
-            context.Add(new TransactionOrder { Id = orderId++, Name = "Order " + orderId });
+            await context.AddAsync(new TransactionOrder { Id = orderId++, Name = "Order " + orderId });
             if (async)
             {
                 await context.SaveChangesAsync();

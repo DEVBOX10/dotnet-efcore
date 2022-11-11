@@ -250,14 +250,14 @@ public class RelationshipDiscoveryConvention :
                 new RelationshipCandidate(
                     candidateTargetEntityTypeBuilder, navigations, inverseNavigationCandidates, shouldBeOwnership);
 
-            Continue:;
+            Continue: ;
         }
 
         return UpdateTargetEntityTypes(entityTypeBuilder, relationshipCandidates);
 
         bool IsNewSharedType(Type targetClrType, IConventionEntityType entityType)
             => (entityType.Model.IsShared(targetClrType)
-                || targetClrType.IsGenericType
+                    || targetClrType.IsGenericType
                     && targetClrType.GetGenericTypeDefinition() == typeof(Dictionary<,>))
                 && ShouldBeOwned(targetClrType, entityType.Model) != true
                 && !entityType.Model.IsOwned(targetClrType)
@@ -809,7 +809,10 @@ public class RelationshipDiscoveryConvention :
             {
                 foreach (var inverseCandidateEntityType in model.FindEntityTypes(inverseCandidateType).ToList())
                 {
-                    DiscoverRelationships(inverseCandidateEntityType.Builder, context);
+                    if (inverseCandidateEntityType.IsInModel)
+                    {
+                        DiscoverRelationships(inverseCandidateEntityType.Builder, context);
+                    }
                 }
             }
         }
@@ -835,8 +838,9 @@ public class RelationshipDiscoveryConvention :
                 }
             }
 
-            relationshipCandidate.NavigationProperties.RemoveAll(p =>
-                p.GetMemberType().IsAssignableFrom(mostDerivedType) && p.GetMemberType() != mostDerivedType);
+            relationshipCandidate.NavigationProperties.RemoveAll(
+                p =>
+                    p.GetMemberType().IsAssignableFrom(mostDerivedType) && p.GetMemberType() != mostDerivedType);
         }
 
         if (relationshipCandidate.InverseProperties.Count > 1
@@ -857,8 +861,9 @@ public class RelationshipDiscoveryConvention :
                 }
             }
 
-            relationshipCandidate.InverseProperties.RemoveAll(p =>
-                p.GetMemberType().IsAssignableFrom(mostDerivedType) && p.GetMemberType() != mostDerivedType);
+            relationshipCandidate.InverseProperties.RemoveAll(
+                p =>
+                    p.GetMemberType().IsAssignableFrom(mostDerivedType) && p.GetMemberType() != mostDerivedType);
         }
     }
 
@@ -1000,10 +1005,17 @@ public class RelationshipDiscoveryConvention :
     public virtual void ProcessEntityTypeAdded(
         IConventionEntityTypeBuilder entityTypeBuilder,
         IConventionContext<IConventionEntityTypeBuilder> context)
-        => DiscoverRelationships(
+    {
+        DiscoverRelationships(
             entityTypeBuilder,
             context,
             Dependencies.MemberClassifier.GetInverseCandidateTypes(entityTypeBuilder.Metadata).ToHashSet());
+
+        if (!entityTypeBuilder.Metadata.IsInModel)
+        {
+            context.StopProcessing();
+        }
+    }
 
     /// <inheritdoc />
     public virtual void ProcessEntityTypeBaseTypeChanged(
@@ -1063,7 +1075,8 @@ public class RelationshipDiscoveryConvention :
         IConventionForeignKey foreignKey,
         IConventionContext<IConventionForeignKey> context)
     {
-        if (foreignKey.IsOwnership
+        if (entityTypeBuilder.Metadata.IsInModel
+            && foreignKey.IsOwnership
             && !entityTypeBuilder.Metadata.IsOwned())
         {
             DiscoverRelationships(
@@ -1081,14 +1094,15 @@ public class RelationshipDiscoveryConvention :
         MemberInfo? memberInfo,
         IConventionContext<string> context)
     {
-        if ((targetEntityTypeBuilder.Metadata.IsInModel
+        if (sourceEntityTypeBuilder.Metadata.IsInModel
+            && (targetEntityTypeBuilder.Metadata.IsInModel
                 || !sourceEntityTypeBuilder.ModelBuilder.IsIgnored(targetEntityTypeBuilder.Metadata.Name))
             && memberInfo != null
+            && sourceEntityTypeBuilder.Metadata.FindNavigation(navigationName) == null
             && IsCandidateNavigationProperty(
                 sourceEntityTypeBuilder.Metadata, navigationName, memberInfo)
             && Dependencies.MemberClassifier.FindCandidateNavigationPropertyType(
-                memberInfo, targetEntityTypeBuilder.Metadata.Model, out _)
-            != null)
+                memberInfo, targetEntityTypeBuilder.Metadata.Model, out _) != null)
         {
             Process(sourceEntityTypeBuilder.Metadata, navigationName, memberInfo, context);
         }
@@ -1113,16 +1127,16 @@ public class RelationshipDiscoveryConvention :
         }
     }
 
-        private static bool IsCandidateNavigationProperty(
-            IConventionEntityType sourceEntityType,
-            string navigationName,
-            MemberInfo memberInfo)
-            => sourceEntityType.Builder.IsIgnored(navigationName) == false
-                && sourceEntityType.FindProperty(navigationName) == null
-                && sourceEntityType.FindServiceProperty(navigationName) == null
-                && (memberInfo is not PropertyInfo propertyInfo || propertyInfo.GetIndexParameters().Length == 0)
-                && (!sourceEntityType.IsKeyless
-                    || (memberInfo as PropertyInfo)?.PropertyType.TryGetSequenceType() == null);
+    private static bool IsCandidateNavigationProperty(
+        IConventionEntityType sourceEntityType,
+        string navigationName,
+        MemberInfo memberInfo)
+        => sourceEntityType.Builder.IsIgnored(navigationName) == false
+            && sourceEntityType.FindProperty(navigationName) == null
+            && sourceEntityType.FindServiceProperty(navigationName) == null
+            && (memberInfo is not PropertyInfo propertyInfo || propertyInfo.GetIndexParameters().Length == 0)
+            && (!sourceEntityType.IsKeyless
+                || (memberInfo as PropertyInfo)?.PropertyType.TryGetSequenceType() == null);
 
     /// <inheritdoc />
     public virtual void ProcessEntityTypeIgnored(

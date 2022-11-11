@@ -1,4 +1,4 @@
-// Licensed to the .NET Foundation under one or more agreements.
+﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Collections;
@@ -84,7 +84,7 @@ public class MigrationsModelDiffer : IMigrationsModelDiffer
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    protected virtual IRowIdentityMapFactory RowIdentityMapFactory { get; }        
+    protected virtual IRowIdentityMapFactory RowIdentityMapFactory { get; }
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -702,7 +702,7 @@ public class MigrationsModelDiffer : IMigrationsModelDiffer
 
         Check.DebugAssert(columns.Count == 0, "columns is not empty");
 
-        // issue #28539 
+        // issue #28539
         // ideally we should inject JSON column in the place corresponding to the navigation that maps to it in the clr type
         var jsonColumns = table.Columns.Where(x => x is JsonColumn).OrderBy(x => x.Name);
 
@@ -1711,7 +1711,7 @@ public class MigrationsModelDiffer : IMigrationsModelDiffer
 
         if (_targetIdentityMaps == null)
         {
-            _targetIdentityMaps = new(TableBaseIdentityComparer.Instance);
+            _targetIdentityMaps = new Dictionary<ITable, IRowIdentityMap>(TableBaseIdentityComparer.Instance);
         }
         else
         {
@@ -1731,7 +1731,7 @@ public class MigrationsModelDiffer : IMigrationsModelDiffer
 
         if (_sourceIdentityMaps == null)
         {
-            _sourceIdentityMaps = new(TableBaseIdentityComparer.Instance);
+            _sourceIdentityMaps = new Dictionary<ITable, IRowIdentityMap>(TableBaseIdentityComparer.Instance);
         }
         else
         {
@@ -1743,7 +1743,7 @@ public class MigrationsModelDiffer : IMigrationsModelDiffer
             AddSeedData(sourceEntityType, _sourceIdentityMaps, EntityState.Deleted);
         }
     }
-    
+
     private void AddSeedData(IEntityType entityType, Dictionary<ITable, IRowIdentityMap> identityMaps, EntityState initialState)
     {
         var sensitiveLoggingEnabled = CommandBatchPreparerDependencies.LoggingOptions.IsSensitiveDataLoggingEnabled;
@@ -1766,7 +1766,9 @@ public class MigrationsModelDiffer : IMigrationsModelDiffer
                     .ToDictionary(p => p.GetSimpleMemberName());
 
                 getValue = (property, seed) =>
-                    anonymousProperties.TryGetValue(property.Name, out var propertyInfo) ? (propertyInfo.GetValue(seed), true) : (null, false);
+                    anonymousProperties.TryGetValue(property.Name, out var propertyInfo)
+                        ? (propertyInfo.GetValue(seed), true)
+                        : (null, false);
             }
 
             foreach (var mapping in entityType.GetTableMappings())
@@ -1816,13 +1818,13 @@ public class MigrationsModelDiffer : IMigrationsModelDiffer
                                     BuildValuesString(key),
                                     table.SchemaQualifiedName));
                         }
-                        
+
                         throw new InvalidOperationException(
                             RelationalStrings.DuplicateSeedData(
                                 entityType.DisplayName(),
                                 table.SchemaQualifiedName));
                     }
-                    
+
                     command = existingCommand;
                 }
                 else
@@ -1830,7 +1832,7 @@ public class MigrationsModelDiffer : IMigrationsModelDiffer
                     command = CommandBatchPreparerDependencies.ModificationCommandFactory.CreateNonTrackedModificationCommand(
                         new NonTrackedModificationCommandParameters(table, sensitiveLoggingEnabled));
                     command.EntityState = initialState;
-                    
+
                     identityMap.Add(key, command);
                 }
 
@@ -1878,7 +1880,7 @@ public class MigrationsModelDiffer : IMigrationsModelDiffer
                             value = column.DefaultValue;
                         }
                         else if (value == null
-                            && !column.IsNullable)
+                                 && !column.IsNullable)
                         {
                             value = column.ProviderClrType.GetDefaultValue();
                         }
@@ -1914,7 +1916,7 @@ public class MigrationsModelDiffer : IMigrationsModelDiffer
                     writeValue = writeValue
                         && initialState != EntityState.Deleted
                         && property.GetBeforeSaveBehavior() == PropertySaveBehavior.Save;
-                    
+
                     command.AddColumnModification(
                         new ColumnModificationParameters(
                             column, originalValue: value, value, property, columnMapping.TypeMapping,
@@ -1982,7 +1984,7 @@ public class MigrationsModelDiffer : IMigrationsModelDiffer
         {
             return;
         }
-        
+
         var tableMapping = new Dictionary<ITable, (ITable, IRowIdentityMap)?>();
         var unchangedColumns = new List<IColumnModification>();
         var overridenColumns = new List<IColumnModification>();
@@ -2049,10 +2051,10 @@ public class MigrationsModelDiffer : IMigrationsModelDiffer
                     {
                         targetRow.EntityState = EntityState.Unchanged;
                     }
-                    
+
                     continue;
                 }
-                
+
                 if (sourceTable.IsExcludedFromMigrations
                     || targetTable.IsExcludedFromMigrations)
                 {
@@ -2100,6 +2102,7 @@ public class MigrationsModelDiffer : IMigrationsModelDiffer
                         {
                             anyColumnsModified = true;
                         }
+
                         continue;
                     }
 
@@ -2136,6 +2139,7 @@ public class MigrationsModelDiffer : IMigrationsModelDiffer
                         {
                             unchangedColumn.IsWrite = false;
                         }
+
                         foreach (var overridenColumn in overridenColumns)
                         {
                             overridenColumn.IsWrite = true;
@@ -2162,7 +2166,7 @@ public class MigrationsModelDiffer : IMigrationsModelDiffer
         DiffContext diffContext)
     {
         TrackData(source, target, diffContext);
-        
+
         DiffData(source, target, diffContext);
 
         var dataOperations = GetDataOperations(forSource: true, diffContext)
@@ -2190,17 +2194,11 @@ public class MigrationsModelDiffer : IMigrationsModelDiffer
             yield break;
         }
 
-        var commands = identityMaps.Values.SelectMany(m => m.Rows).Where(r =>
-        {
-            return r.EntityState switch
-            {
-                EntityState.Added => true,
-                EntityState.Modified => true,
-                EntityState.Unchanged => false,
-                EntityState.Deleted => diffContext.FindDrop(r.Table!) == null,
-                _ => throw new InvalidOperationException($"Unexpected entity state: {r.EntityState}")
-            };
-        });
+        var commands = identityMaps.Values
+            .SelectMany(m => m.Rows)
+            .Where(
+                r => r.EntityState is EntityState.Added or EntityState.Modified
+                    || (r.EntityState is EntityState.Deleted && diffContext.FindDrop(r.Table!) == null));
 
         var commandSets = new CommandBatchPreparer(CommandBatchPreparerDependencies)
             .TopologicalSort(commands);
@@ -2222,7 +2220,8 @@ public class MigrationsModelDiffer : IMigrationsModelDiffer
                             {
                                 batchInsertOperation.Values =
                                     AddToMultidimensionalArray(
-                                        command.ColumnModifications.Where(col => col.IsKey || col.IsWrite).Select(col => col.Value).ToList(),
+                                        command.ColumnModifications.Where(col => col.IsKey || col.IsWrite).Select(col => col.Value)
+                                            .ToList(),
                                         batchInsertOperation.Values);
                                 continue;
                             }

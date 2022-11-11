@@ -132,7 +132,7 @@ public class RuntimeStoredProcedure : AnnotatableBase, IRuntimeStoredProcedure
         [DebuggerStepThrough]
         get => _name;
     }
-    
+
     /// <inheritdoc />
     string IStoredProcedure.Name
     {
@@ -160,7 +160,7 @@ public class RuntimeStoredProcedure : AnnotatableBase, IRuntimeStoredProcedure
         [DebuggerStepThrough]
         get => _parameters;
     }
-    
+
     /// <inheritdoc />
     IReadOnlyList<IStoredProcedureParameter> IStoredProcedure.Parameters
     {
@@ -170,28 +170,31 @@ public class RuntimeStoredProcedure : AnnotatableBase, IRuntimeStoredProcedure
 
     /// <inheritdoc />
     IReadOnlyStoredProcedureParameter? IReadOnlyStoredProcedure.FindParameter(string propertyName)
-        => _parameters.FirstOrDefault((IReadOnlyStoredProcedureParameter p)
-            => p.ForOriginalValue == false && p.PropertyName == propertyName);
-    
+        => _parameters.FirstOrDefault(
+            (IReadOnlyStoredProcedureParameter p)
+                => p.ForOriginalValue == false && p.PropertyName == propertyName);
+
     /// <inheritdoc />
     [DebuggerStepThrough]
     IStoredProcedureParameter? IStoredProcedure.FindParameter(string propertyName)
         => (IStoredProcedureParameter?)((IReadOnlyStoredProcedure)this).FindParameter(propertyName);
-    
+
     /// <inheritdoc />
     IReadOnlyStoredProcedureParameter? IReadOnlyStoredProcedure.FindOriginalValueParameter(string propertyName)
-        => _parameters.FirstOrDefault((IReadOnlyStoredProcedureParameter p)
-            => p.ForOriginalValue == true && p.PropertyName == propertyName);
+        => _parameters.FirstOrDefault(
+            (IReadOnlyStoredProcedureParameter p)
+                => p.ForOriginalValue == true && p.PropertyName == propertyName);
 
     /// <inheritdoc />
     IStoredProcedureParameter? IStoredProcedure.FindOriginalValueParameter(string propertyName)
         => (IStoredProcedureParameter?)((IReadOnlyStoredProcedure)this).FindOriginalValueParameter(propertyName);
-    
+
     /// <inheritdoc />
     IReadOnlyStoredProcedureParameter? IReadOnlyStoredProcedure.FindRowsAffectedParameter()
-        => _parameters.FirstOrDefault((IStoredProcedureParameter p)
-            => p.ForRowsAffected);
-    
+        => _parameters.FirstOrDefault(
+            (IStoredProcedureParameter p)
+                => p.ForRowsAffected);
+
     /// <inheritdoc />
     IStoredProcedureParameter? IStoredProcedure.FindRowsAffectedParameter()
         => (IStoredProcedureParameter?)((IReadOnlyStoredProcedure)this).FindRowsAffectedParameter();
@@ -202,7 +205,7 @@ public class RuntimeStoredProcedure : AnnotatableBase, IRuntimeStoredProcedure
         [DebuggerStepThrough]
         get => _resultColumns;
     }
-    
+
     /// <inheritdoc />
     IReadOnlyList<IStoredProcedureResultColumn> IStoredProcedure.ResultColumns
     {
@@ -212,18 +215,20 @@ public class RuntimeStoredProcedure : AnnotatableBase, IRuntimeStoredProcedure
 
     /// <inheritdoc />
     IReadOnlyStoredProcedureResultColumn? IReadOnlyStoredProcedure.FindResultColumn(string propertyName)
-        => _resultColumns.FirstOrDefault((IReadOnlyStoredProcedureResultColumn c)
-            => c.PropertyName == propertyName);
-    
+        => _resultColumns.FirstOrDefault(
+            (IReadOnlyStoredProcedureResultColumn c)
+                => c.PropertyName == propertyName);
+
     /// <inheritdoc />
     IStoredProcedureResultColumn? IStoredProcedure.FindResultColumn(string propertyName)
         => (IStoredProcedureResultColumn?)((IReadOnlyStoredProcedure)this).FindResultColumn(propertyName);
 
     /// <inheritdoc />
     IReadOnlyStoredProcedureResultColumn? IReadOnlyStoredProcedure.FindRowsAffectedResultColumn()
-        => _resultColumns.FirstOrDefault((IReadOnlyStoredProcedureResultColumn c)
+        => _resultColumns.FirstOrDefault(
+            (IReadOnlyStoredProcedureResultColumn c)
                 => c.ForRowsAffected);
-    
+
     /// <inheritdoc />
     IStoredProcedureResultColumn? IStoredProcedure.FindRowsAffectedResultColumn()
         => (IStoredProcedureResultColumn?)((IReadOnlyStoredProcedure)this).FindRowsAffectedResultColumn();
@@ -234,7 +239,7 @@ public class RuntimeStoredProcedure : AnnotatableBase, IRuntimeStoredProcedure
         [DebuggerStepThrough]
         get => _storeStoredProcedure!;
     }
-    
+
     /// <inheritdoc />
     IStoreStoredProcedure IRuntimeStoredProcedure.StoreStoredProcedure
     {

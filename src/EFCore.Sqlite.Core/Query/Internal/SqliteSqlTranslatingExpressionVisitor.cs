@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
-using Microsoft.EntityFrameworkCore.Sqlite.Internal;
 
 namespace Microsoft.EntityFrameworkCore.Sqlite.Query.Internal;
 
@@ -19,11 +18,18 @@ public class SqliteSqlTranslatingExpressionVisitor : RelationalSqlTranslatingExp
         {
             [ExpressionType.Add] = new HashSet<Type>
             {
+                typeof(DateOnly),
                 typeof(DateTime),
                 typeof(DateTimeOffset),
+                typeof(TimeOnly),
                 typeof(TimeSpan)
             },
-            [ExpressionType.Divide] = new HashSet<Type> { typeof(TimeSpan), typeof(ulong) },
+            [ExpressionType.Divide] = new HashSet<Type>
+            {
+                typeof(TimeOnly),
+                typeof(TimeSpan),
+                typeof(ulong)
+            },
             [ExpressionType.GreaterThan] = new HashSet<Type>
             {
                 typeof(DateTimeOffset),
@@ -49,11 +55,18 @@ public class SqliteSqlTranslatingExpressionVisitor : RelationalSqlTranslatingExp
                 typeof(ulong)
             },
             [ExpressionType.Modulo] = new HashSet<Type> { typeof(ulong) },
-            [ExpressionType.Multiply] = new HashSet<Type> { typeof(TimeSpan), typeof(ulong) },
+            [ExpressionType.Multiply] = new HashSet<Type>
+            {
+                typeof(TimeOnly),
+                typeof(TimeSpan),
+                typeof(ulong)
+            },
             [ExpressionType.Subtract] = new HashSet<Type>
             {
+                typeof(DateOnly),
                 typeof(DateTime),
                 typeof(DateTimeOffset),
+                typeof(TimeOnly),
                 typeof(TimeSpan)
             }
         };
@@ -120,7 +133,8 @@ public class SqliteSqlTranslatingExpressionVisitor : RelationalSqlTranslatingExp
                     visitedExpression.Type);
             }
 
-            if (operandType == typeof(TimeSpan))
+            if (operandType == typeof(TimeOnly)
+                || operandType == typeof(TimeSpan))
             {
                 return QueryCompilationContext.NotTranslatedExpression;
             }
@@ -210,24 +224,6 @@ public class SqliteSqlTranslatingExpressionVisitor : RelationalSqlTranslatingExp
         }
 
         return visitedExpression;
-    }
-
-    /// <summary>
-    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
-    ///     any release. You should only use it directly in your code with extreme caution and knowing that
-    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
-    /// </summary>
-    protected override Expression VisitMethodCall(MethodCallExpression methodCallExpression)
-    {
-        // EF.Default
-        if (methodCallExpression.Method.IsEFDefaultMethod())
-        {
-            AddTranslationErrorDetails(SqliteStrings.DefaultNotSupported);
-            return QueryCompilationContext.NotTranslatedExpression;
-        }
-
-        return base.VisitMethodCall(methodCallExpression);
     }
 
     private static Type? GetProviderType(SqlExpression? expression)

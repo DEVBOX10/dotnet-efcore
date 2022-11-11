@@ -1,6 +1,8 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Diagnostics.CodeAnalysis;
+
 namespace Microsoft.EntityFrameworkCore;
 
 /// <summary>
@@ -17,8 +19,10 @@ public static partial class EF
     internal static readonly MethodInfo PropertyMethod
         = typeof(EF).GetTypeInfo().GetDeclaredMethod(nameof(Property))!;
 
-    internal static readonly MethodInfo DefaultMethod
-        = typeof(EF).GetTypeInfo().GetDeclaredMethod(nameof(Default))!;
+    [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2060",
+        Justification = "EF.Property has no DynamicallyAccessedMembers annotations and is safe to construct.")]
+    internal static MethodInfo MakePropertyMethod(Type type)
+        => PropertyMethod.MakeGenericMethod(type);
 
     /// <summary>
     ///     This flag is set to <see langword="true" /> when code is being run from a design-time tool, such
@@ -57,20 +61,6 @@ public static partial class EF
         object entity,
         [NotParameterized] string propertyName)
         => throw new InvalidOperationException(CoreStrings.PropertyMethodInvoked);
-
-    /// <summary>
-    ///     Used set a property to its default value within <see cref="M:RelationalQueryableExtensions.ExecuteUpdate" /> or
-    ///     <see cref="M:RelationalQueryableExtensions.ExecuteUpdateAsync" />.
-    /// </summary>
-    /// <remarks>
-    ///     Depending on how the property is configured, this may be <see langword="null" />, or another value defined via
-    ///     <see cref="M:RelationalPropertyBuilderExtensions.HasDefaultValue" /> or similar.
-    /// </remarks>
-    /// <typeparam name="T">The type of the property being set.</typeparam>
-    /// <returns>The default value of the property.</returns>
-    public static T Default<T>()
-        // TODO: Update exception message
-        => throw new InvalidOperationException(CoreStrings.DefaultMethodInvoked);
 
     /// <summary>
     ///     Provides CLR methods that get translated to database functions when used in LINQ to Entities queries.

@@ -52,7 +52,8 @@ public class Trigger : ConventionAnnotatable, IMutableTrigger, IConventionTrigge
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     public virtual bool IsInModel
-        => _builder is not null;
+        => _builder is not null
+            && EntityType.IsInModel;
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -117,7 +118,7 @@ public class Trigger : ConventionAnnotatable, IMutableTrigger, IConventionTrigge
         => new(
             () => ((ITrigger)this).ToDebugString(),
             () => ((ITrigger)this).ToDebugString(MetadataDebugStringOptions.LongDefault));
-    
+
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
     ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
@@ -129,7 +130,7 @@ public class Trigger : ConventionAnnotatable, IMutableTrigger, IConventionTrigge
         [DebuggerStepThrough]
         get => EntityType;
     }
-    
+
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
     ///     the same compatibility standards as public APIs. It may be changed or removed without notice in

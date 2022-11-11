@@ -16,7 +16,7 @@ public class StoredProcedureResultColumn :
     IRuntimeStoredProcedureResultColumn
 {
     private string _name = "RowsAffected";
-    
+
     private ConfigurationSource? _nameConfigurationSource;
     private InternalStoredProcedureResultColumnBuilder? _builder;
 
@@ -34,7 +34,7 @@ public class StoredProcedureResultColumn :
         StoredProcedure = storedProcedure;
         ForRowsAffected = forRowsAffected;
         PropertyName = propertyName;
-        _builder = new(this, storedProcedure.Builder.ModelBuilder);
+        _builder = new InternalStoredProcedureResultColumnBuilder(this, storedProcedure.Builder.ModelBuilder);
     }
 
     /// <summary>
@@ -56,7 +56,8 @@ public class StoredProcedureResultColumn :
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     public virtual bool IsInModel
-        => _builder is not null;
+        => _builder is not null
+            && StoredProcedure.IsInModel;
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -66,7 +67,7 @@ public class StoredProcedureResultColumn :
     /// </summary>
     public virtual void SetRemovedFromModel()
         => _builder = null;
-    
+
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
     ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
@@ -83,7 +84,7 @@ public class StoredProcedureResultColumn :
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     public virtual StoredProcedure StoredProcedure { get; }
-    
+
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
     ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
@@ -99,7 +100,7 @@ public class StoredProcedureResultColumn :
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     public virtual string? PropertyName { get; }
-    
+
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
     ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
@@ -136,21 +137,21 @@ public class StoredProcedureResultColumn :
             _name = name;
 
             _nameConfigurationSource = configurationSource.Max(_nameConfigurationSource);
-            
+
             return name;
         }
-        
+
         if (configurationSource == ConfigurationSource.Explicit)
         {
             GetProperty().SetColumnName(name, ((IReadOnlyStoredProcedure)StoredProcedure).GetStoreIdentifier()!.Value);
             return name;
         }
-        
+
         return ((IConventionProperty)GetProperty()).SetColumnName(
             name, ((IReadOnlyStoredProcedure)StoredProcedure).GetStoreIdentifier()!.Value,
             fromDataAnnotation: configurationSource == ConfigurationSource.DataAnnotation);
     }
-    
+
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
     ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
@@ -161,7 +162,7 @@ public class StoredProcedureResultColumn :
         => ForRowsAffected
             ? _nameConfigurationSource
             : ((IConventionProperty)GetProperty()!)
-                .GetColumnNameConfigurationSource(((IReadOnlyStoredProcedure)StoredProcedure).GetStoreIdentifier()!.Value);
+            .GetColumnNameConfigurationSource(((IReadOnlyStoredProcedure)StoredProcedure).GetStoreIdentifier()!.Value);
 
     private IMutableProperty GetProperty()
         => StoredProcedure.EntityType.FindProperty(PropertyName!)
@@ -195,28 +196,28 @@ public class StoredProcedureResultColumn :
         [DebuggerStepThrough]
         get => StoredProcedure;
     }
-    
+
     /// <inheritdoc />
     IMutableStoredProcedure IMutableStoredProcedureResultColumn.StoredProcedure
     {
         [DebuggerStepThrough]
         get => StoredProcedure;
     }
-    
+
     /// <inheritdoc />
     IConventionStoredProcedure IConventionStoredProcedureResultColumn.StoredProcedure
     {
         [DebuggerStepThrough]
         get => StoredProcedure;
     }
-    
+
     /// <inheritdoc />
     IStoredProcedure IStoredProcedureResultColumn.StoredProcedure
     {
         [DebuggerStepThrough]
         get => StoredProcedure;
     }
-    
+
     /// <inheritdoc />
     IConventionStoredProcedureResultColumnBuilder IConventionStoredProcedureResultColumn.Builder
     {

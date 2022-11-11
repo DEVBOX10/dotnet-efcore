@@ -654,6 +654,14 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 entityType, storeObject);
 
         /// <summary>
+        ///     Entity type '{entityType}' has a split mapping and is an optional dependent sharing a store object, but it doesn't map any required non-shared property to the main store object. Keep at least one required non-shared property mapped to a column on '{storeObject}' or mark '{entityType}' as a required dependent by calling '{requiredDependentConfig}'.
+        /// </summary>
+        public static string EntitySplittingMissingRequiredPropertiesOptionalDependent(object? entityType, object? storeObject, object? requiredDependentConfig)
+            => string.Format(
+                GetString("EntitySplittingMissingRequiredPropertiesOptionalDependent", nameof(entityType), nameof(storeObject), nameof(requiredDependentConfig)),
+                entityType, storeObject, requiredDependentConfig);
+
+        /// <summary>
         ///     Entity type '{entityType}' has a split mapping for '{storeObject}', but it doesn't have a main mapping of the same type. Map '{entityType}' to '{storeObjectType}'.
         /// </summary>
         public static string EntitySplittingUnmappedMainFragment(object? entityType, object? storeObject, object? storeObjectType)
@@ -662,12 +670,12 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 entityType, storeObject, storeObjectType);
 
         /// <summary>
-        ///     Entity type '{entityType}' has a split mapping for '{storeObject}' that shares the table with '{principalEntityType}', but the main mappings of these types do not share a table. Map the split fragments of '{entityType}' to non-shared tables or map the main fragment to a table that '{principalEntityType}' is also mapped to.
+        ///     Entity type '{entityType}' has a split mapping for '{storeObject}' that is shared with the entity type '{principalEntityType}', but the main mappings of these types do not share a table. Map the split fragments of '{entityType}' to non-shared tables or map the main fragment to '{principalStoreObject}'.
         /// </summary>
-        public static string EntitySplittingUnmatchedMainTableSplitting(object? entityType, object? storeObject, object? principalEntityType)
+        public static string EntitySplittingUnmatchedMainTableSplitting(object? entityType, object? storeObject, object? principalEntityType, object? principalStoreObject)
             => string.Format(
-                GetString("EntitySplittingUnmatchedMainTableSplitting", nameof(entityType), nameof(storeObject), nameof(principalEntityType)),
-                entityType, storeObject, principalEntityType);
+                GetString("EntitySplittingUnmatchedMainTableSplitting", nameof(entityType), nameof(storeObject), nameof(principalEntityType), nameof(principalStoreObject)),
+                entityType, storeObject, principalEntityType, principalStoreObject);
 
         /// <summary>
         ///     An error occurred while reading a database value for property '{entityType}.{property}'. See the inner exception for more information.
@@ -708,12 +716,18 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 expectedType);
 
         /// <summary>
-        ///     The operation '{operation}' is being applied on the table '{tableName}' which contains data for multiple entity types. Applying this delete operation will also delete data for other entity type(s), hence it is not supported.
+        ///     The operation 'ExecuteDelete' requires an entity type which corresponds to the database table to be modified. The current operation is being applied on a non-entity projection. Remove any projection to non-entity types.
         /// </summary>
-        public static string ExecuteDeleteOnTableSplitting(object? operation, object? tableName)
+        public static string ExecuteDeleteOnNonEntityType
+            => GetString("ExecuteDeleteOnNonEntityType");
+
+        /// <summary>
+        ///     The operation 'ExecuteDelete' is being applied on the table '{tableName}' which contains data for multiple entity types. Applying this delete operation will also delete data for other entity type(s), hence it is not supported.
+        /// </summary>
+        public static string ExecuteDeleteOnTableSplitting(object? tableName)
             => string.Format(
-                GetString("ExecuteDeleteOnTableSplitting", nameof(operation), nameof(tableName)),
-                operation, tableName);
+                GetString("ExecuteDeleteOnTableSplitting", nameof(tableName)),
+                tableName);
 
         /// <summary>
         ///     The operation '{operation}' is being applied on entity type '{entityType}', which uses entity splitting. 'ExecuteDelete'/'ExecuteUpdate' operations on entity types using entity splitting is not supported.
@@ -730,14 +744,6 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             => string.Format(
                 GetString("ExecuteOperationOnKeylessEntityTypeWithUnsupportedOperator", nameof(operation), nameof(entityType)),
                 operation, entityType);
-
-        /// <summary>
-        ///     The operation '{operation}' requires an entity type which corresponds to the database table to be modified. The current operation is being applied on a non-entity projection. Remove any projection to non-entity types.
-        /// </summary>
-        public static string ExecuteOperationOnNonEntityType(object? operation)
-            => string.Format(
-                GetString("ExecuteOperationOnNonEntityType", nameof(operation)),
-                operation);
 
         /// <summary>
         ///     The operation '{operation}' is being applied on entity type '{entityType}', which is using the TPC mapping strategy and is not a leaf type. 'ExecuteDelete'/'ExecuteUpdate' operations on entity types participating in TPC hierarchies is only supported for leaf types.
@@ -1200,6 +1206,12 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 parameter);
 
         /// <summary>
+        ///     A result set was was missing when reading the results of a SaveChanges operation; this may indicate that a stored procedure was configured to return results in the EF model, but did not. Check your stored procedure definitions.
+        /// </summary>
+        public static string MissingResultSetWhenSaving
+            => GetString("MissingResultSetWhenSaving");
+
+        /// <summary>
         ///     Cannot add commands to a completed ModificationCommandBatch.
         /// </summary>
         public static string ModificationCommandBatchAlreadyComplete
@@ -1472,12 +1484,12 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 elementType);
 
         /// <summary>
-        ///     The entity type '{entityType}' is mapped to the stored procedure '{sproc}', but the concurrency token '{token}' is not mapped to any original value parameter.
+        ///     Current value parameter '{parameter}' is not allowed on delete stored procedure '{sproc}'. Use HasOriginalValueParameter() instead.
         /// </summary>
-        public static string StoredProcedureConcurrencyTokenNotMapped(object? entityType, object? sproc, object? token)
+        public static string StoredProcedureCurrentValueParameterOnDelete(object? parameter, object? sproc)
             => string.Format(
-                GetString("StoredProcedureConcurrencyTokenNotMapped", nameof(entityType), nameof(sproc), nameof(token)),
-                entityType, sproc, token);
+                GetString("StoredProcedureCurrentValueParameterOnDelete", nameof(parameter), nameof(sproc)),
+                parameter, sproc);
 
         /// <summary>
         ///     The property '{entityType}.{property}' is mapped to a parameter of the stored procedure '{sproc}', but only concurrency token and key properties are supported for Delete stored procedures.
@@ -1552,6 +1564,22 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 entityType, sproc, properties);
 
         /// <summary>
+        ///     Input parameter '{parameter}' of insert stored procedure '{sproc}' is mapped to property '{property}' of entity type '{entityType}', but that property is configured with BeforeSaveBehavior '{behavior}', and so cannot be saved on insert.
+        /// </summary>
+        public static string StoredProcedureInputParameterForInsertNonSaveProperty(object? parameter, object? sproc, object? property, object? entityType, object? behavior)
+            => string.Format(
+                GetString("StoredProcedureInputParameterForInsertNonSaveProperty", nameof(parameter), nameof(sproc), nameof(property), nameof(entityType), nameof(behavior)),
+                parameter, sproc, property, entityType, behavior);
+
+        /// <summary>
+        ///     Input parameter '{parameter}' of update stored procedure '{sproc}' is mapped to property '{property}' of entity type '{entityType}', but that property is configured with AfterSaveBehavior '{behavior}', and so cannot be saved on update. You may need to use HasOriginalValueParameter() instead of HasParameter().
+        /// </summary>
+        public static string StoredProcedureInputParameterForUpdateNonSaveProperty(object? parameter, object? sproc, object? property, object? entityType, object? behavior)
+            => string.Format(
+                GetString("StoredProcedureInputParameterForUpdateNonSaveProperty", nameof(parameter), nameof(sproc), nameof(property), nameof(entityType), nameof(behavior)),
+                parameter, sproc, property, entityType, behavior);
+
+        /// <summary>
         ///     The keyless entity type '{entityType}' was configured to use '{sproc}'. An entity type requires a primary key to be able to be mapped to a stored procedure.
         /// </summary>
         public static string StoredProcedureKeyless(object? entityType, object? sproc)
@@ -1566,6 +1594,14 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             => string.Format(
                 GetString("StoredProcedureNoName", nameof(entityType), nameof(sproc)),
                 entityType, sproc);
+
+        /// <summary>
+        ///     Original value parameter '{parameter}' is not allowed on insert stored procedure '{sproc}'. Use HasParameter() instead.
+        /// </summary>
+        public static string StoredProcedureOriginalValueParameterOnInsert(object? parameter, object? sproc)
+            => string.Format(
+                GetString("StoredProcedureOriginalValueParameterOnInsert", nameof(parameter), nameof(sproc)),
+                parameter, sproc);
 
         /// <summary>
         ///     The property '{entityType}.{property}' is mapped to an output parameter of the stored procedure '{sproc}', but it is also mapped to an output original value output parameter. A store-generated property can only be mapped to one output parameter.
@@ -1664,12 +1700,28 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 sproc);
 
         /// <summary>
+        ///     A rows affected parameter, result column or return value cannot be configured on stored procedure '{sproc}' because it is used for insertion. Rows affected values are only allowed on stored procedures performing updating or deletion.
+        /// </summary>
+        public static string StoredProcedureRowsAffectedForInsert(object? sproc)
+            => string.Format(
+                GetString("StoredProcedureRowsAffectedForInsert", nameof(sproc)),
+                sproc);
+
+        /// <summary>
         ///     The stored procedure '{sproc}' cannot be configured to return the rows affected because a rows affected parameter or a rows affected result column for this stored procedure already exists.
         /// </summary>
         public static string StoredProcedureRowsAffectedReturnConflictingParameter(object? sproc)
             => string.Format(
                 GetString("StoredProcedureRowsAffectedReturnConflictingParameter", nameof(sproc)),
                 sproc);
+
+        /// <summary>
+        ///     The entity type '{entityType}' is mapped to the stored procedure '{sproc}' which returns both result columns and a rows affected value. If the stored procedure returns result columns, a rows affected value isn't needed and can be safely removed.
+        /// </summary>
+        public static string StoredProcedureRowsAffectedWithResultColumns(object? entityType, object? sproc)
+            => string.Format(
+                GetString("StoredProcedureRowsAffectedWithResultColumns", nameof(entityType), nameof(sproc)),
+                entityType, sproc);
 
         /// <summary>
         ///     Both entity type '{entityType1}' and '{entityType2}' were configured to use '{sproc}', stored procedure sharing is not supported. Specify different names for the corresponding stored procedures.
@@ -1694,6 +1746,14 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             => string.Format(
                 GetString("StoredProcedureUnmapped", nameof(entityType)),
                 entityType);
+
+        /// <summary>
+        ///     The foreign key column '{fkColumnName}' has '{fkColumnType}' values which cannot be compared to the '{pkColumnType}' values of the associated principal key column '{pkColumnName}'. To use 'SaveChanges` or 'SaveChangesAsync', foreign key column types must be comparable with principal key column types.
+        /// </summary>
+        public static string StoredKeyTypesNotConvertable(object? fkColumnName, object? fkColumnType, object? pkColumnType, object? pkColumnName)
+            => string.Format(
+                GetString("StoredKeyTypesNotConvertable", nameof(fkColumnName), nameof(fkColumnType), nameof(pkColumnType), nameof(pkColumnName)),
+                fkColumnName, fkColumnType, pkColumnType, pkColumnName);
 
         /// <summary>
         ///     The entity type '{entityType}' is not mapped to the store object '{table}'.
@@ -3416,6 +3476,31 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics.Internal
         }
 
         /// <summary>
+        ///     The entity type '{entityType}' is mapped to the stored procedure '{sproc}', but the concurrency token '{token}' is not mapped to any original value parameter.
+        /// </summary>
+        public static EventDefinition<string, string, string> LogStoredProcedureConcurrencyTokenNotMapped(IDiagnosticsLogger logger)
+        {
+            var definition = ((RelationalLoggingDefinitions)logger.Definitions).LogStoredProcedureConcurrencyTokenNotMapped;
+            if (definition == null)
+            {
+                definition = NonCapturingLazyInitializer.EnsureInitialized(
+                    ref ((RelationalLoggingDefinitions)logger.Definitions).LogStoredProcedureConcurrencyTokenNotMapped,
+                    logger,
+                    static logger => new EventDefinition<string, string, string>(
+                        logger.Options,
+                        RelationalEventId.StoredProcedureConcurrencyTokenNotMapped,
+                        LogLevel.Warning,
+                        "RelationalEventId.StoredProcedureConcurrencyTokenNotMapped",
+                        level => LoggerMessage.Define<string, string, string>(
+                            level,
+                            RelationalEventId.StoredProcedureConcurrencyTokenNotMapped,
+                            _resourceManager.GetString("LogStoredProcedureConcurrencyTokenNotMapped")!)));
+            }
+
+            return (EventDefinition<string, string, string>)definition;
+        }
+
+        /// <summary>
         ///     Possible unintended use of method 'Equals' for arguments '{left}' and '{right}' of different types in a query. This comparison will always return false.
         /// </summary>
         public static EventDefinition<string, string> LogPossibleUnintendedUseOfEquals(IDiagnosticsLogger logger)
@@ -3660,6 +3745,31 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics.Internal
                             level,
                             RelationalEventId.TransactionError,
                             _resourceManager.GetString("LogTransactionError")!)));
+            }
+
+            return (EventDefinition)definition;
+        }
+
+        /// <summary>
+        ///     An unexpected trailing result set was found when reading the results of a SaveChanges operation; this may indicate that a stored procedure returned a result set without being configured for it in the EF model. Check your stored procedure definitions.
+        /// </summary>
+        public static EventDefinition LogUnexpectedTrailingResultSetWhenSaving(IDiagnosticsLogger logger)
+        {
+            var definition = ((RelationalLoggingDefinitions)logger.Definitions).LogUnexpectedTrailingResultSetWhenSaving;
+            if (definition == null)
+            {
+                definition = NonCapturingLazyInitializer.EnsureInitialized(
+                    ref ((RelationalLoggingDefinitions)logger.Definitions).LogUnexpectedTrailingResultSetWhenSaving,
+                    logger,
+                    static logger => new EventDefinition(
+                        logger.Options,
+                        RelationalEventId.UnexpectedTrailingResultSetWhenSaving,
+                        LogLevel.Warning,
+                        "RelationalEventId.UnexpectedTrailingResultSetWhenSaving",
+                        level => LoggerMessage.Define(
+                            level,
+                            RelationalEventId.UnexpectedTrailingResultSetWhenSaving,
+                            _resourceManager.GetString("LogUnexpectedTrailingResultSetWhenSaving")!)));
             }
 
             return (EventDefinition)definition;

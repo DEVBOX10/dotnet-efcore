@@ -31,7 +31,8 @@ public class SqlServerUpdateSqlGenerator : UpdateAndSelectSqlGenerator, ISqlServ
     ///     The minimum number of insertions which are executed using MERGE ... OUTPUT INTO. Below this threshold, multiple batched INSERT
     ///     statements are more efficient.
     /// </summary>
-    protected virtual int MergeIntoMinimumThreshold => 4;
+    protected virtual int MergeIntoMinimumThreshold
+        => 4;
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -101,17 +102,15 @@ public class SqlServerUpdateSqlGenerator : UpdateAndSelectSqlGenerator, ISqlServ
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     public override ResultSetMapping AppendUpdateOperation(
-        StringBuilder commandStringBuilder,
-        IReadOnlyModificationCommand command,
-        int commandPosition,
-        out bool requiresTransaction)
-    {
+            StringBuilder commandStringBuilder,
+            IReadOnlyModificationCommand command,
+            int commandPosition,
+            out bool requiresTransaction)
         // We normally do a simple UPDATE with an OUTPUT clause (either for the generated columns, or for "1" for concurrency checking).
         // However, if there are triggers defined, OUTPUT (without INTO) is not supported, so we do UPDATE+SELECT.
-        return HasAnyTriggers(command)
+        => HasAnyTriggers(command)
             ? AppendUpdateAndSelectOperation(commandStringBuilder, command, commandPosition, out requiresTransaction)
             : AppendUpdateReturningOperation(commandStringBuilder, command, commandPosition, out requiresTransaction);
-    }
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -135,6 +134,61 @@ public class SqlServerUpdateSqlGenerator : UpdateAndSelectSqlGenerator, ISqlServ
         commandStringBuilder.AppendLine(SqlGenerationHelper.StatementTerminator);
     }
 
+    /// <inheritdoc />
+    protected override void AppendUpdateColumnValue(
+        ISqlGenerationHelper updateSqlGeneratorHelper,
+        IColumnModification columnModification,
+        StringBuilder stringBuilder,
+        string name,
+        string? schema)
+    {
+        if (columnModification.JsonPath != null
+            && columnModification.JsonPath != "$")
+        {
+            stringBuilder.Append("JSON_MODIFY(");
+            updateSqlGeneratorHelper.DelimitIdentifier(stringBuilder, columnModification.ColumnName);
+
+            // using strict so that we don't remove json elements when they are assigned NULL value
+            stringBuilder.Append(", 'strict ");
+            stringBuilder.Append(columnModification.JsonPath);
+            stringBuilder.Append("', ");
+
+            if (columnModification.Property != null)
+            {
+                var needsTypeConversion = columnModification.Property.ClrType.IsNumeric()
+                    || columnModification.Property.ClrType == typeof(bool);
+
+                if (needsTypeConversion)
+                {
+                    stringBuilder.Append("CAST(");
+                }
+
+                stringBuilder.Append("JSON_VALUE(");
+                base.AppendUpdateColumnValue(updateSqlGeneratorHelper, columnModification, stringBuilder, name, schema);
+                stringBuilder.Append(", '$[0]')");
+
+                if (needsTypeConversion)
+                {
+                    stringBuilder.Append(" AS ");
+                    stringBuilder.Append(columnModification.Property.GetRelationalTypeMapping().StoreType);
+                    stringBuilder.Append(")");
+                }
+            }
+            else
+            {
+                stringBuilder.Append("JSON_QUERY(");
+                base.AppendUpdateColumnValue(updateSqlGeneratorHelper, columnModification, stringBuilder, name, schema);
+                stringBuilder.Append(")");
+            }
+
+            stringBuilder.Append(")");
+        }
+        else
+        {
+            base.AppendUpdateColumnValue(updateSqlGeneratorHelper, columnModification, stringBuilder, name, schema);
+        }
+    }
+
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
     ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
@@ -142,17 +196,15 @@ public class SqlServerUpdateSqlGenerator : UpdateAndSelectSqlGenerator, ISqlServ
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     public override ResultSetMapping AppendDeleteOperation(
-        StringBuilder commandStringBuilder,
-        IReadOnlyModificationCommand command,
-        int commandPosition,
-        out bool requiresTransaction)
-    {
+            StringBuilder commandStringBuilder,
+            IReadOnlyModificationCommand command,
+            int commandPosition,
+            out bool requiresTransaction)
         // We normally do a simple DELETE, with an OUTPUT clause emitting "1" for concurrency checking.
         // However, if there are triggers defined, OUTPUT (without INTO) is not supported, so we do UPDATE+SELECT.
-        return HasAnyTriggers(command)
+        => HasAnyTriggers(command)
             ? AppendDeleteAndSelectOperation(commandStringBuilder, command, commandPosition, out requiresTransaction)
             : AppendDeleteReturningOperation(commandStringBuilder, command, commandPosition, out requiresTransaction);
-    }
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -201,10 +253,11 @@ public class SqlServerUpdateSqlGenerator : UpdateAndSelectSqlGenerator, ISqlServ
         var keyOperations = firstCommand.ColumnModifications.Where(o => o.IsKey).ToList();
 
         var writableOperations = modificationCommands[0].ColumnModifications
-            .Where(o =>
-                o.Property?.GetValueGenerationStrategy(table) != SqlServerValueGenerationStrategy.IdentityColumn
-                && o.Property?.GetComputedColumnSql() is null
-                && o.Property?.GetColumnType() is not "rowversion" and not "timestamp")
+            .Where(
+                o =>
+                    o.Property?.GetValueGenerationStrategy(table) != SqlServerValueGenerationStrategy.IdentityColumn
+                    && o.Property?.GetComputedColumnSql() is null
+                    && o.Property?.GetColumnType() is not "rowversion" and not "timestamp")
             .ToList();
 
         if (writeOperations.Count == 0)
@@ -558,11 +611,26 @@ public class SqlServerUpdateSqlGenerator : UpdateAndSelectSqlGenerator, ISqlServ
         Check.DebugAssert(command.StoreStoredProcedure is not null, "command.StoredProcedure is not null");
 
         var storedProcedure = command.StoreStoredProcedure;
-        var resultSetMapping = storedProcedure.ResultColumns.Any()
-            ? ResultSetMapping.LastInResultSet
-            : ResultSetMapping.NoResults;
 
-        Check.DebugAssert(storedProcedure.Parameters.Any() || storedProcedure.ResultColumns.Any(),
+        var resultSetMapping = ResultSetMapping.NoResults;
+
+        foreach (var resultColumn in storedProcedure.ResultColumns)
+        {
+            resultSetMapping = ResultSetMapping.LastInResultSet;
+
+            if (resultColumn == command.RowsAffectedColumn)
+            {
+                resultSetMapping |= ResultSetMapping.ResultSetWithRowsAffectedOnly;
+            }
+            else
+            {
+                resultSetMapping = ResultSetMapping.LastInResultSet;
+                break;
+            }
+        }
+
+        Check.DebugAssert(
+            storedProcedure.Parameters.Any() || storedProcedure.ResultColumns.Any(),
             "Stored procedure call with neither parameters nor result columns");
 
         commandStringBuilder.Append("EXEC ");
@@ -591,13 +659,16 @@ public class SqlServerUpdateSqlGenerator : UpdateAndSelectSqlGenerator, ISqlServ
 
             // Only positional parameter style supported for now, see #28439
 
-            var orderedParameterModifications = command.ColumnModifications
-                .Where(c => c.Column is IStoreStoredProcedureParameter)
-                .OrderBy(c => ((IStoreStoredProcedureParameter)c.Column!).Position);
-
-            foreach (var columnModification in orderedParameterModifications)
+            // Note: the column modifications are already ordered according to the sproc parameter ordering
+            // (see ModificationCommand.GenerateColumnModifications)
+            for (var i = 0; i < command.ColumnModifications.Count; i++)
             {
-                var parameter = (IStoreStoredProcedureParameter)columnModification.Column!;
+                var columnModification = command.ColumnModifications[i];
+
+                if (columnModification.Column is not IStoreStoredProcedureParameter parameter)
+                {
+                    continue;
+                }
 
                 if (first)
                 {
@@ -874,7 +945,7 @@ public class SqlServerUpdateSqlGenerator : UpdateAndSelectSqlGenerator, ISqlServ
             .AppendLine(SqlGenerationHelper.StatementTerminator)
             .AppendLine();
 
-        return ResultSetMapping.LastInResultSet;
+        return ResultSetMapping.LastInResultSet | ResultSetMapping.ResultSetWithRowsAffectedOnly;
     }
 
     /// <summary>
@@ -895,11 +966,9 @@ public class SqlServerUpdateSqlGenerator : UpdateAndSelectSqlGenerator, ISqlServ
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     public override void PrependEnsureAutocommit(StringBuilder commandStringBuilder)
-    {
         // SQL Server allows turning off autocommit via the IMPLICIT_TRANSACTIONS setting (see
         // https://docs.microsoft.com/sql/t-sql/statements/set-implicit-transactions-transact-sql).
-        commandStringBuilder.Insert(0, $"SET IMPLICIT_TRANSACTIONS OFF{SqlGenerationHelper.StatementTerminator}{Environment.NewLine}");
-    }
+        => commandStringBuilder.Insert(0, $"SET IMPLICIT_TRANSACTIONS OFF{SqlGenerationHelper.StatementTerminator}{Environment.NewLine}");
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to

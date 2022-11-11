@@ -811,15 +811,43 @@ public abstract class CustomConvertersTestBase<TFixture> : BuiltInDataTypesTestB
         Value2
     }
 
+    [ConditionalFact]
+    public virtual void GroupBy_converted_enum()
+    {
+        using var context = CreateContext();
+        var result = context.Set<Entity>().GroupBy(e => e.SomeEnum).ToList();
+
+        Assert.Collection(result,
+            t =>
+            {
+                Assert.Equal(SomeEnum.No, t.Key);
+                Assert.Single(t);
+            },
+            t =>
+            {
+                Assert.Equal(SomeEnum.Yes, t.Key);
+                Assert.Equal(2, t.Count());
+            });
+    }
+
+    public class Entity
+    {
+        public int Id { get; set; }
+        public SomeEnum SomeEnum { get; set; }
+    }
+    public enum SomeEnum
+    {
+        Yes,
+        No
+    }
+
     public abstract class CustomConvertersFixtureBase : BuiltInDataTypesFixtureBase
     {
         protected override string StoreName
             => "CustomConverters";
 
         protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
-        {
-            configurationBuilder.DefaultTypeMapping<HoldingEnum>().HasConversion<string>();
-        }
+            => configurationBuilder.DefaultTypeMapping<HoldingEnum>().HasConversion<string>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder, DbContext context)
         {
@@ -847,11 +875,15 @@ public abstract class CustomConvertersTestBase<TFixture> : BuiltInDataTypesTestB
                 {
                     b.HasMany(e => e.Dependents).WithOne(e => e.Principal).HasForeignKey(e => e.PrincipalId);
                     b.Property(e => e.Id).ValueGeneratedNever();
-                    b.Property(e => e.Id).HasConversion(v => v, v => (int)v);
+                    b.Property(e => e.Id).HasConversion<int>(v => v ?? 0, v => v);
                 });
 
             modelBuilder.Entity<NonNullableDependent>(
-                b => b.Property(e => e.Id).ValueGeneratedNever());
+                b =>
+                {
+                    b.Property(e => e.Id).ValueGeneratedNever();
+                    b.Property(e => e.PrincipalId).HasConversion<int>(v => v, v => v);
+                });
 
             modelBuilder.Entity<User>(
                 b =>
@@ -1338,6 +1370,12 @@ public abstract class CustomConvertersTestBase<TFixture> : BuiltInDataTypesTestB
                         v => new List<Layout>(v)));
 
             modelBuilder.Entity<HolderClass>().HasData(new HolderClass { Id = 1, HoldingEnum = HoldingEnum.Value2 });
+
+            modelBuilder.Entity<Entity>().Property(e => e.SomeEnum).HasConversion(e => e.ToString(), e => Enum.Parse<SomeEnum>(e));
+            modelBuilder.Entity<Entity>().HasData(
+                new Entity { Id = 1, SomeEnum = SomeEnum.Yes },
+                new Entity { Id = 2, SomeEnum = SomeEnum.No },
+                new Entity { Id = 3, SomeEnum = SomeEnum.Yes });
         }
 
         private static class StringToDictionarySerializer
@@ -1374,7 +1412,8 @@ public abstract class CustomConvertersTestBase<TFixture> : BuiltInDataTypesTestB
                     list.Add(
                         new Layout
                         {
-                            Height = int.Parse(parts[0]), Width = int.Parse(parts[1]),
+                            Height = int.Parse(parts[0]),
+                            Width = int.Parse(parts[1]),
                         });
                 }
 

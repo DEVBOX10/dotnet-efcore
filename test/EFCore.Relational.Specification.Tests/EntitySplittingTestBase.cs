@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 // ReSharper disable InconsistentNaming
+
 namespace Microsoft.EntityFrameworkCore;
 
 public abstract class EntitySplittingTestBase : NonSharedModelTestBase
@@ -20,7 +21,7 @@ public abstract class EntitySplittingTestBase : NonSharedModelTestBase
         {
             var meterReading = new MeterReading { ReadingStatus = MeterReadingStatus.NotAccesible, CurrentRead = "100" };
 
-            context.Add(meterReading);
+            await context.AddAsync(meterReading);
 
             TestSqlLoggerFactory.Clear();
 
@@ -81,7 +82,7 @@ public abstract class EntitySplittingTestBase : NonSharedModelTestBase
                     RelationalStrings.NonQueryTranslationFailedWithDetails(
                         "", RelationalStrings.ExecuteOperationOnEntitySplitting("ExecuteUpdate", "MeterReading"))[21..],
                     (await Assert.ThrowsAsync<InvalidOperationException>(
-                        () => context.MeterReadings.ExecuteUpdateAsync(s => s.SetProperty(m => m.CurrentRead, m => "Value")))).Message));
+                        () => context.MeterReadings.ExecuteUpdateAsync(s => s.SetProperty(m => m.CurrentRead, "Value")))).Message));
         }
         else
         {
@@ -92,7 +93,7 @@ public abstract class EntitySplittingTestBase : NonSharedModelTestBase
                     RelationalStrings.NonQueryTranslationFailedWithDetails(
                         "", RelationalStrings.ExecuteOperationOnEntitySplitting("ExecuteUpdate", "MeterReading"))[21..],
                     Assert.Throws<InvalidOperationException>(
-                        () => context.MeterReadings.ExecuteUpdate(s => s.SetProperty(m => m.CurrentRead, m => "Value"))).Message));
+                        () => context.MeterReadings.ExecuteUpdate(s => s.SetProperty(m => m.CurrentRead, "Value"))).Message));
         }
     }
 
@@ -111,8 +112,7 @@ public abstract class EntitySplittingTestBase : NonSharedModelTestBase
         => TestSqlLoggerFactory.AssertBaseline(expected);
 
     protected virtual void OnModelCreating(ModelBuilder modelBuilder)
-    {
-        modelBuilder.Entity<MeterReading>(
+        => modelBuilder.Entity<MeterReading>(
             ob =>
             {
                 ob.ToTable("MeterReadings");
@@ -123,7 +123,6 @@ public abstract class EntitySplittingTestBase : NonSharedModelTestBase
                         t.Property(o => o.CurrentRead);
                     });
             });
-    }
 
     protected async Task InitializeAsync(
         Action<ModelBuilder> onModelCreating,

@@ -93,6 +93,7 @@ public class QuerySqlGenerator : SqlExpressionVisitor
                 {
                     VisitSelect(selectExpression);
                 }
+
                 break;
 
             case UpdateExpression updateExpression:
@@ -183,7 +184,6 @@ public class QuerySqlGenerator : SqlExpressionVisitor
                         && string.Equals(
                             column.Name, setOperation.Source1.Projection[index].Alias, StringComparison.Ordinal))
                 .All(e => e);
-
 
     /// <inheritdoc />
     protected override Expression VisitDelete(DeleteExpression deleteExpression)
@@ -958,10 +958,8 @@ public class QuerySqlGenerator : SqlExpressionVisitor
 
             case SqlUnaryExpression sqlUnaryExpression:
             {
-                // Wrap IS (NOT) NULL operation when applied on bool column.
-                if ((sqlUnaryExpression.OperatorType == ExpressionType.Equal
-                        || sqlUnaryExpression.OperatorType == ExpressionType.NotEqual)
-                    && sqlUnaryExpression.Operand.Type == typeof(bool))
+                // Wrap IS (NOT) NULL operation
+                if (sqlUnaryExpression.OperatorType is ExpressionType.Equal or ExpressionType.NotEqual)
                 {
                     return true;
                 }
@@ -1266,13 +1264,17 @@ public class QuerySqlGenerator : SqlExpressionVisitor
             && selectExpression.Orderings.Count == 0
             && selectExpression.GroupBy.Count == 0
             && selectExpression.Projection.Count == 0
-            && selectExpression.Tables.All(e => !(e is LeftJoinExpression || e is OuterApplyExpression)))
+            && (selectExpression.Tables.Count == 1
+                || !ReferenceEquals(selectExpression.Tables[0], updateExpression.Table)
+                || selectExpression.Tables[1] is InnerJoinExpression
+                || selectExpression.Tables[1] is CrossJoinExpression))
         {
             _relationalCommandBuilder.Append("UPDATE ");
             Visit(updateExpression.Table);
             _relationalCommandBuilder.AppendLine();
             _relationalCommandBuilder.Append("SET ");
-            _relationalCommandBuilder.Append($"{_sqlGenerationHelper.DelimitIdentifier(updateExpression.ColumnValueSetters[0].Column.Name)} = ");
+            _relationalCommandBuilder.Append(
+                $"{_sqlGenerationHelper.DelimitIdentifier(updateExpression.ColumnValueSetters[0].Column.Name)} = ");
             Visit(updateExpression.ColumnValueSetters[0].Value);
             using (_relationalCommandBuilder.Indent())
             {

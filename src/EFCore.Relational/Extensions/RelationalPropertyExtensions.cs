@@ -78,6 +78,7 @@ public static class RelationalPropertyExtensions
                         }
                     }
                 }
+
                 if (!tableFound)
                 {
                     return null;
@@ -124,7 +125,6 @@ public static class RelationalPropertyExtensions
                             && (declaringStoreObject != storeObject
                                 || fragments.Any(f => property.FindOverrides(f.StoreObject) != null)))
                         {
-
                             return null;
                         }
                     }
@@ -160,7 +160,30 @@ public static class RelationalPropertyExtensions
     /// <param name="property">The property.</param>
     /// <returns>The default base column name to which the property would be mapped.</returns>
     public static string GetDefaultColumnName(this IReadOnlyProperty property)
-        => Uniquifier.Truncate(property.Name, property.DeclaringEntityType.Model.GetMaxIdentifierLength());
+    {
+        var name = property.Name;
+        if (property.IsShadowProperty()
+            && property.GetContainingForeignKeys().Count() == 1)
+        {
+            var foreignKey = property.GetContainingForeignKeys().First();
+            var principalEntityType = foreignKey.PrincipalEntityType;
+            if (!principalEntityType.HasSharedClrType
+                && principalEntityType.ClrType.IsConstructedGenericType
+                && foreignKey.DependentToPrincipal == null)
+            {
+                var principalProperty = property.FindFirstPrincipal()!;
+                var principalName = principalEntityType.ShortName();
+                if (property.Name.Length == (principalName.Length + principalProperty.Name.Length)
+                    && property.Name.StartsWith(principalName, StringComparison.Ordinal)
+                    && property.Name.EndsWith(principalProperty.Name, StringComparison.Ordinal))
+                {
+                    name = principalEntityType.ClrType.ShortDisplayName() + principalProperty.Name;
+                }
+            }
+        }
+
+        return Uniquifier.Truncate(name, property.DeclaringEntityType.Model.GetMaxIdentifierLength());
+    }
 
     /// <summary>
     ///     Returns the default column name to which the property would be mapped.
@@ -213,7 +236,7 @@ public static class RelationalPropertyExtensions
             entityType = ownerType;
         }
 
-        var baseName = property.GetDefaultColumnName();
+        var baseName = storeObject.StoreObjectType == StoreObjectType.Table ? property.GetDefaultColumnName() : property.Name;
         if (builder == null)
         {
             return baseName;
@@ -914,7 +937,7 @@ public static class RelationalPropertyExtensions
         this IConventionProperty property,
         object? value,
         bool fromDataAnnotation = false)
-        => (object?)property.SetOrRemoveAnnotation(
+        => property.SetOrRemoveAnnotation(
             RelationalAnnotationNames.DefaultValue,
             ConvertDefaultValue(property, value),
             fromDataAnnotation)?.Value;
@@ -1513,7 +1536,7 @@ public static class RelationalPropertyExtensions
     /// <returns>The property facet overrides.</returns>
     public static IEnumerable<IMutableRelationalPropertyOverrides> GetOverrides(this IMutableProperty property)
         => RelationalPropertyOverrides.Get(property)?.Cast<IMutableRelationalPropertyOverrides>()
-        ?? Enumerable.Empty<IMutableRelationalPropertyOverrides>();
+            ?? Enumerable.Empty<IMutableRelationalPropertyOverrides>();
 
     /// <summary>
     ///     <para>
@@ -1528,7 +1551,7 @@ public static class RelationalPropertyExtensions
     /// <returns>The property facet overrides.</returns>
     public static IEnumerable<IConventionRelationalPropertyOverrides> GetOverrides(this IConventionProperty property)
         => RelationalPropertyOverrides.Get(property)?.Cast<IConventionRelationalPropertyOverrides>()
-        ?? Enumerable.Empty<IConventionRelationalPropertyOverrides>();
+            ?? Enumerable.Empty<IConventionRelationalPropertyOverrides>();
 
     /// <summary>
     ///     <para>
@@ -1543,7 +1566,7 @@ public static class RelationalPropertyExtensions
     /// <returns>The property facet overrides.</returns>
     public static IEnumerable<IRelationalPropertyOverrides> GetOverrides(this IProperty property)
         => RelationalPropertyOverrides.Get(property)?.Cast<IRelationalPropertyOverrides>()
-        ?? Enumerable.Empty<IRelationalPropertyOverrides>();
+            ?? Enumerable.Empty<IRelationalPropertyOverrides>();
 
     /// <summary>
     ///     <para>
@@ -1647,7 +1670,8 @@ public static class RelationalPropertyExtensions
         this IConventionProperty property,
         in StoreObjectIdentifier storeObject,
         bool fromDataAnnotation = false)
-        => RelationalPropertyOverrides.GetOrCreate((IMutableProperty)property, storeObject,
+        => RelationalPropertyOverrides.GetOrCreate(
+            (IMutableProperty)property, storeObject,
             fromDataAnnotation ? ConfigurationSource.DataAnnotation : ConfigurationSource.Convention);
 
     /// <summary>
@@ -1713,7 +1737,7 @@ public static class RelationalPropertyExtensions
         {
             yield return declaringStoreObject.Value;
         }
-        
+
         if (storeObjectType == StoreObjectType.Function
             || storeObjectType == StoreObjectType.SqlQuery)
         {
@@ -1732,7 +1756,7 @@ public static class RelationalPropertyExtensions
         {
             yield break;
         }
-        
+
         foreach (var derivedType in declaringType.GetDerivedTypes())
         {
             var derivedStoreObject = StoreObjectIdentifier.Create(derivedType, storeObjectType);
@@ -1752,7 +1776,10 @@ public static class RelationalPropertyExtensions
     /// <param name="ordinal">The ordinal to read in the <paramref name="relationalReader" />.</param>
     /// <param name="detailedErrorsEnabled">Whether detailed errors should be logged.</param>
     public static object? GetReaderFieldValue(
-        this IProperty property, RelationalDataReader relationalReader, int ordinal, bool detailedErrorsEnabled)
+        this IProperty property,
+        RelationalDataReader relationalReader,
+        int ordinal,
+        bool detailedErrorsEnabled)
     {
 #if DEBUG
         // DetailedErrorsEnabled is a singleton option, meaning that we should never get differing values for the same model.

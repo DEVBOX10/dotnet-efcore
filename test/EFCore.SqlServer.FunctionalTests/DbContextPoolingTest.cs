@@ -1,6 +1,9 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Data;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore.Internal;
@@ -164,6 +167,12 @@ public class DbContextPoolingTest : IClassFixture<NorthwindQuerySqlServerFixture
     {
         public string CustomerId { get; set; }
         public string CompanyName { get; set; }
+        public ObservableCollection<Order> Orders { get; } = new();
+    }
+
+    public class Order
+    {
+        public string OrderId { get; set; }
     }
 
     private interface ISecondContext
@@ -474,9 +483,10 @@ public class DbContextPoolingTest : IClassFixture<NorthwindQuerySqlServerFixture
 
         Assert.Equal("Options", context.ConstructorUsed);
     }
+
     private class WithParameterlessConstructorContext : DbContext
     {
-        public string ConstructorUsed { get; set; }
+        public string ConstructorUsed { get; }
 
         public WithParameterlessConstructorContext()
         {
@@ -767,6 +777,20 @@ public class DbContextPoolingTest : IClassFixture<NorthwindQuerySqlServerFixture
 
         Assert.Null(context1!.Database.GetCommandTimeout());
 
+        var set = context1.Customers;
+        var localView = set.Local;
+        localView.PropertyChanged += LocalView_OnPropertyChanged;
+        localView.PropertyChanging += LocalView_OnPropertyChanging;
+        localView.CollectionChanged += LocalView_OnCollectionChanged;
+        var customer1 = new Customer { CustomerId = "C" };
+        context1.Customers.Attach(customer1);
+        Assert.Equal(1, localView.Count);
+        Assert.Same(customer1, localView.ToBindingList().Single());
+        Assert.Same(customer1, localView.ToObservableCollection().Single());
+        Assert.True(_localView_OnPropertyChanging);
+        Assert.True(_localView_OnPropertyChanged);
+        Assert.True(_localView_OnCollectionChanged);
+
         context1.ChangeTracker.AutoDetectChangesEnabled = true;
         context1.ChangeTracker.LazyLoadingEnabled = true;
         context1.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
@@ -786,6 +810,10 @@ public class DbContextPoolingTest : IClassFixture<NorthwindQuerySqlServerFixture
         context1.SavingChanges += Context_OnSavingChanges;
         context1.SavedChanges += Context_OnSavedChanges;
         context1.SaveChangesFailed += Context_OnSaveChangesFailed;
+
+        _localView_OnPropertyChanging = false;
+        _localView_OnPropertyChanged = false;
+        _localView_OnCollectionChanged = false;
 
         await Dispose(serviceScope, async);
 
@@ -807,9 +835,13 @@ public class DbContextPoolingTest : IClassFixture<NorthwindQuerySqlServerFixture
         Assert.False(context2.Database.AutoSavepointsEnabled);
         Assert.Null(context1.Database.GetCommandTimeout());
 
-        var customer = new Customer { CustomerId = "C" };
-        context2.Customers.Attach(customer).State = EntityState.Modified;
-        context2.Customers.Attach(customer).State = EntityState.Unchanged;
+        Assert.Empty(localView);
+        Assert.Empty(localView.ToBindingList());
+        Assert.Empty(localView.ToObservableCollection());
+
+        var customer2 = new Customer { CustomerId = "C" };
+        context2.Customers.Attach(customer2).State = EntityState.Modified;
+        context2.Customers.Attach(customer2).State = EntityState.Unchanged;
 
         Assert.False(_changeTracker_OnTracking);
         Assert.False(_changeTracker_OnTracked);
@@ -825,6 +857,15 @@ public class DbContextPoolingTest : IClassFixture<NorthwindQuerySqlServerFixture
         Assert.False(_context_OnSavedChanges);
         Assert.False(_context_OnSavingChanges);
         Assert.False(_context_OnSaveChangesFailed);
+
+        Assert.Same(set, context2!.Customers);
+        Assert.Same(localView, context2!.Customers.Local);
+        Assert.Equal(1, localView.Count);
+        Assert.Same(customer2, localView.ToBindingList().Single());
+        Assert.Same(customer2, localView.ToObservableCollection().Single());
+        Assert.False(_localView_OnPropertyChanging);
+        Assert.False(_localView_OnPropertyChanged);
+        Assert.False(_localView_OnCollectionChanged);
     }
 
     [ConditionalTheory]
@@ -864,6 +905,20 @@ public class DbContextPoolingTest : IClassFixture<NorthwindQuerySqlServerFixture
         var factory = BuildFactory<PooledContext>(withDependencyInjection);
 
         var context1 = async ? await factory.CreateDbContextAsync() : factory.CreateDbContext();
+        var set = context1.Customers;
+
+        var localView = set.Local;
+        localView.PropertyChanged += LocalView_OnPropertyChanged;
+        localView.PropertyChanging += LocalView_OnPropertyChanging;
+        localView.CollectionChanged += LocalView_OnCollectionChanged;
+        var customer1 = new Customer { CustomerId = "C" };
+        context1.Customers.Attach(customer1);
+        Assert.Equal(1, localView.Count);
+        Assert.Same(customer1, localView.ToBindingList().Single());
+        Assert.Same(customer1, localView.ToObservableCollection().Single());
+        Assert.True(_localView_OnPropertyChanging);
+        Assert.True(_localView_OnPropertyChanged);
+        Assert.True(_localView_OnCollectionChanged);
 
         context1.ChangeTracker.AutoDetectChangesEnabled = true;
         context1.ChangeTracker.LazyLoadingEnabled = true;
@@ -884,15 +939,23 @@ public class DbContextPoolingTest : IClassFixture<NorthwindQuerySqlServerFixture
         context1.SavedChanges += Context_OnSavedChanges;
         context1.SaveChangesFailed += Context_OnSaveChangesFailed;
 
+        _localView_OnPropertyChanging = false;
+        _localView_OnPropertyChanged = false;
+        _localView_OnCollectionChanged = false;
+
         await Dispose(context1, async);
 
         var context2 = async ? await factory.CreateDbContextAsync() : factory.CreateDbContext();
 
         Assert.Same(context1, context2);
 
-        var customer = new Customer { CustomerId = "C" };
-        context2.Customers.Attach(customer).State = EntityState.Modified;
-        context2.Customers.Attach(customer).State = EntityState.Unchanged;
+        Assert.Empty(localView);
+        Assert.Empty(localView.ToBindingList());
+        Assert.Empty(localView.ToObservableCollection());
+
+        var customer2 = new Customer { CustomerId = "C" };
+        context2.Customers.Attach(customer2).State = EntityState.Modified;
+        context2.Customers.Attach(customer2).State = EntityState.Unchanged;
 
         Assert.False(_changeTracker_OnTracking);
         Assert.False(_changeTracker_OnTracked);
@@ -908,6 +971,15 @@ public class DbContextPoolingTest : IClassFixture<NorthwindQuerySqlServerFixture
         Assert.False(_context_OnSavedChanges);
         Assert.False(_context_OnSavingChanges);
         Assert.False(_context_OnSaveChangesFailed);
+
+        Assert.Same(set, context2!.Customers);
+        Assert.Same(localView, context2!.Customers.Local);
+        Assert.Equal(1, localView.Count);
+        Assert.Same(customer2, localView.ToBindingList().Single());
+        Assert.Same(customer2, localView.ToObservableCollection().Single());
+        Assert.False(_localView_OnPropertyChanging);
+        Assert.False(_localView_OnPropertyChanged);
+        Assert.False(_localView_OnCollectionChanged);
     }
 
     [ConditionalFact]
@@ -993,6 +1065,21 @@ public class DbContextPoolingTest : IClassFixture<NorthwindQuerySqlServerFixture
         => _context_OnSaveChangesFailed = true;
 
     private bool _context_OnSaveChangesFailed;
+
+    private bool _localView_OnPropertyChanged;
+
+    private void LocalView_OnPropertyChanged(object sender, PropertyChangedEventArgs e)
+        => _localView_OnPropertyChanged = true;
+
+    private bool _localView_OnPropertyChanging;
+
+    private void LocalView_OnPropertyChanging(object sender, PropertyChangingEventArgs e)
+        => _localView_OnPropertyChanging = true;
+
+    private bool _localView_OnCollectionChanged;
+
+    private void LocalView_OnCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        => _localView_OnCollectionChanged = true;
 
     private bool _changeTracker_OnTracking;
 
@@ -1582,7 +1669,9 @@ public class DbContextPoolingTest : IClassFixture<NorthwindQuerySqlServerFixture
     [InlineData(false, true, true)]
     [InlineData(true, true, true)]
     public async Task Handle_open_connection_when_returning_to_pool_for_owned_connection_with_factory(
-        bool async, bool openWithEf, bool withDependencyInjection)
+        bool async,
+        bool openWithEf,
+        bool withDependencyInjection)
     {
         var options = new DbContextOptionsBuilder<PooledContext>()
             .UseSqlServer(SqlServerNorthwindTestStoreFactory.NorthwindConnectionString)
@@ -1656,7 +1745,10 @@ public class DbContextPoolingTest : IClassFixture<NorthwindQuerySqlServerFixture
     [InlineData(false, false, true, true)]
     [InlineData(true, false, true, true)]
     public async Task Handle_open_connection_when_returning_to_pool_for_external_connection_with_factory(
-        bool async, bool startsOpen, bool openWithEf, bool withDependencyInjection)
+        bool async,
+        bool startsOpen,
+        bool openWithEf,
+        bool withDependencyInjection)
     {
         using var connection = new SqlConnection(SqlServerNorthwindTestStoreFactory.NorthwindConnectionString);
 

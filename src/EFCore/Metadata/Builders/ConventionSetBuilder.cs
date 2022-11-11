@@ -36,8 +36,8 @@ public class ConventionSetBuilder
     }
 
     /// <summary>
-    ///      Replaces an existing convention with a derived convention. Also registers the new convention for any
-    ///      convention types not implemented by the existing convention.
+    ///     Replaces an existing convention with a derived convention. Also registers the new convention for any
+    ///     convention types not implemented by the existing convention.
     /// </summary>
     /// <typeparam name="TImplementation">The type of the old convention.</typeparam>
     /// <param name="conventionFactory">The factory that creates the new convention.</param>
@@ -63,9 +63,15 @@ public class ConventionSetBuilder
     /// </summary>
     /// <param name="conventionType">The convention type to remove.</param>
     public virtual void Remove(Type conventionType)
-    {
-        _conventionSet.Remove(conventionType);
-    }
+        => _conventionSet.Remove(conventionType);
+
+    /// <summary>
+    ///     Remove the convention of the given type.
+    /// </summary>
+    /// <typeparam name="TImplementaion">The type of convention to remove</typeparam>
+    public virtual void Remove<TImplementaion>()
+        where TImplementaion : IConvention
+        => Remove(typeof(TImplementaion));
 
     #region Hidden System.Object members
 

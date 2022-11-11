@@ -18,7 +18,7 @@ public abstract class ModelCodeGeneratorTestBase
         _output = output;
     }
 
-    protected void Test(
+    protected async Task TestAsync(
         Action<ModelBuilder> buildModel,
         ModelCodeGenerationOptions options,
         Action<ScaffoldedModel> assertScaffold,
@@ -38,9 +38,11 @@ public abstract class ModelCodeGeneratorTestBase
 
         var generators = services.BuildServiceProvider(validateScopes: true)
             .GetServices<IModelCodeGenerator>();
-        var generator = RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX) || Random.Shared.Next() % 12 != 0
-            ? generators.Last(g => g is CSharpModelGenerator)
-            : generators.Last(g => g is TextTemplatingModelGenerator);
+        var generator = RuntimeInformation.IsOSPlatform(OSPlatform.Linux)
+            || RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
+            || Random.Shared.Next() % 12 != 0
+                ? generators.Last(g => g is CSharpModelGenerator)
+                : generators.Last(g => g is TextTemplatingModelGenerator);
 
         options.ModelNamespace ??= "TestNamespace";
         options.ContextName = "TestDbContext";
@@ -68,7 +70,7 @@ public abstract class ModelCodeGeneratorTestBase
 
         if (!skipBuild)
         {
-            var assembly = build.BuildInMemory();
+            var assembly = await build.BuildInMemoryWithWithAnalyzersAsync();
 
             if (assertModel != null)
             {

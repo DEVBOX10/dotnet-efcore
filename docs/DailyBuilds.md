@@ -42,11 +42,23 @@ For EF7 daily builds, `NuGet.config` should contain:
 </configuration>
 ```
 
+To install the daily build of `dotnet ef`:
+
+```sh
+dotnet tool install -g dotnet-ef --version 7.0.0-* --add-source https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet7/nuget/v3/index.json
+```
+
+To install the `dotnet new` templates:
+
+```sh
+dotnet new install Microsoft.EntityFrameworkCore.Templates::7.0.0-* --add-source https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet7/nuget/v3/index.json
+```
+
 ## Package versions to use
 
 ### Using wildcards
 
-The easiest way to use daily builds is with wildcards in project references. For example, for EF Core 6.0 daily builds:
+The easiest way to use daily builds is with wildcards in project references. For example, for EF Core 7.0 daily builds:
 
 ```xml
   <ItemGroup>

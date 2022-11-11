@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
 using System.Data;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
@@ -68,8 +67,15 @@ public class RelationalCSharpRuntimeAnnotationCodeGenerator : CSharpRuntimeAnnot
             {
                 parameters.Namespaces.Add(typeof(SortedDictionary<,>).Namespace!);
                 var sequencesVariable = Dependencies.CSharpHelper.Identifier("sequences", parameters.ScopeVariables, capitalize: false);
-                parameters.MainBuilder
-                    .Append("var ").Append(sequencesVariable).AppendLine(" = new SortedDictionary<(string, string), ISequence>();");
+                var mainBuilder = parameters.MainBuilder;
+                mainBuilder.Append("var ").Append(sequencesVariable).Append(" = new SortedDictionary<(string, string");
+
+                if (parameters.UseNullableReferenceTypes)
+                {
+                    mainBuilder.Append("?");
+                }
+
+                mainBuilder.AppendLine("), ISequence>();");
 
                 foreach (var sequencePair in sequences)
                 {
@@ -279,6 +285,12 @@ public class RelationalCSharpRuntimeAnnotationCodeGenerator : CSharpRuntimeAnnot
                 .Append("maxValue: ").Append(code.Literal(sequence.MaxValue));
         }
 
+        if (sequence.ModelSchema is null && sequence.Schema is not null)
+        {
+            mainBuilder.AppendLine(",")
+                .Append("modelSchemaIsNull: ").Append(code.Literal(true));
+        }
+
         mainBuilder.AppendLine(");").DecrementIndent()
             .AppendLine();
 
@@ -289,7 +301,7 @@ public class RelationalCSharpRuntimeAnnotationCodeGenerator : CSharpRuntimeAnnot
 
         mainBuilder
             .Append(sequencesVariable).Append("[(").Append(code.Literal(sequence.Name)).Append(", ")
-            .Append(code.Literal(sequence.Schema)).Append(")] = ")
+            .Append(code.Literal(sequence.ModelSchema)).Append(")] = ")
             .Append(sequenceVariable).AppendLine(";")
             .AppendLine();
     }
@@ -339,7 +351,8 @@ public class RelationalCSharpRuntimeAnnotationCodeGenerator : CSharpRuntimeAnnot
                 AddNamespace(typeof(StoreObjectIdentifier), parameters.Namespaces);
                 var fragmentsVariable = Dependencies.CSharpHelper.Identifier("fragments", parameters.ScopeVariables, capitalize: false);
                 parameters.MainBuilder
-                    .Append("var ").Append(fragmentsVariable).AppendLine(" = new StoreObjectDictionary<RuntimeEntityTypeMappingFragment>();");
+                    .Append("var ").Append(fragmentsVariable)
+                    .AppendLine(" = new StoreObjectDictionary<RuntimeEntityTypeMappingFragment>();");
 
                 foreach (var fragment in fragments.GetValues())
                 {
@@ -474,7 +487,7 @@ public class RelationalCSharpRuntimeAnnotationCodeGenerator : CSharpRuntimeAnnot
     {
         var code = Dependencies.CSharpHelper;
         var mainBuilder = parameters.MainBuilder;
-        var parameterVariable = code.Identifier(parameter.Name, parameters.ScopeVariables, capitalize: false);
+        var parameterVariable = code.Identifier(parameter.PropertyName ?? parameter.Name, parameters.ScopeVariables, capitalize: false);
 
         mainBuilder
             .Append("var ").Append(parameterVariable).Append(" = ")
@@ -567,7 +580,8 @@ public class RelationalCSharpRuntimeAnnotationCodeGenerator : CSharpRuntimeAnnot
                 AddNamespace(typeof(StoreObjectIdentifier), parameters.Namespaces);
                 var overridesVariable = Dependencies.CSharpHelper.Identifier("overrides", parameters.ScopeVariables, capitalize: false);
                 parameters.MainBuilder.AppendLine()
-                    .Append("var ").Append(overridesVariable).AppendLine(" = new StoreObjectDictionary<RuntimeRelationalPropertyOverrides>();");
+                    .Append("var ").Append(overridesVariable)
+                    .AppendLine(" = new StoreObjectDictionary<RuntimeRelationalPropertyOverrides>();");
 
                 foreach (var overrides in tableOverrides.GetValues())
                 {

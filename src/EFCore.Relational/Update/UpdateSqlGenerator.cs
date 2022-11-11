@@ -132,11 +132,15 @@ public abstract class UpdateSqlGenerator : IUpdateSqlGenerator
 
         requiresTransaction = false;
 
+        var anyReadOperations = readOperations.Count > 0;
+
         AppendUpdateCommand(
             commandStringBuilder, name, schema, writeOperations, readOperations, conditionOperations,
-            appendReturningOneClause: readOperations.Count == 0);
+            appendReturningOneClause: !anyReadOperations);
 
-        return ResultSetMapping.LastInResultSet;
+        return anyReadOperations
+            ? ResultSetMapping.LastInResultSet
+            : ResultSetMapping.LastInResultSet | ResultSetMapping.ResultSetWithRowsAffectedOnly;
     }
 
     /// <inheritdoc />
@@ -177,7 +181,7 @@ public abstract class UpdateSqlGenerator : IUpdateSqlGenerator
         AppendDeleteCommand(
             commandStringBuilder, name, schema, Array.Empty<IColumnModification>(), conditionOperations, appendReturningOneClause: true);
 
-        return ResultSetMapping.LastInResultSet;
+        return ResultSetMapping.LastInResultSet | ResultSetMapping.ResultSetWithRowsAffectedOnly;
     }
 
     /// <summary>
@@ -317,15 +321,34 @@ public abstract class UpdateSqlGenerator : IUpdateSqlGenerator
                     var (g, n, s) = p;
                     g.SqlGenerationHelper.DelimitIdentifier(sb, o.ColumnName);
                     sb.Append(" = ");
-                    if (!o.UseCurrentValueParameter)
-                    {
-                        AppendSqlLiteral(sb, o, n, s);
-                    }
-                    else
-                    {
-                        g.SqlGenerationHelper.GenerateParameterNamePlaceholder(sb, o.ParameterName);
-                    }
+                    AppendUpdateColumnValue(g.SqlGenerationHelper, o, sb, n, s);
                 });
+    }
+
+    /// <summary>
+    ///     Appends a SQL fragment representing the value that is assigned to a column which is being updated.
+    /// </summary>
+    /// <param name="updateSqlGeneratorHelper">The update sql generator helper.</param>
+    /// <param name="columnModification">The operation representing the data to be updated.</param>
+    /// <param name="stringBuilder">The builder to which the SQL should be appended.</param>
+    /// <param name="name">The name of the table.</param>
+    /// <param name="schema">The table schema, or <see langword="null" /> to use the default schema.</param>
+    protected virtual void AppendUpdateColumnValue(
+        ISqlGenerationHelper updateSqlGeneratorHelper,
+        IColumnModification columnModification,
+        StringBuilder stringBuilder,
+        string name,
+        string? schema)
+    {
+        if (!columnModification.UseCurrentValueParameter)
+        {
+            AppendSqlLiteral(stringBuilder, columnModification, name, schema);
+        }
+        else
+        {
+            updateSqlGeneratorHelper.GenerateParameterNamePlaceholder(
+                stringBuilder, columnModification.ParameterName);
+        }
     }
 
     /// <inheritdoc />
@@ -338,11 +361,26 @@ public abstract class UpdateSqlGenerator : IUpdateSqlGenerator
         Check.DebugAssert(command.StoreStoredProcedure is not null, "command.StoredProcedure is not null");
 
         var storedProcedure = command.StoreStoredProcedure;
-        var resultSetMapping = storedProcedure.ResultColumns.Any()
-            ? ResultSetMapping.LastInResultSet
-            : ResultSetMapping.NoResults;
 
-        Check.DebugAssert(storedProcedure.Parameters.Any() || storedProcedure.ResultColumns.Any(),
+        var resultSetMapping = ResultSetMapping.NoResults;
+
+        foreach (var resultColumn in storedProcedure.ResultColumns)
+        {
+            resultSetMapping = ResultSetMapping.LastInResultSet;
+
+            if (resultColumn == command.RowsAffectedColumn)
+            {
+                resultSetMapping |= ResultSetMapping.ResultSetWithRowsAffectedOnly;
+            }
+            else
+            {
+                resultSetMapping = ResultSetMapping.LastInResultSet;
+                break;
+            }
+        }
+
+        Check.DebugAssert(
+            storedProcedure.Parameters.Any() || storedProcedure.ResultColumns.Any(),
             "Stored procedure call with neither parameters nor result columns");
 
         commandStringBuilder.Append("CALL ");
@@ -355,13 +393,16 @@ public abstract class UpdateSqlGenerator : IUpdateSqlGenerator
 
         // Only positional parameter style supported for now, see #28439
 
-        var orderedParameterModifications = command.ColumnModifications
-            .Where(c => c.Column is IStoreStoredProcedureParameter)
-            .OrderBy(c => ((IStoreStoredProcedureParameter)c.Column!).Position);
-
-        foreach (var columnModification in orderedParameterModifications)
+        // Note: the column modifications are already ordered according to the sproc parameter ordering
+        // (see ModificationCommand.GenerateColumnModifications)
+        for (var i = 0; i < command.ColumnModifications.Count; i++)
         {
-            var parameter = (IStoreStoredProcedureParameter)columnModification.Column!;
+            var columnModification = command.ColumnModifications[i];
+
+            if (columnModification.Column is not IStoreStoredProcedureParameter parameter)
+            {
+                continue;
+            }
 
             if (first)
             {

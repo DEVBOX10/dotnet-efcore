@@ -9,14 +9,15 @@ public class EntitySplittingSqlServerTest : EntitySplittingTestBase
         : base(testOutputHelper)
     {
     }
-    
+
     [ConditionalFact]
     public virtual async Task Can_roundtrip_with_triggers()
     {
-        await InitializeAsync(modelBuilder =>
+        await InitializeAsync(
+            modelBuilder =>
             {
                 OnModelCreating(modelBuilder);
-                
+
                 modelBuilder.Entity<MeterReading>(
                     ob =>
                     {
@@ -29,8 +30,9 @@ public class EntitySplittingSqlServerTest : EntitySplittingTestBase
             },
             sensitiveLogEnabled: false,
             seed: c =>
-                {
-                    c.Database.ExecuteSqlRaw($@"
+            {
+                c.Database.ExecuteSqlRaw(
+                    @"
 CREATE OR ALTER TRIGGER [MeterReadingsDetails_Trigger]
 ON [MeterReadingDetails]
 FOR INSERT, UPDATE, DELETE AS
@@ -38,13 +40,13 @@ BEGIN
 	IF @@ROWCOUNT = 0
 		return
 END");
-                });
+            });
 
         await using (var context = CreateContext())
         {
             var meterReading = new MeterReading { ReadingStatus = MeterReadingStatus.NotAccesible, CurrentRead = "100" };
 
-            context.Add(meterReading);
+            await context.AddAsync(meterReading);
 
             TestSqlLoggerFactory.Clear();
 
@@ -67,26 +69,32 @@ END");
         await base.Can_roundtrip();
 
         AssertSql(
-            @"@p0='2' (Nullable = true)
+"""
+@p0='2' (Nullable = true)
 
 SET IMPLICIT_TRANSACTIONS OFF;
 SET NOCOUNT ON;
 INSERT INTO [MeterReadings] ([ReadingStatus])
 OUTPUT INSERTED.[Id]
-VALUES (@p0);",
-                //
-                @"@p1='1'
+VALUES (@p0);
+""",
+            //
+"""
+@p1='1'
 @p2='100' (Size = 4000)
 @p3=NULL (Size = 4000)
 
 SET IMPLICIT_TRANSACTIONS OFF;
 SET NOCOUNT ON;
 INSERT INTO [MeterReadingDetails] ([Id], [CurrentRead], [PreviousRead])
-VALUES (@p1, @p2, @p3);",
-                //
-                @"SELECT TOP(2) [m].[Id], [m0].[CurrentRead], [m0].[PreviousRead], [m].[ReadingStatus]
+VALUES (@p1, @p2, @p3);
+""",
+            //
+"""
+SELECT TOP(2) [m].[Id], [m0].[CurrentRead], [m0].[PreviousRead], [m].[ReadingStatus]
 FROM [MeterReadings] AS [m]
-INNER JOIN [MeterReadingDetails] AS [m0] ON [m].[Id] = [m0].[Id]");
+INNER JOIN [MeterReadingDetails] AS [m0] ON [m].[Id] = [m0].[Id]
+""");
     }
 
     protected override ITestStoreFactory TestStoreFactory

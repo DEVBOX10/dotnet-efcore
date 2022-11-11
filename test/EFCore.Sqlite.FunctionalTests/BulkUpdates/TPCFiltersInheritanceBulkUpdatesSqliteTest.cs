@@ -3,7 +3,8 @@
 
 namespace Microsoft.EntityFrameworkCore.BulkUpdates;
 
-public class TPCFiltersInheritanceBulkUpdatesSqliteTest : TPCFiltersInheritanceBulkUpdatesTestBase<TPCFiltersInheritanceBulkUpdatesSqliteFixture>
+public class TPCFiltersInheritanceBulkUpdatesSqliteTest : TPCFiltersInheritanceBulkUpdatesTestBase<
+    TPCFiltersInheritanceBulkUpdatesSqliteFixture>
 {
     public TPCFiltersInheritanceBulkUpdatesSqliteTest(TPCFiltersInheritanceBulkUpdatesSqliteFixture fixture)
         : base(fixture)
@@ -27,8 +28,10 @@ public class TPCFiltersInheritanceBulkUpdatesSqliteTest : TPCFiltersInheritanceB
         await base.Delete_where_hierarchy_derived(async);
 
         AssertSql(
-            @"DELETE FROM ""Kiwi"" AS ""k""
-WHERE ""k"".""CountryId"" = 1 AND ""k"".""Name"" = 'Great spotted kiwi'");
+"""
+DELETE FROM "Kiwi" AS "k"
+WHERE "k"."CountryId" = 1 AND "k"."Name" = 'Great spotted kiwi'
+""");
     }
 
     public override async Task Delete_where_using_hierarchy(bool async)
@@ -36,17 +39,19 @@ WHERE ""k"".""CountryId"" = 1 AND ""k"".""Name"" = 'Great spotted kiwi'");
         await base.Delete_where_using_hierarchy(async);
 
         AssertSql(
-            @"DELETE FROM ""Countries"" AS ""c""
+"""
+DELETE FROM "Countries" AS "c"
 WHERE (
     SELECT COUNT(*)
     FROM (
-        SELECT ""e"".""Id"", ""e"".""CountryId"", ""e"".""Name"", ""e"".""Species"", ""e"".""EagleId"", ""e"".""IsFlightless"", ""e"".""Group"", NULL AS ""FoundOn"", 'Eagle' AS ""Discriminator""
-        FROM ""Eagle"" AS ""e""
+        SELECT "e"."Id", "e"."CountryId", "e"."Name", "e"."Species", "e"."EagleId", "e"."IsFlightless", "e"."Group", NULL AS "FoundOn", 'Eagle' AS "Discriminator"
+        FROM "Eagle" AS "e"
         UNION ALL
-        SELECT ""k"".""Id"", ""k"".""CountryId"", ""k"".""Name"", ""k"".""Species"", ""k"".""EagleId"", ""k"".""IsFlightless"", NULL AS ""Group"", ""k"".""FoundOn"", 'Kiwi' AS ""Discriminator""
-        FROM ""Kiwi"" AS ""k""
-    ) AS ""t""
-    WHERE ""t"".""CountryId"" = 1 AND ""c"".""Id"" = ""t"".""CountryId"" AND ""t"".""CountryId"" > 0) > 0");
+        SELECT "k"."Id", "k"."CountryId", "k"."Name", "k"."Species", "k"."EagleId", "k"."IsFlightless", NULL AS "Group", "k"."FoundOn", 'Kiwi' AS "Discriminator"
+        FROM "Kiwi" AS "k"
+    ) AS "t"
+    WHERE "t"."CountryId" = 1 AND "c"."Id" = "t"."CountryId" AND "t"."CountryId" > 0) > 0
+""");
     }
 
     public override async Task Delete_where_using_hierarchy_derived(bool async)
@@ -54,14 +59,16 @@ WHERE (
         await base.Delete_where_using_hierarchy_derived(async);
 
         AssertSql(
-            @"DELETE FROM ""Countries"" AS ""c""
+"""
+DELETE FROM "Countries" AS "c"
 WHERE (
     SELECT COUNT(*)
     FROM (
-        SELECT ""k"".""Id"", ""k"".""CountryId"", ""k"".""Name"", ""k"".""Species"", ""k"".""EagleId"", ""k"".""IsFlightless"", NULL AS ""Group"", ""k"".""FoundOn"", 'Kiwi' AS ""Discriminator""
-        FROM ""Kiwi"" AS ""k""
-    ) AS ""t""
-    WHERE ""t"".""CountryId"" = 1 AND ""c"".""Id"" = ""t"".""CountryId"" AND ""t"".""CountryId"" > 0) > 0");
+        SELECT "k"."Id", "k"."CountryId", "k"."Name", "k"."Species", "k"."EagleId", "k"."IsFlightless", NULL AS "Group", "k"."FoundOn", 'Kiwi' AS "Discriminator"
+        FROM "Kiwi" AS "k"
+    ) AS "t"
+    WHERE "t"."CountryId" = 1 AND "c"."Id" = "t"."CountryId" AND "t"."CountryId" > 0) > 0
+""");
     }
 
     public override async Task Delete_where_keyless_entity_mapped_to_sql_query(bool async)
@@ -118,9 +125,11 @@ WHERE (
         await base.Update_where_hierarchy_derived(async);
 
         AssertExecuteUpdateSql(
-            @"UPDATE ""Kiwi"" AS ""k""
-SET ""Name"" = 'Kiwi'
-WHERE ""k"".""CountryId"" = 1 AND ""k"".""Name"" = 'Great spotted kiwi'");
+"""
+UPDATE "Kiwi" AS "k"
+SET "Name" = 'Kiwi'
+WHERE "k"."CountryId" = 1 AND "k"."Name" = 'Great spotted kiwi'
+""");
     }
 
     public override async Task Update_where_using_hierarchy(bool async)
@@ -128,18 +137,20 @@ WHERE ""k"".""CountryId"" = 1 AND ""k"".""Name"" = 'Great spotted kiwi'");
         await base.Update_where_using_hierarchy(async);
 
         AssertExecuteUpdateSql(
-            @"UPDATE ""Countries"" AS ""c""
-SET ""Name"" = 'Monovia'
+"""
+UPDATE "Countries" AS "c"
+SET "Name" = 'Monovia'
 WHERE (
     SELECT COUNT(*)
     FROM (
-        SELECT ""e"".""Id"", ""e"".""CountryId"", ""e"".""Name"", ""e"".""Species"", ""e"".""EagleId"", ""e"".""IsFlightless"", ""e"".""Group"", NULL AS ""FoundOn"", 'Eagle' AS ""Discriminator""
-        FROM ""Eagle"" AS ""e""
+        SELECT "e"."Id", "e"."CountryId", "e"."Name", "e"."Species", "e"."EagleId", "e"."IsFlightless", "e"."Group", NULL AS "FoundOn", 'Eagle' AS "Discriminator"
+        FROM "Eagle" AS "e"
         UNION ALL
-        SELECT ""k"".""Id"", ""k"".""CountryId"", ""k"".""Name"", ""k"".""Species"", ""k"".""EagleId"", ""k"".""IsFlightless"", NULL AS ""Group"", ""k"".""FoundOn"", 'Kiwi' AS ""Discriminator""
-        FROM ""Kiwi"" AS ""k""
-    ) AS ""t""
-    WHERE ""t"".""CountryId"" = 1 AND ""c"".""Id"" = ""t"".""CountryId"" AND ""t"".""CountryId"" > 0) > 0");
+        SELECT "k"."Id", "k"."CountryId", "k"."Name", "k"."Species", "k"."EagleId", "k"."IsFlightless", NULL AS "Group", "k"."FoundOn", 'Kiwi' AS "Discriminator"
+        FROM "Kiwi" AS "k"
+    ) AS "t"
+    WHERE "t"."CountryId" = 1 AND "c"."Id" = "t"."CountryId" AND "t"."CountryId" > 0) > 0
+""");
     }
 
     public override async Task Update_where_using_hierarchy_derived(bool async)
@@ -147,15 +158,17 @@ WHERE (
         await base.Update_where_using_hierarchy_derived(async);
 
         AssertExecuteUpdateSql(
-            @"UPDATE ""Countries"" AS ""c""
-SET ""Name"" = 'Monovia'
+"""
+UPDATE "Countries" AS "c"
+SET "Name" = 'Monovia'
 WHERE (
     SELECT COUNT(*)
     FROM (
-        SELECT ""k"".""Id"", ""k"".""CountryId"", ""k"".""Name"", ""k"".""Species"", ""k"".""EagleId"", ""k"".""IsFlightless"", NULL AS ""Group"", ""k"".""FoundOn"", 'Kiwi' AS ""Discriminator""
-        FROM ""Kiwi"" AS ""k""
-    ) AS ""t""
-    WHERE ""t"".""CountryId"" = 1 AND ""c"".""Id"" = ""t"".""CountryId"" AND ""t"".""CountryId"" > 0) > 0");
+        SELECT "k"."Id", "k"."CountryId", "k"."Name", "k"."Species", "k"."EagleId", "k"."IsFlightless", NULL AS "Group", "k"."FoundOn", 'Kiwi' AS "Discriminator"
+        FROM "Kiwi" AS "k"
+    ) AS "t"
+    WHERE "t"."CountryId" = 1 AND "c"."Id" = "t"."CountryId" AND "t"."CountryId" > 0) > 0
+""");
     }
 
     public override async Task Update_where_keyless_entity_mapped_to_sql_query(bool async)
@@ -165,7 +178,8 @@ WHERE (
         AssertExecuteUpdateSql();
     }
 
-    protected override void ClearLog() => Fixture.TestSqlLoggerFactory.Clear();
+    protected override void ClearLog()
+        => Fixture.TestSqlLoggerFactory.Clear();
 
     private void AssertSql(params string[] expected)
         => Fixture.TestSqlLoggerFactory.AssertBaseline(expected);

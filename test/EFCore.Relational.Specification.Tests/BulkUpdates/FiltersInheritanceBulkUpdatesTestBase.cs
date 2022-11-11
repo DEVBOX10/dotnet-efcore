@@ -59,9 +59,9 @@ public abstract class FiltersInheritanceBulkUpdatesTestBase<TFixture> : BulkUpda
         => AssertDelete(
             async,
             ss => ss.Set<Animal>()
-                    .GroupBy(e => e.CountryId)
-                    .Where(g => g.Count() < 3)
-                    .Select(g => g.First()),
+                .GroupBy(e => e.CountryId)
+                .Where(g => g.Count() < 3)
+                .Select(g => g.First()),
             rowsAffectedCount: 1);
 
     [ConditionalTheory(Skip = "Issue#26753")]
@@ -69,8 +69,10 @@ public abstract class FiltersInheritanceBulkUpdatesTestBase<TFixture> : BulkUpda
     public virtual Task Delete_GroupBy_Where_Select_First_2(bool async)
         => AssertDelete(
             async,
-            ss => ss.Set<Animal>().Where(e => e == ss.Set<Animal>().GroupBy(e => e.CountryId)
-                                                .Where(g => g.Count() < 3).Select(g => g.First()).FirstOrDefault()),
+            ss => ss.Set<Animal>().Where(
+                e => e
+                    == ss.Set<Animal>().GroupBy(e => e.CountryId)
+                        .Where(g => g.Count() < 3).Select(g => g.First()).FirstOrDefault()),
             rowsAffectedCount: 1);
 
     [ConditionalTheory]
@@ -78,8 +80,9 @@ public abstract class FiltersInheritanceBulkUpdatesTestBase<TFixture> : BulkUpda
     public virtual Task Delete_GroupBy_Where_Select_First_3(bool async)
         => AssertDelete(
             async,
-            ss => ss.Set<Animal>().Where(e => ss.Set<Animal>().GroupBy(e => e.CountryId)
-                                                .Where(g => g.Count() < 3).Select(g => g.First()).Any(i => i == e)),
+            ss => ss.Set<Animal>().Where(
+                e => ss.Set<Animal>().GroupBy(e => e.CountryId)
+                    .Where(g => g.Count() < 3).Select(g => g.First()).Any(i => i == e)),
             rowsAffectedCount: 1);
 
     [ConditionalTheory]
@@ -99,7 +102,7 @@ public abstract class FiltersInheritanceBulkUpdatesTestBase<TFixture> : BulkUpda
             async,
             ss => ss.Set<Animal>().Where(e => e.Name == "Great spotted kiwi"),
             e => e,
-            s => s.SetProperty(e => e.Name, e => "Animal"),
+            s => s.SetProperty(e => e.Name, "Animal"),
             rowsAffectedCount: 1,
             (b, a) => a.ForEach(e => Assert.Equal("Animal", e.Name)));
 
@@ -110,7 +113,7 @@ public abstract class FiltersInheritanceBulkUpdatesTestBase<TFixture> : BulkUpda
             async,
             ss => ss.Set<Animal>().Where(e => e.Name == "Great spotted kiwi").OrderBy(e => e.Name).Skip(0).Take(3),
             e => e,
-            s => s.SetProperty(e => e.Name, e => "Animal"),
+            s => s.SetProperty(e => e.Name, "Animal"),
             rowsAffectedCount: 1);
 
     [ConditionalTheory]
@@ -120,7 +123,7 @@ public abstract class FiltersInheritanceBulkUpdatesTestBase<TFixture> : BulkUpda
             async,
             ss => ss.Set<Kiwi>().Where(e => e.Name == "Great spotted kiwi"),
             e => e,
-            s => s.SetProperty(e => e.Name, e => "Kiwi"),
+            s => s.SetProperty(e => e.Name, "Kiwi"),
             rowsAffectedCount: 1);
 
     [ConditionalTheory]
@@ -130,7 +133,7 @@ public abstract class FiltersInheritanceBulkUpdatesTestBase<TFixture> : BulkUpda
             async,
             ss => ss.Set<Country>().Where(e => e.Animals.Where(a => a.CountryId > 0).Count() > 0),
             e => e,
-            s => s.SetProperty(e => e.Name, e => "Monovia"),
+            s => s.SetProperty(e => e.Name, "Monovia"),
             rowsAffectedCount: 1);
 
     [ConditionalTheory]
@@ -140,7 +143,7 @@ public abstract class FiltersInheritanceBulkUpdatesTestBase<TFixture> : BulkUpda
             async,
             ss => ss.Set<Country>().Where(e => e.Animals.OfType<Kiwi>().Where(a => a.CountryId > 0).Count() > 0),
             e => e,
-            s => s.SetProperty(e => e.Name, e => "Monovia"),
+            s => s.SetProperty(e => e.Name, "Monovia"),
             rowsAffectedCount: 1);
 
     [ConditionalTheory]
@@ -152,7 +155,7 @@ public abstract class FiltersInheritanceBulkUpdatesTestBase<TFixture> : BulkUpda
                 async,
                 ss => ss.Set<EagleQuery>().Where(e => e.CountryId > 0),
                 e => e,
-                s => s.SetProperty(e => e.Name, e => "Eagle"),
+                s => s.SetProperty(e => e.Name, "Eagle"),
                 rowsAffectedCount: 1));
 
     protected abstract void ClearLog();
