@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Collections;
-using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.EntityFrameworkCore.TestModels.Northwind;
 
 // ReSharper disable InconsistentNaming
@@ -303,12 +302,12 @@ public class QueryableExtensionsTest
         await SourceNonAsyncQueryableTest(() => Source<decimal?>().SumAsync(e => e));
         await SourceNonAsyncEnumerableTest<int>(() => Source().ToDictionaryAsync(e => e));
         await SourceNonAsyncEnumerableTest<int>(() => Source().ToDictionaryAsync(e => e, e => e));
-        await SourceNonAsyncEnumerableTest<int>(() => Source().ToDictionaryAsync(e => e, LegacyReferenceEqualityComparer.Instance));
-        await SourceNonAsyncEnumerableTest<int>(() => Source().ToDictionaryAsync(e => e, LegacyReferenceEqualityComparer.Instance));
+        await SourceNonAsyncEnumerableTest<int>(() => Source().ToDictionaryAsync(e => e, ReferenceEqualityComparer.Instance));
+        await SourceNonAsyncEnumerableTest<int>(() => Source().ToDictionaryAsync(e => e, ReferenceEqualityComparer.Instance));
         await SourceNonAsyncEnumerableTest<int>(
-            () => Source().ToDictionaryAsync(e => e, e => e, LegacyReferenceEqualityComparer.Instance));
+            () => Source().ToDictionaryAsync(e => e, e => e, ReferenceEqualityComparer.Instance));
         await SourceNonAsyncEnumerableTest<int>(
-            () => Source().ToDictionaryAsync(e => e, e => e, LegacyReferenceEqualityComparer.Instance, new CancellationToken()));
+            () => Source().ToDictionaryAsync(e => e, e => e, ReferenceEqualityComparer.Instance, new CancellationToken()));
         await SourceNonAsyncEnumerableTest<int>(() => Source().ToListAsync());
 
         Assert.Equal(

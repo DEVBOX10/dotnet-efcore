@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.ComponentModel;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore.Sqlite.Diagnostics.Internal;
 using Microsoft.EntityFrameworkCore.Sqlite.Infrastructure.Internal;
 using Microsoft.EntityFrameworkCore.Sqlite.Metadata.Internal;
@@ -100,6 +99,7 @@ public static class SqliteServiceCollectionExtensions
             .TryAdd<IModelValidator, SqliteModelValidator>()
             .TryAdd<IProviderConventionSetBuilder, SqliteConventionSetBuilder>()
             .TryAdd<IModificationCommandBatchFactory, SqliteModificationCommandBatchFactory>()
+            .TryAdd<IModificationCommandFactory, SqliteModificationCommandFactory>()
             .TryAdd<IRelationalConnection>(p => p.GetRequiredService<ISqliteRelationalConnection>())
             .TryAdd<IMigrationsSqlGenerator, SqliteMigrationsSqlGenerator>()
             .TryAdd<IRelationalDatabaseCreator, SqliteDatabaseCreator>()
@@ -109,21 +109,13 @@ public static class SqliteServiceCollectionExtensions
             .TryAdd<IAggregateMethodCallTranslatorProvider, SqliteAggregateMethodCallTranslatorProvider>()
             .TryAdd<IMemberTranslatorProvider, SqliteMemberTranslatorProvider>()
             .TryAdd<IQuerySqlGeneratorFactory, SqliteQuerySqlGeneratorFactory>()
+            .TryAdd<IQueryTranslationPreprocessorFactory, SqliteQueryTranslationPreprocessorFactory>()
             .TryAdd<IQueryableMethodTranslatingExpressionVisitorFactory, SqliteQueryableMethodTranslatingExpressionVisitorFactory>()
             .TryAdd<IRelationalSqlTranslatingExpressionVisitorFactory, SqliteSqlTranslatingExpressionVisitorFactory>()
             .TryAdd<IQueryTranslationPostprocessorFactory, SqliteQueryTranslationPostprocessorFactory>()
-            .TryAdd<IUpdateSqlGenerator>(
-                sp =>
-                {
-                    // Support for the RETURNING clause on INSERT/UPDATE/DELETE was added in Sqlite 3.35.
-                    // Detect which version we're using, and fall back to the older INSERT/UPDATE+SELECT behavior on legacy versions.
-                    var dependencies = sp.GetRequiredService<UpdateSqlGeneratorDependencies>();
-
-                    return new Version(new SqliteConnection().ServerVersion) < new Version(3, 35)
-                        ? new SqliteLegacyUpdateSqlGenerator(dependencies)
-                        : new SqliteUpdateSqlGenerator(dependencies);
-                })
+            .TryAdd<IUpdateSqlGenerator, SqliteUpdateSqlGenerator>()
             .TryAdd<ISqlExpressionFactory, SqliteSqlExpressionFactory>()
+            .TryAdd<IRelationalParameterBasedSqlProcessorFactory, SqliteParameterBasedSqlProcessorFactory>()
             .TryAddProviderSpecificServices(
                 b => b.TryAddScoped<ISqliteRelationalConnection, SqliteRelationalConnection>());
 

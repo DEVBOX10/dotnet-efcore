@@ -9,11 +9,14 @@ namespace Microsoft.EntityFrameworkCore;
 
 public class UpdatesSqlServerTPTTest : UpdatesSqlServerTestBase<UpdatesSqlServerTPTTest.UpdatesSqlServerTPTFixture>
 {
-    // ReSharper disable once UnusedParameter.Local
     public UpdatesSqlServerTPTTest(UpdatesSqlServerTPTFixture fixture, ITestOutputHelper testOutputHelper)
         : base(fixture, testOutputHelper)
     {
     }
+
+    [ConditionalTheory(Skip = "Issue #29874. Skipped because the database is in a bad state, but the test may or may not fail.")]
+    public override Task Can_change_type_of_pk_to_pk_dependent_by_replacing_with_new_dependent(bool async)
+        => Task.CompletedTask;
 
     public override void Save_with_shared_foreign_key()
     {
@@ -21,7 +24,7 @@ public class UpdatesSqlServerTPTTest : UpdatesSqlServerTestBase<UpdatesSqlServer
 
         AssertContainsSql(
             @"@p0=NULL (Size = 8000) (DbType = Binary)
-@p1='ProductWithBytes' (Nullable = false) (Size = 4000)
+@p1='ProductWithBytes' (Nullable = false) (Size = 21)
 @p2=NULL (Size = 4000)
 
 SET IMPLICIT_TRANSACTIONS OFF;
@@ -97,8 +100,9 @@ WHERE [p].[Discriminator] = N'Product' AND [p].[DependentId] = @__category_Princ
         {
             base.OnModelCreating(modelBuilder, context);
 
-            modelBuilder.Entity<Category>()
-                .UseTptMappingStrategy();
+            modelBuilder.Entity<Category>().UseTptMappingStrategy();
+            modelBuilder.Entity<GiftObscurer>().UseTptMappingStrategy();
+            modelBuilder.Entity<LiftObscurer>().UseTptMappingStrategy();
         }
     }
 }

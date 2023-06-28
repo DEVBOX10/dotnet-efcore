@@ -29,7 +29,7 @@ namespace Microsoft.EntityFrameworkCore.Update;
 public abstract class UpdateAndSelectSqlGenerator : UpdateSqlGenerator
 {
     /// <summary>
-    ///     Initializes a new instance of the this class.
+    ///     Initializes a new instance of this class.
     /// </summary>
     /// <param name="dependencies">Parameter object containing dependencies for this service.</param>
     protected UpdateAndSelectSqlGenerator(UpdateSqlGeneratorDependencies dependencies)
@@ -43,7 +43,7 @@ public abstract class UpdateAndSelectSqlGenerator : UpdateSqlGenerator
         IReadOnlyModificationCommand command,
         int commandPosition,
         out bool requiresTransaction)
-        => AppendInsertAndSelectOperations(commandStringBuilder, command, commandPosition, out requiresTransaction);
+        => AppendInsertAndSelectOperation(commandStringBuilder, command, commandPosition, out requiresTransaction);
 
     /// <summary>
     ///     Appends SQL for inserting a row to the commands being built, via an INSERT followed by an optional SELECT to retrieve any
@@ -54,7 +54,7 @@ public abstract class UpdateAndSelectSqlGenerator : UpdateSqlGenerator
     /// <param name="commandPosition">The ordinal of this command in the batch.</param>
     /// <param name="requiresTransaction">Returns whether the SQL appended must be executed in a transaction to work correctly.</param>
     /// <returns>The <see cref="ResultSetMapping" /> for the command.</returns>
-    protected virtual ResultSetMapping AppendInsertAndSelectOperations(
+    protected virtual ResultSetMapping AppendInsertAndSelectOperation(
         StringBuilder commandStringBuilder,
         IReadOnlyModificationCommand command,
         int commandPosition,
@@ -246,13 +246,10 @@ public abstract class UpdateAndSelectSqlGenerator : UpdateSqlGenerator
                 .AppendJoin(
                     operations, (sb, v) =>
                     {
-                        if (v.IsKey)
+                        if (v is { IsKey: true, IsRead: false })
                         {
-                            if (!v.IsRead)
-                            {
-                                AppendWhereCondition(sb, v, v.UseOriginalValueParameter);
-                                return true;
-                            }
+                            AppendWhereCondition(sb, v, v.UseOriginalValueParameter);
+                            return true;
                         }
 
                         if (IsIdentityOperation(v))
@@ -272,7 +269,7 @@ public abstract class UpdateAndSelectSqlGenerator : UpdateSqlGenerator
     /// <param name="modification">The column modification.</param>
     /// <returns><see langword="true" /> if the given modification represents an auto-incrementing column.</returns>
     protected virtual bool IsIdentityOperation(IColumnModification modification)
-        => modification.IsKey && modification.IsRead;
+        => modification is { IsKey: true, IsRead: true };
 
     /// <summary>
     ///     Appends a <c>WHERE</c> condition checking rows affected.

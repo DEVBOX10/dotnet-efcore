@@ -337,7 +337,7 @@ public abstract class SaveChangesInterceptionTestBase : InterceptionTestBase
         Assert.Equal(async, interceptor.AsyncCalled);
         Assert.NotEqual(async, interceptor.SyncCalled);
         Assert.NotEqual(interceptor.AsyncCalled, interceptor.SyncCalled);
-        Assert.True(interceptor.FailedCalled);
+        Assert.Equal(concurrencyError, !interceptor.FailedCalled);
         Assert.Same(context, interceptor.Context);
         Assert.Same(thrown, interceptor.Exception);
 
@@ -584,7 +584,7 @@ public abstract class SaveChangesInterceptionTestBase : InterceptionTestBase
             SavingChangesCalled = true;
             AsyncCalled = true;
 
-            return new ValueTask<InterceptionResult<int>>(result);
+            return ValueTask.FromResult(result);
         }
 
         public virtual ValueTask<int> SavedChangesAsync(
@@ -598,7 +598,7 @@ public abstract class SaveChangesInterceptionTestBase : InterceptionTestBase
             SavedChangesCalled = true;
             AsyncCalled = true;
 
-            return new ValueTask<int>(result);
+            return ValueTask.FromResult(result);
         }
 
         public virtual Task SaveChangesFailedAsync(
@@ -657,7 +657,7 @@ public abstract class SaveChangesInterceptionTestBase : InterceptionTestBase
             ConcurrencyExceptionCalled = true;
             AsyncCalled = true;
 
-            return new ValueTask<InterceptionResult>(result);
+            return ValueTask.FromResult(result);
         }
     }
 

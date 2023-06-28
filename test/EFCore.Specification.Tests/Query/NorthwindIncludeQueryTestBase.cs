@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.EntityFrameworkCore.TestModels.Northwind;
 
 // ReSharper disable InconsistentNaming
@@ -245,7 +244,7 @@ public abstract class NorthwindIncludeQueryTestBase<TFixture> : QueryTestBase<TF
                     .Include(c => c.Orders)
                     .Single(c => c.CustomerID == "ALFKI");
 
-        Assert.Equal(orders, customer.Orders, LegacyReferenceEqualityComparer.Instance);
+        Assert.Equal(orders, customer.Orders, ReferenceEqualityComparer.Instance);
         Assert.Equal(6, customer.Orders.Count);
         Assert.True(orders.All(o => ReferenceEquals(o.Customer, customer)));
         Assert.Equal(6 + 1, context.ChangeTracker.Entries().Count());
@@ -1453,7 +1452,7 @@ public abstract class NorthwindIncludeQueryTestBase<TFixture> : QueryTestBase<TF
 
     [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
-    public virtual Task Outer_idenfier_correctly_determined_when_doing_include_on_right_side_of_left_join(bool async)
+    public virtual Task Outer_identifier_correctly_determined_when_doing_include_on_right_side_of_left_join(bool async)
         => AssertQuery(
             async,
             ss => from cust in ss.Set<Customer>()

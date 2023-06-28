@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
@@ -29,8 +28,7 @@ public sealed partial class InternalEntityEntry
         {
             if (value == null)
             {
-                if (propertyBase is IProperty property
-                    && !property.IsNullable)
+                if (propertyBase is IProperty { IsNullable: false })
                 {
                     return;
                 }
@@ -98,7 +96,7 @@ public sealed partial class InternalEntityEntry
             var snapshot = (HashSet<object>?)_values[index];
             if (snapshot == null)
             {
-                snapshot = new HashSet<object>(LegacyReferenceEqualityComparer.Instance);
+                snapshot = new HashSet<object>(ReferenceEqualityComparer.Instance);
                 _values[index] = snapshot;
             }
 

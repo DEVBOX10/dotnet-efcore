@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
@@ -38,7 +37,7 @@ public class KeyPropagator : IKeyPropagator
     {
         Check.DebugAssert(property.IsForeignKey(), $"property {property} is not part of an FK");
 
-        var generationProperty = property.FindGenerationProperty();
+        var generationProperty = (IProperty?)property.FindGenerationProperty();
         var principalEntry = TryPropagateValue(entry, property, generationProperty);
 
         if (principalEntry == null
@@ -49,7 +48,7 @@ public class KeyPropagator : IKeyPropagator
                 generationProperty,
                 generationProperty == property
                     ? entry.EntityType
-                    : generationProperty?.DeclaringEntityType);
+                    : generationProperty?.DeclaringType);
 
             if (valueGenerator != null)
             {
@@ -73,7 +72,7 @@ public class KeyPropagator : IKeyPropagator
     {
         Check.DebugAssert(property.IsForeignKey(), $"property {property} is not part of an FK");
 
-        var generationProperty = property.FindGenerationProperty();
+        var generationProperty = (IProperty?)property.FindGenerationProperty();
         var principalEntry = TryPropagateValue(entry, property, generationProperty);
 
         if (principalEntry == null
@@ -84,7 +83,7 @@ public class KeyPropagator : IKeyPropagator
                 generationProperty,
                 generationProperty == property
                     ? entry.EntityType
-                    : generationProperty?.DeclaringEntityType);
+                    : generationProperty?.DeclaringType);
 
             if (valueGenerator != null)
             {
@@ -149,9 +148,8 @@ public class KeyPropagator : IKeyPropagator
 
                         if (principalProperty != property)
                         {
-                            var principalValue = principalEntry[principalProperty];
                             if (generationProperty == null
-                                || !principalProperty.ClrType.IsDefaultValue(principalValue))
+                                || principalEntry.HasExplicitValue(principalProperty))
                             {
                                 entry.PropagateValue(principalEntry, principalProperty, property);
 
@@ -168,8 +166,8 @@ public class KeyPropagator : IKeyPropagator
         return null;
     }
 
-    private ValueGenerator? TryGetValueGenerator(IProperty? generationProperty, IEntityType? entityType)
+    private ValueGenerator? TryGetValueGenerator(IProperty? generationProperty, ITypeBase? typeBase)
         => generationProperty != null
-            ? _valueGeneratorSelector.Select(generationProperty, entityType!)
+            ? _valueGeneratorSelector.Select(generationProperty, typeBase!)
             : null;
 }

@@ -210,8 +210,7 @@ public abstract class ShapedQueryCompilingExpressionVisitor : ExpressionVisitor
         private bool ValidConstant(ConstantExpression constantExpression)
             => constantExpression.Value == null
                 || _typeMappingSource.FindMapping(constantExpression.Type) != null
-                || constantExpression.Value is Array array
-                && array.Length == 0;
+                || constantExpression.Value is Array { Length: 0 };
 
         protected override Expression VisitConstant(ConstantExpression constantExpression)
         {
@@ -251,16 +250,13 @@ public abstract class ShapedQueryCompilingExpressionVisitor : ExpressionVisitor
         }
 
         protected override Expression VisitExtension(Expression extensionExpression)
-            => extensionExpression is EntityShaperExpression
-                || extensionExpression is ProjectionBindingExpression
-                    ? extensionExpression
-                    : base.VisitExtension(extensionExpression);
+            => extensionExpression is EntityShaperExpression or ProjectionBindingExpression
+                ? extensionExpression
+                : base.VisitExtension(extensionExpression);
 
         private static Expression? RemoveConvert(Expression? expression)
         {
-            while (expression != null
-                   && (expression.NodeType == ExpressionType.Convert
-                       || expression.NodeType == ExpressionType.ConvertChecked))
+            while (expression is { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked })
             {
                 expression = RemoveConvert(((UnaryExpression)expression).Operand);
             }
@@ -310,8 +306,8 @@ public abstract class ShapedQueryCompilingExpressionVisitor : ExpressionVisitor
         {
             _entityMaterializerSource = entityMaterializerSource;
             _queryTrackingBehavior = queryTrackingBehavior;
-            _queryStateManager = queryTrackingBehavior == QueryTrackingBehavior.TrackAll
-                || queryTrackingBehavior == QueryTrackingBehavior.NoTrackingWithIdentityResolution;
+            _queryStateManager =
+                queryTrackingBehavior is QueryTrackingBehavior.TrackAll or QueryTrackingBehavior.NoTrackingWithIdentityResolution;
         }
 
         public Expression Inject(Expression expression)
@@ -436,7 +432,7 @@ public abstract class ShapedQueryCompilingExpressionVisitor : ExpressionVisitor
                                         p => Expression.NotEqual(
                                             valueBufferExpression.CreateValueBufferReadValueExpression(typeof(object), p.GetIndex(), p),
                                             Expression.Constant(null)))
-                                    .Aggregate((a, b) => Expression.AndAlso(a, b)),
+                                    .Aggregate(Expression.AndAlso),
                                 MaterializeEntity(
                                     entityShaperExpression, materializationContextVariable, concreteEntityTypeVariable,
                                     instanceVariable,
@@ -451,7 +447,7 @@ public abstract class ShapedQueryCompilingExpressionVisitor : ExpressionVisitor
                                         p => Expression.NotEqual(
                                             valueBufferExpression.CreateValueBufferReadValueExpression(typeof(object), p.GetIndex(), p),
                                             Expression.Constant(null)))
-                                    .Aggregate((a, b) => Expression.AndAlso(a, b)),
+                                    .Aggregate(Expression.AndAlso),
                                 MaterializeEntity(
                                     entityShaperExpression, materializationContextVariable, concreteEntityTypeVariable,
                                     instanceVariable,
@@ -579,14 +575,21 @@ public abstract class ShapedQueryCompilingExpressionVisitor : ExpressionVisitor
             var blockExpressions = new List<Expression>(2);
 
             var materializer = _entityMaterializerSource
-                .CreateMaterializeExpression(concreteEntityType, "instance", materializationContextVariable);
+                .CreateMaterializeExpression(
+                    new EntityMaterializerSourceParameters(
+                        concreteEntityType, "instance", _queryTrackingBehavior), materializationContextVariable);
 
             if (_queryStateManager
-                && concreteEntityType.ShadowPropertyCount() > 0)
+                && ((IRuntimeEntityType)concreteEntityType).ShadowPropertyCount > 0)
             {
                 var valueBufferExpression = Expression.Call(
                     materializationContextVariable, MaterializationContext.GetValueBufferMethod);
-                var shadowProperties = concreteEntityType.GetProperties().Where(p => p.IsShadowProperty());
+
+                var shadowProperties = concreteEntityType.GetProperties()
+                    .Concat<IPropertyBase>(concreteEntityType.GetNavigations())
+                    .Concat(concreteEntityType.GetSkipNavigations())
+                    .Where(n => n.IsShadowProperty())
+                    .OrderBy(e => e.GetShadowIndex());
 
                 blockExpressions.Add(
                     Expression.Assign(

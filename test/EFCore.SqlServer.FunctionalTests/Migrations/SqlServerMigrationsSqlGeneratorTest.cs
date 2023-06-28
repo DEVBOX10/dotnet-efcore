@@ -1157,6 +1157,17 @@ SELECT @@ROWCOUNT;
         AssertSql(expectedSql);
     }
 
+    public override void Sequence_restart_operation(long? startsAt)
+    {
+        base.Sequence_restart_operation(startsAt);
+
+        var expectedSql = startsAt.HasValue ?
+            @$"ALTER SEQUENCE [dbo].[TestRestartSequenceOperation] RESTART WITH {startsAt};" :
+            @$"ALTER SEQUENCE [dbo].[TestRestartSequenceOperation] RESTART;";
+        AssertSql(expectedSql);
+    }
+
+
     [ConditionalFact]
     public virtual void CreateIndex_generates_exec_when_legacy_filter_and_idempotent()
     {
@@ -1177,6 +1188,41 @@ SELECT @@ROWCOUNT;
         AssertSql(
 """
 EXEC(N'CREATE UNIQUE INDEX [IX_Table1_Column1] ON [Table1] ([Column1]) WHERE [Column1] IS NOT NULL');
+""");
+    }
+
+    [ConditionalFact]
+    public virtual void AlterColumn_make_required_with_idempotent()
+    {
+        Generate(
+            new AlterColumnOperation
+            {
+                Table = "Person",
+                Name = "Name",
+                ClrType = typeof(string),
+                IsNullable = false,
+                DefaultValue = "",
+                OldColumn = new AddColumnOperation
+                {
+                    Table = "Person",
+                    Name = "Name",
+                    ClrType = typeof(string),
+                    IsNullable = true
+                }
+            },
+            MigrationsSqlGenerationOptions.Idempotent);
+
+        AssertSql(
+"""
+DECLARE @var0 sysname;
+SELECT @var0 = [d].[name]
+FROM [sys].[default_constraints] [d]
+INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Person]') AND [c].[name] = N'Name');
+IF @var0 IS NOT NULL EXEC(N'ALTER TABLE [Person] DROP CONSTRAINT [' + @var0 + '];');
+EXEC(N'UPDATE [Person] SET [Name] = N'''' WHERE [Name] IS NULL');
+ALTER TABLE [Person] ALTER COLUMN [Name] nvarchar(max) NOT NULL;
+ALTER TABLE [Person] ADD DEFAULT N'' FOR [Name];
 """);
     }
 

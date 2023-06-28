@@ -41,8 +41,7 @@ public class CosmosManyToManyJoinEntityTypeConvention :
         IConventionAnnotation? oldAnnotation,
         IConventionContext<IConventionAnnotation> context)
     {
-        if (name == CosmosAnnotationNames.PartitionKeyName
-            || name == CosmosAnnotationNames.ContainerName)
+        if (name is CosmosAnnotationNames.PartitionKeyName or CosmosAnnotationNames.ContainerName)
         {
             foreach (var skipNavigation in entityTypeBuilder.Metadata.GetSkipNavigations())
             {
@@ -142,10 +141,8 @@ public class CosmosManyToManyJoinEntityTypeConvention :
     private void ProcessJoinPartitionKey(IConventionSkipNavigation skipNavigation)
     {
         var inverseSkipNavigation = skipNavigation.Inverse;
-        if (skipNavigation.JoinEntityType != null
-            && skipNavigation.IsCollection
-            && inverseSkipNavigation != null
-            && inverseSkipNavigation.IsCollection
+        if (skipNavigation is { JoinEntityType: not null, IsCollection: true }
+            && inverseSkipNavigation is { IsCollection: true }
             && inverseSkipNavigation.JoinEntityType == skipNavigation.JoinEntityType)
         {
             var joinEntityType = skipNavigation.JoinEntityType;

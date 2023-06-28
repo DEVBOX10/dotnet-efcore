@@ -8,14 +8,13 @@ namespace Microsoft.EntityFrameworkCore.Query;
 public class NorthwindIncludeQuerySqlServerTest : NorthwindIncludeQueryRelationalTestBase<
     NorthwindQuerySqlServerFixture<NoopModelCustomizer>>
 {
-    // ReSharper disable once UnusedParameter.Local
     public NorthwindIncludeQuerySqlServerTest(
         NorthwindQuerySqlServerFixture<NoopModelCustomizer> fixture,
         ITestOutputHelper testOutputHelper)
         : base(fixture)
     {
         Fixture.TestSqlLoggerFactory.Clear();
-        //Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
+        Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
     }
 
     protected override bool CanExecuteQueryString
@@ -38,7 +37,7 @@ LEFT JOIN (
     FROM [Order Details] AS [o]
     INNER JOIN [Orders] AS [o0] ON [o].[OrderID] = [o0].[OrderID]
 ) AS [t] ON [p].[ProductID] = [t].[ProductID]
-WHERE ([p].[ProductID] % 17) = 5 AND [p].[UnitPrice] < 20.0
+WHERE [p].[ProductID] % 17 = 5 AND [p].[UnitPrice] < 20.0
 ORDER BY [p].[ProductID], [t].[OrderID], [t].[ProductID]
 """);
     }
@@ -52,7 +51,7 @@ ORDER BY [p].[ProductID], [t].[OrderID], [t].[ProductID]
 SELECT [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate], [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Orders] AS [o]
 LEFT JOIN [Customers] AS [c] ON [o].[CustomerID] = [c].[CustomerID]
-WHERE ([o].[CustomerID] IS NOT NULL) AND ([o].[CustomerID] LIKE N'F%')
+WHERE [o].[CustomerID] IS NOT NULL AND [o].[CustomerID] LIKE N'F%'
 """);
     }
 
@@ -171,7 +170,7 @@ SELECT [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate], [c].[
 FROM [Orders] AS [o]
 LEFT JOIN [Customers] AS [c] ON [o].[CustomerID] = [c].[CustomerID]
 LEFT JOIN [Order Details] AS [o0] ON [o].[OrderID] = [o0].[OrderID]
-WHERE ([o].[CustomerID] IS NOT NULL) AND ([o].[CustomerID] LIKE N'F%')
+WHERE [o].[CustomerID] IS NOT NULL AND [o].[CustomerID] LIKE N'F%'
 ORDER BY [o].[OrderID], [c].[CustomerID], [o0].[OrderID]
 """);
     }
@@ -204,7 +203,7 @@ SELECT [o].[OrderID], [o].[ProductID], [o].[Discount], [o].[Quantity], [o].[Unit
 FROM [Order Details] AS [o]
 INNER JOIN [Orders] AS [o0] ON [o].[OrderID] = [o0].[OrderID]
 LEFT JOIN [Customers] AS [c] ON [o0].[CustomerID] = [c].[CustomerID]
-WHERE ([o].[OrderID] % 23) = 13
+WHERE [o].[OrderID] % 23 = 13
 """);
     }
 
@@ -219,7 +218,7 @@ FROM [Order Details] AS [o]
 INNER JOIN [Orders] AS [o0] ON [o].[OrderID] = [o0].[OrderID]
 LEFT JOIN [Customers] AS [c] ON [o0].[CustomerID] = [c].[CustomerID]
 INNER JOIN [Products] AS [p] ON [o].[ProductID] = [p].[ProductID]
-WHERE ([o].[OrderID] % 23) = 13
+WHERE [o].[OrderID] % 23 = 13
 """);
     }
 
@@ -234,7 +233,7 @@ FROM [Order Details] AS [o]
 INNER JOIN [Products] AS [p] ON [o].[ProductID] = [p].[ProductID]
 INNER JOIN [Orders] AS [o0] ON [o].[OrderID] = [o0].[OrderID]
 LEFT JOIN [Customers] AS [c] ON [o0].[CustomerID] = [c].[CustomerID]
-WHERE ([o].[OrderID] % 23) = 13
+WHERE [o].[OrderID] % 23 = 13
 """);
     }
 
@@ -249,7 +248,7 @@ FROM [Order Details] AS [o]
 INNER JOIN [Orders] AS [o0] ON [o].[OrderID] = [o0].[OrderID]
 LEFT JOIN [Customers] AS [c] ON [o0].[CustomerID] = [c].[CustomerID]
 LEFT JOIN [Orders] AS [o1] ON [c].[CustomerID] = [o1].[CustomerID]
-WHERE ([o].[OrderID] % 23) = 13 AND [o].[UnitPrice] < 10.0
+WHERE [o].[OrderID] % 23 = 13 AND [o].[UnitPrice] < 10.0
 ORDER BY [o].[OrderID], [o].[ProductID], [o0].[OrderID], [c].[CustomerID]
 """);
     }
@@ -302,7 +301,7 @@ ORDER BY [t].[OrderID], [t0].[OrderID], [t0].[ProductID]
 SELECT [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate], [o0].[OrderID], [o0].[ProductID], [o0].[Discount], [o0].[Quantity], [o0].[UnitPrice]
 FROM [Orders] AS [o]
 LEFT JOIN [Order Details] AS [o0] ON [o].[OrderID] = [o0].[OrderID]
-WHERE ([o].[CustomerID] IS NOT NULL) AND ([o].[CustomerID] LIKE N'F%')
+WHERE [o].[CustomerID] IS NOT NULL AND [o].[CustomerID] LIKE N'F%'
 ORDER BY [o].[OrderID], [o0].[OrderID]
 """);
     }
@@ -760,7 +759,7 @@ FROM [Customers] AS [c]
 OUTER APPLY (
     SELECT TOP(5) [o].[OrderID]
     FROM [Orders] AS [o]
-    WHERE [o].[CustomerID] <> [c].[CustomerID] OR ([o].[CustomerID] IS NULL)
+    WHERE [o].[CustomerID] <> [c].[CustomerID] OR [o].[CustomerID] IS NULL
     ORDER BY [c].[CustomerID]
 ) AS [t]
 LEFT JOIN [Orders] AS [o0] ON [c].[CustomerID] = [o0].[CustomerID]
@@ -850,7 +849,7 @@ SELECT [o].[OrderID], [o].[ProductID], [o].[Discount], [o].[Quantity], [o].[Unit
 FROM [Order Details] AS [o]
 INNER JOIN [Orders] AS [o0] ON [o].[OrderID] = [o0].[OrderID]
 INNER JOIN [Products] AS [p] ON [o].[ProductID] = [p].[ProductID]
-WHERE ([o].[OrderID] % 23) = 13
+WHERE [o].[OrderID] % 23 = 13
 """);
     }
 
@@ -863,7 +862,7 @@ WHERE ([o].[OrderID] % 23) = 13
 SELECT [o].[OrderID], [o].[ProductID], [o].[Discount], [o].[Quantity], [o].[UnitPrice], [o0].[OrderID], [o0].[CustomerID], [o0].[EmployeeID], [o0].[OrderDate]
 FROM [Order Details] AS [o]
 INNER JOIN [Orders] AS [o0] ON [o].[OrderID] = [o0].[OrderID]
-WHERE ([o].[OrderID] % 23) = 13
+WHERE [o].[OrderID] % 23 = 13
 """);
     }
 
@@ -1503,14 +1502,27 @@ ORDER BY [o].[OrderID], [o0].[OrderID]
 
         AssertSql(
 """
+@__list_0='[]' (Size = 4000)
 @__p_1='1'
 
 SELECT [t].[CustomerID], [t].[Address], [t].[City], [t].[CompanyName], [t].[ContactName], [t].[ContactTitle], [t].[Country], [t].[Fax], [t].[Phone], [t].[PostalCode], [t].[Region], [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate]
 FROM (
-    SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region], CAST(0 AS bit) AS [c]
+    SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region], CASE
+        WHEN EXISTS (
+            SELECT 1
+            FROM OPENJSON(@__list_0) WITH ([value] nchar(5) '$') AS [l]
+            WHERE [l].[value] = [c].[CustomerID]) THEN CAST(1 AS bit)
+        ELSE CAST(0 AS bit)
+    END AS [c]
     FROM [Customers] AS [c]
     WHERE [c].[CustomerID] LIKE N'A%'
-    ORDER BY (SELECT 1)
+    ORDER BY CASE
+        WHEN EXISTS (
+            SELECT 1
+            FROM OPENJSON(@__list_0) WITH ([value] nchar(5) '$') AS [l]
+            WHERE [l].[value] = [c].[CustomerID]) THEN CAST(1 AS bit)
+        ELSE CAST(0 AS bit)
+    END
     OFFSET @__p_1 ROWS
 ) AS [t]
 LEFT JOIN [Orders] AS [o] ON [t].[CustomerID] = [o].[CustomerID]
@@ -1524,14 +1536,27 @@ ORDER BY [t].[c], [t].[CustomerID]
 
         AssertSql(
 """
+@__list_0='[]' (Size = 4000)
 @__p_1='1'
 
 SELECT [t].[CustomerID], [t].[Address], [t].[City], [t].[CompanyName], [t].[ContactName], [t].[ContactTitle], [t].[Country], [t].[Fax], [t].[Phone], [t].[PostalCode], [t].[Region], [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate]
 FROM (
-    SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region], CAST(1 AS bit) AS [c]
+    SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region], CASE
+        WHEN NOT EXISTS (
+            SELECT 1
+            FROM OPENJSON(@__list_0) WITH ([value] nchar(5) '$') AS [l]
+            WHERE [l].[value] = [c].[CustomerID]) THEN CAST(1 AS bit)
+        ELSE CAST(0 AS bit)
+    END AS [c]
     FROM [Customers] AS [c]
     WHERE [c].[CustomerID] LIKE N'A%'
-    ORDER BY (SELECT 1)
+    ORDER BY CASE
+        WHEN NOT EXISTS (
+            SELECT 1
+            FROM OPENJSON(@__list_0) WITH ([value] nchar(5) '$') AS [l]
+            WHERE [l].[value] = [c].[CustomerID]) THEN CAST(1 AS bit)
+        ELSE CAST(0 AS bit)
+    END
     OFFSET @__p_1 ROWS
 ) AS [t]
 LEFT JOIN [Orders] AS [o] ON [t].[CustomerID] = [o].[CustomerID]
@@ -1545,18 +1570,25 @@ ORDER BY [t].[c], [t].[CustomerID]
 
         AssertSql(
 """
+@__list_0='["ALFKI"]' (Size = 4000)
 @__p_1='1'
 
 SELECT [t].[CustomerID], [t].[Address], [t].[City], [t].[CompanyName], [t].[ContactName], [t].[ContactTitle], [t].[Country], [t].[Fax], [t].[Phone], [t].[PostalCode], [t].[Region], [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate]
 FROM (
     SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region], CASE
-        WHEN [c].[CustomerID] = N'ALFKI' THEN CAST(1 AS bit)
+        WHEN EXISTS (
+            SELECT 1
+            FROM OPENJSON(@__list_0) WITH ([value] nchar(5) '$') AS [l]
+            WHERE [l].[value] = [c].[CustomerID]) THEN CAST(1 AS bit)
         ELSE CAST(0 AS bit)
     END AS [c]
     FROM [Customers] AS [c]
     WHERE [c].[CustomerID] LIKE N'A%'
     ORDER BY CASE
-        WHEN [c].[CustomerID] = N'ALFKI' THEN CAST(1 AS bit)
+        WHEN EXISTS (
+            SELECT 1
+            FROM OPENJSON(@__list_0) WITH ([value] nchar(5) '$') AS [l]
+            WHERE [l].[value] = [c].[CustomerID]) THEN CAST(1 AS bit)
         ELSE CAST(0 AS bit)
     END
     OFFSET @__p_1 ROWS
@@ -1572,18 +1604,25 @@ ORDER BY [t].[c], [t].[CustomerID]
 
         AssertSql(
 """
+@__list_0='["ALFKI"]' (Size = 4000)
 @__p_1='1'
 
 SELECT [t].[CustomerID], [t].[Address], [t].[City], [t].[CompanyName], [t].[ContactName], [t].[ContactTitle], [t].[Country], [t].[Fax], [t].[Phone], [t].[PostalCode], [t].[Region], [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate]
 FROM (
     SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region], CASE
-        WHEN [c].[CustomerID] <> N'ALFKI' THEN CAST(1 AS bit)
+        WHEN NOT EXISTS (
+            SELECT 1
+            FROM OPENJSON(@__list_0) WITH ([value] nchar(5) '$') AS [l]
+            WHERE [l].[value] = [c].[CustomerID]) THEN CAST(1 AS bit)
         ELSE CAST(0 AS bit)
     END AS [c]
     FROM [Customers] AS [c]
     WHERE [c].[CustomerID] LIKE N'A%'
     ORDER BY CASE
-        WHEN [c].[CustomerID] <> N'ALFKI' THEN CAST(1 AS bit)
+        WHEN NOT EXISTS (
+            SELECT 1
+            FROM OPENJSON(@__list_0) WITH ([value] nchar(5) '$') AS [l]
+            WHERE [l].[value] = [c].[CustomerID]) THEN CAST(1 AS bit)
         ELSE CAST(0 AS bit)
     END
     OFFSET @__p_1 ROWS
@@ -1712,9 +1751,9 @@ ORDER BY [c].[CustomerID], [t].[OrderDate] DESC
 """);
     }
 
-    public override async Task Outer_idenfier_correctly_determined_when_doing_include_on_right_side_of_left_join(bool async)
+    public override async Task Outer_identifier_correctly_determined_when_doing_include_on_right_side_of_left_join(bool async)
     {
-        await base.Outer_idenfier_correctly_determined_when_doing_include_on_right_side_of_left_join(async);
+        await base.Outer_identifier_correctly_determined_when_doing_include_on_right_side_of_left_join(async);
 
         AssertSql(
 """
@@ -1814,7 +1853,7 @@ INNER JOIN [Orders] AS [o0] ON [o].[OrderID] = [o0].[OrderID]
 LEFT JOIN [Customers] AS [c] ON [o0].[CustomerID] = [c].[CustomerID]
 INNER JOIN [Products] AS [p] ON [o].[ProductID] = [p].[ProductID]
 LEFT JOIN [Orders] AS [o1] ON [c].[CustomerID] = [o1].[CustomerID]
-WHERE ([o].[OrderID] % 23) = 13
+WHERE [o].[OrderID] % 23 = 13
 ORDER BY [o].[OrderID], [o].[ProductID], [o0].[OrderID], [c].[CustomerID], [p].[ProductID]
 """);
     }
@@ -1877,7 +1916,7 @@ LEFT JOIN (
     FROM [Order Details] AS [o]
     INNER JOIN [Orders] AS [o0] ON [o].[OrderID] = [o0].[OrderID]
 ) AS [t] ON [p].[ProductID] = [t].[ProductID]
-WHERE ([p].[ProductID] % 17) = 5
+WHERE [p].[ProductID] % 17 = 5
 ORDER BY [p].[ProductID], [t].[OrderID], [t].[ProductID]
 """);
     }
@@ -1892,7 +1931,7 @@ SELECT [o].[OrderID], [o].[ProductID], [o].[Discount], [o].[Quantity], [o].[Unit
 FROM [Order Details] AS [o]
 INNER JOIN [Orders] AS [o0] ON [o].[OrderID] = [o0].[OrderID]
 LEFT JOIN [Customers] AS [c] ON [o0].[CustomerID] = [c].[CustomerID]
-WHERE ([o].[OrderID] % 23) = 13
+WHERE [o].[OrderID] % 23 = 13
 """);
     }
 
@@ -1922,7 +1961,7 @@ FROM [Order Details] AS [o]
 INNER JOIN [Orders] AS [o0] ON [o].[OrderID] = [o0].[OrderID]
 LEFT JOIN [Customers] AS [c] ON [o0].[CustomerID] = [c].[CustomerID]
 LEFT JOIN [Orders] AS [o1] ON [c].[CustomerID] = [o1].[CustomerID]
-WHERE ([o].[ProductID] % 23) = 17 AND [o].[Quantity] < CAST(10 AS smallint)
+WHERE [o].[ProductID] % 23 = 17 AND [o].[Quantity] < CAST(10 AS smallint)
 ORDER BY [o].[OrderID], [o].[ProductID], [o0].[OrderID], [c].[CustomerID]
 """);
     }
@@ -1952,7 +1991,7 @@ FROM [Order Details] AS [o]
 INNER JOIN [Orders] AS [o0] ON [o].[OrderID] = [o0].[OrderID]
 LEFT JOIN [Customers] AS [c] ON [o0].[CustomerID] = [c].[CustomerID]
 INNER JOIN [Products] AS [p] ON [o].[ProductID] = [p].[ProductID]
-WHERE ([o].[OrderID] % 23) = 13
+WHERE [o].[OrderID] % 23 = 13
 """);
     }
 
@@ -1968,7 +2007,7 @@ INNER JOIN [Products] AS [p] ON [o].[ProductID] = [p].[ProductID]
 INNER JOIN [Orders] AS [o0] ON [o].[OrderID] = [o0].[OrderID]
 LEFT JOIN [Customers] AS [c] ON [o0].[CustomerID] = [c].[CustomerID]
 LEFT JOIN [Orders] AS [o1] ON [c].[CustomerID] = [o1].[CustomerID]
-WHERE ([o].[OrderID] % 23) = 13
+WHERE [o].[OrderID] % 23 = 13
 ORDER BY [o].[OrderID], [o].[ProductID], [p].[ProductID], [o0].[OrderID], [c].[CustomerID]
 """);
     }
@@ -1983,7 +2022,7 @@ SELECT [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate], [c].[
 FROM [Orders] AS [o]
 LEFT JOIN [Customers] AS [c] ON [o].[CustomerID] = [c].[CustomerID]
 LEFT JOIN [Orders] AS [o0] ON [c].[CustomerID] = [o0].[CustomerID]
-WHERE ([o].[CustomerID] IS NOT NULL) AND ([o].[CustomerID] LIKE N'F%')
+WHERE [o].[CustomerID] IS NOT NULL AND [o].[CustomerID] LIKE N'F%'
 ORDER BY [o].[OrderID], [c].[CustomerID]
 """);
     }
@@ -2036,7 +2075,7 @@ SELECT [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate], [c].[
 FROM [Orders] AS [o]
 LEFT JOIN [Customers] AS [c] ON [o].[CustomerID] = [c].[CustomerID]
 LEFT JOIN [Orders] AS [o0] ON [c].[CustomerID] = [o0].[CustomerID]
-WHERE ([o].[CustomerID] IS NOT NULL) AND ([o].[CustomerID] LIKE N'F%')
+WHERE [o].[CustomerID] IS NOT NULL AND [o].[CustomerID] LIKE N'F%'
 ORDER BY [o].[OrderID], [c].[CustomerID]
 """);
     }
@@ -2051,7 +2090,7 @@ SELECT [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate], [c].[
 FROM [Orders] AS [o]
 LEFT JOIN [Customers] AS [c] ON [o].[CustomerID] = [c].[CustomerID]
 LEFT JOIN [Order Details] AS [o0] ON [o].[OrderID] = [o0].[OrderID]
-WHERE ([o].[CustomerID] IS NOT NULL) AND ([o].[CustomerID] LIKE N'F%')
+WHERE [o].[CustomerID] IS NOT NULL AND [o].[CustomerID] LIKE N'F%'
 ORDER BY [o].[OrderID], [c].[CustomerID], [o0].[OrderID]
 """);
     }
@@ -2083,7 +2122,7 @@ INNER JOIN [Orders] AS [o0] ON [o].[OrderID] = [o0].[OrderID]
 LEFT JOIN [Customers] AS [c] ON [o0].[CustomerID] = [c].[CustomerID]
 INNER JOIN [Products] AS [p] ON [o].[ProductID] = [p].[ProductID]
 LEFT JOIN [Orders] AS [o1] ON [c].[CustomerID] = [o1].[CustomerID]
-WHERE ([o].[OrderID] % 23) = 13
+WHERE [o].[OrderID] % 23 = 13
 ORDER BY [o].[OrderID], [o].[ProductID], [o0].[OrderID], [c].[CustomerID], [p].[ProductID]
 """);
     }
@@ -2147,7 +2186,7 @@ ORDER BY [t].[OrderID], [t].[CustomerID0]
 SELECT [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate], [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Orders] AS [o]
 LEFT JOIN [Customers] AS [c] ON [o].[CustomerID] = [c].[CustomerID]
-WHERE ([o].[CustomerID] IS NOT NULL) AND ([o].[CustomerID] LIKE N'F%')
+WHERE [o].[CustomerID] IS NOT NULL AND [o].[CustomerID] LIKE N'F%'
 """);
     }
 
@@ -2162,7 +2201,7 @@ FROM [Order Details] AS [o]
 INNER JOIN [Products] AS [p] ON [o].[ProductID] = [p].[ProductID]
 INNER JOIN [Orders] AS [o0] ON [o].[OrderID] = [o0].[OrderID]
 LEFT JOIN [Customers] AS [c] ON [o0].[CustomerID] = [c].[CustomerID]
-WHERE ([o].[OrderID] % 23) = 13
+WHERE [o].[OrderID] % 23 = 13
 """);
     }
 
@@ -2178,7 +2217,7 @@ INNER JOIN [Products] AS [p] ON [o].[ProductID] = [p].[ProductID]
 INNER JOIN [Orders] AS [o0] ON [o].[OrderID] = [o0].[OrderID]
 LEFT JOIN [Customers] AS [c] ON [o0].[CustomerID] = [c].[CustomerID]
 LEFT JOIN [Orders] AS [o1] ON [c].[CustomerID] = [o1].[CustomerID]
-WHERE ([o].[OrderID] % 23) = 13
+WHERE [o].[OrderID] % 23 = 13
 ORDER BY [o].[OrderID], [o].[ProductID], [p].[ProductID], [o0].[OrderID], [c].[CustomerID]
 """);
     }

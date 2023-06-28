@@ -48,24 +48,32 @@ public class SqlServerQueryStringFactory : IRelationalQueryStringFactory
         foreach (DbParameter parameter in command.Parameters)
         {
             var typeName = TypeNameBuilder.CreateTypeName(parameter);
-            var typeMapping = _typeMapper.FindMapping(typeName);
 
             builder
                 .Append("DECLARE ")
                 .Append(parameter.ParameterName)
                 .Append(' ')
                 .Append(typeName)
-                .Append(" = ")
-                .Append(
-                    (parameter.Value == DBNull.Value
-                        || parameter.Value == null)
-                        ? "NULL"
-                        : parameter.Value is SqlBytes sqlBytes
+                .Append(" = ");
+
+            if (parameter.Value == DBNull.Value || parameter.Value is null)
+            {
+                builder.Append("NULL");
+            }
+            else
+            {
+                var typeMapping = _typeMapper.FindMapping(parameter.Value.GetType(), typeName);
+
+                builder
+                    .Append(
+                        parameter.Value is SqlBytes sqlBytes
                             ? new SqlServerByteArrayTypeMapping(typeName).GenerateSqlLiteral(sqlBytes.Value)
                             : typeMapping != null
                                 ? typeMapping.GenerateSqlLiteral(parameter.Value)
-                                : parameter.Value.ToString())
-                .AppendLine(";");
+                                : parameter.Value.ToString());
+            }
+
+            builder.AppendLine(";");
         }
 
         return builder
@@ -131,8 +139,7 @@ internal static class TypeNameBuilder
 
     private static StringBuilder AppendPrecisionAndScale(this StringBuilder builder, DbParameter parameter)
     {
-        if (parameter.Precision > 0
-            && parameter.Scale > 0)
+        if (parameter is { Precision: > 0, Scale: > 0 })
         {
             return builder
                 .Append('(')

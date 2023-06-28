@@ -31,8 +31,7 @@ namespace Microsoft.Data.Sqlite
         public SqliteConnectionInternal GetConnection(SqliteConnection outerConnection)
         {
             var poolGroup = outerConnection.PoolGroup;
-            if (poolGroup.IsDisabled
-                && !poolGroup.IsNonPooled)
+            if (poolGroup is { IsDisabled: true, IsNonPooled: false })
             {
                 poolGroup = GetPoolGroup(poolGroup.ConnectionString);
                 outerConnection.PoolGroup = poolGroup;
@@ -138,20 +137,21 @@ namespace Microsoft.Data.Sqlite
                 }
             }
 
-            for (var i = _idlePoolGroups.Count - 1; i >= 0; i--)
-            {
-                var poolGroup = _idlePoolGroups[i];
-
-                if (!poolGroup.Clear())
-                {
-                    _idlePoolGroups.Remove(poolGroup);
-                }
-            }
-
             _lock.EnterWriteLock();
 
             try
             {
+
+                for (var i = _idlePoolGroups.Count - 1; i >= 0; i--)
+                {
+                    var poolGroup = _idlePoolGroups[i];
+
+                    if (!poolGroup.Clear())
+                    {
+                        _idlePoolGroups.Remove(poolGroup);
+                    }
+                }
+
                 var activePoolGroups = new Dictionary<string, SqliteConnectionPoolGroup>();
                 foreach (var entry in _poolGroups)
                 {

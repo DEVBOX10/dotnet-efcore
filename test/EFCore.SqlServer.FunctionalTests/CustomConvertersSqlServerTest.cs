@@ -21,7 +21,9 @@ public class CustomConvertersSqlServerTest : CustomConvertersTestBase<CustomConv
             CreateContext(),
             nameof(ObjectBackedDataTypes), nameof(NullableBackedDataTypes), nameof(NonNullableBackedDataTypes));
 
-        const string expected = @"Animal.Id ---> [int] [Precision = 10 Scale = 0]
+        const string expected =
+"""
+Animal.Id ---> [int] [Precision = 10 Scale = 0]
 AnimalDetails.AnimalId ---> [nullable int] [Precision = 10 Scale = 0]
 AnimalDetails.BoolField ---> [int] [Precision = 10 Scale = 0]
 AnimalDetails.Id ---> [int] [Precision = 10 Scale = 0]
@@ -33,7 +35,7 @@ BinaryForeignKeyDataType.Id ---> [int] [Precision = 10 Scale = 0]
 BinaryKeyDataType.Ex ---> [nullable nvarchar] [MaxLength = -1]
 BinaryKeyDataType.Id ---> [varbinary] [MaxLength = 900]
 Blog.BlogId ---> [int] [Precision = 10 Scale = 0]
-Blog.Discriminator ---> [nvarchar] [MaxLength = -1]
+Blog.Discriminator ---> [nvarchar] [MaxLength = 8]
 Blog.IndexerVisible ---> [nvarchar] [MaxLength = 3]
 Blog.IsVisible ---> [nvarchar] [MaxLength = 1]
 Blog.RssUrl ---> [nullable nvarchar] [MaxLength = -1]
@@ -53,6 +55,7 @@ BuiltInDataTypes.PartitionId ---> [bigint] [Precision = 19 Scale = 0]
 BuiltInDataTypes.TestBoolean ---> [nchar] [MaxLength = 4]
 BuiltInDataTypes.TestByte ---> [int] [Precision = 10 Scale = 0]
 BuiltInDataTypes.TestCharacter ---> [int] [Precision = 10 Scale = 0]
+BuiltInDataTypes.TestDateOnly ---> [nvarchar] [MaxLength = -1]
 BuiltInDataTypes.TestDateTime ---> [bigint] [Precision = 19 Scale = 0]
 BuiltInDataTypes.TestDateTimeOffset ---> [bigint] [Precision = 19 Scale = 0]
 BuiltInDataTypes.TestDecimal ---> [varbinary] [MaxLength = 16]
@@ -62,6 +65,7 @@ BuiltInDataTypes.TestInt32 ---> [bigint] [Precision = 19 Scale = 0]
 BuiltInDataTypes.TestInt64 ---> [bigint] [Precision = 19 Scale = 0]
 BuiltInDataTypes.TestSignedByte ---> [decimal] [Precision = 18 Scale = 2]
 BuiltInDataTypes.TestSingle ---> [float] [Precision = 53]
+BuiltInDataTypes.TestTimeOnly ---> [bigint] [Precision = 19 Scale = 0]
 BuiltInDataTypes.TestTimeSpan ---> [float] [Precision = 53]
 BuiltInDataTypes.TestUnsignedInt16 ---> [decimal] [Precision = 20 Scale = 0]
 BuiltInDataTypes.TestUnsignedInt32 ---> [decimal] [Precision = 20 Scale = 0]
@@ -79,6 +83,7 @@ BuiltInDataTypesShadow.PartitionId ---> [bigint] [Precision = 19 Scale = 0]
 BuiltInDataTypesShadow.TestBoolean ---> [nvarchar] [MaxLength = -1]
 BuiltInDataTypesShadow.TestByte ---> [int] [Precision = 10 Scale = 0]
 BuiltInDataTypesShadow.TestCharacter ---> [int] [Precision = 10 Scale = 0]
+BuiltInDataTypesShadow.TestDateOnly ---> [nvarchar] [MaxLength = -1]
 BuiltInDataTypesShadow.TestDateTime ---> [bigint] [Precision = 19 Scale = 0]
 BuiltInDataTypesShadow.TestDateTimeOffset ---> [bigint] [Precision = 19 Scale = 0]
 BuiltInDataTypesShadow.TestDecimal ---> [varbinary] [MaxLength = 16]
@@ -88,6 +93,7 @@ BuiltInDataTypesShadow.TestInt32 ---> [bigint] [Precision = 19 Scale = 0]
 BuiltInDataTypesShadow.TestInt64 ---> [bigint] [Precision = 19 Scale = 0]
 BuiltInDataTypesShadow.TestSignedByte ---> [decimal] [Precision = 18 Scale = 2]
 BuiltInDataTypesShadow.TestSingle ---> [float] [Precision = 53]
+BuiltInDataTypesShadow.TestTimeOnly ---> [bigint] [Precision = 19 Scale = 0]
 BuiltInDataTypesShadow.TestTimeSpan ---> [float] [Precision = 53]
 BuiltInDataTypesShadow.TestUnsignedInt16 ---> [decimal] [Precision = 20 Scale = 0]
 BuiltInDataTypesShadow.TestUnsignedInt32 ---> [decimal] [Precision = 20 Scale = 0]
@@ -106,6 +112,7 @@ BuiltInNullableDataTypes.TestByteArray ---> [nullable varbinary] [MaxLength = -1
 BuiltInNullableDataTypes.TestNullableBoolean ---> [nullable nvarchar] [MaxLength = -1]
 BuiltInNullableDataTypes.TestNullableByte ---> [nullable int] [Precision = 10 Scale = 0]
 BuiltInNullableDataTypes.TestNullableCharacter ---> [nullable int] [Precision = 10 Scale = 0]
+BuiltInNullableDataTypes.TestNullableDateOnly ---> [nullable nvarchar] [MaxLength = -1]
 BuiltInNullableDataTypes.TestNullableDateTime ---> [nullable bigint] [Precision = 19 Scale = 0]
 BuiltInNullableDataTypes.TestNullableDateTimeOffset ---> [nullable bigint] [Precision = 19 Scale = 0]
 BuiltInNullableDataTypes.TestNullableDecimal ---> [nullable varbinary] [MaxLength = 16]
@@ -115,6 +122,7 @@ BuiltInNullableDataTypes.TestNullableInt32 ---> [nullable bigint] [Precision = 1
 BuiltInNullableDataTypes.TestNullableInt64 ---> [nullable bigint] [Precision = 19 Scale = 0]
 BuiltInNullableDataTypes.TestNullableSignedByte ---> [nullable decimal] [Precision = 18 Scale = 2]
 BuiltInNullableDataTypes.TestNullableSingle ---> [nullable float] [Precision = 53]
+BuiltInNullableDataTypes.TestNullableTimeOnly ---> [nullable bigint] [Precision = 19 Scale = 0]
 BuiltInNullableDataTypes.TestNullableTimeSpan ---> [nullable float] [Precision = 53]
 BuiltInNullableDataTypes.TestNullableUnsignedInt16 ---> [nullable decimal] [Precision = 20 Scale = 0]
 BuiltInNullableDataTypes.TestNullableUnsignedInt32 ---> [nullable decimal] [Precision = 20 Scale = 0]
@@ -134,6 +142,7 @@ BuiltInNullableDataTypesShadow.TestByteArray ---> [nullable varbinary] [MaxLengt
 BuiltInNullableDataTypesShadow.TestNullableBoolean ---> [nullable bit]
 BuiltInNullableDataTypesShadow.TestNullableByte ---> [nullable tinyint] [Precision = 3 Scale = 0]
 BuiltInNullableDataTypesShadow.TestNullableCharacter ---> [nullable nvarchar] [MaxLength = 1]
+BuiltInNullableDataTypesShadow.TestNullableDateOnly ---> [nullable date] [Precision = 0]
 BuiltInNullableDataTypesShadow.TestNullableDateTime ---> [nullable datetime2] [Precision = 7]
 BuiltInNullableDataTypesShadow.TestNullableDateTimeOffset ---> [nullable datetimeoffset] [Precision = 7]
 BuiltInNullableDataTypesShadow.TestNullableDecimal ---> [nullable decimal] [Precision = 18 Scale = 2]
@@ -143,6 +152,7 @@ BuiltInNullableDataTypesShadow.TestNullableInt32 ---> [nullable int] [Precision 
 BuiltInNullableDataTypesShadow.TestNullableInt64 ---> [nullable bigint] [Precision = 19 Scale = 0]
 BuiltInNullableDataTypesShadow.TestNullableSignedByte ---> [nullable smallint] [Precision = 5 Scale = 0]
 BuiltInNullableDataTypesShadow.TestNullableSingle ---> [nullable real] [Precision = 24]
+BuiltInNullableDataTypesShadow.TestNullableTimeOnly ---> [nullable time] [Precision = 7]
 BuiltInNullableDataTypesShadow.TestNullableTimeSpan ---> [nullable time] [Precision = 7]
 BuiltInNullableDataTypesShadow.TestNullableUnsignedInt16 ---> [nullable int] [Precision = 10 Scale = 0]
 BuiltInNullableDataTypesShadow.TestNullableUnsignedInt32 ---> [nullable bigint] [Precision = 19 Scale = 0]
@@ -172,6 +182,7 @@ MaxLengthDataTypes.ByteArray9000 ---> [nullable nvarchar] [MaxLength = -1]
 MaxLengthDataTypes.Id ---> [int] [Precision = 10 Scale = 0]
 MaxLengthDataTypes.String3 ---> [nullable nvarchar] [MaxLength = 12]
 MaxLengthDataTypes.String9000 ---> [nullable varbinary] [MaxLength = -1]
+MaxLengthDataTypes.StringUnbounded ---> [nullable varbinary] [MaxLength = -1]
 NonNullableDependent.Id ---> [int] [Precision = 10 Scale = 0]
 NonNullableDependent.PrincipalId ---> [int] [Precision = 10 Scale = 0]
 NullablePrincipal.Id ---> [int] [Precision = 10 Scale = 0]
@@ -205,7 +216,8 @@ User.Id ---> [uniqueidentifier]
 User23059.Id ---> [int] [Precision = 10 Scale = 0]
 User23059.IsSoftDeleted ---> [bit]
 User23059.MessageGroups ---> [nullable nvarchar] [MaxLength = -1]
-";
+
+""";
 
         Assert.Equal(expected, actual, ignoreLineEndingDifferences: true);
     }
@@ -331,6 +343,21 @@ WHERE [b].[Id] = 1
         AssertSql(
 """
 SELECT [HoldingEnum] FROM [HolderClass]
+""");
+    }
+
+    public override void Infer_type_mapping_from_in_subquery_to_item()
+    {
+        base.Infer_type_mapping_from_in_subquery_to_item();
+
+        AssertSql(
+"""
+SELECT [b].[Id], [b].[Enum16], [b].[Enum32], [b].[Enum64], [b].[Enum8], [b].[EnumS8], [b].[EnumU16], [b].[EnumU32], [b].[EnumU64], [b].[PartitionId], [b].[TestBoolean], [b].[TestByte], [b].[TestCharacter], [b].[TestDateOnly], [b].[TestDateTime], [b].[TestDateTimeOffset], [b].[TestDecimal], [b].[TestDouble], [b].[TestInt16], [b].[TestInt32], [b].[TestInt64], [b].[TestSignedByte], [b].[TestSingle], [b].[TestTimeOnly], [b].[TestTimeSpan], [b].[TestUnsignedInt16], [b].[TestUnsignedInt32], [b].[TestUnsignedInt64]
+FROM [BuiltInDataTypes] AS [b]
+WHERE N'Yeps' IN (
+    SELECT [b0].[TestBoolean]
+    FROM [BuiltInDataTypes] AS [b0]
+) AND [b].[Id] = 13
 """);
     }
 

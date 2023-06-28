@@ -8,17 +8,17 @@ namespace Microsoft.EntityFrameworkCore.Query;
 [SqlServerCondition(SqlServerCondition.SupportsTemporalTablesCascadeDelete)]
 public class TemporalManyToManyQuerySqlServerTest : ManyToManyQueryRelationalTestBase<TemporalManyToManyQuerySqlServerFixture>
 {
-#pragma warning disable IDE0060 // Remove unused parameter
     public TemporalManyToManyQuerySqlServerTest(TemporalManyToManyQuerySqlServerFixture fixture, ITestOutputHelper testOutputHelper)
-#pragma warning restore IDE0060 // Remove unused parameter
         : base(fixture)
     {
         Fixture.TestSqlLoggerFactory.Clear();
-        //Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
+        Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
     }
 
     protected override Expression RewriteServerQueryExpression(Expression serverQueryExpression)
     {
+        serverQueryExpression = base.RewriteServerQueryExpression(serverQueryExpression);
+
         var temporalEntityTypes = new List<Type>
         {
             typeof(EntityOne),
@@ -58,7 +58,7 @@ WHERE NOT EXISTS (
     SELECT 1
     FROM [JoinOneToTwo] FOR SYSTEM_TIME AS OF '2010-01-01T00:00:00.0000000' AS [j]
     INNER JOIN [EntityTwos] FOR SYSTEM_TIME AS OF '2010-01-01T00:00:00.0000000' AS [e0] ON [j].[TwoId] = [e0].[Id]
-    WHERE [e].[Id] = [j].[OneId] AND NOT ([e0].[Name] LIKE N'%B%'))
+    WHERE [e].[Id] = [j].[OneId] AND [e0].[Name] NOT LIKE N'%B%')
 """);
     }
 
@@ -74,7 +74,7 @@ WHERE EXISTS (
     SELECT 1
     FROM [JoinOneToThreePayloadFull] FOR SYSTEM_TIME AS OF '2010-01-01T00:00:00.0000000' AS [j]
     INNER JOIN [EntityThrees] FOR SYSTEM_TIME AS OF '2010-01-01T00:00:00.0000000' AS [e0] ON [j].[ThreeId] = [e0].[Id]
-    WHERE [e].[Id] = [j].[OneId] AND ([e0].[Name] LIKE N'%B%'))
+    WHERE [e].[Id] = [j].[OneId] AND [e0].[Name] LIKE N'%B%')
 """);
     }
 
@@ -90,7 +90,7 @@ WHERE EXISTS (
     SELECT 1
     FROM [EntityOneEntityTwo] FOR SYSTEM_TIME AS OF '2010-01-01T00:00:00.0000000' AS [e0]
     INNER JOIN [EntityTwos] FOR SYSTEM_TIME AS OF '2010-01-01T00:00:00.0000000' AS [e1] ON [e0].[TwoSkipSharedId] = [e1].[Id]
-    WHERE [e].[Id] = [e0].[OneSkipSharedId] AND ([e1].[Name] LIKE N'%B%'))
+    WHERE [e].[Id] = [e0].[OneSkipSharedId] AND [e1].[Name] LIKE N'%B%')
 """);
     }
 
@@ -142,7 +142,7 @@ ORDER BY (
         FROM [EntityRoots] FOR SYSTEM_TIME AS OF '2010-01-01T00:00:00.0000000' AS [e0]
         WHERE [e0].[Discriminator] IN (N'EntityBranch', N'EntityLeaf')
     ) AS [t] ON [j].[EntityBranchId] = [t].[Id]
-    WHERE [e].[Id] = [j].[EntityOneId] AND ([t].[Name] IS NOT NULL) AND ([t].[Name] LIKE N'L%')), [e].[Id]
+    WHERE [e].[Id] = [j].[EntityOneId] AND [t].[Name] IS NOT NULL AND [t].[Name] LIKE N'L%'), [e].[Id]
 """);
     }
 
@@ -174,7 +174,7 @@ ORDER BY (
     SELECT COUNT_BIG(*)
     FROM [EntityTwoEntityTwo] FOR SYSTEM_TIME AS OF '2010-01-01T00:00:00.0000000' AS [e0]
     INNER JOIN [EntityTwos] FOR SYSTEM_TIME AS OF '2010-01-01T00:00:00.0000000' AS [e1] ON [e0].[SelfSkipSharedLeftId] = [e1].[Id]
-    WHERE [e].[Id] = [e0].[SelfSkipSharedRightId] AND ([e1].[Name] IS NOT NULL) AND ([e1].[Name] LIKE N'L%')) DESC, [e].[Id]
+    WHERE [e].[Id] = [e0].[SelfSkipSharedRightId] AND [e1].[Name] IS NOT NULL AND [e1].[Name] LIKE N'L%') DESC, [e].[Id]
 """);
     }
 

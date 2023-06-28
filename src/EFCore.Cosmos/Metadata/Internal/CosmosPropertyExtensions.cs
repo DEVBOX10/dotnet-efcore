@@ -20,11 +20,10 @@ public static class CosmosPropertyExtensions
     public static bool IsOrdinalKeyProperty(this IReadOnlyProperty property)
     {
         Check.DebugAssert(
-            property.DeclaringEntityType.IsOwned(), $"Expected {property.DeclaringEntityType.DisplayName()} to be owned.");
+            (property.DeclaringType as IEntityType)?.IsOwned() == true, $"Expected {property.DeclaringType.DisplayName()} to be owned.");
         Check.DebugAssert(property.GetJsonPropertyName().Length == 0, $"Expected {property.Name} to be non-persisted.");
 
-        return property.FindContainingPrimaryKey() is IReadOnlyKey key
-            && key.Properties.Count > 1
+        return property.FindContainingPrimaryKey() is IReadOnlyKey { Properties.Count: > 1 }
             && !property.IsForeignKey()
             && property.ClrType == typeof(int)
             && (property.ValueGenerated & ValueGenerated.OnAdd) != 0;

@@ -66,14 +66,14 @@ public class SqliteObjectToStringTranslator : IMethodCallTranslator
             return null;
         }
 
-        if (instance.TypeMapping is not null && instance.TypeMapping.ClrType == typeof(string))
+        if (instance.TypeMapping?.ClrType == typeof(string))
         {
             return instance;
         }
 
         if (instance.Type == typeof(bool))
         {
-            if (instance is ColumnExpression columnExpression && columnExpression.IsNullable)
+            if (instance is ColumnExpression { IsNullable: true })
             {
                 return _sqlExpressionFactory.Case(
                     new[]

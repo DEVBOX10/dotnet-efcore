@@ -560,7 +560,7 @@ END
         AssertSql(
 """
 @p0=NULL (Nullable = false) (Direction = Output) (DbType = Int32)
-@p1='Child1' (Nullable = false) (Size = 4000)
+@p1='Child1' (Nullable = false) (Size = 8)
 @p2='Child' (Size = 4000)
 @p3=NULL (DbType = Int32)
 @p4=NULL (Direction = Output) (DbType = Int32)
@@ -662,6 +662,36 @@ END
 
 SET NOCOUNT ON;
 EXEC [Child1_Insert] @p0 OUTPUT, @p1, @p2;
+""");
+    }
+
+    public override async Task Non_sproc_followed_by_sproc_commands_in_the_same_batch(bool async)
+    {
+        await base.Non_sproc_followed_by_sproc_commands_in_the_same_batch(
+            async,
+"""
+CREATE PROCEDURE EntityWithAdditionalProperty_Insert(@Name varchar(max), @Id int OUT, @AdditionalProperty int)
+AS BEGIN
+    INSERT INTO [EntityWithAdditionalProperty] ([Name], [AdditionalProperty]) VALUES (@Name, @AdditionalProperty);
+    SET @Id = SCOPE_IDENTITY();
+END
+""");
+
+        AssertSql(
+"""
+@p2='1'
+@p0='2'
+@p3='1'
+@p1='Entity1_Modified' (Size = 4000)
+@p4='Entity2' (Size = 4000)
+@p5=NULL (Nullable = false) (Direction = Output) (DbType = Int32)
+@p6='0'
+
+SET NOCOUNT ON;
+UPDATE [EntityWithAdditionalProperty] SET [AdditionalProperty] = @p0, [Name] = @p1
+OUTPUT 1
+WHERE [Id] = @p2 AND [AdditionalProperty] = @p3;
+EXEC [EntityWithAdditionalProperty_Insert] @p4, @p5 OUTPUT, @p6;
 """);
     }
 

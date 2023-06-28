@@ -12,7 +12,7 @@ public class NorthwindSelectQuerySqliteTest : NorthwindSelectQueryRelationalTest
         : base(fixture)
     {
         Fixture.TestSqlLoggerFactory.Clear();
-        //Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
+        Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
     }
 
     public override async Task Select_datetime_year_component(bool async)
@@ -135,7 +135,7 @@ FROM "Orders" AS "o"
 
         AssertSql(
 """
-SELECT CAST(((julianday("o"."OrderDate") - 1721425.5) * 864000000000.0) AS INTEGER)
+SELECT CAST((julianday("o"."OrderDate") - 1721425.5) * 864000000000.0 AS INTEGER)
 FROM "Orders" AS "o"
 """);
     }

@@ -493,7 +493,7 @@ public class ModelBuilder : IInfrastructure<IConventionModelBuilder>
     }
 
     /// <summary>
-    ///     Applies configuration from all <see cref="IEntityTypeConfiguration{TEntity}" /> />
+    ///     Applies configuration from all <see cref="IEntityTypeConfiguration{TEntity}" />
     ///     instances that are defined in provided assembly.
     /// </summary>
     /// <remarks>
@@ -512,8 +512,7 @@ public class ModelBuilder : IInfrastructure<IConventionModelBuilder>
         var applyEntityConfigurationMethod = typeof(ModelBuilder)
             .GetMethods()
             .Single(
-                e => e.Name == nameof(ApplyConfiguration)
-                    && e.ContainsGenericParameters
+                e => e is { Name: nameof(ApplyConfiguration), ContainsGenericParameters: true }
                     && e.GetParameters().SingleOrDefault()?.ParameterType.GetGenericTypeDefinition()
                     == typeof(IEntityTypeConfiguration<>));
 

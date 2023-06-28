@@ -31,7 +31,26 @@ public class NorthwindDbFunctionsQuerySqliteTest : NorthwindDbFunctionsQueryRela
 """
 SELECT COUNT(*)
 FROM "Customers" AS "c"
-WHERE glob('*M*', "c"."ContactName")
+WHERE "c"."ContactName" GLOB '*M*'
+""");
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual async Task Glob_negated(bool async)
+    {
+        await AssertCount(
+            async,
+            ss => ss.Set<Customer>(),
+            ss => ss.Set<Customer>(),
+            c => !EF.Functions.Glob(c.CustomerID, "T*"),
+            c => !c.CustomerID.StartsWith("T"));
+
+        AssertSql(
+"""
+SELECT COUNT(*)
+FROM "Customers" AS "c"
+WHERE "c"."CustomerID" NOT GLOB 'T*'
 """);
     }
 

@@ -3,6 +3,8 @@
 
 // ReSharper disable InconsistentNaming
 
+using Microsoft.EntityFrameworkCore.Storage.Json;
+
 namespace Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 public class ClrPropertyGetterFactoryTest
@@ -20,7 +22,7 @@ public class ClrPropertyGetterFactoryTest
         public object GetClrValue(object entity)
             => throw new NotImplementedException();
 
-        public bool HasDefaultValue(object entity)
+        public bool HasSentinelValue(object entity)
             => throw new NotImplementedException();
 
         public IEnumerable<IForeignKey> GetContainingForeignKeys()
@@ -59,7 +61,7 @@ public class ClrPropertyGetterFactoryTest
         public PropertySaveBehavior GetAfterSaveBehavior()
             => throw new NotImplementedException();
 
-        public Func<IProperty, IEntityType, ValueGenerator> GetValueGeneratorFactory()
+        public Func<IProperty, ITypeBase, ValueGenerator> GetValueGeneratorFactory()
             => throw new NotImplementedException();
 
         public ValueConverter GetValueConverter()
@@ -75,6 +77,9 @@ public class ClrPropertyGetterFactoryTest
             => throw new NotImplementedException();
 
         public ValueComparer GetProviderValueComparer()
+            => throw new NotImplementedException();
+
+        public JsonValueReaderWriter GetJsonValueReaderWriter()
             => throw new NotImplementedException();
 
         public bool IsForeignKey()
@@ -104,10 +109,10 @@ public class ClrPropertyGetterFactoryTest
         public string Name { get; }
         public ITypeBase DeclaringType { get; }
         public Type ClrType { get; }
-        public IEntityType DeclaringEntityType { get; }
         public bool IsNullable { get; }
         public ValueGenerated ValueGenerated { get; }
         public bool IsConcurrencyToken { get; }
+        public object Sentinel { get; }
         public PropertyInfo PropertyInfo { get; }
         public FieldInfo FieldInfo { get; }
 

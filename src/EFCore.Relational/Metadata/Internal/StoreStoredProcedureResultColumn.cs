@@ -12,8 +12,6 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal;
 public class StoreStoredProcedureResultColumn
     : ColumnBase<StoredProcedureResultColumnMapping>, IStoreStoredProcedureResultColumn
 {
-    private readonly RelationalTypeMapping? _storeTypeMapping;
-
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
     ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
@@ -26,10 +24,9 @@ public class StoreStoredProcedureResultColumn
         int position,
         StoreStoredProcedure storedProcedure,
         RelationalTypeMapping? storeTypeMapping = null)
-        : base(name, type, storedProcedure)
+        : base(name, type, storedProcedure, storeTypeMapping)
     {
         Position = position;
-        _storeTypeMapping = storeTypeMapping;
     }
 
     /// <summary>
@@ -55,8 +52,10 @@ public class StoreStoredProcedureResultColumn
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    public override RelationalTypeMapping StoreTypeMapping
-        => _storeTypeMapping ?? base.StoreTypeMapping;
+    protected override RelationalTypeMapping GetDefaultStoreTypeMapping()
+        => PropertyMappings.Count != 0
+                ? PropertyMappings[0].TypeMapping
+                : (RelationalTypeMapping)Table.Model.Model.GetModelDependencies().TypeMappingSource.FindMapping(typeof(int))!;
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to

@@ -6,10 +6,10 @@ namespace Microsoft.EntityFrameworkCore.TestUtilities;
 public class ExpectedQueryRewritingVisitor : ExpressionVisitor
 {
     private static readonly MethodInfo _maybeDefaultIfEmpty
-        = typeof(QueryTestExtensions).GetMethod(nameof(QueryTestExtensions.MaybeDefaultIfEmpty));
+        = typeof(TestExtensions).GetMethod(nameof(TestExtensions.MaybeDefaultIfEmpty));
 
     private static readonly MethodInfo _maybeMethod
-        = typeof(QueryTestExtensions).GetMethod(nameof(QueryTestExtensions.Maybe));
+        = typeof(TestExtensions).GetMethod(nameof(TestExtensions.Maybe));
 
     private static readonly MethodInfo _containsMethodInfo
         = typeof(string).GetRuntimeMethod(nameof(string.Contains), new[] { typeof(string) });
@@ -32,8 +32,8 @@ public class ExpectedQueryRewritingVisitor : ExpressionVisitor
 
     static ExpectedQueryRewritingVisitor()
     {
-        var maybeScalarMethods = typeof(QueryTestExtensions).GetMethods()
-            .Where(m => m.Name == nameof(QueryTestExtensions.MaybeScalar))
+        var maybeScalarMethods = typeof(TestExtensions).GetMethods()
+            .Where(m => m.Name == nameof(TestExtensions.MaybeScalar))
             .Select(m => new { method = m, argument = m.GetParameters()[1].ParameterType.GetGenericArguments()[1] });
 
         _maybeScalarNullableMethod = maybeScalarMethods.Single(x => x.argument.IsNullableValueType()).method;
@@ -246,7 +246,7 @@ public class ExpectedQueryRewritingVisitor : ExpressionVisitor
                     var methodInfo = _getShadowPropertyValueMethodInfo.MakeGenericMethod(caller.Type, methodCallExpression.Type);
                     result = Expression.Call(methodInfo, caller, Expression.Constant(shadowPropertyMapping));
                 }
-                else if (caller.Type.GetMembers().Where(m => m.Name == propertyName).SingleOrDefault() is MemberInfo matchingMember)
+                else if (caller.Type.GetMembers().SingleOrDefault(m => m.Name == propertyName) is MemberInfo)
                 {
                     result = Expression.Property(caller, propertyName);
                 }
@@ -268,9 +268,7 @@ public class ExpectedQueryRewritingVisitor : ExpressionVisitor
         return expression;
 
         static Expression RemoveConvertToObject(Expression expression)
-            => expression is UnaryExpression unaryExpression
-                && (expression.NodeType == ExpressionType.Convert
-                    || expression.NodeType == ExpressionType.ConvertChecked)
+            => expression is UnaryExpression { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked } unaryExpression
                 && expression.Type == typeof(object)
                     ? RemoveConvertToObject(unaryExpression.Operand)
                     : expression;
@@ -307,13 +305,16 @@ public class ExpectedQueryRewritingVisitor : ExpressionVisitor
 
     protected override Expression VisitUnary(UnaryExpression unaryExpression)
     {
-        if ((unaryExpression.NodeType == ExpressionType.Convert
-                || unaryExpression.NodeType == ExpressionType.ConvertChecked
-                || unaryExpression.NodeType == ExpressionType.TypeAs)
-            && unaryExpression.Operand is MemberExpression memberOperand
-            && memberOperand.Type.IsValueType
+        if (unaryExpression is
+            {
+                NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked or ExpressionType.TypeAs,
+                Operand: MemberExpression
+                {
+                    Type.IsValueType: true,
+                    Expression: not null
+                } memberOperand
+            }
             && !memberOperand.Type.IsNullableValueType()
-            && memberOperand.Expression != null
             && unaryExpression.Type.IsNullableValueType()
             && unaryExpression.Type.UnwrapNullableType() == memberOperand.Type)
         {
@@ -342,12 +343,12 @@ public class ExpectedQueryRewritingVisitor : ExpressionVisitor
 
     protected override Expression VisitBinary(BinaryExpression binaryExpression)
     {
-        if (binaryExpression.NodeType == ExpressionType.Equal
-            || binaryExpression.NodeType == ExpressionType.NotEqual
-            || binaryExpression.NodeType == ExpressionType.GreaterThan
-            || binaryExpression.NodeType == ExpressionType.GreaterThanOrEqual
-            || binaryExpression.NodeType == ExpressionType.LessThan
-            || binaryExpression.NodeType == ExpressionType.LessThanOrEqual)
+        if (binaryExpression.NodeType is ExpressionType.Equal
+            or ExpressionType.NotEqual
+            or ExpressionType.GreaterThan
+            or ExpressionType.GreaterThanOrEqual
+            or ExpressionType.LessThan
+            or ExpressionType.LessThanOrEqual)
         {
             var left = AddNullProtectionForNonNullableMemberAccess(binaryExpression.Left);
             var right = AddNullProtectionForNonNullableMemberAccess(binaryExpression.Right);

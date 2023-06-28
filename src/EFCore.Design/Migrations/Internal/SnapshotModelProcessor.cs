@@ -136,7 +136,7 @@ public class SnapshotModelProcessor : ISnapshotModelProcessor
         if ((!version.StartsWith("1.", StringComparison.Ordinal)
                 && !version.StartsWith("2.", StringComparison.Ordinal)
                 && !version.StartsWith("3.", StringComparison.Ordinal))
-            || !(model is IMutableModel mutableModel))
+            || model is not IMutableModel mutableModel)
         {
             return;
         }
@@ -161,7 +161,7 @@ public class SnapshotModelProcessor : ISnapshotModelProcessor
 
     private static void UpdateOwnedTypes(IMutableEntityType entityType)
     {
-        var ownerships = entityType.GetDeclaredReferencingForeignKeys().Where(fk => fk.IsOwnership && fk.IsUnique)
+        var ownerships = entityType.GetDeclaredReferencingForeignKeys().Where(fk => fk is { IsOwnership: true, IsUnique: true })
             .ToList();
         foreach (var ownership in ownerships)
         {
@@ -185,7 +185,7 @@ public class SnapshotModelProcessor : ISnapshotModelProcessor
                     if (oldProperty is IConventionProperty conventionProperty
                         && conventionProperty.GetConfigurationSource() == ConfigurationSource.Convention)
                     {
-                        oldProperty.DeclaringEntityType.RemoveProperty(oldProperty);
+                        oldProperty.DeclaringType.RemoveProperty(oldProperty);
                     }
                 }
             }

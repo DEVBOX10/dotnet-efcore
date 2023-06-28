@@ -11,7 +11,7 @@ public class NorthwindBulkUpdatesSqlServerTest : NorthwindBulkUpdatesTestBase<No
         : base(fixture)
     {
         ClearLog();
-        // Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
+        Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
     }
 
     [ConditionalFact]
@@ -219,7 +219,7 @@ WHERE [o].[OrderID] < (
     SELECT TOP(1) (
         SELECT TOP(1) [o1].[OrderID]
         FROM [Orders] AS [o1]
-        WHERE [o0].[CustomerID] = [o1].[CustomerID] OR (([o0].[CustomerID] IS NULL) AND ([o1].[CustomerID] IS NULL)))
+        WHERE [o0].[CustomerID] = [o1].[CustomerID] OR ([o0].[CustomerID] IS NULL AND [o1].[CustomerID] IS NULL))
     FROM [Orders] AS [o0]
     GROUP BY [o0].[CustomerID]
     HAVING COUNT(*) > 11)
@@ -242,7 +242,7 @@ WHERE EXISTS (
     HAVING COUNT(*) > 9 AND (
         SELECT TOP(1) [o2].[OrderID]
         FROM [Orders] AS [o2]
-        WHERE [o1].[CustomerID] = [o2].[CustomerID] OR (([o1].[CustomerID] IS NULL) AND ([o2].[CustomerID] IS NULL))) = [o0].[OrderID])
+        WHERE [o1].[CustomerID] = [o2].[CustomerID] OR ([o1].[CustomerID] IS NULL AND [o2].[CustomerID] IS NULL)) = [o0].[OrderID])
 """);
     }
 
@@ -358,7 +358,7 @@ DELETE FROM [o]
 FROM [Order Details] AS [o]
 INNER JOIN [Orders] AS [o0] ON [o].[OrderID] = [o0].[OrderID]
 LEFT JOIN [Customers] AS [c] ON [o0].[CustomerID] = [c].[CustomerID]
-WHERE ([c].[CustomerID] IS NOT NULL) AND ([c].[CustomerID] LIKE N'F%')
+WHERE [c].[CustomerID] IS NOT NULL AND [c].[CustomerID] LIKE N'F%'
 """);
     }
 
@@ -504,7 +504,7 @@ DELETE FROM [o]
 FROM [Order Details] AS [o]
 INNER JOIN [Orders] AS [o0] ON [o].[OrderID] = [o0].[OrderID]
 LEFT JOIN [Customers] AS [c] ON [o0].[CustomerID] = [c].[CustomerID]
-WHERE ([c].[City] IS NOT NULL) AND ([c].[City] LIKE N'Se%')
+WHERE [c].[City] IS NOT NULL AND [c].[City] LIKE N'Se%'
 """);
     }
 
@@ -925,7 +925,7 @@ WHERE [c].[CustomerID] = (
     SELECT TOP(1) (
         SELECT TOP(1) [o0].[CustomerID]
         FROM [Orders] AS [o0]
-        WHERE [o].[CustomerID] = [o0].[CustomerID] OR (([o].[CustomerID] IS NULL) AND ([o0].[CustomerID] IS NULL)))
+        WHERE [o].[CustomerID] = [o0].[CustomerID] OR ([o].[CustomerID] IS NULL AND [o0].[CustomerID] IS NULL))
     FROM [Orders] AS [o]
     GROUP BY [o].[CustomerID]
     HAVING COUNT(*) > 11)
@@ -956,7 +956,7 @@ WHERE EXISTS (
         SELECT TOP(1) [c0].[CustomerID]
         FROM [Orders] AS [o0]
         LEFT JOIN [Customers] AS [c0] ON [o0].[CustomerID] = [c0].[CustomerID]
-        WHERE [o].[CustomerID] = [o0].[CustomerID] OR (([o].[CustomerID] IS NULL) AND ([o0].[CustomerID] IS NULL))) = [c].[CustomerID])
+        WHERE [o].[CustomerID] = [o0].[CustomerID] OR ([o].[CustomerID] IS NULL AND [o0].[CustomerID] IS NULL)) = [c].[CustomerID])
 """);
     }
 
@@ -1320,7 +1320,7 @@ FROM [Customers] AS [c]
 CROSS JOIN (
     SELECT [c0].[CustomerID], [c0].[Address], [c0].[City], [c0].[CompanyName], [c0].[ContactName], [c0].[ContactTitle], [c0].[Country], [c0].[Fax], [c0].[Phone], [c0].[PostalCode], [c0].[Region]
     FROM [Customers] AS [c0]
-    WHERE ([c0].[City] IS NOT NULL) AND ([c0].[City] LIKE N'S%')
+    WHERE [c0].[City] IS NOT NULL AND [c0].[City] LIKE N'S%'
 ) AS [t]
 LEFT JOIN (
     SELECT [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate]
@@ -1343,7 +1343,7 @@ FROM [Customers] AS [c]
 CROSS JOIN (
     SELECT [c0].[CustomerID], [c0].[Address], [c0].[City], [c0].[CompanyName], [c0].[ContactName], [c0].[ContactTitle], [c0].[Country], [c0].[Fax], [c0].[Phone], [c0].[PostalCode], [c0].[Region]
     FROM [Customers] AS [c0]
-    WHERE ([c0].[City] IS NOT NULL) AND ([c0].[City] LIKE N'S%')
+    WHERE [c0].[City] IS NOT NULL AND [c0].[City] LIKE N'S%'
 ) AS [t]
 CROSS APPLY (
     SELECT [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate]
@@ -1366,7 +1366,7 @@ FROM [Customers] AS [c]
 CROSS JOIN (
     SELECT [c0].[CustomerID], [c0].[Address], [c0].[City], [c0].[CompanyName], [c0].[ContactName], [c0].[ContactTitle], [c0].[Country], [c0].[Fax], [c0].[Phone], [c0].[PostalCode], [c0].[Region]
     FROM [Customers] AS [c0]
-    WHERE ([c0].[City] IS NOT NULL) AND ([c0].[City] LIKE N'S%')
+    WHERE [c0].[City] IS NOT NULL AND [c0].[City] LIKE N'S%'
 ) AS [t]
 OUTER APPLY (
     SELECT [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate]
@@ -1455,6 +1455,23 @@ SET [c].[City] = CONVERT(varchar(11), DATEPART(year, (
     ORDER BY [o].[OrderDate] DESC)))
 FROM [Customers] AS [c]
 WHERE [c].[CustomerID] LIKE N'F%'
+""");
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public override async Task Update_with_two_inner_joins(bool async)
+    {
+        await base.Update_with_two_inner_joins(async);
+
+        AssertExecuteUpdateSql(
+"""
+UPDATE [o]
+SET [o].[Quantity] = CAST(1 AS smallint)
+FROM [Order Details] AS [o]
+INNER JOIN [Products] AS [p] ON [o].[ProductID] = [p].[ProductID]
+INNER JOIN [Orders] AS [o0] ON [o].[OrderID] = [o0].[OrderID]
+WHERE [p].[Discontinued] = CAST(1 AS bit) AND [o0].[OrderDate] > '1990-01-01T00:00:00.000'
 """);
     }
 

@@ -187,10 +187,8 @@ public class CosmosStringMethodTranslator : IMethodCallTranslator
 
             if (SubstringMethodInfoWithTwoArgs.Equals(method))
             {
-                return arguments[0] is SqlConstantExpression constant
-                    && constant.Value is int intValue
-                    && intValue == 0
-                        ? TranslateSystemFunction("LEFT", method.ReturnType, instance, arguments[1])
+                return arguments[0] is SqlConstantExpression { Value: 0 }
+                    ? TranslateSystemFunction("LEFT", method.ReturnType, instance, arguments[1])
                         : TranslateSystemFunction("SUBSTRING", method.ReturnType, instance, arguments[0], arguments[1]);
             }
         }
@@ -237,10 +235,10 @@ public class CosmosStringMethodTranslator : IMethodCallTranslator
         {
             var comparisonTypeArgument = arguments[^1];
 
-            if (comparisonTypeArgument is SqlConstantExpression constantComparisonTypeArgument
-                && constantComparisonTypeArgument.Value is StringComparison comparisonTypeArgumentValue
-                && (comparisonTypeArgumentValue == StringComparison.OrdinalIgnoreCase
-                    || comparisonTypeArgumentValue == StringComparison.Ordinal))
+            if (comparisonTypeArgument is SqlConstantExpression
+                {
+                    Value: StringComparison comparisonTypeArgumentValue and (StringComparison.OrdinalIgnoreCase or StringComparison.Ordinal)
+                })
             {
                 return StringComparisonWithComparisonTypeArgumentInstance.Equals(method)
                     ? comparisonTypeArgumentValue == StringComparison.OrdinalIgnoreCase

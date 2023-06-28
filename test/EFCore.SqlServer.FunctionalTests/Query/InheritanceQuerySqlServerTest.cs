@@ -8,13 +8,11 @@ namespace Microsoft.EntityFrameworkCore.Query;
 
 public class InheritanceQuerySqlServerTest : InheritanceRelationalQueryTestBase<InheritanceQuerySqlServerFixture>
 {
-#pragma warning disable IDE0060 // Remove unused parameter
     public InheritanceQuerySqlServerTest(InheritanceQuerySqlServerFixture fixture, ITestOutputHelper testOutputHelper)
-#pragma warning restore IDE0060 // Remove unused parameter
         : base(fixture)
     {
         Fixture.TestSqlLoggerFactory.Clear();
-        //Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
+        Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
     }
 
     [ConditionalFact]
@@ -48,19 +46,19 @@ public class InheritanceQuerySqlServerTest : InheritanceRelationalQueryTestBase<
 """
 SELECT TOP(2) [d].[Id], [d].[Discriminator], [d].[SortIndex], [d].[CaffeineGrams], [d].[CokeCO2], [d].[SugarGrams]
 FROM [Drinks] AS [d]
-WHERE [d].[Discriminator] = N'Coke'
+WHERE [d].[Discriminator] = 1
 """,
             //
 """
 SELECT TOP(2) [d].[Id], [d].[Discriminator], [d].[SortIndex], [d].[LiltCO2], [d].[SugarGrams]
 FROM [Drinks] AS [d]
-WHERE [d].[Discriminator] = N'Lilt'
+WHERE [d].[Discriminator] = 2
 """,
             //
 """
 SELECT TOP(2) [d].[Id], [d].[Discriminator], [d].[SortIndex], [d].[CaffeineGrams], [d].[HasMilk]
 FROM [Drinks] AS [d]
-WHERE [d].[Discriminator] = N'Tea'
+WHERE [d].[Discriminator] = 3
 """);
     }
 
@@ -629,7 +627,7 @@ WHERE [a].[Discriminator] = N'Kiwi'
             //
 """
 @p0='0'
-@p1='Eagle' (Nullable = false) (Size = 4000)
+@p1='Eagle' (Nullable = false) (Size = 8)
 @p2='2' (Nullable = true)
 @p3='1' (Nullable = true)
 @p4='False' (Nullable = true)
@@ -652,7 +650,7 @@ VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6);
 """
 SELECT [a].[Id], [a].[CountryId], [a].[Discriminator], [a].[Name], [a].[Species], [a].[EagleId], [a].[IsFlightless], [a].[Group], [a].[FoundOn]
 FROM [Animals] AS [a]
-WHERE [a].[Discriminator] = N'Kiwi' AND [a].[Discriminator] = N'Eagle'
+WHERE 0 = 1
 """);
     }
 
@@ -664,7 +662,7 @@ WHERE [a].[Discriminator] = N'Kiwi' AND [a].[Discriminator] = N'Eagle'
 """
 SELECT [a].[Id], [a].[CountryId], [a].[Discriminator], [a].[Name], [a].[Species], [a].[EagleId], [a].[IsFlightless], [a].[Group]
 FROM [Animals] AS [a]
-WHERE [a].[Discriminator] = N'Kiwi' AND [a].[Discriminator] = N'Eagle'
+WHERE 0 = 1
 """);
     }
 

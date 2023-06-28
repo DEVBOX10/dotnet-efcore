@@ -9,7 +9,7 @@ public class FiltersInheritanceQuerySqlServerTest : FiltersInheritanceQueryTestB
         : base(fixture)
     {
         Fixture.TestSqlLoggerFactory.Clear();
-        //Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
+        Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
     }
 
     [ConditionalFact]
@@ -89,7 +89,7 @@ ORDER BY [a].[Species]
 """
 SELECT [a].[Id], [a].[CountryId], [a].[Discriminator], [a].[Name], [a].[Species], [a].[EagleId], [a].[IsFlightless], [a].[Group], [a].[FoundOn]
 FROM [Animals] AS [a]
-WHERE [a].[CountryId] = 1 AND [a].[CountryId] = 1
+WHERE [a].[CountryId] = 1
 ORDER BY [a].[Species]
 """);
     }

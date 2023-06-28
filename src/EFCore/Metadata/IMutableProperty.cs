@@ -2,11 +2,12 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.EntityFrameworkCore.Storage.Json;
 
 namespace Microsoft.EntityFrameworkCore.Metadata;
 
 /// <summary>
-///     Represents a scalar property of an entity type.
+///     Represents a scalar property of a structural type.
 /// </summary>
 /// <remarks>
 ///     <para>
@@ -21,9 +22,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata;
 public interface IMutableProperty : IReadOnlyProperty, IMutablePropertyBase
 {
     /// <summary>
-    ///     Gets the type that this property belongs to.
+    ///     Gets the entity type that this property belongs to.
     /// </summary>
-    new IMutableEntityType DeclaringEntityType { get; }
+    [Obsolete("Use DeclaringType and cast to IMutableEntityType or IMutableComplexType")]
+    new IMutableEntityType DeclaringEntityType => (IMutableEntityType)DeclaringType;
 
     /// <summary>
     ///     Gets or sets a value indicating whether this property can contain <see langword="null" />.
@@ -49,6 +51,11 @@ public interface IMutableProperty : IReadOnlyProperty, IMutablePropertyBase
     new bool IsConcurrencyToken { get; set; }
 
     /// <summary>
+    ///     Gets or sets the sentinel value that indicates that this property is not set.
+    /// </summary>
+    new object? Sentinel { get; set; }
+
+    /// <summary>
     ///     Finds the first principal property that the given property is constrained by
     ///     if the given property is part of a foreign key.
     /// </summary>
@@ -62,7 +69,7 @@ public interface IMutableProperty : IReadOnlyProperty, IMutablePropertyBase
     /// </summary>
     /// <returns>The list of all associated principal properties including the given property.</returns>
     new IReadOnlyList<IMutableProperty> GetPrincipals()
-        => ((IReadOnlyProperty)this).GetPrincipals().Cast<IMutableProperty>().ToList();
+        => GetPrincipals<IMutableProperty>();
 
     /// <summary>
     ///     Gets all foreign keys that use this property (including composite foreign keys in which this property
@@ -183,7 +190,7 @@ public interface IMutableProperty : IReadOnlyProperty, IMutablePropertyBase
     ///     A factory that will be used to create the value generator, or <see langword="null" /> to
     ///     clear any previously set factory.
     /// </param>
-    void SetValueGeneratorFactory(Func<IProperty, IEntityType, ValueGenerator>? valueGeneratorFactory);
+    void SetValueGeneratorFactory(Func<IProperty, ITypeBase, ValueGenerator>? valueGeneratorFactory);
 
     /// <summary>
     ///     Sets the factory to use for generating values for this property, or <see langword="null" /> to clear any previously set factory.
@@ -251,5 +258,27 @@ public interface IMutableProperty : IReadOnlyProperty, IMutablePropertyBase
     /// <param name="comparerType">
     ///     A type that derives from <see cref="ValueComparer" />, or <see langword="null" /> to remove any previously set comparer.
     /// </param>
-    void SetProviderValueComparer([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type? comparerType);
+    void SetProviderValueComparer(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type? comparerType);
+
+    /// <summary>
+    ///     Sets the type of <see cref="JsonValueReaderWriter{TValue}" /> to use for this property for this property.
+    /// </summary>
+    /// <param name="readerWriterType">
+    ///     A type that derives from <see cref="JsonValueReaderWriter{TValue}" />, or <see langword="null" /> to use the reader/writer
+    ///     from the type mapping.
+    /// </param>
+    void SetJsonValueReaderWriterType(Type? readerWriterType);
+
+    /// <inheritdoc/>
+    bool IReadOnlyProperty.IsNullable =>
+        IsNullable;
+
+    /// <inheritdoc/>
+    ValueGenerated IReadOnlyProperty.ValueGenerated =>
+        ValueGenerated;
+
+    /// <inheritdoc/>
+    bool IReadOnlyProperty.IsConcurrencyToken =>
+        IsConcurrencyToken;
 }

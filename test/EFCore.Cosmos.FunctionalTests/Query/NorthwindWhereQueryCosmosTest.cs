@@ -15,7 +15,7 @@ public class NorthwindWhereQueryCosmosTest : NorthwindWhereQueryTestBase<Northwi
         : base(fixture)
     {
         ClearLog();
-        //Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
+        Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
     }
 
     [ConditionalFact]
@@ -2413,6 +2413,22 @@ WHERE ((c["Discriminator"] = "Customer") AND (c["CustomerID"] = "ALFKI"))
         AssertSql();
     }
 
+    public override async Task ElementAt_over_custom_projection_compared_to_not_null(bool async)
+    {
+        // Cosmos client evaluation. Issue #17246.
+        await AssertTranslationFailed(() => base.ElementAt_over_custom_projection_compared_to_not_null(async));
+
+        AssertSql();
+    }
+
+    public override async Task ElementAtOrDefault_over_custom_projection_compared_to_null(bool async)
+    {
+        // Cosmos client evaluation. Issue #17246.
+        await AssertTranslationFailed(() => base.ElementAtOrDefault_over_custom_projection_compared_to_null(async));
+
+        AssertSql();
+    }
+
     public override async Task Single_over_custom_projection_compared_to_null(bool async)
     {
         // Cosmos client evaluation. Issue #17246.
@@ -2707,7 +2723,7 @@ WHERE ((c["Discriminator"] = "Customer") AND (c["CustomerID"] IN ("ALFKI", "ANAT
 """
 SELECT c
 FROM root c
-WHERE ((c["Discriminator"] = "Customer") AND (NOT(c["CustomerID"] IN ("ALFKI", "ANATR")) AND NOT(c["CustomerID"] IN ("ALFKI", "ANTON"))))
+WHERE ((c["Discriminator"] = "Customer") AND (c["CustomerID"] NOT IN ("ALFKI", "ANATR") AND c["CustomerID"] NOT IN ("ALFKI", "ANTON")))
 """);
     }
 
@@ -2733,9 +2749,12 @@ WHERE ((c["Discriminator"] = "Customer") AND (((c["CustomerID"] != @__prm1_0) AN
 
         AssertSql(
 """
+@__prm1_0='ALFKI'
+@__prm2_1='ANATR'
+
 SELECT c
 FROM root c
-WHERE ((c["Discriminator"] = "Customer") AND (c["CustomerID"] IN ("ALFKI", "ANATR") OR (c["CustomerID"] = "ANTON")))
+WHERE ((c["Discriminator"] = "Customer") AND (c["CustomerID"] IN (@__prm1_0, @__prm2_1) OR (c["CustomerID"] = "ANTON")))
 """);
     }
 

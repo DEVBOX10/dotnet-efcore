@@ -157,13 +157,12 @@ public class InMemoryExpressionTranslatingExpressionVisitor : ExpressionVisitor
     protected override Expression VisitBinary(BinaryExpression binaryExpression)
     {
         if (binaryExpression.Left.Type == typeof(object[])
-            && binaryExpression.Left is NewArrayExpression
-            && binaryExpression.NodeType == ExpressionType.Equal)
+            && binaryExpression is { Left: NewArrayExpression, NodeType: ExpressionType.Equal })
         {
             return Visit(ConvertObjectArrayEqualityComparison(binaryExpression.Left, binaryExpression.Right));
         }
 
-        if ((binaryExpression.NodeType == ExpressionType.Equal || binaryExpression.NodeType == ExpressionType.NotEqual)
+        if (binaryExpression.NodeType is ExpressionType.Equal or ExpressionType.NotEqual
             && (binaryExpression.Left.IsNullConstantExpression() || binaryExpression.Right.IsNullConstantExpression()))
         {
             var nonNullExpression = binaryExpression.Left.IsNullConstantExpression() ? binaryExpression.Right : binaryExpression.Left;
@@ -233,8 +232,7 @@ public class InMemoryExpressionTranslatingExpressionVisitor : ExpressionVisitor
             return QueryCompilationContext.NotTranslatedExpression;
         }
 
-        if ((binaryExpression.NodeType == ExpressionType.Equal
-                || binaryExpression.NodeType == ExpressionType.NotEqual)
+        if (binaryExpression.NodeType is ExpressionType.Equal or ExpressionType.NotEqual
             // Visited expression could be null, We need to pass MemberInitExpression
             && TryRewriteEntityEquality(
                 binaryExpression.NodeType,
@@ -253,80 +251,15 @@ public class InMemoryExpressionTranslatingExpressionVisitor : ExpressionVisitor
             newRight = ConvertToNullable(newRight);
         }
 
-        if (binaryExpression.NodeType == ExpressionType.Equal
-            || binaryExpression.NodeType == ExpressionType.NotEqual)
+        if (binaryExpression.NodeType is ExpressionType.Equal or ExpressionType.NotEqual
+            && TryUseComparer(newLeft, newRight, out var updatedExpression))
         {
-            var property = FindProperty(newLeft) ?? FindProperty(newRight);
-            var comparer = property?.GetValueComparer();
-
-            if (comparer != null)
+            if (binaryExpression.NodeType == ExpressionType.NotEqual)
             {
-                MethodInfo? objectEquals = null;
-                MethodInfo? exactMatch = null;
-
-                var converter = property?.GetValueConverter();
-                foreach (var candidate in comparer
-                             .GetType()
-                             .GetMethods(BindingFlags.Public | BindingFlags.Instance)
-                             .Where(
-                                 m => m.Name == "Equals" && m.GetParameters().Length == 2)
-                             .ToList())
-                {
-                    var parameters = candidate.GetParameters();
-                    var leftType = parameters[0].ParameterType;
-                    var rightType = parameters[1].ParameterType;
-
-                    if (leftType == typeof(object)
-                        && rightType == typeof(object))
-                    {
-                        objectEquals = candidate;
-                        continue;
-                    }
-
-                    var matchingLeft = leftType.IsAssignableFrom(newLeft.Type)
-                        ? newLeft
-                        : converter != null && leftType.IsAssignableFrom(converter.ModelClrType)
-                            ? ReplacingExpressionVisitor.Replace(
-                                converter.ConvertFromProviderExpression.Parameters.Single(),
-                                newLeft,
-                                converter.ConvertFromProviderExpression.Body)
-                            : null;
-
-                    var matchingRight = rightType.IsAssignableFrom(newRight.Type)
-                        ? newRight
-                        : converter != null && rightType.IsAssignableFrom(converter.ModelClrType)
-                            ? ReplacingExpressionVisitor.Replace(
-                                converter.ConvertFromProviderExpression.Parameters.Single(),
-                                newRight,
-                                converter.ConvertFromProviderExpression.Body)
-                            : null;
-
-                    if (matchingLeft != null && matchingRight != null)
-                    {
-                        exactMatch = candidate;
-                        newLeft = matchingLeft;
-                        newRight = matchingRight;
-                        break;
-                    }
-                }
-
-                var equalsExpression =
-                    exactMatch != null
-                        ? Expression.Call(
-                            Expression.Constant(comparer, comparer.GetType()),
-                            exactMatch,
-                            newLeft,
-                            newRight)
-                        : Expression.Call(
-                            Expression.Constant(comparer, comparer.GetType()),
-                            objectEquals!,
-                            Expression.Convert(newLeft, typeof(object)),
-                            Expression.Convert(newRight, typeof(object)));
-
-                return binaryExpression.NodeType == ExpressionType.NotEqual
-                    ? Expression.IsFalse(equalsExpression)
-                    : equalsExpression;
+                updatedExpression = Expression.IsFalse(updatedExpression!);
             }
+
+            return updatedExpression!;
         }
 
         return Expression.MakeBinary(
@@ -397,8 +330,11 @@ public class InMemoryExpressionTranslatingExpressionVisitor : ExpressionVisitor
         static bool IsTypeConstant(Expression expression, out Type? type)
         {
             type = null;
-            if (expression is not UnaryExpression { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked } unaryExpression
-                || unaryExpression.Operand is not ConstantExpression constantExpression)
+            if (expression is not UnaryExpression
+                {
+                    NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked,
+                    Operand: ConstantExpression constantExpression
+                })
             {
                 return false;
             }
@@ -406,6 +342,103 @@ public class InMemoryExpressionTranslatingExpressionVisitor : ExpressionVisitor
             type = constantExpression.Value as Type;
             return type != null;
         }
+    }
+
+    private static bool TryUseComparer(
+        Expression? newLeft,
+        Expression? newRight,
+        out Expression? updatedExpression)
+    {
+        updatedExpression = null;
+
+        if (newLeft == null
+            || newRight == null)
+        {
+            return false;
+        }
+
+        var property = FindProperty(newLeft) ?? FindProperty(newRight);
+        var comparer = property?.GetValueComparer();
+
+        if (comparer == null)
+        {
+            return false;
+        }
+
+        MethodInfo? objectEquals = null;
+        MethodInfo? exactMatch = null;
+
+        var converter = property?.GetValueConverter();
+        foreach (var candidate in comparer
+                     .GetType()
+                     .GetMethods(BindingFlags.Public | BindingFlags.Instance)
+                     .Where(
+                         m => m.Name == "Equals" && m.GetParameters().Length == 2)
+                     .ToList())
+        {
+            var parameters = candidate.GetParameters();
+            var leftType = parameters[0].ParameterType;
+            var rightType = parameters[1].ParameterType;
+
+            if (leftType == typeof(object)
+                && rightType == typeof(object))
+            {
+                objectEquals = candidate;
+                continue;
+            }
+
+            var matchingLeft = leftType.IsAssignableFrom(newLeft.Type)
+                ? newLeft
+                : converter != null
+                && leftType.IsAssignableFrom(converter.ModelClrType)
+                && converter.ProviderClrType.IsAssignableFrom(newLeft.Type)
+                    ? ReplacingExpressionVisitor.Replace(
+                        converter.ConvertFromProviderExpression.Parameters.Single(),
+                        newLeft,
+                        converter.ConvertFromProviderExpression.Body)
+                    : null;
+
+            var matchingRight = rightType.IsAssignableFrom(newRight.Type)
+                ? newRight
+                : converter != null
+                && rightType.IsAssignableFrom(converter.ModelClrType)
+                && converter.ProviderClrType.IsAssignableFrom(newRight.Type)
+                    ? ReplacingExpressionVisitor.Replace(
+                        converter.ConvertFromProviderExpression.Parameters.Single(),
+                        newRight,
+                        converter.ConvertFromProviderExpression.Body)
+                    : null;
+
+            if (matchingLeft != null && matchingRight != null)
+            {
+                exactMatch = candidate;
+                newLeft = matchingLeft;
+                newRight = matchingRight;
+                break;
+            }
+        }
+
+        if (exactMatch == null
+            && (!property!.ClrType.IsAssignableFrom(newLeft.Type))
+            || !property!.ClrType.IsAssignableFrom(newRight.Type))
+        {
+            return false;
+        }
+
+        updatedExpression =
+            exactMatch != null
+                ? Expression.Call(
+                    Expression.Constant(comparer, comparer.GetType()),
+                    exactMatch,
+                    newLeft,
+                    newRight)
+                : Expression.Call(
+                    Expression.Constant(comparer, comparer.GetType()),
+                    objectEquals!,
+                    Expression.Convert(newLeft, typeof(object)),
+                    Expression.Convert(newRight, typeof(object)));
+
+        return true;
     }
 
     /// <summary>
@@ -546,7 +579,7 @@ public class InMemoryExpressionTranslatingExpressionVisitor : ExpressionVisitor
         static bool ShouldApplyNullProtectionForMemberAccess(Type callerType, string memberName)
             => !(callerType.IsGenericType
                 && callerType.GetGenericTypeDefinition() == typeof(Nullable<>)
-                && (memberName == nameof(Nullable<int>.Value) || memberName == nameof(Nullable<int>.HasValue)));
+                && memberName is nameof(Nullable<int>.Value) or nameof(Nullable<int>.HasValue));
     }
 
     /// <summary>
@@ -594,8 +627,7 @@ public class InMemoryExpressionTranslatingExpressionVisitor : ExpressionVisitor
             }
 
             newBindings[i] = VisitMemberBinding(memberInitExpression.Bindings[i]);
-            if (((MemberAssignment)newBindings[i]).Expression is UnaryExpression unaryExpression
-                && unaryExpression.NodeType == ExpressionType.Convert
+            if (((MemberAssignment)newBindings[i]).Expression is UnaryExpression { NodeType: ExpressionType.Convert } unaryExpression
                 && unaryExpression.Operand == QueryCompilationContext.NotTranslatedExpression)
             {
                 return QueryCompilationContext.NotTranslatedExpression;
@@ -646,8 +678,7 @@ public class InMemoryExpressionTranslatingExpressionVisitor : ExpressionVisitor
             var shaperExpression = subqueryTranslation.ShaperExpression;
             var innerExpression = shaperExpression;
             Type? convertedType = null;
-            if (shaperExpression is UnaryExpression unaryExpression
-                && unaryExpression.NodeType == ExpressionType.Convert)
+            if (shaperExpression is UnaryExpression { NodeType: ExpressionType.Convert } unaryExpression)
             {
                 convertedType = unaryExpression.Type;
                 innerExpression = unaryExpression.Operand;
@@ -710,8 +741,7 @@ public class InMemoryExpressionTranslatingExpressionVisitor : ExpressionVisitor
         var method = methodCallExpression.Method;
 
         if (method.Name == nameof(object.Equals)
-            && methodCallExpression.Object != null
-            && methodCallExpression.Arguments.Count == 1)
+            && methodCallExpression is { Object: not null, Arguments.Count: 1 })
         {
             var left = Visit(methodCallExpression.Object);
             var right = Visit(methodCallExpression.Arguments[0]);
@@ -749,6 +779,11 @@ public class InMemoryExpressionTranslatingExpressionVisitor : ExpressionVisitor
 
             var left = Visit(methodCallExpression.Arguments[0]);
             var right = Visit(methodCallExpression.Arguments[1]);
+
+            if (TryUseComparer(left, right, out var updatedExpression))
+            {
+                return updatedExpression!;
+            }
 
             if (TryRewriteEntityEquality(
                     ExpressionType.Equal,
@@ -1027,9 +1062,7 @@ public class InMemoryExpressionTranslatingExpressionVisitor : ExpressionVisitor
         }
 
         if (newOperand is EntityReferenceExpression entityReferenceExpression
-            && (unaryExpression.NodeType == ExpressionType.Convert
-                || unaryExpression.NodeType == ExpressionType.ConvertChecked
-                || unaryExpression.NodeType == ExpressionType.TypeAs))
+            && unaryExpression.NodeType is ExpressionType.Convert or ExpressionType.ConvertChecked or ExpressionType.TypeAs)
         {
             return entityReferenceExpression.Convert(unaryExpression.Type);
         }
@@ -1047,10 +1080,11 @@ public class InMemoryExpressionTranslatingExpressionVisitor : ExpressionVisitor
         }
 
         var result = (Expression)Expression.MakeUnary(unaryExpression.NodeType, newOperand, unaryExpression.Type);
-        if (result is UnaryExpression outerUnary
-            && outerUnary.NodeType == ExpressionType.Convert
-            && outerUnary.Operand is UnaryExpression innerUnary
-            && innerUnary.NodeType == ExpressionType.Convert)
+        if (result is UnaryExpression
+            {
+                NodeType: ExpressionType.Convert,
+                Operand: UnaryExpression { NodeType: ExpressionType.Convert } innerUnary
+            } outerUnary)
         {
             var innerMostType = innerUnary.Operand.Type;
             var intermediateType = innerUnary.Type;
@@ -1073,7 +1107,7 @@ public class InMemoryExpressionTranslatingExpressionVisitor : ExpressionVisitor
 
     private Expression? TryBindMember(Expression? source, MemberIdentity member, Type type)
     {
-        if (!(source is EntityReferenceExpression entityReferenceExpression))
+        if (source is not EntityReferenceExpression entityReferenceExpression)
         {
             return null;
         }
@@ -1155,8 +1189,7 @@ public class InMemoryExpressionTranslatingExpressionVisitor : ExpressionVisitor
 
         var serverQuery = inMemoryQueryExpression.ServerQueryExpression;
         serverQuery = ((LambdaExpression)((NewExpression)serverQuery).Arguments[0]).Body;
-        if (serverQuery is UnaryExpression unaryExpression
-            && unaryExpression.NodeType == ExpressionType.Convert
+        if (serverQuery is UnaryExpression { NodeType: ExpressionType.Convert } unaryExpression
             && unaryExpression.Type == typeof(object))
         {
             serverQuery = unaryExpression.Operand;
@@ -1192,18 +1225,24 @@ public class InMemoryExpressionTranslatingExpressionVisitor : ExpressionVisitor
             ? Expression.Convert(expression, expression.Type.UnwrapNullableType())
             : expression;
 
-    private static IProperty? FindProperty(Expression expression)
+    private static IProperty? FindProperty(Expression? expression)
     {
-        if (expression.NodeType == ExpressionType.Convert
+        if (expression?.NodeType == ExpressionType.Convert
+            && expression.Type == typeof(object))
+        {
+            expression = ((UnaryExpression)expression).Operand;
+        }
+
+        if (expression?.NodeType == ExpressionType.Convert
             && expression.Type.IsNullableType()
             && expression is UnaryExpression unaryExpression
-            && expression.Type.UnwrapNullableType() == unaryExpression.Type)
+            && (expression.Type.UnwrapNullableType() == unaryExpression.Type
+                || expression.Type == unaryExpression.Type))
         {
             expression = unaryExpression.Operand;
         }
 
-        if (expression is MethodCallExpression readValueMethodCall
-            && readValueMethodCall.Method.IsGenericMethod
+        if (expression is MethodCallExpression { Method.IsGenericMethod: true } readValueMethodCall
             && readValueMethodCall.Method.GetGenericMethodDefinition() == ExpressionExtensions.ValueBufferTryReadValueMethod)
         {
             return readValueMethodCall.Arguments[2].GetConstantValue<IProperty>();
@@ -1216,7 +1255,7 @@ public class InMemoryExpressionTranslatingExpressionVisitor : ExpressionVisitor
     {
         result = null;
 
-        if (!(item is EntityReferenceExpression itemEntityReference))
+        if (item is not EntityReferenceExpression itemEntityReference)
         {
             return false;
         }
@@ -1254,9 +1293,8 @@ public class InMemoryExpressionTranslatingExpressionVisitor : ExpressionVisitor
                 rewrittenSource = Expression.Constant(propertyValueList);
                 break;
 
-            case MethodCallExpression methodCallExpression
-                when methodCallExpression.Method.IsGenericMethod
-                && methodCallExpression.Method.GetGenericMethodDefinition() == GetParameterValueMethodInfo:
+            case MethodCallExpression { Method.IsGenericMethod: true } methodCallExpression
+                when methodCallExpression.Method.GetGenericMethodDefinition() == GetParameterValueMethodInfo:
                 var parameterName = methodCallExpression.Arguments[1].GetConstantValue<string>();
                 var lambda = Expression.Lambda(
                     Expression.Call(
@@ -1400,9 +1438,8 @@ public class InMemoryExpressionTranslatingExpressionVisitor : ExpressionVisitor
                         : property.GetGetter().GetClrValue(constantExpression.Value),
                     property.ClrType.MakeNullable());
 
-            case MethodCallExpression methodCallExpression
-                when methodCallExpression.Method.IsGenericMethod
-                && methodCallExpression.Method.GetGenericMethodDefinition() == GetParameterValueMethodInfo:
+            case MethodCallExpression { Method.IsGenericMethod: true } methodCallExpression
+                when methodCallExpression.Method.GetGenericMethodDefinition() == GetParameterValueMethodInfo:
                 var parameterName = methodCallExpression.Arguments[1].GetConstantValue<string>();
                 var lambda = Expression.Lambda(
                     Expression.Call(
@@ -1460,7 +1497,9 @@ public class InMemoryExpressionTranslatingExpressionVisitor : ExpressionVisitor
 
     private static ConstantExpression GetValue(Expression expression)
         => Expression.Constant(
-            Expression.Lambda<Func<object>>(Expression.Convert(expression, typeof(object))).Compile().Invoke(),
+            Expression.Lambda<Func<object>>(Expression.Convert(expression, typeof(object)))
+                .Compile(preferInterpretation: true)
+                .Invoke(),
             expression.Type);
 
     private static bool CanEvaluate(Expression expression)
@@ -1473,7 +1512,7 @@ public class InMemoryExpressionTranslatingExpressionVisitor : ExpressionVisitor
                 return true;
 
             case NewExpression newExpression:
-                return newExpression.Arguments.All(e => CanEvaluate(e));
+                return newExpression.Arguments.All(CanEvaluate);
 
             case MemberInitExpression memberInitExpression:
                 return CanEvaluate(memberInitExpression.NewExpression)
@@ -1518,7 +1557,7 @@ public class InMemoryExpressionTranslatingExpressionVisitor : ExpressionVisitor
     }
 
     private static bool IsNullConstantExpression(Expression expression)
-        => expression is ConstantExpression constantExpression && constantExpression.Value == null;
+        => expression is ConstantExpression { Value: null };
 
     [DebuggerStepThrough]
     private static bool TranslationFailed(Expression? original, Expression? translation)

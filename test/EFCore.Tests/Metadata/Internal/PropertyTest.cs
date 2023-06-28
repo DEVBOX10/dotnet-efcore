@@ -7,6 +7,9 @@
 // ReSharper disable UnusedAutoPropertyAccessor.Local
 // ReSharper disable InconsistentNaming
 
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore.Storage.Json;
+
 namespace Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 public class PropertyTest
@@ -149,8 +152,7 @@ public class PropertyTest
         Assert.Equal(
             CoreStrings.NullableKey(typeof(object).DisplayName(), stringProperty.Name),
             Assert.Throws<InvalidOperationException>(
-                () =>
-                    stringProperty.DeclaringEntityType.AddKey(stringProperty)).Message);
+                () => entityType.AddKey(stringProperty)).Message);
     }
 
     [ConditionalFact]
@@ -170,7 +172,7 @@ public class PropertyTest
         var entityType = CreateModel().AddEntityType(typeof(object));
         var stringProperty = entityType.AddProperty("Name", typeof(string));
         stringProperty.IsNullable = false;
-        stringProperty.DeclaringEntityType.SetPrimaryKey(stringProperty);
+        entityType.SetPrimaryKey(stringProperty);
 
         Assert.Equal(
             CoreStrings.CannotBeNullablePK("Name", "object"),
@@ -279,13 +281,13 @@ public class PropertyTest
 
     private class NonDerivedValueGeneratorFactory
     {
-        public ValueGenerator Create(IProperty property, IEntityType entityType)
+        public ValueGenerator Create(IProperty property, ITypeBase typeBase)
             => null;
     }
 
     private abstract class AbstractValueGeneratorFactory : ValueGeneratorFactory
     {
-        public override ValueGenerator Create(IProperty property, IEntityType entityType)
+        public override ValueGenerator Create(IProperty property, ITypeBase typeBase)
             => null;
     }
 
@@ -295,7 +297,7 @@ public class PropertyTest
         {
         }
 
-        public override ValueGenerator Create(IProperty property, IEntityType entityType)
+        public override ValueGenerator Create(IProperty property, ITypeBase typeBase)
             => null;
     }
 
@@ -305,7 +307,7 @@ public class PropertyTest
         {
         }
 
-        public override ValueGenerator Create(IProperty property, IEntityType entityType)
+        public override ValueGenerator Create(IProperty property, ITypeBase typeBase)
             => null;
     }
 
@@ -315,7 +317,7 @@ public class PropertyTest
         {
         }
 
-        public override ValueGenerator Create(IProperty property, IEntityType entityType)
+        public override ValueGenerator Create(IProperty property, ITypeBase typeBase)
             => null;
     }
 
@@ -461,6 +463,175 @@ public class PropertyTest
             : base(favorStructuralComparison)
         {
         }
+    }
+
+    [ConditionalTheory]
+    [InlineData(typeof(SimpleJasonValueReaderWriter))]
+    [InlineData(typeof(JasonValueReaderWriterWithPrivateInstance))]
+    [InlineData(typeof(JasonValueReaderWriterWithBadInstance))]
+    public void Creates_instance_of_JsonValueReaderWriter_using_constructor(Type type)
+    {
+        var model = CreateModel();
+        var entityType = model.AddEntityType(typeof(object));
+        var property = entityType.AddProperty("Kake", typeof(string));
+        property.SetJsonValueReaderWriterType(type);
+
+        var instance1 = property.GetJsonValueReaderWriter();
+        var instance2 = property.GetJsonValueReaderWriter();
+        Assert.NotNull(instance1);
+        Assert.NotEqual(instance1, instance2);
+    }
+
+    [ConditionalTheory]
+    [InlineData(typeof(SimpleJasonValueReaderWriterWithInstance))]
+    [InlineData(typeof(SimpleJasonValueReaderWriterWithInstanceAndPrivateConstructor))]
+    public void Creates_instance_of_JsonValueReaderWriter_using_instance(Type type)
+    {
+        var model = CreateModel();
+        var entityType = model.AddEntityType(typeof(object));
+        var property = entityType.AddProperty("Kake", typeof(string));
+        property.SetJsonValueReaderWriterType(type);
+
+        var instance1 = property.GetJsonValueReaderWriter();
+        var instance2 = property.GetJsonValueReaderWriter();
+        Assert.NotNull(instance1);
+        Assert.Same(instance1, instance2);
+    }
+
+    [ConditionalTheory]
+    [InlineData(typeof(NonDerivedJsonValueReaderWriter))]
+    [InlineData(typeof(NonGenericJsonValueReaderWriter))]
+    public void Throws_when_JsonValueReaderWriter_type_is_invalid(Type type)
+    {
+        var model = CreateModel();
+        var entityType = model.AddEntityType(typeof(object));
+        var property = entityType.AddProperty("Kake", typeof(string));
+
+        Assert.Equal(
+            CoreStrings.BadJsonValueReaderWriterType(type.ShortDisplayName()),
+            Assert.Throws<InvalidOperationException>(
+                () =>
+                    property.SetJsonValueReaderWriterType(type)).Message);
+    }
+
+    [ConditionalTheory]
+    [InlineData(typeof(AbstractJasonValueReaderWriter))]
+    [InlineData(typeof(NonParameterlessJsonValueReaderWriter))]
+    [InlineData(typeof(PrivateJasonValueReaderWriter))]
+    public void Throws_when_JsonValueReaderWriter_instance_cannot_be_created(Type type)
+    {
+        var model = CreateModel();
+        var entityType = model.AddEntityType(typeof(object));
+        var property = entityType.AddProperty("Kake", typeof(string));
+        property.SetJsonValueReaderWriterType(type);
+
+        Assert.Equal(
+            CoreStrings.CannotCreateJsonValueReaderWriter(type.ShortDisplayName()),
+            Assert.Throws<InvalidOperationException>(
+                () => property.GetJsonValueReaderWriter()).Message);
+    }
+
+    private class SimpleJasonValueReaderWriter : JsonValueReaderWriter<string>
+    {
+        public override string FromJsonTyped(ref Utf8JsonReaderManager manager)
+            => manager.CurrentReader.GetString()!;
+
+        public override void ToJsonTyped(Utf8JsonWriter writer, string value)
+            => writer.WriteStringValue(value);
+    }
+
+    private class JasonValueReaderWriterWithPrivateInstance : JsonValueReaderWriter<string>
+    {
+        private static JasonValueReaderWriterWithPrivateInstance Instance { get; } = new();
+
+        public override string FromJsonTyped(ref Utf8JsonReaderManager manager)
+            => manager.CurrentReader.GetString()!;
+
+        public override void ToJsonTyped(Utf8JsonWriter writer, string value)
+            => writer.WriteStringValue(value);
+    }
+
+    private class JasonValueReaderWriterWithBadInstance : JsonValueReaderWriter<string>
+    {
+        public static object Instance { get; } = new();
+
+        public override string FromJsonTyped(ref Utf8JsonReaderManager manager)
+            => manager.CurrentReader.GetString()!;
+
+        public override void ToJsonTyped(Utf8JsonWriter writer, string value)
+            => writer.WriteStringValue(value);
+    }
+
+    private class SimpleJasonValueReaderWriterWithInstance : JsonValueReaderWriter<string>
+    {
+        public static SimpleJasonValueReaderWriterWithInstance Instance { get; } = new();
+
+        public override string FromJsonTyped(ref Utf8JsonReaderManager manager)
+            => manager.CurrentReader.GetString()!;
+
+        public override void ToJsonTyped(Utf8JsonWriter writer, string value)
+            => writer.WriteStringValue(value);
+    }
+
+    private class SimpleJasonValueReaderWriterWithInstanceAndPrivateConstructor : JsonValueReaderWriter<string>
+    {
+        public static SimpleJasonValueReaderWriterWithInstanceAndPrivateConstructor Instance { get; } = new();
+
+        private SimpleJasonValueReaderWriterWithInstanceAndPrivateConstructor()
+        {
+        }
+
+        public override string FromJsonTyped(ref Utf8JsonReaderManager manager)
+            => manager.CurrentReader.GetString()!;
+
+        public override void ToJsonTyped(Utf8JsonWriter writer, string value)
+            => writer.WriteStringValue(value);
+    }
+
+    private class NonDerivedJsonValueReaderWriter
+    {
+    }
+
+    private class NonGenericJsonValueReaderWriter : JsonValueReaderWriter
+    {
+        public override object FromJson(ref Utf8JsonReaderManager manager)
+            => manager.CurrentReader.GetString()!;
+
+        public override void ToJson(Utf8JsonWriter writer, object value)
+            => writer.WriteStringValue((string)value);
+
+        public override Type ValueType
+            => typeof(string);
+    }
+
+    private abstract class AbstractJasonValueReaderWriter : JsonValueReaderWriter<string>
+    {
+    }
+
+    private class PrivateJasonValueReaderWriter : JsonValueReaderWriter<string>
+    {
+        private PrivateJasonValueReaderWriter()
+        {
+        }
+
+        public override string FromJsonTyped(ref Utf8JsonReaderManager manager)
+            => manager.CurrentReader.GetString()!;
+
+        public override void ToJsonTyped(Utf8JsonWriter writer, string value)
+            => writer.WriteStringValue(value);
+    }
+
+    private class NonParameterlessJsonValueReaderWriter : JsonValueReaderWriter<string>
+    {
+        public NonParameterlessJsonValueReaderWriter(bool _)
+        {
+        }
+
+        public override string FromJsonTyped(ref Utf8JsonReaderManager manager)
+            => manager.CurrentReader.GetString()!;
+
+        public override void ToJsonTyped(Utf8JsonWriter writer, string value)
+            => writer.WriteStringValue(value);
     }
 
     private static IMutableModel CreateModel()

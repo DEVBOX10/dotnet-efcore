@@ -203,7 +203,7 @@ public class TestRelationalTypeMappingSource : RelationalTypeMappingSource
                     return _defaultDecimalMapping;
                 }
 
-                if (scale == null || scale == 0)
+                if (scale is null or 0)
                 {
                     return new DecimalTypeMapping(
                         "decimal_mapping(" + precision + ")",
@@ -234,12 +234,12 @@ public class TestRelationalTypeMappingSource : RelationalTypeMappingSource
 
     protected override string ParseStoreTypeName(
         string storeTypeName,
-        out bool? unicode,
-        out int? size,
-        out int? precision,
-        out int? scale)
+        ref bool? unicode,
+        ref int? size,
+        ref int? precision,
+        ref int? scale)
     {
-        var parsedName = base.ParseStoreTypeName(storeTypeName, out unicode, out size, out precision, out scale);
+        var parsedName = base.ParseStoreTypeName(storeTypeName, ref unicode, ref size, ref precision, ref scale);
 
         if (size.HasValue
             && storeTypeName?.StartsWith("default_decimal_mapping", StringComparison.OrdinalIgnoreCase) == true)

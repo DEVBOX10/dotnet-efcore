@@ -5,11 +5,12 @@ using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using Microsoft.EntityFrameworkCore.Storage.Json;
 
 namespace Microsoft.EntityFrameworkCore.Metadata;
 
 /// <summary>
-///     Represents a scalar property of an entity type.
+///     Represents a scalar property of an structural type.
 /// </summary>
 /// <remarks>
 ///     See <see href="https://aka.ms/efcore-docs-modeling">Modeling entity types and relationships</see> for more information and examples.
@@ -19,15 +20,15 @@ public class RuntimeProperty : RuntimePropertyBase, IProperty
     private readonly bool _isNullable;
     private readonly ValueGenerated _valueGenerated;
     private readonly bool _isConcurrencyToken;
+    private readonly object? _sentinel;
     private readonly PropertySaveBehavior _beforeSaveBehavior;
     private readonly PropertySaveBehavior _afterSaveBehavior;
-    private readonly Func<IProperty, IEntityType, ValueGenerator>? _valueGeneratorFactory;
+    private readonly Func<IProperty, ITypeBase, ValueGenerator>? _valueGeneratorFactory;
     private readonly ValueConverter? _valueConverter;
-    private readonly bool _explicitValueComparer;
     private ValueComparer? _valueComparer;
-    private readonly bool _explicitKeyValueComparer;
     private ValueComparer? _keyValueComparer;
     private readonly ValueComparer? _providerValueComparer;
+    private readonly JsonValueReaderWriter? _jsonValueReaderWriter;
     private CoreTypeMapping? _typeMapping;
 
     /// <summary>
@@ -40,9 +41,10 @@ public class RuntimeProperty : RuntimePropertyBase, IProperty
     public RuntimeProperty(
         string name,
         Type clrType,
+        object? sentinel,
         PropertyInfo? propertyInfo,
         FieldInfo? fieldInfo,
-        RuntimeEntityType declaringEntityType,
+        RuntimeTypeBase declaringType,
         PropertyAccessMode propertyAccessMode,
         bool nullable,
         bool concurrencyToken,
@@ -54,16 +56,18 @@ public class RuntimeProperty : RuntimePropertyBase, IProperty
         int? precision,
         int? scale,
         Type? providerClrType,
-        Func<IProperty, IEntityType, ValueGenerator>? valueGeneratorFactory,
+        Func<IProperty, ITypeBase, ValueGenerator>? valueGeneratorFactory,
         ValueConverter? valueConverter,
         ValueComparer? valueComparer,
         ValueComparer? keyValueComparer,
         ValueComparer? providerValueComparer,
+        JsonValueReaderWriter? jsonValueReaderWriter,
         CoreTypeMapping? typeMapping)
         : base(name, propertyInfo, fieldInfo, propertyAccessMode)
     {
-        DeclaringEntityType = declaringEntityType;
+        DeclaringType = declaringType;
         ClrType = clrType;
+        _sentinel = sentinel;
         _isNullable = nullable;
         _isConcurrencyToken = concurrencyToken;
         _valueGenerated = valueGenerated;
@@ -99,10 +103,9 @@ public class RuntimeProperty : RuntimePropertyBase, IProperty
 
         _typeMapping = typeMapping;
         _valueComparer = valueComparer;
-        _explicitValueComparer = _valueComparer != null;
         _keyValueComparer = keyValueComparer ?? valueComparer;
-        _explicitKeyValueComparer = keyValueComparer != null;
         _providerValueComparer = providerValueComparer;
+        _jsonValueReaderWriter = jsonValueReaderWriter;
     }
 
     /// <summary>
@@ -111,10 +114,8 @@ public class RuntimeProperty : RuntimePropertyBase, IProperty
     [DynamicallyAccessedMembers(IProperty.DynamicallyAccessedMemberTypes)]
     protected override Type ClrType { get; }
 
-    /// <summary>
-    ///     Gets the type that this property belongs to.
-    /// </summary>
-    public override RuntimeEntityType DeclaringEntityType { get; }
+    /// <inheritdoc />
+    public override RuntimeTypeBase DeclaringType { get; }
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -170,7 +171,7 @@ public class RuntimeProperty : RuntimePropertyBase, IProperty
         get => NonCapturingLazyInitializer.EnsureInitialized(
             ref _typeMapping, (IProperty)this,
             static property =>
-                property.DeclaringEntityType.Model.GetModelDependencies().TypeMappingSource.FindMapping(property)!);
+                property.DeclaringType.Model.GetModelDependencies().TypeMappingSource.FindMapping(property)!);
         set => _typeMapping = value;
     }
 
@@ -184,8 +185,7 @@ public class RuntimeProperty : RuntimePropertyBase, IProperty
 
     private ValueComparer? GetValueComparer(HashSet<IReadOnlyProperty>? checkedProperties)
     {
-        if (_explicitValueComparer // This condition is needed due to #28944
-            && _valueComparer != null)
+        if (_valueComparer != null)
         {
             return _valueComparer;
         }
@@ -211,8 +211,7 @@ public class RuntimeProperty : RuntimePropertyBase, IProperty
 
     private ValueComparer? GetKeyValueComparer(HashSet<IReadOnlyProperty>? checkedProperties)
     {
-        if (_explicitKeyValueComparer // This condition is needed due to #28944
-            && _keyValueComparer != null)
+        if ( _keyValueComparer != null)
         {
             return _keyValueComparer;
         }
@@ -236,24 +235,16 @@ public class RuntimeProperty : RuntimePropertyBase, IProperty
         return principal.GetKeyValueComparer(checkedProperties);
     }
 
-    /// <summary>
-    ///     Returns a string that represents the current object.
-    /// </summary>
-    /// <returns>A string that represents the current object.</returns>
-    public override string ToString()
-        => ((IProperty)this).ToDebugString(MetadataDebugStringOptions.SingleLineDefault);
+    /// <inheritdoc />
+    public override object? Sentinel
+        => _sentinel;
 
     /// <summary>
-    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
-    ///     any release. You should only use it directly in your code with extreme caution and knowing that
-    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    ///     Gets the <see cref="JsonValueReaderWriter" /> for this property, or <see langword="null" /> if none is set.
     /// </summary>
-    [EntityFrameworkInternal]
-    public virtual DebugView DebugView
-        => new(
-            () => ((IProperty)this).ToDebugString(),
-            () => ((IProperty)this).ToDebugString(MetadataDebugStringOptions.LongDefault));
+    /// <returns>The reader/writer, or <see langword="null" /> if none has been set.</returns>
+    public virtual JsonValueReaderWriter? GetJsonValueReaderWriter()
+        => _jsonValueReaderWriter;
 
     /// <inheritdoc />
     bool IReadOnlyProperty.IsNullable
@@ -308,7 +299,7 @@ public class RuntimeProperty : RuntimePropertyBase, IProperty
 
     /// <inheritdoc />
     [DebuggerStepThrough]
-    Func<IProperty, IEntityType, ValueGenerator>? IReadOnlyProperty.GetValueGeneratorFactory()
+    Func<IProperty, ITypeBase, ValueGenerator>? IReadOnlyProperty.GetValueGeneratorFactory()
         => _valueGeneratorFactory;
 
     /// <inheritdoc />
@@ -320,20 +311,6 @@ public class RuntimeProperty : RuntimePropertyBase, IProperty
     [DebuggerStepThrough]
     Type? IReadOnlyProperty.GetProviderClrType()
         => (Type?)this[CoreAnnotationNames.ProviderClrType];
-
-    /// <inheritdoc />
-    IReadOnlyEntityType IReadOnlyProperty.DeclaringEntityType
-    {
-        [DebuggerStepThrough]
-        get => DeclaringEntityType;
-    }
-
-    /// <inheritdoc />
-    IEntityType IProperty.DeclaringEntityType
-    {
-        [DebuggerStepThrough]
-        get => DeclaringEntityType;
-    }
 
     /// <inheritdoc />
     [DebuggerStepThrough]

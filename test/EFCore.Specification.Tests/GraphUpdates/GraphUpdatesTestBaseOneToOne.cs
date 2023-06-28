@@ -727,8 +727,7 @@ public abstract partial class GraphUpdatesTestBase<TFixture>
                     context.ChangeTracker.CascadeChanges();
                 }
 
-                var expectedState = (cascadeDeleteTiming == CascadeTiming.Immediate
-                        || cascadeDeleteTiming == null)
+                var expectedState = cascadeDeleteTiming is CascadeTiming.Immediate or null
                     && !Fixture.ForceClientNoAction
                         ? EntityState.Modified
                         : EntityState.Unchanged;
@@ -857,7 +856,9 @@ public abstract partial class GraphUpdatesTestBase<TFixture>
 
                 if (Fixture.ForceClientNoAction)
                 {
-                    Assert.Throws<DbUpdateException>(() => context.SaveChanges());
+                    Assert.Equal(
+                        CoreStrings.KeyReadOnly(nameof(RequiredSingle1.Id), nameof(RequiredSingle1)),
+                        Assert.Throws<InvalidOperationException>(() => context.SaveChanges()).Message);
                 }
                 else
                 {
@@ -886,6 +887,8 @@ public abstract partial class GraphUpdatesTestBase<TFixture>
                     {
                         context.Add(new1);
                         new1.Id = root.Id;
+                        context.Entry(new1).Property(e => e.Id).IsTemporary = false;
+                        context.Entry(new2).Property(e => e.Id).IsTemporary = false;
                     }
 
                     Assert.True(context.ChangeTracker.HasChanges());
@@ -1199,16 +1202,18 @@ public abstract partial class GraphUpdatesTestBase<TFixture>
                     throw new ArgumentOutOfRangeException(nameof(changeMechanism));
                 }
 
-                Assert.False(context.Entry(root).Reference(e => e.RequiredSingle).IsLoaded);
-                Assert.False(context.Entry(old1).Reference(e => e.Root).IsLoaded);
-                Assert.True(context.ChangeTracker.HasChanges());
-
                 if (Fixture.ForceClientNoAction)
                 {
-                    Assert.Throws<DbUpdateException>(() => context.SaveChanges());
+                    Assert.Equal(
+                        CoreStrings.KeyReadOnly(nameof(RequiredSingle1.Id), nameof(RequiredSingle1)),
+                        Assert.Throws<InvalidOperationException>(() => context.SaveChanges()).Message);
                 }
                 else
                 {
+                    Assert.False(context.Entry(root).Reference(e => e.RequiredSingle).IsLoaded);
+                    Assert.False(context.Entry(old1).Reference(e => e.Root).IsLoaded);
+                    Assert.True(context.ChangeTracker.HasChanges());
+
                     context.SaveChanges();
 
                     Assert.False(context.ChangeTracker.HasChanges());
@@ -2096,8 +2101,7 @@ public abstract partial class GraphUpdatesTestBase<TFixture>
                     context.ChangeTracker.CascadeChanges();
                 }
 
-                var expectedState = (cascadeDeleteTiming == CascadeTiming.Immediate
-                        || cascadeDeleteTiming == null)
+                var expectedState = cascadeDeleteTiming is CascadeTiming.Immediate or null
                     && !Fixture.ForceClientNoAction
                         ? EntityState.Deleted
                         : EntityState.Unchanged;
@@ -2192,8 +2196,7 @@ public abstract partial class GraphUpdatesTestBase<TFixture>
                     context.ChangeTracker.CascadeChanges();
                 }
 
-                var expectedState = (cascadeDeleteTiming == CascadeTiming.Immediate
-                        || cascadeDeleteTiming == null)
+                var expectedState = cascadeDeleteTiming is CascadeTiming.Immediate or null
                     && !Fixture.ForceClientNoAction
                         ? EntityState.Deleted
                         : EntityState.Unchanged;
@@ -2293,8 +2296,7 @@ public abstract partial class GraphUpdatesTestBase<TFixture>
                     context.ChangeTracker.CascadeChanges();
                 }
 
-                var expectedState = (cascadeDeleteTiming == CascadeTiming.Immediate
-                        || cascadeDeleteTiming == null)
+                var expectedState = cascadeDeleteTiming is CascadeTiming.Immediate or null
                     && !Fixture.ForceClientNoAction
                         ? EntityState.Detached
                         : EntityState.Added;
@@ -2403,8 +2405,7 @@ public abstract partial class GraphUpdatesTestBase<TFixture>
                     context.ChangeTracker.CascadeChanges();
                 }
 
-                var expectedState = (cascadeDeleteTiming == CascadeTiming.Immediate
-                        || cascadeDeleteTiming == null)
+                var expectedState = cascadeDeleteTiming is CascadeTiming.Immediate or null
                     && !Fixture.ForceClientNoAction
                         ? EntityState.Detached
                         : EntityState.Added;

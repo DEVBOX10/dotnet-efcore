@@ -236,28 +236,12 @@ public class InMemoryQueryableMethodTranslatingExpressionVisitor : QueryableMeth
     /// </summary>
     protected override ShapedQueryExpression? TranslateContains(ShapedQueryExpression source, Expression item)
     {
-        var inMemoryQueryExpression = (InMemoryQueryExpression)source.QueryExpression;
-        var newItem = TranslateExpression(item, preserveType: true);
-        if (newItem == null)
-        {
-            return null;
-        }
+        var anyLambdaParameter = Expression.Parameter(item.Type, "p");
+        var anyLambda = Expression.Lambda(
+            ExpressionExtensions.CreateEqualsExpression(anyLambdaParameter, item),
+            anyLambdaParameter);
 
-        item = newItem;
-
-        inMemoryQueryExpression.UpdateServerQueryExpression(
-            Expression.Call(
-                EnumerableMethods.Contains.MakeGenericMethod(item.Type),
-                Expression.Call(
-                    EnumerableMethods.Select.MakeGenericMethod(inMemoryQueryExpression.CurrentParameter.Type, item.Type),
-                    inMemoryQueryExpression.ServerQueryExpression,
-                    Expression.Lambda(
-                        inMemoryQueryExpression.GetProjection(
-                            new ProjectionBindingExpression(inMemoryQueryExpression, new ProjectionMember(), item.Type)),
-                        inMemoryQueryExpression.CurrentParameter)),
-                item));
-
-        return source.UpdateShaperExpression(Expression.Convert(inMemoryQueryExpression.GetSingleScalarProjection(), typeof(bool)));
+        return TranslateAny(source, anyLambda);
     }
 
     /// <summary>
@@ -457,8 +441,7 @@ public class InMemoryQueryableMethodTranslatingExpressionVisitor : QueryableMeth
 
                 return memberInitExpression.Update(updatedNewExpression, newBindings);
 
-            case EntityShaperExpression entityShaperExpression
-                when entityShaperExpression.ValueBufferExpression is ProjectionBindingExpression projectionBindingExpression:
+            case EntityShaperExpression { ValueBufferExpression: ProjectionBindingExpression } entityShaperExpression:
                 return entityShaperExpression;
 
             default:
@@ -599,9 +582,7 @@ public class InMemoryQueryableMethodTranslatingExpressionVisitor : QueryableMeth
             }
         }
 
-        if (joinCondition is MethodCallExpression methodCallExpression
-            && methodCallExpression.Method.Name == nameof(object.Equals)
-            && methodCallExpression.Arguments.Count == 2
+        if (joinCondition is MethodCallExpression { Method.Name: nameof(object.Equals), Arguments.Count: 2 } methodCallExpression
             && ((methodCallExpression.Method.IsStatic
                     && methodCallExpression.Method.DeclaringType == typeof(object))
                 || typeof(ValueComparer).IsAssignableFrom(methodCallExpression.Method.DeclaringType)))
@@ -1193,11 +1174,9 @@ public class InMemoryQueryableMethodTranslatingExpressionVisitor : QueryableMeth
         }
 
         protected override Expression VisitExtension(Expression extensionExpression)
-            => extensionExpression is EntityShaperExpression
-                || extensionExpression is ShapedQueryExpression
-                || extensionExpression is GroupByShaperExpression
-                    ? extensionExpression
-                    : base.VisitExtension(extensionExpression);
+            => extensionExpression is EntityShaperExpression or ShapedQueryExpression or GroupByShaperExpression
+                ? extensionExpression
+                : base.VisitExtension(extensionExpression);
 
         private Expression? TryExpand(Expression? source, MemberIdentity member)
         {

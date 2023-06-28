@@ -13,7 +13,7 @@ public class SpatialQuerySqlServerGeographyTest : SpatialQueryRelationalTestBase
         : base(fixture)
     {
         Fixture.TestSqlLoggerFactory.Clear();
-        //Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
+        Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
     }
 
     protected override bool CanExecuteQueryString
@@ -457,7 +457,7 @@ FROM [MultiLineStringEntity] AS [m]
         AssertSql(
 """
 SELECT [p].[Id], CASE
-    WHEN ([p].[Polygon].NumRings() - 1) = 0 THEN NULL
+    WHEN [p].[Polygon].NumRings() - 1 = 0 THEN NULL
     ELSE [p].[Polygon].RingN(0 + 2)
 END AS [InteriorRing0]
 FROM [PolygonEntity] AS [p]

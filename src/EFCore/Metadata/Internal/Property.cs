@@ -1,10 +1,10 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
 using Microsoft.EntityFrameworkCore.Internal;
+using Microsoft.EntityFrameworkCore.Storage.Json;
 
 namespace Microsoft.EntityFrameworkCore.Metadata.Internal;
 
@@ -16,14 +16,17 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal;
 /// </summary>
 public class Property : PropertyBase, IMutableProperty, IConventionProperty, IProperty
 {
+    private InternalPropertyBuilder? _builder;
+
     private bool? _isConcurrencyToken;
     private bool? _isNullable;
+    private object? _sentinel;
     private ValueGenerated? _valueGenerated;
     private CoreTypeMapping? _typeMapping;
-    private InternalPropertyBuilder? _builder;
 
     private ConfigurationSource? _typeConfigurationSource;
     private ConfigurationSource? _isNullableConfigurationSource;
+    private ConfigurationSource? _sentinelConfigurationSource;
     private ConfigurationSource? _isConcurrencyTokenConfigurationSource;
     private ConfigurationSource? _valueGeneratedConfigurationSource;
     private ConfigurationSource? _typeMappingConfigurationSource;
@@ -39,46 +42,16 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
         [DynamicallyAccessedMembers(IProperty.DynamicallyAccessedMemberTypes)] Type clrType,
         PropertyInfo? propertyInfo,
         FieldInfo? fieldInfo,
-        EntityType declaringEntityType,
+        TypeBase declaringType,
         ConfigurationSource configurationSource,
         ConfigurationSource? typeConfigurationSource)
         : base(name, propertyInfo, fieldInfo, configurationSource)
     {
-        DeclaringEntityType = declaringEntityType;
+        DeclaringType = declaringType;
         ClrType = clrType;
         _typeConfigurationSource = typeConfigurationSource;
-
-        _builder = new InternalPropertyBuilder(this, declaringEntityType.Model.Builder);
+        _builder = new InternalPropertyBuilder(this, declaringType.Model.Builder);
     }
-
-    /// <summary>
-    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
-    ///     any release. You should only use it directly in your code with extreme caution and knowing that
-    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
-    /// </summary>
-    public virtual EntityType DeclaringEntityType { get; }
-
-    /// <summary>
-    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
-    ///     any release. You should only use it directly in your code with extreme caution and knowing that
-    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
-    /// </summary>
-    public override TypeBase DeclaringType
-    {
-        [DebuggerStepThrough]
-        get => DeclaringEntityType;
-    }
-
-    /// <summary>
-    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
-    ///     any release. You should only use it directly in your code with extreme caution and knowing that
-    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
-    /// </summary>
-    [DynamicallyAccessedMembers(IProperty.DynamicallyAccessedMemberTypes)]
-    public override Type ClrType { get; }
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -100,7 +73,7 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
     /// </summary>
     public virtual bool IsInModel
         => _builder is not null
-            && DeclaringEntityType.IsInModel;
+            && DeclaringType.IsInModel;
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -110,6 +83,62 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
     /// </summary>
     public virtual void SetRemovedFromModel()
         => _builder = null;
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    protected override FieldInfo? OnFieldInfoSet(FieldInfo? newFieldInfo, FieldInfo? oldFieldInfo)
+        => DeclaringType.Model.ConventionDispatcher.OnPropertyFieldChanged(Builder, newFieldInfo, oldFieldInfo);
+
+    /// <summary>
+    ///     Runs the conventions when an annotation was set or removed.
+    /// </summary>
+    /// <param name="name">The key of the set annotation.</param>
+    /// <param name="annotation">The annotation set.</param>
+    /// <param name="oldAnnotation">The old annotation.</param>
+    /// <returns>The annotation that was set.</returns>
+    protected override IConventionAnnotation? OnAnnotationSet(
+        string name,
+        IConventionAnnotation? annotation,
+        IConventionAnnotation? oldAnnotation)
+        => DeclaringType.Model.ConventionDispatcher.OnPropertyAnnotationChanged(Builder, name, annotation, oldAnnotation);
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    public static bool AreCompatible(IReadOnlyList<Property> properties, EntityType entityType)
+        => properties.All(
+            property =>
+                property.IsShadowProperty()
+                || (property.IsIndexerProperty()
+                    ? property.PropertyInfo == entityType.FindIndexerPropertyInfo()
+                    : ((property.PropertyInfo != null
+                            && entityType.GetRuntimeProperties().ContainsKey(property.Name))
+                        || (property.FieldInfo != null
+                            && entityType.GetRuntimeFields().ContainsKey(property.Name)))));
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    public override TypeBase DeclaringType { get; }
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [DynamicallyAccessedMembers(IProperty.DynamicallyAccessedMemberTypes)]
+    public override Type ClrType { get; }
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -158,7 +187,7 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
             _isNullableConfigurationSource = null;
             if (isChanging)
             {
-                DeclaringEntityType.Model.ConventionDispatcher.OnPropertyNullableChanged(Builder);
+                OnPropertyNullableChanged();
             }
 
             return nullable;
@@ -169,12 +198,12 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
             if (!ClrType.IsNullableType())
             {
                 throw new InvalidOperationException(
-                    CoreStrings.CannotBeNullable(Name, DeclaringEntityType.DisplayName(), ClrType.ShortDisplayName()));
+                    CoreStrings.CannotBeNullable(Name, DeclaringType.DisplayName(), ClrType.ShortDisplayName()));
             }
 
             if (Keys != null)
             {
-                throw new InvalidOperationException(CoreStrings.CannotBeNullablePK(Name, DeclaringEntityType.DisplayName()));
+                throw new InvalidOperationException(CoreStrings.CannotBeNullablePK(Name, DeclaringType.DisplayName()));
             }
         }
 
@@ -183,9 +212,18 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
         _isNullable = nullable;
 
         return isChanging
-            ? DeclaringEntityType.Model.ConventionDispatcher.OnPropertyNullableChanged(Builder)
+            ? OnPropertyNullableChanged()
             : nullable;
     }
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    protected virtual bool? OnPropertyNullableChanged()
+        => DeclaringType.Model.ConventionDispatcher.OnPropertyNullabilityChanged(Builder);
 
     private bool DefaultIsNullable
         => ClrType.IsNullableType();
@@ -198,15 +236,6 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
     /// </summary>
     public virtual ConfigurationSource? GetIsNullableConfigurationSource()
         => _isNullableConfigurationSource;
-
-    /// <summary>
-    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
-    ///     any release. You should only use it directly in your code with extreme caution and knowing that
-    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
-    /// </summary>
-    protected override FieldInfo? OnFieldInfoSet(FieldInfo? newFieldInfo, FieldInfo? oldFieldInfo)
-        => DeclaringEntityType.Model.ConventionDispatcher.OnPropertyFieldChanged(Builder, newFieldInfo, oldFieldInfo);
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -305,8 +334,7 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
     /// </summary>
     public virtual int? SetMaxLength(int? maxLength, ConfigurationSource configurationSource)
     {
-        if (maxLength != null
-            && maxLength < 0)
+        if (maxLength is < -1)
         {
             throw new ArgumentOutOfRangeException(nameof(maxLength));
         }
@@ -516,7 +544,7 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
     public virtual string? CheckAfterSaveBehavior(PropertySaveBehavior behavior)
         => behavior != PropertySaveBehavior.Throw
             && IsKey()
-                ? CoreStrings.KeyPropertyMustBeReadOnly(Name, DeclaringEntityType.DisplayName())
+                ? CoreStrings.KeyPropertyMustBeReadOnly(Name, DeclaringType.DisplayName())
                 : null;
 
     /// <summary>
@@ -525,12 +553,56 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    public virtual Func<IProperty, IEntityType, ValueGenerator>? SetValueGeneratorFactory(
-        Func<IProperty, IEntityType, ValueGenerator>? factory,
+    public virtual object? Sentinel
+    {
+        get => _sentinel ?? DefaultSentinel;
+        set => SetSentinel(value, ConfigurationSource.Explicit);
+    }
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    public virtual object? SetSentinel(object? sentinel, ConfigurationSource configurationSource)
+    {
+        EnsureMutable();
+
+        _sentinel = sentinel;
+
+        _sentinelConfigurationSource = configurationSource.Max(_sentinelConfigurationSource);
+
+        return sentinel;
+    }
+
+    private object? DefaultSentinel
+        => (this is IProperty property
+            && property.TryGetMemberInfo(forMaterialization: false, forSet: false, out var member, out _)
+                ? member!.GetMemberType()
+                : ClrType).GetDefaultValue();
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    public virtual ConfigurationSource? GetSentinelConfigurationSource()
+        => _sentinelConfigurationSource;
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    public virtual Func<IProperty, ITypeBase, ValueGenerator>? SetValueGeneratorFactory(
+        Func<IProperty, ITypeBase, ValueGenerator>? factory,
         ConfigurationSource configurationSource)
     {
         RemoveAnnotation(CoreAnnotationNames.ValueGeneratorFactoryType);
-        return (Func<IProperty, IEntityType, ValueGenerator>?)
+        return (Func<IProperty, ITypeBase, ValueGenerator>?)
             SetAnnotation(CoreAnnotationNames.ValueGeneratorFactory, factory, configurationSource)?.Value;
     }
 
@@ -571,9 +643,9 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    public virtual Func<IProperty, IEntityType, ValueGenerator>? GetValueGeneratorFactory()
+    public virtual Func<IProperty, ITypeBase, ValueGenerator>? GetValueGeneratorFactory()
     {
-        var factory = (Func<IProperty, IEntityType, ValueGenerator>?)this[CoreAnnotationNames.ValueGeneratorFactory];
+        var factory = (Func<IProperty, ITypeBase, ValueGenerator>?)this[CoreAnnotationNames.ValueGeneratorFactory];
         if (factory == null)
         {
             var factoryType = (Type?)this[CoreAnnotationNames.ValueGeneratorFactoryType];
@@ -613,7 +685,7 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
         }
 
         RemoveAnnotation(CoreAnnotationNames.ValueConverterType);
-        return (ValueConverter?)SetOrRemoveAnnotation(CoreAnnotationNames.ValueConverter, converter, configurationSource)?.Value;
+        return (ValueConverter?)SetAnnotation(CoreAnnotationNames.ValueConverter, converter, configurationSource)?.Value;
     }
 
     /// <summary>
@@ -648,7 +720,7 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
         }
 
         SetValueConverter(converter, configurationSource);
-        SetOrRemoveAnnotation(CoreAnnotationNames.ValueConverterType, converterType, configurationSource);
+        SetAnnotation(CoreAnnotationNames.ValueConverterType, converterType, configurationSource);
 
         return converterType;
     }
@@ -661,15 +733,17 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
     /// </summary>
     public virtual ValueConverter? GetValueConverter()
     {
-        var converter = (ValueConverter?)this[CoreAnnotationNames.ValueConverter];
-        if (converter != null)
+        var annotation = FindAnnotation(CoreAnnotationNames.ValueConverter);
+        if (annotation != null)
         {
-            return converter;
+            return (ValueConverter?)annotation.Value;
         }
 
         var property = this;
-        for (var i = 0; i < 10000; i++)
+        var i = 0;
+        for (; i < ForeignKey.LongestFkChainAllowedLength; i++)
         {
+            Property? nextProperty = null;
             foreach (var foreignKey in property.GetContainingForeignKeys())
             {
                 for (var propertyIndex = 0; propertyIndex < foreignKey.Properties.Count; propertyIndex++)
@@ -683,19 +757,29 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
                             break;
                         }
 
-                        property = principalProperty;
-
-                        converter = (ValueConverter?)property[CoreAnnotationNames.ValueConverter];
-                        if (converter != null)
+                        annotation = principalProperty.FindAnnotation(CoreAnnotationNames.ValueConverter);
+                        if (annotation != null)
                         {
-                            return converter;
+                            return (ValueConverter?)annotation.Value;
                         }
+
+                        nextProperty = principalProperty;
                     }
                 }
             }
+
+            if (nextProperty == null)
+            {
+                break;
+            }
+
+            property = nextProperty;
         }
 
-        return null;
+        return i == ForeignKey.LongestFkChainAllowedLength
+            ? throw new InvalidOperationException(CoreStrings.RelationshipCycle(
+                DeclaringType.DisplayName(), Name, "ValueConverter"))
+            : null;
     }
 
     /// <summary>
@@ -718,7 +802,7 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
             && converter.ModelClrType.UnwrapNullableType() != ClrType.UnwrapNullableType()
                 ? CoreStrings.ConverterPropertyMismatch(
                     converter.ModelClrType.ShortDisplayName(),
-                    DeclaringEntityType.DisplayName(),
+                    DeclaringType.DisplayName(),
                     Name,
                     ClrType.ShortDisplayName())
                 : null;
@@ -730,7 +814,7 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     public virtual Type? SetProviderClrType(Type? providerClrType, ConfigurationSource configurationSource)
-        => (Type?)SetOrRemoveAnnotation(CoreAnnotationNames.ProviderClrType, providerClrType, configurationSource)?.Value;
+        => (Type?)SetAnnotation(CoreAnnotationNames.ProviderClrType, providerClrType, configurationSource)?.Value;
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -740,15 +824,17 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
     /// </summary>
     public virtual Type? GetProviderClrType()
     {
-        var type = (Type?)this[CoreAnnotationNames.ProviderClrType];
-        if (type != null)
+        var annotation = FindAnnotation(CoreAnnotationNames.ProviderClrType);
+        if (annotation != null)
         {
-            return type;
+            return (Type?)annotation.Value;
         }
 
         var property = this;
-        for (var i = 0; i < 10000; i++)
+        var i = 0;
+        for (; i < ForeignKey.LongestFkChainAllowedLength; i++)
         {
+            Property? nextProperty = null;
             foreach (var foreignKey in property.GetContainingForeignKeys())
             {
                 for (var propertyIndex = 0; propertyIndex < foreignKey.Properties.Count; propertyIndex++)
@@ -762,19 +848,29 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
                             break;
                         }
 
-                        property = principalProperty;
-
-                        type = (Type?)property[CoreAnnotationNames.ProviderClrType];
-                        if (type != null)
+                        annotation = principalProperty.FindAnnotation(CoreAnnotationNames.ProviderClrType);
+                        if (annotation != null)
                         {
-                            return type;
+                            return (Type?)annotation.Value;
                         }
+
+                        nextProperty = principalProperty;
                     }
                 }
             }
+
+            if (nextProperty == null)
+            {
+                break;
+            }
+
+            property = nextProperty;
         }
 
-        return null;
+        return i == ForeignKey.LongestFkChainAllowedLength
+            ? throw new InvalidOperationException(CoreStrings.RelationshipCycle(
+                DeclaringType.DisplayName(), Name, "ProviderClrType"))
+            : null;
     }
 
     /// <summary>
@@ -787,8 +883,8 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
         => FindAnnotation(CoreAnnotationNames.ProviderClrType)?.GetConfigurationSource();
 
     private Type GetEffectiveProviderClrType()
-        => TypeMapping?.Converter?.ProviderClrType
-            ?? ClrType.UnwrapNullableType();
+        => (TypeMapping?.Converter?.ProviderClrType
+            ?? ClrType).UnwrapNullableType();
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -802,7 +898,7 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
         get => IsReadOnly
             ? NonCapturingLazyInitializer.EnsureInitialized(
                 ref _typeMapping, (IProperty)this, static property =>
-                    property.DeclaringEntityType.Model.GetModelDependencies().TypeMappingSource.FindMapping(property)!)
+                    property.DeclaringType.Model.GetModelDependencies().TypeMappingSource.FindMapping(property)!)
             : _typeMapping;
 
         set => SetTypeMapping(value, ConfigurationSource.Explicit);
@@ -896,7 +992,7 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
     public virtual ValueComparer? GetValueComparer()
         => (GetValueComparer(null) ?? TypeMapping?.Comparer).ToNullableComparer(this);
 
-    private ValueComparer? GetValueComparer(HashSet<IProperty>? checkedProperties)
+    private ValueComparer? GetValueComparer(HashSet<Property>? checkedProperties)
     {
         var comparer = (ValueComparer?)this[CoreAnnotationNames.ValueComparer];
         if (comparer != null)
@@ -912,7 +1008,7 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
 
         if (checkedProperties == null)
         {
-            checkedProperties = new HashSet<IProperty>();
+            checkedProperties = new HashSet<Property>();
         }
         else if (checkedProperties.Contains(this))
         {
@@ -997,11 +1093,11 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
     /// </summary>
     public virtual ValueComparer? GetProviderValueComparer()
         => GetProviderValueComparer(null)
-            ?? (GetEffectiveProviderClrType() == ClrType
+            ?? (GetEffectiveProviderClrType() == ClrType.UnwrapNullableType()
                 ? GetKeyValueComparer()
                 : TypeMapping?.ProviderValueComparer);
 
-    private ValueComparer? GetProviderValueComparer(HashSet<IProperty>? checkedProperties)
+    private ValueComparer? GetProviderValueComparer(HashSet<Property>? checkedProperties)
     {
         var comparer = (ValueComparer?)this[CoreAnnotationNames.ProviderValueComparer];
         if (comparer != null)
@@ -1018,7 +1114,7 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
 
         if (checkedProperties == null)
         {
-            checkedProperties = new HashSet<IProperty>();
+            checkedProperties = new HashSet<Property>();
         }
         else if (checkedProperties.Contains(this))
         {
@@ -1049,10 +1145,78 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
             && comparer.Type.UnwrapNullableType() != ClrType.UnwrapNullableType()
                 ? CoreStrings.ComparerPropertyMismatch(
                     comparer.Type.ShortDisplayName(),
-                    DeclaringEntityType.DisplayName(),
+                    DeclaringType.DisplayName(),
                     Name,
                     ClrType.ShortDisplayName())
                 : null;
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    public virtual JsonValueReaderWriter? GetJsonValueReaderWriter()
+    {
+        return TryCreateReader((Type?)this[CoreAnnotationNames.JsonValueReaderWriterType])
+            ?? TypeMapping?.JsonValueReaderWriter;
+
+        static JsonValueReaderWriter? TryCreateReader(Type? readerWriterType)
+        {
+            if (readerWriterType != null)
+            {
+                var instanceProperty = readerWriterType.GetAnyProperty("Instance");
+                try
+                {
+                    return instanceProperty != null
+                        && instanceProperty.IsStatic()
+                        && instanceProperty.GetMethod?.IsPublic == true
+                        && readerWriterType.IsAssignableFrom(instanceProperty.PropertyType)
+                            ? (JsonValueReaderWriter?)instanceProperty.GetValue(null)
+                            : (JsonValueReaderWriter?)Activator.CreateInstance(readerWriterType);
+                }
+                catch (Exception e)
+                {
+                    throw new InvalidOperationException(
+                        CoreStrings.CannotCreateJsonValueReaderWriter(
+                            readerWriterType.ShortDisplayName()), e);
+                }
+            }
+
+            return null;
+        }
+    }
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    public virtual Type? SetJsonValueReaderWriterType(
+        Type? readerWriterType,
+        ConfigurationSource configurationSource)
+    {
+        if (readerWriterType != null)
+        {
+            var genericType = readerWriterType.GetGenericTypeImplementations(typeof(JsonValueReaderWriter<>)).FirstOrDefault();
+            if (genericType == null)
+            {
+                throw new InvalidOperationException(CoreStrings.BadJsonValueReaderWriterType(readerWriterType.ShortDisplayName()));
+            }
+        }
+
+        return (Type?)SetOrRemoveAnnotation(CoreAnnotationNames.JsonValueReaderWriterType, readerWriterType, configurationSource)?.Value;
+    }
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    public virtual ConfigurationSource? GetJsonValueReaderWriterTypeConfigurationSource()
+        => FindAnnotation(CoreAnnotationNames.JsonValueReaderWriterType)?.GetConfigurationSource();
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -1141,19 +1305,6 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
         => Indexes ?? Enumerable.Empty<Index>();
 
     /// <summary>
-    ///     Runs the conventions when an annotation was set or removed.
-    /// </summary>
-    /// <param name="name">The key of the set annotation.</param>
-    /// <param name="annotation">The annotation set.</param>
-    /// <param name="oldAnnotation">The old annotation.</param>
-    /// <returns>The annotation that was set.</returns>
-    protected override IConventionAnnotation? OnAnnotationSet(
-        string name,
-        IConventionAnnotation? annotation,
-        IConventionAnnotation? oldAnnotation)
-        => DeclaringType.Model.ConventionDispatcher.OnPropertyAnnotationChanged(Builder, name, annotation, oldAnnotation);
-
-    /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
     ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
@@ -1172,107 +1323,10 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    public static bool AreCompatible(IReadOnlyList<Property> properties, EntityType entityType)
-        => properties.All(
-            property =>
-                property.IsShadowProperty()
-                || (property.IsIndexerProperty()
-                    ? property.PropertyInfo == entityType.FindIndexerPropertyInfo()
-                    : ((property.PropertyInfo != null
-                            && entityType.GetRuntimeProperties().ContainsKey(property.Name))
-                        || (property.FieldInfo != null
-                            && entityType.GetRuntimeFields().ContainsKey(property.Name)))));
-
-    /// <summary>
-    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
-    ///     any release. You should only use it directly in your code with extreme caution and knowing that
-    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
-    /// </summary>
-    public override string ToString()
-        => ((IReadOnlyProperty)this).ToDebugString(MetadataDebugStringOptions.SingleLineDefault);
-
-    /// <summary>
-    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
-    ///     any release. You should only use it directly in your code with extreme caution and knowing that
-    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
-    /// </summary>
-    public virtual DebugView DebugView
-        => new(
-            () => ((IReadOnlyProperty)this).ToDebugString(),
-            () => ((IReadOnlyProperty)this).ToDebugString(MetadataDebugStringOptions.LongDefault));
-
-    /// <summary>
-    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
-    ///     any release. You should only use it directly in your code with extreme caution and knowing that
-    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
-    /// </summary>
     IConventionPropertyBuilder IConventionProperty.Builder
     {
         [DebuggerStepThrough]
         get => Builder;
-    }
-
-    /// <summary>
-    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
-    ///     any release. You should only use it directly in your code with extreme caution and knowing that
-    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
-    /// </summary>
-    IConventionAnnotatableBuilder IConventionAnnotatable.Builder
-    {
-        [DebuggerStepThrough]
-        get => Builder;
-    }
-
-    /// <summary>
-    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
-    ///     any release. You should only use it directly in your code with extreme caution and knowing that
-    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
-    /// </summary>
-    IReadOnlyEntityType IReadOnlyProperty.DeclaringEntityType
-    {
-        [DebuggerStepThrough]
-        get => DeclaringEntityType;
-    }
-
-    /// <summary>
-    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
-    ///     any release. You should only use it directly in your code with extreme caution and knowing that
-    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
-    /// </summary>
-    IMutableEntityType IMutableProperty.DeclaringEntityType
-    {
-        [DebuggerStepThrough]
-        get => DeclaringEntityType;
-    }
-
-    /// <summary>
-    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
-    ///     any release. You should only use it directly in your code with extreme caution and knowing that
-    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
-    /// </summary>
-    IConventionEntityType IConventionProperty.DeclaringEntityType
-    {
-        [DebuggerStepThrough]
-        get => DeclaringEntityType;
-    }
-
-    /// <summary>
-    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
-    ///     any release. You should only use it directly in your code with extreme caution and knowing that
-    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
-    /// </summary>
-    IEntityType IProperty.DeclaringEntityType
-    {
-        [DebuggerStepThrough]
-        get => DeclaringEntityType;
     }
 
     /// <summary>
@@ -1603,7 +1657,18 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     [DebuggerStepThrough]
-    void IMutableProperty.SetValueGeneratorFactory(Func<IProperty, IEntityType, ValueGenerator>? valueGeneratorFactory)
+    object? IConventionProperty.SetSentinel(object? sentinel, bool fromDataAnnotation)
+        => SetSentinel(
+            sentinel, fromDataAnnotation ? ConfigurationSource.DataAnnotation : ConfigurationSource.Convention);
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [DebuggerStepThrough]
+    void IMutableProperty.SetValueGeneratorFactory(Func<IProperty, ITypeBase, ValueGenerator>? valueGeneratorFactory)
         => SetValueGeneratorFactory(valueGeneratorFactory, ConfigurationSource.Explicit);
 
     /// <summary>
@@ -1613,8 +1678,8 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     [DebuggerStepThrough]
-    Func<IProperty, IEntityType, ValueGenerator>? IConventionProperty.SetValueGeneratorFactory(
-        Func<IProperty, IEntityType, ValueGenerator>? valueGeneratorFactory,
+    Func<IProperty, ITypeBase, ValueGenerator>? IConventionProperty.SetValueGeneratorFactory(
+        Func<IProperty, ITypeBase, ValueGenerator>? valueGeneratorFactory,
         bool fromDataAnnotation)
         => SetValueGeneratorFactory(
             valueGeneratorFactory,
@@ -1674,7 +1739,8 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     [DebuggerStepThrough]
-    void IMutableProperty.SetValueConverter([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type? converterType)
+    void IMutableProperty.SetValueConverter(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type? converterType)
         => SetValueConverter(converterType, ConfigurationSource.Explicit);
 
     /// <summary>
@@ -1742,7 +1808,8 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     [DebuggerStepThrough]
-    void IMutableProperty.SetValueComparer([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type? comparerType)
+    void IMutableProperty.SetValueComparer(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type? comparerType)
         => SetValueComparer(comparerType, ConfigurationSource.Explicit);
 
     /// <summary>
@@ -1836,4 +1903,38 @@ public class Property : PropertyBase, IMutableProperty, IConventionProperty, IPr
     [DebuggerStepThrough]
     ValueComparer IProperty.GetProviderValueComparer()
         => GetProviderValueComparer()!;
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [DebuggerStepThrough]
+    void IMutableProperty.SetJsonValueReaderWriterType(Type? readerWriterType)
+        => SetJsonValueReaderWriterType(readerWriterType, ConfigurationSource.Explicit);
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [DebuggerStepThrough]
+    Type? IConventionProperty.SetJsonValueReaderWriterType(
+        Type? readerWriterType,
+        bool fromDataAnnotation)
+        => SetJsonValueReaderWriterType(
+            readerWriterType,
+            fromDataAnnotation ? ConfigurationSource.DataAnnotation : ConfigurationSource.Convention);
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [DebuggerStepThrough]
+    JsonValueReaderWriter? IReadOnlyProperty.GetJsonValueReaderWriter()
+        => GetJsonValueReaderWriter();
 }

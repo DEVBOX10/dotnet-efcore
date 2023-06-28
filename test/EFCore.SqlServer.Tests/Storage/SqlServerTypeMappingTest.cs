@@ -5,6 +5,7 @@ using System.Data;
 using System.Globalization;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore.Design.Internal;
+using Microsoft.EntityFrameworkCore.SqlServer.Infrastructure.Internal;
 using Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal;
 
 // ReSharper disable InconsistentNaming
@@ -182,7 +183,8 @@ public class SqlServerTypeMappingTest : RelationalTypeMappingTest
     public static RelationalTypeMapping GetMapping(Type type)
         => new SqlServerTypeMappingSource(
                 TestServiceFactory.Instance.Create<TypeMappingSourceDependencies>(),
-                TestServiceFactory.Instance.Create<RelationalTypeMappingSourceDependencies>())
+                TestServiceFactory.Instance.Create<RelationalTypeMappingSourceDependencies>(),
+                new SqlServerSingletonOptions())
             .FindMapping(type);
 
     public override void ByteArray_literal_generated_correctly()
@@ -210,17 +212,41 @@ public class SqlServerTypeMappingTest : RelationalTypeMappingTest
     }
 
     [ConditionalFact]
+    public override void TimeOnly_literal_generated_correctly()
+    {
+        var typeMapping = GetMapping(typeof(TimeOnly));
+
+        Test_GenerateSqlLiteral_helper(typeMapping, new TimeOnly(13, 10, 15), "'13:10:15'");
+        Test_GenerateSqlLiteral_helper(typeMapping, new TimeOnly(13, 10, 15, 120), "'13:10:15.12'");
+        Test_GenerateSqlLiteral_helper(typeMapping, new TimeOnly(13, 10, 15, 120, 20), "'13:10:15.12002'");
+    }
+
+    [ConditionalFact]
+    public override void DateOnly_literal_generated_correctly()
+    {
+        Test_GenerateSqlLiteral_helper(
+            GetMapping(typeof(DateOnly)),
+            new DateOnly(2015, 3, 12),
+            "'2015-03-12'");
+    }
+
+    [ConditionalFact]
     public override void Timespan_literal_generated_correctly()
     {
         Test_GenerateSqlLiteral_helper(
             GetMapping(typeof(TimeSpan)),
-            new TimeSpan(7, 14, 30),
-            "'07:14:30'");
+            new TimeSpan(13, 10, 15),
+            "'13:10:15'");
 
         Test_GenerateSqlLiteral_helper(
             GetMapping(typeof(TimeSpan)),
-            new TimeSpan(0, 7, 14, 30, 120),
-            "'07:14:30.12'");
+            new TimeSpan(0, 13, 10, 15, 120),
+            "'13:10:15.12'");
+
+        Test_GenerateSqlLiteral_helper(
+            GetMapping(typeof(TimeSpan)),
+            new TimeSpan(0, 13, 10, 15, 120, 20),
+            "'13:10:15.12002'");
     }
 
     public override void DateTime_literal_generated_correctly()
@@ -392,7 +418,8 @@ public class SqlServerTypeMappingTest : RelationalTypeMappingTest
     public static SqlServerTypeMappingSource GetTypeMappingSource()
         => new(
             TestServiceFactory.Instance.Create<TypeMappingSourceDependencies>(),
-            TestServiceFactory.Instance.Create<RelationalTypeMappingSourceDependencies>());
+            TestServiceFactory.Instance.Create<RelationalTypeMappingSourceDependencies>(),
+            new SqlServerSingletonOptions());
 
     protected virtual void Test_GenerateCodeLiteral_helper(
         RelationalTypeMapping typeMapping,
@@ -401,7 +428,8 @@ public class SqlServerTypeMappingTest : RelationalTypeMappingTest
     {
         var typeMappingSource = new SqlServerTypeMappingSource(
             TestServiceFactory.Instance.Create<TypeMappingSourceDependencies>(),
-            TestServiceFactory.Instance.Create<RelationalTypeMappingSourceDependencies>());
+            TestServiceFactory.Instance.Create<RelationalTypeMappingSourceDependencies>(),
+            new SqlServerSingletonOptions());
 
         var csharpHelper = new CSharpHelper(typeMappingSource);
 

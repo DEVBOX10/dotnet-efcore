@@ -4,7 +4,6 @@
 using System.Collections;
 using System.ComponentModel;
 using Castle.DynamicProxy;
-using Microsoft.EntityFrameworkCore.Internal;
 using IInterceptor = Castle.DynamicProxy.IInterceptor;
 
 namespace Microsoft.EntityFrameworkCore.Proxies.Internal;
@@ -75,7 +74,7 @@ public class PropertyChangingInterceptor : PropertyChangeInterceptorBase, IInter
 
                 if (navigation != null)
                 {
-                    HandleChanging(invocation, navigation, LegacyReferenceEqualityComparer.Instance);
+                    HandleChanging(invocation, navigation, ReferenceEqualityComparer.Instance);
                 }
                 else
                 {

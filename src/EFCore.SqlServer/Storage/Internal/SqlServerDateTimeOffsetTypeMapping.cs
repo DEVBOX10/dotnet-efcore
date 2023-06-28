@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Data;
+using Microsoft.EntityFrameworkCore.Storage.Json;
 
 namespace Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal;
 
@@ -39,7 +40,7 @@ public class SqlServerDateTimeOffsetTypeMapping : DateTimeOffsetTypeMapping
         StoreTypePostfix storeTypePostfix = StoreTypePostfix.Precision)
         : base(
             new RelationalTypeMappingParameters(
-                new CoreTypeMappingParameters(typeof(DateTimeOffset)),
+                new CoreTypeMappingParameters(typeof(DateTimeOffset), jsonValueReaderWriter: JsonDateTimeOffsetReaderWriter.Instance),
                 storeType,
                 storeTypePostfix,
                 dbType))
@@ -78,8 +79,7 @@ public class SqlServerDateTimeOffsetTypeMapping : DateTimeOffsetTypeMapping
             if (Precision.HasValue)
             {
                 var precision = Precision.Value;
-                if (precision <= 7
-                    && precision >= 0)
+                if (precision is <= 7 and >= 0)
                 {
                     return _dateTimeOffsetFormats[precision];
                 }
@@ -108,7 +108,7 @@ public class SqlServerDateTimeOffsetTypeMapping : DateTimeOffsetTypeMapping
         if (Precision.HasValue)
         {
             // Workaround for inconsistent definition of precision/scale between EF and SQLClient for VarTime types
-            parameter.Scale = unchecked((byte)Precision.Value);
+            parameter.Scale = (byte)Precision.Value;
         }
     }
 }

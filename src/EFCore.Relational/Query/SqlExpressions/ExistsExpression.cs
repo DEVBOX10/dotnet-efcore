@@ -18,11 +18,9 @@ public class ExistsExpression : SqlExpression
     ///     Creates a new instance of the <see cref="ExistsExpression" /> class.
     /// </summary>
     /// <param name="subquery">A subquery to check existence of.</param>
-    /// <param name="negated">A value indicating if the existence check is negated.</param>
     /// <param name="typeMapping">The <see cref="RelationalTypeMapping" /> associated with the expression.</param>
     public ExistsExpression(
         SelectExpression subquery,
-        bool negated,
         RelationalTypeMapping? typeMapping)
         : base(typeof(bool), typeMapping)
     {
@@ -33,18 +31,12 @@ public class ExistsExpression : SqlExpression
         }
 #endif
         Subquery = subquery;
-        IsNegated = negated;
     }
 
     /// <summary>
     ///     The subquery to check existence of.
     /// </summary>
     public virtual SelectExpression Subquery { get; }
-
-    /// <summary>
-    ///     The value indicating if the existence check is negated.
-    /// </summary>
-    public virtual bool IsNegated { get; }
 
     /// <inheritdoc />
     protected override Expression VisitChildren(ExpressionVisitor visitor)
@@ -58,17 +50,12 @@ public class ExistsExpression : SqlExpression
     /// <returns>This expression if no children changed, or an expression with the updated children.</returns>
     public virtual ExistsExpression Update(SelectExpression subquery)
         => subquery != Subquery
-            ? new ExistsExpression(subquery, IsNegated, TypeMapping)
+            ? new ExistsExpression(subquery, TypeMapping)
             : this;
 
     /// <inheritdoc />
     protected override void Print(ExpressionPrinter expressionPrinter)
     {
-        if (IsNegated)
-        {
-            expressionPrinter.Append("NOT ");
-        }
-
         expressionPrinter.AppendLine("EXISTS (");
         using (expressionPrinter.Indent())
         {
@@ -87,10 +74,9 @@ public class ExistsExpression : SqlExpression
 
     private bool Equals(ExistsExpression existsExpression)
         => base.Equals(existsExpression)
-            && Subquery.Equals(existsExpression.Subquery)
-            && IsNegated == existsExpression.IsNegated;
+            && Subquery.Equals(existsExpression.Subquery);
 
     /// <inheritdoc />
     public override int GetHashCode()
-        => HashCode.Combine(base.GetHashCode(), Subquery, IsNegated);
+        => HashCode.Combine(base.GetHashCode(), Subquery);
 }

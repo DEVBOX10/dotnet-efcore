@@ -33,7 +33,8 @@ public class RuntimeNavigation : RuntimePropertyBase, INavigation
         FieldInfo? fieldInfo,
         RuntimeForeignKey foreignKey,
         PropertyAccessMode propertyAccessMode,
-        bool eagerLoaded)
+        bool eagerLoaded,
+        bool lazyLoadingEnabled)
         : base(name, propertyInfo, fieldInfo, propertyAccessMode)
     {
         ClrType = clrType;
@@ -41,6 +42,10 @@ public class RuntimeNavigation : RuntimePropertyBase, INavigation
         if (eagerLoaded)
         {
             SetAnnotation(CoreAnnotationNames.EagerLoaded, true);
+        }
+        if (!lazyLoadingEnabled)
+        {
+            SetAnnotation(CoreAnnotationNames.LazyLoadingEnabled, false);
         }
     }
 
@@ -58,11 +63,19 @@ public class RuntimeNavigation : RuntimePropertyBase, INavigation
     /// <summary>
     ///     Gets the entity type that this navigation property belongs to.
     /// </summary>
-    public override RuntimeEntityType DeclaringEntityType
+    public virtual RuntimeEntityType DeclaringEntityType
     {
         [DebuggerStepThrough]
         get => ((IReadOnlyNavigation)this).IsOnDependent ? ForeignKey.DeclaringEntityType : ForeignKey.PrincipalEntityType;
     }
+
+    /// <inheritdoc />
+    public override RuntimeTypeBase DeclaringType
+        => DeclaringEntityType;
+
+    /// <inheritdoc />
+    public override object? Sentinel
+        => null;
 
     /// <summary>
     ///     Returns a string that represents the current object.

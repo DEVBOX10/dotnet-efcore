@@ -10,6 +10,42 @@ public class GraphUpdatesSqlServerOwnedTest : GraphUpdatesSqlServerTestBase<Grap
     {
     }
 
+    // No owned types
+    public override Task Update_root_by_collection_replacement_of_inserted_first_level(bool async)
+        => Task.CompletedTask;
+
+    // No owned types
+    public override Task Update_root_by_collection_replacement_of_deleted_first_level(bool async)
+        => Task.CompletedTask;
+
+    // No owned types
+    public override Task Update_root_by_collection_replacement_of_inserted_second_level(bool async)
+        => Task.CompletedTask;
+
+    // No owned types
+    public override Task Update_root_by_collection_replacement_of_deleted_second_level(bool async)
+        => Task.CompletedTask;
+
+    // No owned types
+    public override Task Update_root_by_collection_replacement_of_inserted_first_level_level(bool async)
+        => Task.CompletedTask;
+
+    // No owned types
+    public override Task Update_root_by_collection_replacement_of_deleted_third_level(bool async)
+        => Task.CompletedTask;
+
+    // No owned types
+    public override Task Sever_relationship_that_will_later_be_deleted(bool async)
+        => Task.CompletedTask;
+
+    // No owned types
+    public override Task Alternate_key_over_foreign_key_doesnt_bypass_delete_behavior(bool async)
+        => Task.CompletedTask;
+
+    // No owned types
+    public override Task Shadow_skip_navigation_in_base_class_is_handled(bool async)
+        => Task.CompletedTask;
+
     // Owned dependents are always loaded
     public override void Required_one_to_one_are_cascade_deleted_in_store(
         CascadeTiming? cascadeDeleteTiming,
@@ -520,6 +556,20 @@ public class GraphUpdatesSqlServerOwnedTest : GraphUpdatesSqlServerTestBase<Grap
                 b =>
                 {
                     b.Property(e => e.IdUserState).HasDefaultValue(1);
+                    b.HasOne(e => e.UserState).WithMany(e => e.Users).HasForeignKey(e => e.IdUserState);
+                });
+
+            modelBuilder.Entity<AccessStateWithSentinel>(
+                b =>
+                {
+                    b.Property(e => e.AccessStateWithSentinelId).ValueGeneratedNever();
+                    b.HasData(new AccessStateWithSentinel { AccessStateWithSentinelId = 1 });
+                });
+
+            modelBuilder.Entity<CruiserWithSentinel>(
+                b =>
+                {
+                    b.Property(e => e.IdUserState).HasDefaultValue(1).HasSentinel(667);
                     b.HasOne(e => e.UserState).WithMany(e => e.Users).HasForeignKey(e => e.IdUserState);
                 });
         }

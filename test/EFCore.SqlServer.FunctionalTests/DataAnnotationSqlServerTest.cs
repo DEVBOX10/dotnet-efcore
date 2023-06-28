@@ -9,12 +9,11 @@ namespace Microsoft.EntityFrameworkCore;
 
 public class DataAnnotationSqlServerTest : DataAnnotationRelationalTestBase<DataAnnotationSqlServerTest.DataAnnotationSqlServerFixture>
 {
-    // ReSharper disable once UnusedParameter.Local
     public DataAnnotationSqlServerTest(DataAnnotationSqlServerFixture fixture, ITestOutputHelper testOutputHelper)
         : base(fixture)
     {
         fixture.TestSqlLoggerFactory.Clear();
-        //fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
+        fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
     }
 
     protected override void UseTransaction(DatabaseFacade facade, IDbContextTransaction transaction)
@@ -143,7 +142,7 @@ public class DataAnnotationSqlServerTest : DataAnnotationRelationalTestBase<Data
     {
         var model = base.Timestamp_takes_precedence_over_MaxLength();
 
-        var property = GetProperty<TimestampAndMaxlen>(model, "MaxTimestamp");
+        var property = GetProperty<TimestampAndMaxlength>(model, "MaxTimestamp");
 
         var storeType = property.GetRelationalTypeMapping().StoreType;
 

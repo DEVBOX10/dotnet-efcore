@@ -55,7 +55,6 @@ public class QueryCompilationContext
     private readonly IQueryableMethodTranslatingExpressionVisitorFactory _queryableMethodTranslatingExpressionVisitorFactory;
     private readonly IQueryTranslationPostprocessorFactory _queryTranslationPostprocessorFactory;
     private readonly IShapedQueryCompilingExpressionVisitorFactory _shapedQueryCompilingExpressionVisitorFactory;
-    private readonly IQueryExpressionInterceptor? _queryExpressionInterceptor;
 
     private readonly ExpressionPrinter _expressionPrinter;
 
@@ -85,7 +84,6 @@ public class QueryCompilationContext
         _shapedQueryCompilingExpressionVisitorFactory = dependencies.ShapedQueryCompilingExpressionVisitorFactory;
 
         _expressionPrinter = new ExpressionPrinter();
-        _queryExpressionInterceptor = dependencies.Interceptors.Aggregate<IQueryExpressionInterceptor>();
     }
 
     /// <summary>
@@ -163,7 +161,7 @@ public class QueryCompilationContext
 
         query = _queryTranslationPreprocessorFactory.Create(this).Process(query);
         // Convert EntityQueryable to ShapedQueryExpression
-        query = _queryableMethodTranslatingExpressionVisitorFactory.Create(this).Visit(query);
+        query = _queryableMethodTranslatingExpressionVisitorFactory.Create(this).Translate(query);
         query = _queryTranslationPostprocessorFactory.Create(this).Process(query);
 
         // Inject actual entity materializer

@@ -9,7 +9,6 @@ namespace Microsoft.EntityFrameworkCore;
 
 public class UpdatesSqlServerTPCTest : UpdatesSqlServerTestBase<UpdatesSqlServerTPCTest.UpdatesSqlServerTPCFixture>
 {
-    // ReSharper disable once UnusedParameter.Local
     public UpdatesSqlServerTPCTest(UpdatesSqlServerTPCFixture fixture, ITestOutputHelper testOutputHelper)
         : base(fixture, testOutputHelper)
     {
@@ -21,7 +20,7 @@ public class UpdatesSqlServerTPCTest : UpdatesSqlServerTestBase<UpdatesSqlServer
 
         AssertContainsSql(
             @"@p0=NULL (Size = 8000) (DbType = Binary)
-@p1='ProductWithBytes' (Nullable = false) (Size = 4000)
+@p1='ProductWithBytes' (Nullable = false) (Size = 21)
 @p2=NULL (Size = 4000)
 
 SET IMPLICIT_TRANSACTIONS OFF;
@@ -110,8 +109,9 @@ WHERE [p].[Discriminator] = N'Product' AND [p].[DependentId] = @__category_Princ
         {
             base.OnModelCreating(modelBuilder, context);
 
-            modelBuilder.Entity<Category>()
-                .UseTpcMappingStrategy();
+            modelBuilder.Entity<Category>().UseTpcMappingStrategy();
+            // modelBuilder.Entity<GiftObscurer>().UseTpcMappingStrategy(); Issue #29874
+            modelBuilder.Entity<LiftObscurer>().UseTpcMappingStrategy();
         }
     }
 }

@@ -28,6 +28,7 @@ public class RuntimeServiceProperty : RuntimePropertyBase, IServiceProperty
         string name,
         PropertyInfo? propertyInfo,
         FieldInfo? fieldInfo,
+        Type serviceType,
         RuntimeEntityType declaringEntityType,
         PropertyAccessMode propertyAccessMode)
         : base(name, propertyInfo, fieldInfo, propertyAccessMode)
@@ -35,13 +36,17 @@ public class RuntimeServiceProperty : RuntimePropertyBase, IServiceProperty
         Check.NotNull(declaringEntityType, nameof(declaringEntityType));
 
         DeclaringEntityType = declaringEntityType;
-        ClrType = (propertyInfo?.PropertyType ?? fieldInfo?.FieldType)!;
+        ClrType = serviceType;
     }
 
     /// <summary>
     ///     Gets the type that this property-like object belongs to.
     /// </summary>
-    public override RuntimeEntityType DeclaringEntityType { get; }
+    public virtual RuntimeEntityType DeclaringEntityType { get; }
+
+    /// <inheritdoc />
+    public override RuntimeTypeBase DeclaringType
+        => DeclaringEntityType;
 
     /// <summary>
     ///     Gets the type of value that this property-like object holds.
@@ -66,6 +71,10 @@ public class RuntimeServiceProperty : RuntimePropertyBase, IServiceProperty
         [DebuggerStepThrough]
         set => _parameterBinding = value;
     }
+
+    /// <inheritdoc />
+    public override object? Sentinel
+        => null;
 
     /// <summary>
     ///     Returns a string that represents the current object.

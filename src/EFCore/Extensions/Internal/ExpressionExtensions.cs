@@ -20,37 +20,55 @@ public static class ExpressionExtensions
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    public static Expression MakeHasDefaultValue(
+    public static Expression MakeHasSentinelValue(
         this Expression currentValueExpression,
         IReadOnlyPropertyBase? propertyBase)
     {
-        if (!currentValueExpression.Type.IsValueType)
-        {
-            return Expression.ReferenceEqual(
-                currentValueExpression,
-                Expression.Constant(null, currentValueExpression.Type));
-        }
+        var sentinel = propertyBase?.Sentinel;
 
-        if (currentValueExpression.Type.IsGenericType
-            && currentValueExpression.Type.GetGenericTypeDefinition() == typeof(Nullable<>))
+        var isReferenceType = !currentValueExpression.Type.IsValueType;
+        var isNullableValueType = currentValueExpression.Type.IsGenericType
+            && currentValueExpression.Type.GetGenericTypeDefinition() == typeof(Nullable<>);
+
+        if (sentinel == null)
         {
-            return Expression.Not(
-                Expression.Call(
+            return isReferenceType
+                ? Expression.ReferenceEqual(
                     currentValueExpression,
-                    Check.NotNull(
-                        currentValueExpression.Type.GetMethod("get_HasValue"), $"get_HasValue on {currentValueExpression.Type.Name}")));
+                    Expression.Constant(null, currentValueExpression.Type))
+                : isNullableValueType
+                    ? Expression.Not(
+                        Expression.Call(
+                            currentValueExpression,
+                            currentValueExpression.Type.GetMethod("get_HasValue")!))
+                    : Expression.Constant(false);
         }
 
-        var property = propertyBase as IReadOnlyProperty;
-        var comparer = property?.GetValueComparer()
+        var comparer = (propertyBase as IProperty)?.GetValueComparer()
             ?? ValueComparer.CreateDefault(
                 propertyBase?.ClrType ?? currentValueExpression.Type, favorStructuralComparisons: false);
 
-        return comparer.ExtractEqualsBody(
+        var equalsExpression = comparer.ExtractEqualsBody(
             comparer.Type != currentValueExpression.Type
                 ? Expression.Convert(currentValueExpression, comparer.Type)
                 : currentValueExpression,
-            Expression.Default(comparer.Type));
+            Expression.Constant(sentinel, comparer.Type));
+
+        if (isReferenceType || isNullableValueType)
+        {
+            return Expression.AndAlso(
+                isReferenceType
+                    ? Expression.Not(
+                        Expression.ReferenceEqual(
+                            currentValueExpression,
+                            Expression.Constant(null, currentValueExpression.Type)))
+                    : Expression.Call(
+                        currentValueExpression,
+                        currentValueExpression.Type.GetMethod("get_HasValue")!),
+                equalsExpression);
+        }
+
+        return equalsExpression;
     }
 
     /// <summary>
@@ -153,8 +171,7 @@ public static class ExpressionExtensions
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     public static bool IsLogicalOperation(this Expression expression)
-        => expression.NodeType == ExpressionType.AndAlso
-            || expression.NodeType == ExpressionType.OrElse;
+        => expression.NodeType is ExpressionType.AndAlso or ExpressionType.OrElse;
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -182,16 +199,9 @@ public static class ExpressionExtensions
 
     [return: NotNullIfNotNull("expression")]
     private static Expression? RemoveConvert(Expression? expression)
-    {
-        if (expression is UnaryExpression unaryExpression
-            && (expression.NodeType == ExpressionType.Convert
-                || expression.NodeType == ExpressionType.ConvertChecked))
-        {
-            return RemoveConvert(unaryExpression.Operand);
-        }
-
-        return expression;
-    }
+        => expression is UnaryExpression { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked } unaryExpression
+            ? RemoveConvert(unaryExpression.Operand)
+            : expression;
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to

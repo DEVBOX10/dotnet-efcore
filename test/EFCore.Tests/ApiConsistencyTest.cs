@@ -4,6 +4,7 @@
 using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
 using Microsoft.EntityFrameworkCore.Diagnostics.Internal;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using Microsoft.EntityFrameworkCore.Storage.Json;
 
 // ReSharper disable InconsistentNaming
 namespace Microsoft.EntityFrameworkCore;
@@ -43,6 +44,8 @@ public class ApiConsistencyTest : ApiConsistencyTestBase<ApiConsistencyTest.ApiC
             typeof(DiscriminatorBuilder<>),
             typeof(EntityTypeBuilder),
             typeof(EntityTypeBuilder<>),
+            typeof(ComplexPropertyBuilder),
+            typeof(ComplexPropertyBuilder<>),
             typeof(IndexBuilder),
             typeof(IndexBuilder<>),
             typeof(TriggerBuilder),
@@ -59,6 +62,8 @@ public class ApiConsistencyTest : ApiConsistencyTestBase<ApiConsistencyTest.ApiC
             typeof(OwnershipBuilder<,>),
             typeof(PropertyBuilder),
             typeof(PropertyBuilder<>),
+            typeof(ComplexTypePropertyBuilder),
+            typeof(ComplexTypePropertyBuilder<>),
             typeof(ReferenceCollectionBuilder),
             typeof(ReferenceCollectionBuilder<,>),
             typeof(ReferenceNavigationBuilder),
@@ -76,13 +81,16 @@ public class ApiConsistencyTest : ApiConsistencyTestBase<ApiConsistencyTest.ApiC
             typeof(CompiledQueryCacheKeyGenerator).GetMethod("GenerateCacheKeyCore", AnyInstance),
             typeof(InternalEntityEntry).GetMethod("get_Item"),
             typeof(InternalEntityEntry).GetMethod("set_Item"),
-            typeof(InternalEntityEntry).GetMethod(nameof(InternalEntityEntry.HasDefaultValue)),
+            typeof(InternalEntityEntry).GetMethod(nameof(InternalEntityEntry.HasExplicitValue)),
             typeof(DiagnosticsLogger<>).GetMethod("DispatchEventData", AnyInstance),
             typeof(DiagnosticsLogger<>).GetMethod("ShouldLog", AnyInstance),
             typeof(DiagnosticsLogger<>).GetMethod("NeedsEventData", AnyInstance),
             typeof(ChangeDetector).GetMethod("DetectValueChange"),
             typeof(ChangeDetector).GetMethod("DetectNavigationChange"),
-            typeof(StateManager).GetMethod("get_ChangeDetector")
+            typeof(StateManager).GetMethod("get_ChangeDetector"),
+            typeof(JsonValueReaderWriter<>).GetMethod(nameof(JsonValueReaderWriter.FromJson)),
+            typeof(JsonValueReaderWriter<>).GetMethod(nameof(JsonValueReaderWriter.ToJson)),
+            typeof(JsonValueReaderWriter<>).GetMethod("get_ValueType")
         };
 
         public override HashSet<MethodInfo> NotAnnotatedMethods { get; } = new()
@@ -92,8 +100,26 @@ public class ApiConsistencyTest : ApiConsistencyTestBase<ApiConsistencyTest.ApiC
             typeof(IEntityTypeConfiguration<>).GetMethod(nameof(IEntityTypeConfiguration<Type>.Configure))
         };
 
+        public override Dictionary<MethodInfo, string> MetadataMethodNameTransformers { get; } = new()
+        {
+            {
+                typeof(IConventionNavigationBuilder).GetMethod(
+                    nameof(IConventionNavigationBuilder.EnableLazyLoading), new[] { typeof(bool?), typeof(bool) })!,
+                "LazyLoadingEnabled"
+            },
+            {
+                typeof(IConventionSkipNavigationBuilder).GetMethod(
+                    nameof(IConventionSkipNavigationBuilder.EnableLazyLoading), new[] { typeof(bool?), typeof(bool) })!,
+                "LazyLoadingEnabled"
+            }
+        };
+
         public override HashSet<MethodInfo> UnmatchedMetadataMethods { get; } = new()
         {
+            typeof(ComplexPropertyBuilder).GetMethod(
+                nameof(ComplexPropertyBuilder.ComplexProperty), 0, new[] { typeof(string) }),
+            typeof(ComplexPropertyBuilder).GetMethod(
+                nameof(ComplexPropertyBuilder.ComplexProperty), 0, new[] { typeof(Type), typeof(string) }),
             typeof(OwnedNavigationBuilder).GetMethod(
                 nameof(OwnedNavigationBuilder.OwnsOne), 0, new[] { typeof(string), typeof(string) }),
             typeof(OwnedNavigationBuilder).GetMethod(
@@ -137,10 +163,8 @@ public class ApiConsistencyTest : ApiConsistencyTestBase<ApiConsistencyTest.ApiC
             typeof(IReadOnlyNavigationBase).GetMethod("get_Inverse"),
             typeof(IConventionAnnotatableBuilder).GetMethod(nameof(IConventionAnnotatableBuilder.HasNonNullAnnotation)),
             typeof(IConventionEntityTypeBuilder).GetMethod(nameof(IConventionEntityTypeBuilder.RemoveUnusedImplicitProperties)),
-            typeof(IConventionEntityTypeBuilder).GetMethod(nameof(IConventionEntityTypeBuilder.Ignore)),
+            typeof(IConventionTypeBaseBuilder).GetMethod(nameof(IConventionTypeBaseBuilder.RemoveUnusedImplicitProperties)),
             typeof(IConventionEntityTypeBuilder).GetMethod(nameof(IConventionEntityTypeBuilder.GetTargetEntityTypeBuilder)),
-            typeof(IConventionModelBuilder).GetMethod(nameof(IConventionModelBuilder.Ignore), new[] { typeof(Type), typeof(bool) }),
-            typeof(IConventionModelBuilder).GetMethod(nameof(IConventionModelBuilder.Ignore), new[] { typeof(string), typeof(bool) }),
             typeof(IConventionPropertyBuilder).GetMethod(
                 nameof(IConventionPropertyBuilder.HasField), new[] { typeof(string), typeof(bool) }),
             typeof(IConventionPropertyBuilder).GetMethod(

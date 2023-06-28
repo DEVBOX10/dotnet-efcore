@@ -13,7 +13,7 @@ public class NorthwindBulkUpdatesSqliteTest : NorthwindBulkUpdatesTestBase<North
         : base(fixture)
     {
         ClearLog();
-        // Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
+        Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
     }
 
     [ConditionalFact]
@@ -216,7 +216,7 @@ WHERE "o"."OrderID" < (
     SELECT (
         SELECT "o1"."OrderID"
         FROM "Orders" AS "o1"
-        WHERE "o0"."CustomerID" = "o1"."CustomerID" OR (("o0"."CustomerID" IS NULL) AND ("o1"."CustomerID" IS NULL))
+        WHERE "o0"."CustomerID" = "o1"."CustomerID" OR ("o0"."CustomerID" IS NULL AND "o1"."CustomerID" IS NULL)
         LIMIT 1)
     FROM "Orders" AS "o0"
     GROUP BY "o0"."CustomerID"
@@ -243,7 +243,7 @@ WHERE EXISTS (
         HAVING COUNT(*) > 9 AND (
             SELECT "o3"."OrderID"
             FROM "Orders" AS "o3"
-            WHERE "o2"."CustomerID" = "o3"."CustomerID" OR (("o2"."CustomerID" IS NULL) AND ("o3"."CustomerID" IS NULL))
+            WHERE "o2"."CustomerID" = "o3"."CustomerID" OR ("o2"."CustomerID" IS NULL AND "o3"."CustomerID" IS NULL)
             LIMIT 1) = "o1"."OrderID") AND "o0"."OrderID" = "o"."OrderID" AND "o0"."ProductID" = "o"."ProductID")
 """);
     }
@@ -361,7 +361,7 @@ WHERE EXISTS (
     FROM "Order Details" AS "o0"
     INNER JOIN "Orders" AS "o1" ON "o0"."OrderID" = "o1"."OrderID"
     LEFT JOIN "Customers" AS "c" ON "o1"."CustomerID" = "c"."CustomerID"
-    WHERE ("c"."CustomerID" IS NOT NULL) AND ("c"."CustomerID" LIKE 'F%') AND "o0"."OrderID" = "o"."OrderID" AND "o0"."ProductID" = "o"."ProductID")
+    WHERE "c"."CustomerID" IS NOT NULL AND "c"."CustomerID" LIKE 'F%' AND "o0"."OrderID" = "o"."OrderID" AND "o0"."ProductID" = "o"."ProductID")
 """);
     }
 
@@ -504,7 +504,7 @@ WHERE EXISTS (
     FROM "Order Details" AS "o0"
     INNER JOIN "Orders" AS "o1" ON "o0"."OrderID" = "o1"."OrderID"
     LEFT JOIN "Customers" AS "c" ON "o1"."CustomerID" = "c"."CustomerID"
-    WHERE ("c"."City" IS NOT NULL) AND ("c"."City" LIKE 'Se%') AND "o0"."OrderID" = "o"."OrderID" AND "o0"."ProductID" = "o"."ProductID")
+    WHERE "c"."City" IS NOT NULL AND "c"."City" LIKE 'Se%' AND "o0"."OrderID" = "o"."OrderID" AND "o0"."ProductID" = "o"."ProductID")
 """);
     }
 
@@ -899,7 +899,7 @@ WHERE "c"."CustomerID" = (
     SELECT (
         SELECT "o0"."CustomerID"
         FROM "Orders" AS "o0"
-        WHERE "o"."CustomerID" = "o0"."CustomerID" OR (("o"."CustomerID" IS NULL) AND ("o0"."CustomerID" IS NULL))
+        WHERE "o"."CustomerID" = "o0"."CustomerID" OR ("o"."CustomerID" IS NULL AND "o0"."CustomerID" IS NULL)
         LIMIT 1)
     FROM "Orders" AS "o"
     GROUP BY "o"."CustomerID"
@@ -931,7 +931,7 @@ WHERE EXISTS (
         SELECT "c0"."CustomerID"
         FROM "Orders" AS "o0"
         LEFT JOIN "Customers" AS "c0" ON "o0"."CustomerID" = "c0"."CustomerID"
-        WHERE "o"."CustomerID" = "o0"."CustomerID" OR (("o"."CustomerID" IS NULL) AND ("o0"."CustomerID" IS NULL))
+        WHERE "o"."CustomerID" = "o0"."CustomerID" OR ("o"."CustomerID" IS NULL AND "o0"."CustomerID" IS NULL)
         LIMIT 1) = "c"."CustomerID")
 """);
     }
@@ -989,7 +989,7 @@ WHERE "o"."OrderID" = "o0"."OrderID" AND "c"."City" = 'Seattle'
 UPDATE "Orders" AS "o"
 SET "OrderDate" = NULL
 FROM "Customers" AS "c"
-WHERE "c"."CustomerID" = "o"."CustomerID" AND ("c"."CustomerID" LIKE 'F%')
+WHERE "c"."CustomerID" = "o"."CustomerID" AND "c"."CustomerID" LIKE 'F%'
 """);
     }
 
@@ -1202,7 +1202,7 @@ FROM (
     FROM "Orders" AS "o"
     WHERE "o"."OrderID" < 10300
 ) AS "t"
-WHERE "c"."CustomerID" = "t"."CustomerID" AND ("c"."CustomerID" LIKE 'F%')
+WHERE "c"."CustomerID" = "t"."CustomerID" AND "c"."CustomerID" LIKE 'F%'
 """);
     }
 
@@ -1365,6 +1365,17 @@ SET "City" = CAST(CAST(strftime('%Y', (
     ORDER BY "o"."OrderDate" DESC
     LIMIT 1)) AS INTEGER) AS TEXT)
 WHERE "c"."CustomerID" LIKE 'F%'
+""");
+    }
+
+    [ConditionalTheory(Skip = "Issue#28886")]
+    public override async Task Update_with_two_inner_joins(bool async)
+    {
+        await base.Update_with_two_inner_joins(async);
+
+        AssertExecuteUpdateSql(
+"""
+
 """);
     }
 

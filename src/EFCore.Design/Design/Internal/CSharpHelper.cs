@@ -918,14 +918,16 @@ public class CSharpHelper : ICSharpHelper
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    public virtual string Literal(Enum value)
+    public virtual string Literal(Enum value, bool fullName = false)
     {
         var type = value.GetType();
         var name = Enum.GetName(type, value);
 
         return name == null
-            ? GetCompositeEnumValue(type, value)
-            : GetSimpleEnumValue(type, name);
+            ? type.IsDefined(typeof(FlagsAttribute), false)
+                ? GetCompositeEnumValue(type, value, fullName)
+                : $"({Reference(type)}){UnknownLiteral(Convert.ChangeType(value, Enum.GetUnderlyingType(type)))}"
+            : GetSimpleEnumValue(type, name, fullName);
     }
 
     /// <summary>
@@ -934,8 +936,8 @@ public class CSharpHelper : ICSharpHelper
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    protected virtual string GetSimpleEnumValue(Type type, string name)
-        => Reference(type) + "." + name;
+    protected virtual string GetSimpleEnumValue(Type type, string name, bool fullName)
+        => Reference(type, fullName) + "." + name;
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -943,7 +945,7 @@ public class CSharpHelper : ICSharpHelper
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    protected virtual string GetCompositeEnumValue(Type type, Enum flags)
+    protected virtual string GetCompositeEnumValue(Type type, Enum flags, bool fullName)
     {
         var allValues = new HashSet<Enum>(GetFlags(flags));
         foreach (var currentValue in allValues.ToList())
@@ -959,8 +961,8 @@ public class CSharpHelper : ICSharpHelper
             (string?)null,
             (previous, current) =>
                 previous == null
-                    ? GetSimpleEnumValue(type, Enum.GetName(type, current)!)
-                    : previous + " | " + GetSimpleEnumValue(type, Enum.GetName(type, current)!))!;
+                    ? GetSimpleEnumValue(type, Enum.GetName(type, current)!, fullName)
+                    : previous + " | " + GetSimpleEnumValue(type, Enum.GetName(type, current)!, fullName))!;
     }
 
     internal static IReadOnlyCollection<Enum> GetFlags(Enum flags)
@@ -1026,7 +1028,7 @@ public class CSharpHelper : ICSharpHelper
         }
 
         var valueType = value.GetType();
-        if (valueType.IsGenericType && !valueType.IsGenericTypeDefinition)
+        if (valueType is { IsGenericType: true, IsGenericTypeDefinition: false })
         {
             var genericArguments = valueType.GetGenericArguments();
             switch (value)
@@ -1077,12 +1079,18 @@ public class CSharpHelper : ICSharpHelper
 
                 return true;
             case ExpressionType.Convert:
-                builder
-                    .Append('(')
-                    .Append(Reference(expression.Type, fullName: true))
-                    .Append(')');
+            {
+                var unaryExpression = (UnaryExpression)expression;
+                if (unaryExpression.Method?.Name != "op_Implicit")
+                {
+                    builder
+                        .Append('(')
+                        .Append(Reference(expression.Type, fullName: true))
+                        .Append(')');
+                }
 
-                return HandleExpression(((UnaryExpression)expression).Operand, builder);
+                return HandleExpression(unaryExpression.Operand, builder);
+            }
             case ExpressionType.New:
                 builder
                     .Append("new ")
@@ -1493,9 +1501,7 @@ public class CSharpHelper : ICSharpHelper
     {
         if (ch < 'a')
         {
-            return ch >= 'A'
-                && (ch <= 'Z'
-                    || ch == '_');
+            return ch is >= 'A' and (<= 'Z' or '_');
         }
 
         if (ch <= 'z')
@@ -1510,10 +1516,10 @@ public class CSharpHelper : ICSharpHelper
     {
         if (ch < 'a')
         {
-            return ch < 'A'
-                ? ch >= '0'
-                && ch <= '9'
-                : ch <= 'Z';
+            return (ch < 'A'
+                ? ch is >= '0' and <= '9'
+                : ch <= 'Z')
+                || ch == '_';
         }
 
         if (ch <= 'z')

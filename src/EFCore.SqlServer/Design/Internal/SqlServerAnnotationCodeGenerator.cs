@@ -167,7 +167,7 @@ public class SqlServerAnnotationCodeGenerator : AnnotationCodeGenerator
     {
         var fragments = new List<MethodCallCodeFragment>(base.GenerateFluentApiCalls(property, annotations));
 
-        if (GenerateValueGenerationStrategy(annotations, property.DeclaringEntityType.Model, onModel: false) is MethodCallCodeFragment
+        if (GenerateValueGenerationStrategy(annotations, property.DeclaringType.Model, onModel: false) is MethodCallCodeFragment
             valueGenerationStrategy)
         {
             fragments.Add(valueGenerationStrategy);
@@ -183,12 +183,6 @@ public class SqlServerAnnotationCodeGenerator : AnnotationCodeGenerator
 
         return fragments;
     }
-
-    /// <inheritdoc />
-    public override IReadOnlyList<MethodCallCodeFragment> GenerateFluentApiCalls(
-        IRelationalPropertyOverrides overrides,
-        IDictionary<string, IAnnotation> annotations)
-        => base.GenerateFluentApiCalls(overrides, annotations);
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -301,6 +295,22 @@ public class SqlServerAnnotationCodeGenerator : AnnotationCodeGenerator
 
         return annotation.Name == SqlServerAnnotationNames.ValueGenerationStrategy
             && (SqlServerValueGenerationStrategy)annotation.Value! == SqlServerValueGenerationStrategy.IdentityColumn;
+    }
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    protected override bool IsHandledByConvention(IProperty property, IAnnotation annotation)
+    {
+        if (annotation.Name == SqlServerAnnotationNames.ValueGenerationStrategy)
+        {
+            return (SqlServerValueGenerationStrategy)annotation.Value! == property.DeclaringType.Model.GetValueGenerationStrategy();
+        }
+
+        return base.IsHandledByConvention(property, annotation);
     }
 
     /// <summary>

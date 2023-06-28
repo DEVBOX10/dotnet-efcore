@@ -4,7 +4,6 @@
 using System.Collections;
 using System.Globalization;
 using System.Text;
-using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore.SqlServer.Internal;
 using Microsoft.EntityFrameworkCore.SqlServer.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.SqlServer.Update.Internal;
@@ -313,7 +312,7 @@ public class SqlServerMigrationsSqlGenerator : MigrationsSqlGenerator
                     model);
             narrowed = columnType != oldType
                 || operation.Collation != operation.OldColumn.Collation
-                || !operation.IsNullable && operation.OldColumn.IsNullable;
+                || operation is { IsNullable: false, OldColumn.IsNullable: true };
         }
 
         if (narrowed)
@@ -348,8 +347,7 @@ public class SqlServerMigrationsSqlGenerator : MigrationsSqlGenerator
 
         // The column is being made non-nullable. Generate an update statement before doing that, to convert any existing null values to
         // the default value (otherwise SQL Server fails).
-        if (!operation.IsNullable
-            && operation.OldColumn.IsNullable
+        if (operation is { IsNullable: false, OldColumn.IsNullable: true }
             && (operation.DefaultValueSql is not null || operation.DefaultValue is not null))
         {
             string defaultValueSql;
@@ -369,7 +367,7 @@ public class SqlServerMigrationsSqlGenerator : MigrationsSqlGenerator
                 defaultValueSql = typeMapping.GenerateSqlLiteral(operation.DefaultValue);
             }
 
-            builder
+            var updateBuilder = new StringBuilder()
                 .Append("UPDATE ")
                 .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(operation.Table, operation.Schema))
                 .Append(" SET ")
@@ -378,8 +376,21 @@ public class SqlServerMigrationsSqlGenerator : MigrationsSqlGenerator
                 .Append(defaultValueSql)
                 .Append(" WHERE ")
                 .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(operation.Name))
-                .Append(" IS NULL")
-                .AppendLine(Dependencies.SqlGenerationHelper.StatementTerminator);
+                .Append(" IS NULL");
+
+            if (Options.HasFlag(MigrationsSqlGenerationOptions.Idempotent))
+            {
+                builder
+                    .Append("EXEC(N'")
+                    .Append(updateBuilder.ToString().TrimEnd('\n', '\r', ';').Replace("'", "''"))
+                    .Append("')");
+            }
+            else
+            {
+                builder.Append(updateBuilder.ToString());
+            }
+
+            builder.AppendLine(Dependencies.SqlGenerationHelper.StatementTerminator);
         }
 
         if (alterStatementNeeded)
@@ -541,8 +552,16 @@ public class SqlServerMigrationsSqlGenerator : MigrationsSqlGenerator
         builder
             .Append("ALTER SEQUENCE ")
             .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(operation.Name, operation.Schema))
-            .Append(" RESTART WITH ")
-            .Append(IntegerConstant(operation.StartValue))
+            .Append(" RESTART");
+
+        if (operation.StartValue.HasValue)
+        {
+            builder
+                .Append(" WITH ")
+                .Append(IntegerConstant(operation.StartValue.Value));
+        }
+
+        builder
             .AppendLine(Dependencies.SqlGenerationHelper.StatementTerminator);
 
         EndStatement(builder);
@@ -1385,49 +1404,47 @@ public class SqlServerMigrationsSqlGenerator : MigrationsSqlGenerator
     /// <param name="builder">The command builder to use to build the commands.</param>
     protected override void Generate(SqlOperation operation, IModel? model, MigrationCommandListBuilder builder)
     {
-        var batches = Regex.Split(
-            Regex.Replace(
-                operation.Sql,
-                @"\\\r?\n",
-                string.Empty,
-                default,
-                TimeSpan.FromMilliseconds(1000.0)),
-            @"^\s*(GO[ \t]+[0-9]+|GO)(?:\s+|$)",
-            RegexOptions.IgnoreCase | RegexOptions.Multiline,
-            TimeSpan.FromMilliseconds(1000.0));
-        for (var i = 0; i < batches.Length; i++)
+        var preBatched = operation.Sql
+            .Replace("\\\n", "")
+            .Replace("\\\r\n", "")
+            .Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+
+        var batchBuilder = new StringBuilder();
+        foreach (var line in preBatched)
         {
-            if (batches[i].StartsWith("GO", StringComparison.OrdinalIgnoreCase)
-                || string.IsNullOrWhiteSpace(batches[i]))
+            if (string.IsNullOrWhiteSpace(line))
             {
                 continue;
             }
 
-            var count = 1;
-            if (i != batches.Length - 1
-                && batches[i + 1].StartsWith("GO", StringComparison.OrdinalIgnoreCase))
+            var trimmed = line.TrimStart();
+            if (trimmed.StartsWith("GO", StringComparison.OrdinalIgnoreCase))
             {
-                var match = Regex.Match(
-                    batches[i + 1], "([0-9]+)",
-                    default,
-                    TimeSpan.FromMilliseconds(1000.0));
-                if (match.Success)
+                var batch = batchBuilder.ToString();
+                batchBuilder.Clear();
+
+                var count = trimmed.Length >= 4
+                    && int.TryParse(trimmed.Substring(3), out var specifiedCount)
+                        ? specifiedCount
+                        : 1;
+
+                for (var j = 0; j < count; j++)
                 {
-                    count = int.Parse(match.Value);
+                    AppendBatch(batch);
                 }
             }
-
-            for (var j = 0; j < count; j++)
+            else
             {
-                builder.Append(batches[i]);
-
-                if (i == batches.Length - 1)
-                {
-                    builder.AppendLine();
-                }
-
-                EndStatement(builder, operation.SuppressTransaction);
+                batchBuilder.AppendLine(line);
             }
+        }
+
+        AppendBatch(batchBuilder.ToString());
+
+        void AppendBatch(string batch)
+        {
+            builder.Append(batch);
+            EndStatement(builder, operation.SuppressTransaction);
         }
     }
 
@@ -2796,13 +2813,13 @@ public class SqlServerMigrationsSqlGenerator : MigrationsSqlGenerator
             }
 
             return unmatched.All(
-                a => a.Name == SqlServerAnnotationNames.IsTemporal
-                    || a.Name == SqlServerAnnotationNames.TemporalHistoryTableName
-                    || a.Name == SqlServerAnnotationNames.TemporalHistoryTableSchema
-                    || a.Name == SqlServerAnnotationNames.TemporalPeriodStartPropertyName
-                    || a.Name == SqlServerAnnotationNames.TemporalPeriodEndPropertyName
-                    || a.Name == SqlServerAnnotationNames.TemporalPeriodStartColumnName
-                    || a.Name == SqlServerAnnotationNames.TemporalPeriodEndColumnName);
+                a => a.Name is SqlServerAnnotationNames.IsTemporal
+                    or SqlServerAnnotationNames.TemporalHistoryTableName
+                    or SqlServerAnnotationNames.TemporalHistoryTableSchema
+                    or SqlServerAnnotationNames.TemporalPeriodStartPropertyName
+                    or SqlServerAnnotationNames.TemporalPeriodEndPropertyName
+                    or SqlServerAnnotationNames.TemporalPeriodStartColumnName
+                    or SqlServerAnnotationNames.TemporalPeriodEndColumnName);
         }
 
         static TOperation CopyColumnOperation<TOperation>(ColumnOperation source)

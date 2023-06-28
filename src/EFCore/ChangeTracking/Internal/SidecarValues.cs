@@ -26,8 +26,11 @@ public sealed partial class InternalEntityEntry
             return true;
         }
 
+        public object? GetValue(int index)
+            => _values[index];
+
         public T GetValue<T>(int index)
-            => IsEmpty ? default! : _values.GetValue<T>(index);
+            => _values.GetValue<T>(index);
 
         public void SetValue(IProperty property, object? value, int index)
         {
@@ -38,7 +41,7 @@ public sealed partial class InternalEntityEntry
             {
                 throw new InvalidOperationException(
                     CoreStrings.ValueCannotBeNull(
-                        property.Name, property.DeclaringEntityType.DisplayName(), property.ClrType.DisplayName()));
+                        property.Name, property.DeclaringType.DisplayName(), property.ClrType.DisplayName()));
             }
 
             _values[index] = SnapshotValue(property, value);

@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Diagnostics.CodeAnalysis;
-using Microsoft.EntityFrameworkCore.Internal;
 
 namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
 
@@ -73,24 +72,24 @@ public class EntityReferenceMap
                 switch (state)
                 {
                     case EntityState.Detached:
-                        _detachedReferenceMap ??= new Dictionary<object, InternalEntityEntry>(LegacyReferenceEqualityComparer.Instance);
+                        _detachedReferenceMap ??= new Dictionary<object, InternalEntityEntry>(ReferenceEqualityComparer.Instance);
                         _detachedReferenceMap[mapKey] = entry;
                         break;
                     case EntityState.Unchanged:
                         _unchangedReferenceMap ??=
-                            new Dictionary<object, InternalEntityEntry>(LegacyReferenceEqualityComparer.Instance);
+                            new Dictionary<object, InternalEntityEntry>(ReferenceEqualityComparer.Instance);
                         _unchangedReferenceMap[mapKey] = entry;
                         break;
                     case EntityState.Deleted:
-                        _deletedReferenceMap ??= new Dictionary<object, InternalEntityEntry>(LegacyReferenceEqualityComparer.Instance);
+                        _deletedReferenceMap ??= new Dictionary<object, InternalEntityEntry>(ReferenceEqualityComparer.Instance);
                         _deletedReferenceMap[mapKey] = entry;
                         break;
                     case EntityState.Modified:
-                        _modifiedReferenceMap ??= new Dictionary<object, InternalEntityEntry>(LegacyReferenceEqualityComparer.Instance);
+                        _modifiedReferenceMap ??= new Dictionary<object, InternalEntityEntry>(ReferenceEqualityComparer.Instance);
                         _modifiedReferenceMap[mapKey] = entry;
                         break;
                     case EntityState.Added:
-                        _addedReferenceMap ??= new Dictionary<object, InternalEntityEntry>(LegacyReferenceEqualityComparer.Instance);
+                        _addedReferenceMap ??= new Dictionary<object, InternalEntityEntry>(ReferenceEqualityComparer.Instance);
                         _addedReferenceMap[mapKey] = entry;
                         break;
                 }
@@ -385,8 +384,7 @@ public class EntityReferenceMap
     {
         // Perf sensitive
 
-        if (_addedReferenceMap != null
-            && _addedReferenceMap.Count > 0)
+        if (_addedReferenceMap is { Count: > 0 })
         {
             foreach (var entry in _addedReferenceMap.Values)
             {
@@ -397,8 +395,7 @@ public class EntityReferenceMap
             }
         }
 
-        if (_modifiedReferenceMap != null
-            && _modifiedReferenceMap.Count > 0)
+        if (_modifiedReferenceMap is { Count: > 0 })
         {
             foreach (var entry in _modifiedReferenceMap.Values)
             {
@@ -409,8 +406,7 @@ public class EntityReferenceMap
             }
         }
 
-        if (_unchangedReferenceMap != null
-            && _unchangedReferenceMap.Count > 0)
+        if (_unchangedReferenceMap is { Count: > 0 })
         {
             foreach (var entry in _unchangedReferenceMap.Values)
             {
@@ -421,8 +417,7 @@ public class EntityReferenceMap
             }
         }
 
-        if (_sharedTypeReferenceMap != null
-            && _sharedTypeReferenceMap.Count > 0)
+        if (_sharedTypeReferenceMap is { Count: > 0 })
         {
             foreach (var subMap in _sharedTypeReferenceMap.Values)
             {

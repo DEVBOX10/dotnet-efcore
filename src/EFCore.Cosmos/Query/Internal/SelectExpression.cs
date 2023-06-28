@@ -304,9 +304,7 @@ public class SelectExpression : Expression
     /// </summary>
     public virtual void ApplyPredicate(SqlExpression expression)
     {
-        if (expression is SqlConstantExpression sqlConstant
-            && sqlConstant.Value is bool boolValue
-            && boolValue)
+        if (expression is SqlConstantExpression { Value: true })
         {
             return;
         }
@@ -331,7 +329,10 @@ public class SelectExpression : Expression
     {
         if (Limit != null)
         {
-            throw new InvalidOperationException("See issue#16156");
+            throw new InvalidOperationException(
+                CoreStrings.TranslationFailedWithDetails(
+                    sqlExpression.Print(),
+                    CosmosStrings.NoSubqueryPushdown));
         }
 
         Limit = sqlExpression;
@@ -348,7 +349,10 @@ public class SelectExpression : Expression
         if (Limit != null
             || Offset != null)
         {
-            throw new InvalidOperationException("See issue#16156");
+            throw new InvalidOperationException(
+                CoreStrings.TranslationFailedWithDetails(
+                    sqlExpression.Print(),
+                    CosmosStrings.NoSubqueryPushdown));
         }
 
         Offset = sqlExpression;
@@ -366,7 +370,10 @@ public class SelectExpression : Expression
             || Limit != null
             || Offset != null)
         {
-            throw new InvalidOperationException("See issue#16156");
+            throw new InvalidOperationException(
+                CoreStrings.TranslationFailedWithDetails(
+                    orderingExpression.Print(),
+                    CosmosStrings.NoSubqueryPushdown));
         }
 
         _orderings.Clear();

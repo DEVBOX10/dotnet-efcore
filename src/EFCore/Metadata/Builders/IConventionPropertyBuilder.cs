@@ -17,7 +17,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Builders;
 /// <remarks>
 ///     See <see href="https://aka.ms/efcore-docs-conventions">Model building conventions</see> for more information and examples.
 /// </remarks>
-public interface IConventionPropertyBuilder : IConventionPropertyBaseBuilder
+public interface IConventionPropertyBuilder : IConventionPropertyBaseBuilder<IConventionPropertyBuilder>
 {
     /// <summary>
     ///     Gets the property being configured.
@@ -107,42 +107,29 @@ public interface IConventionPropertyBuilder : IConventionPropertyBaseBuilder
     bool CanSetIsConcurrencyToken(bool? concurrencyToken, bool fromDataAnnotation = false);
 
     /// <summary>
-    ///     Sets the backing field to use for this property.
+    ///     Configures the value that will be used to determine if the property has been set or not. If the property is set to the
+    ///     sentinel value, then it is considered not set. By default, the sentinel value is the CLR default value for the type of
+    ///     the property.
     /// </summary>
-    /// <param name="fieldName">The field name.</param>
+    /// <param name="sentinel">The sentinel value.</param>
     /// <param name="fromDataAnnotation">Indicates whether the configuration was specified using a data annotation.</param>
-    /// <returns>
-    ///     The same builder instance if the configuration was applied,
-    ///     <see langword="null" /> otherwise.
-    /// </returns>
-    new IConventionPropertyBuilder? HasField(string? fieldName, bool fromDataAnnotation = false);
+    /// <returns>The same builder instance if the configuration was applied, <see langword="null" /> otherwise.</returns>
+    IConventionPropertyBuilder? HasSentinel(object? sentinel, bool fromDataAnnotation = false);
 
     /// <summary>
-    ///     Sets the backing field to use for this property.
+    ///     Returns a value indicating whether the sentinel can be set for this property from the current configuration source.
     /// </summary>
-    /// <param name="fieldInfo">The field.</param>
+    /// <param name="sentinel">The sentinel value.</param>
     /// <param name="fromDataAnnotation">Indicates whether the configuration was specified using a data annotation.</param>
-    /// <returns>
-    ///     The same builder instance if the configuration was applied,
-    ///     <see langword="null" /> otherwise.
-    /// </returns>
-    new IConventionPropertyBuilder? HasField(FieldInfo? fieldInfo, bool fromDataAnnotation = false);
-
-    /// <summary>
-    ///     Sets the <see cref="PropertyAccessMode" /> to use for this property.
-    /// </summary>
-    /// <param name="propertyAccessMode">The <see cref="PropertyAccessMode" /> to use for this property.</param>
-    /// <param name="fromDataAnnotation">Indicates whether the configuration was specified using a data annotation.</param>
-    /// <returns>
-    ///     The same builder instance if the configuration was applied,
-    ///     <see langword="null" /> otherwise.
-    /// </returns>
-    new IConventionPropertyBuilder? UsePropertyAccessMode(PropertyAccessMode? propertyAccessMode, bool fromDataAnnotation = false);
+    /// <returns><see langword="true" /> if the sentinel can be set for this property.</returns>
+    bool CanSetSentinel(object? sentinel, bool fromDataAnnotation = false);
 
     /// <summary>
     ///     Configures the maximum length of data that can be stored in this property.
     /// </summary>
-    /// <param name="maxLength">The maximum length of data allowed in the property.</param>
+    /// <param name="maxLength">
+    /// The maximum length of data allowed in the property. A value of <c>-1</c> indicates that the property has no maximum length.
+    /// </param>
     /// <param name="fromDataAnnotation">Indicates whether the configuration was specified using a data annotation.</param>
     /// <returns>
     ///     The same builder instance if the configuration was applied,
@@ -298,7 +285,7 @@ public interface IConventionPropertyBuilder : IConventionPropertyBaseBuilder
     ///     <see langword="null" /> otherwise.
     /// </returns>
     IConventionPropertyBuilder? HasValueGenerator(
-        Func<IProperty, IEntityType, ValueGenerator>? factory,
+        Func<IProperty, ITypeBase, ValueGenerator>? factory,
         bool fromDataAnnotation = false);
 
     /// <summary>
@@ -329,7 +316,7 @@ public interface IConventionPropertyBuilder : IConventionPropertyBaseBuilder
     ///     <see langword="true" /> if the <see cref="ValueGenerator" /> can be configured for this property.
     /// </returns>
     bool CanSetValueGenerator(
-        Func<IProperty, IEntityType, ValueGenerator>? factory,
+        Func<IProperty, ITypeBase, ValueGenerator>? factory,
         bool fromDataAnnotation = false);
 
     /// <summary>

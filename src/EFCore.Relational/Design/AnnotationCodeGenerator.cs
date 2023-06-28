@@ -35,7 +35,9 @@ public class AnnotationCodeGenerator : IAnnotationCodeGenerator
         RelationalAnnotationNames.UpdateStoredProcedure,
         RelationalAnnotationNames.MappingFragments,
         RelationalAnnotationNames.RelationalOverrides,
+#pragma warning disable CS0618
         RelationalAnnotationNames.ContainerColumnTypeMapping
+#pragma warning restore CS0618
     };
 
     /// <summary>
@@ -215,8 +217,7 @@ public class AnnotationCodeGenerator : IAnnotationCodeGenerator
         }
 
         if (annotations.TryGetValue(RelationalAnnotationNames.ContainerColumnName, out var containerColumnNameAnnotation)
-            && containerColumnNameAnnotation != null
-            && containerColumnNameAnnotation.Value is string containerColumnName
+            && containerColumnNameAnnotation is { Value: string containerColumnName }
             && entityType.IsOwned())
         {
             methodCallCodeFragments.Add(
@@ -225,7 +226,9 @@ public class AnnotationCodeGenerator : IAnnotationCodeGenerator
                     containerColumnName));
 
             annotations.Remove(RelationalAnnotationNames.ContainerColumnName);
+#pragma warning disable CS0618
             annotations.Remove(RelationalAnnotationNames.ContainerColumnTypeMapping);
+#pragma warning restore CS0618
         }
 
         methodCallCodeFragments.AddRange(GenerateFluentApiCallsHelper(entityType, annotations, GenerateFluentApi));

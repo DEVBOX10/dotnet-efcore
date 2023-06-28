@@ -3,6 +3,7 @@
 
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore.Internal;
+using Microsoft.EntityFrameworkCore.Storage.Json;
 
 namespace Microsoft.EntityFrameworkCore.Storage;
 
@@ -35,13 +36,19 @@ public abstract class CoreTypeMapping
         /// <param name="keyComparer">Supports custom comparisons between keys--e.g. PK to FK comparison.</param>
         /// <param name="providerValueComparer">Supports custom comparisons between converted provider values.</param>
         /// <param name="valueGeneratorFactory">An optional factory for creating a specific <see cref="ValueGenerator" />.</param>
+        /// <param name="elementTypeMapping">
+        ///     If this type mapping represents a primitive collection, this holds the element's type mapping.
+        /// </param>
+        /// <param name="jsonValueReaderWriter">Handles reading and writing JSON values for instances of the mapped type.</param>
         public CoreTypeMappingParameters(
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)] Type clrType,
             ValueConverter? converter = null,
             ValueComparer? comparer = null,
             ValueComparer? keyComparer = null,
             ValueComparer? providerValueComparer = null,
-            Func<IProperty, IEntityType, ValueGenerator>? valueGeneratorFactory = null)
+            Func<IProperty, ITypeBase, ValueGenerator>? valueGeneratorFactory = null,
+            CoreTypeMapping? elementTypeMapping = null,
+            JsonValueReaderWriter? jsonValueReaderWriter = null)
         {
             ClrType = clrType;
             Converter = converter;
@@ -49,6 +56,8 @@ public abstract class CoreTypeMapping
             KeyComparer = keyComparer;
             ProviderValueComparer = providerValueComparer;
             ValueGeneratorFactory = valueGeneratorFactory;
+            ElementTypeMapping = elementTypeMapping;
+            JsonValueReaderWriter = jsonValueReaderWriter;
         }
 
         /// <summary>
@@ -81,7 +90,17 @@ public abstract class CoreTypeMapping
         ///     An optional factory for creating a specific <see cref="ValueGenerator" /> to use with
         ///     this mapping.
         /// </summary>
-        public Func<IProperty, IEntityType, ValueGenerator>? ValueGeneratorFactory { get; }
+        public Func<IProperty, ITypeBase, ValueGenerator>? ValueGeneratorFactory { get; }
+
+        /// <summary>
+        ///     If this type mapping represents a primitive collection, this holds the element's type mapping.
+        /// </summary>
+        public CoreTypeMapping? ElementTypeMapping { get; init; }
+
+        /// <summary>
+        ///     Handles reading and writing JSON values for instances of the mapped type.
+        /// </summary>
+        public JsonValueReaderWriter? JsonValueReaderWriter { get; init; }
 
         /// <summary>
         ///     Creates a new <see cref="CoreTypeMappingParameters" /> parameter object with the given
@@ -96,7 +115,42 @@ public abstract class CoreTypeMapping
                 Comparer,
                 KeyComparer,
                 ProviderValueComparer,
-                ValueGeneratorFactory);
+                ValueGeneratorFactory,
+                ElementTypeMapping,
+                JsonValueReaderWriter);
+
+        /// <summary>
+        ///     Creates a new <see cref="CoreTypeMappingParameters" /> parameter object with the given
+        ///     element type mapping.
+        /// </summary>
+        /// <param name="elementTypeMapping">The element type mapping.</param>
+        /// <returns>The new parameter object.</returns>
+        public CoreTypeMappingParameters WithElementTypeMapping(CoreTypeMapping elementTypeMapping)
+            => new(
+                ClrType,
+                Converter,
+                Comparer,
+                KeyComparer,
+                ProviderValueComparer,
+                ValueGeneratorFactory,
+                elementTypeMapping,
+                JsonValueReaderWriter);
+
+        /// <summary>
+        ///     Creates a new <see cref="CoreTypeMappingParameters" /> parameter object with the given JSON reader/writer.
+        /// </summary>
+        /// <param name="jsonValueReaderWriter">The element type mapping.</param>
+        /// <returns>The new parameter object.</returns>
+        public CoreTypeMappingParameters WithJsonValueReaderWriter(JsonValueReaderWriter jsonValueReaderWriter)
+            => new(
+                ClrType,
+                Converter,
+                Comparer,
+                KeyComparer,
+                ProviderValueComparer,
+                ValueGeneratorFactory,
+                ElementTypeMapping,
+                jsonValueReaderWriter);
     }
 
     private ValueComparer? _comparer;
@@ -119,9 +173,9 @@ public abstract class CoreTypeMapping
         Check.DebugAssert(
             parameters.Comparer == null
             || converter != null
-            || parameters.Comparer.Type == clrType,
+            || parameters.Comparer.Type.IsAssignableFrom(clrType),
             $"Expected {clrType}, got {parameters.Comparer?.Type}");
-        if (parameters.Comparer?.Type == clrType)
+        if (parameters.Comparer?.Type.IsAssignableFrom(clrType) == true)
         {
             _comparer = parameters.Comparer;
         }
@@ -129,18 +183,18 @@ public abstract class CoreTypeMapping
         Check.DebugAssert(
             parameters.KeyComparer == null
             || converter != null
-            || parameters.KeyComparer.Type == parameters.ClrType,
+            || parameters.KeyComparer.Type.IsAssignableFrom(parameters.ClrType),
             $"Expected {parameters.ClrType}, got {parameters.KeyComparer?.Type}");
-        if (parameters.KeyComparer?.Type == clrType)
+        if (parameters.KeyComparer?.Type.IsAssignableFrom(clrType) == true)
         {
             _keyComparer = parameters.KeyComparer;
         }
 
         Check.DebugAssert(
             parameters.ProviderValueComparer == null
-            || parameters.ProviderValueComparer.Type == (converter?.ProviderClrType ?? clrType),
+            || parameters.ProviderValueComparer.Type.IsAssignableFrom(converter?.ProviderClrType ?? clrType),
             $"Expected {converter?.ProviderClrType ?? clrType}, got {parameters.ProviderValueComparer?.Type}");
-        if (parameters.ProviderValueComparer?.Type == (converter?.ProviderClrType ?? clrType))
+        if (parameters.ProviderValueComparer?.Type.IsAssignableFrom(converter?.ProviderClrType ?? clrType) == true)
         {
             _providerValueComparer = parameters.ProviderValueComparer;
         }
@@ -157,7 +211,8 @@ public abstract class CoreTypeMapping
     /// <summary>
     ///     Gets the .NET type used in the EF model.
     /// </summary>
-    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods
+    [DynamicallyAccessedMembers(
+        DynamicallyAccessedMemberTypes.PublicMethods
         | DynamicallyAccessedMemberTypes.NonPublicMethods
         | DynamicallyAccessedMemberTypes.PublicProperties)]
     public virtual Type ClrType { get; }
@@ -173,7 +228,7 @@ public abstract class CoreTypeMapping
     ///     An optional factory for creating a specific <see cref="ValueGenerator" /> to use with
     ///     this mapping.
     /// </summary>
-    public virtual Func<IProperty, IEntityType, ValueGenerator>? ValueGeneratorFactory { get; }
+    public virtual Func<IProperty, ITypeBase, ValueGenerator>? ValueGeneratorFactory { get; }
 
     /// <summary>
     ///     A <see cref="ValueComparer" /> adds custom value snapshotting and comparison for
@@ -224,4 +279,16 @@ public abstract class CoreTypeMapping
     /// <returns>An expression tree that can be used to generate code for the literal value.</returns>
     public virtual Expression GenerateCodeLiteral(object value)
         => throw new NotSupportedException(CoreStrings.LiteralGenerationNotSupported(ClrType.ShortDisplayName()));
+
+    /// <summary>
+    ///     If this type mapping represents a primitive collection, this holds the element's type mapping.
+    /// </summary>
+    public virtual CoreTypeMapping? ElementTypeMapping
+        => Parameters.ElementTypeMapping;
+
+    /// <summary>
+    ///     Handles reading and writing JSON values for instances of the mapped type.
+    /// </summary>
+    public virtual JsonValueReaderWriter? JsonValueReaderWriter
+        => Parameters.JsonValueReaderWriter;
 }

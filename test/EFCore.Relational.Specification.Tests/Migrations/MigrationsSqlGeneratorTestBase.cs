@@ -671,6 +671,7 @@ public abstract class MigrationsSqlGeneratorTestBase
                             Values = new object[,] { { "Targaryen" } }
                         })).Message);
 
+
     [ConditionalTheory]
     [InlineData(false)]
     [InlineData(true)]
@@ -723,6 +724,20 @@ public abstract class MigrationsSqlGeneratorTestBase
             });
     }
 
+    [ConditionalTheory]
+    [InlineData(3L)]
+    [InlineData(null)]
+    public virtual void Sequence_restart_operation(long? startsAt)
+    {
+        Generate(
+            new RestartSequenceOperation
+            {
+                Name = "TestRestartSequenceOperation",
+                Schema = "dbo",
+                StartValue = startsAt
+            });
+    }
+
     private static void CreateGotModel(ModelBuilder b)
         => b.HasDefaultSchema("dbo").Entity(
             "Person", pb =>
@@ -749,6 +764,9 @@ public abstract class MigrationsSqlGeneratorTestBase
         CustomServices = customServices;
         ContextOptions = options;
     }
+
+    protected virtual void Generate(MigrationOperation operation, MigrationsSqlGenerationOptions options)
+        => Generate(null, new[] { operation }, options);
 
     protected virtual void Generate(params MigrationOperation[] operation)
         => Generate(null, operation);

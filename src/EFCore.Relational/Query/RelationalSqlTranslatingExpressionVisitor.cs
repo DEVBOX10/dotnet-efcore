@@ -3,7 +3,6 @@
 
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 
@@ -35,9 +34,9 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
         QueryableMethods.LastWithPredicate,
         QueryableMethods.LastWithoutPredicate,
         QueryableMethods.LastOrDefaultWithPredicate,
-        QueryableMethods.LastOrDefaultWithoutPredicate
-        //QueryableMethodProvider.ElementAtMethodInfo,
-        //QueryableMethodProvider.ElementAtOrDefaultMethodInfo
+        QueryableMethods.LastOrDefaultWithoutPredicate,
+        QueryableMethods.ElementAt,
+        QueryableMethods.ElementAtOrDefault
     };
 
     private static readonly List<MethodInfo> PredicateAggregateMethodInfos = new()
@@ -66,7 +65,6 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
     private readonly IModel _model;
     private readonly ISqlExpressionFactory _sqlExpressionFactory;
     private readonly QueryableMethodTranslatingExpressionVisitor _queryableMethodTranslatingExpressionVisitor;
-    private readonly SqlTypeMappingVerifyingExpressionVisitor _sqlTypeMappingVerifyingExpressionVisitor;
 
     private bool _throwForNotTranslatedEfProperty;
 
@@ -86,7 +84,6 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
         _queryCompilationContext = queryCompilationContext;
         _model = queryCompilationContext.Model;
         _queryableMethodTranslatingExpressionVisitor = queryableMethodTranslatingExpressionVisitor;
-        _sqlTypeMappingVerifyingExpressionVisitor = new SqlTypeMappingVerifyingExpressionVisitor();
         _throwForNotTranslatedEfProperty = true;
     }
 
@@ -120,36 +117,39 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
     ///     Translates an expression to an equivalent SQL representation.
     /// </summary>
     /// <param name="expression">An expression to translate.</param>
+    /// <param name="applyDefaultTypeMapping">
+    ///     Whether to apply the default type mapping on the top-most element if it has none. Defaults to <see langword="true" />.
+    /// </param>
     /// <returns>A SQL translation of the given expression.</returns>
-    public virtual SqlExpression? Translate(Expression expression)
+    public virtual SqlExpression? Translate(Expression expression, bool applyDefaultTypeMapping = true)
     {
         TranslationErrorDetails = null;
 
-        return TranslateInternal(expression);
+        return TranslateInternal(expression, applyDefaultTypeMapping);
     }
 
-    private SqlExpression? TranslateInternal(Expression expression)
+    private SqlExpression? TranslateInternal(Expression expression, bool applyDefaultTypeMapping = true)
     {
         var result = Visit(expression);
 
         if (result is SqlExpression translation)
         {
-            if (translation is SqlUnaryExpression sqlUnaryExpression
-                && sqlUnaryExpression.OperatorType == ExpressionType.Convert
+            if (translation is SqlUnaryExpression { OperatorType: ExpressionType.Convert } sqlUnaryExpression
                 && sqlUnaryExpression.Type == typeof(object))
             {
                 translation = sqlUnaryExpression.Operand;
             }
 
-            translation = _sqlExpressionFactory.ApplyDefaultTypeMapping(translation);
-
-            if (translation.TypeMapping == null)
+            if (applyDefaultTypeMapping)
             {
-                // The return type is not-mappable hence return null
-                return null;
-            }
+                translation = _sqlExpressionFactory.ApplyDefaultTypeMapping(translation);
 
-            _sqlTypeMappingVerifyingExpressionVisitor.Visit(translation);
+                if (translation.TypeMapping == null)
+                {
+                    // The return type is not-mappable hence return null
+                    return null;
+                }
+            }
 
             return translation;
         }
@@ -293,8 +293,7 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
     protected override Expression VisitBinary(BinaryExpression binaryExpression)
     {
         if (binaryExpression.Left.Type == typeof(object[])
-            && binaryExpression.Left is NewArrayExpression
-            && binaryExpression.NodeType == ExpressionType.Equal)
+            && binaryExpression is { Left: NewArrayExpression, NodeType: ExpressionType.Equal })
         {
             return Visit(ConvertObjectArrayEqualityComparison(binaryExpression.Left, binaryExpression.Right));
         }
@@ -336,7 +335,7 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
             right = rightOperand!;
         }
 
-        if ((binaryExpression.NodeType == ExpressionType.Equal || binaryExpression.NodeType == ExpressionType.NotEqual)
+        if (binaryExpression.NodeType is ExpressionType.Equal or ExpressionType.NotEqual
             && (left.IsNullConstantExpression() || right.IsNullConstantExpression()))
         {
             var nonNullExpression = left.IsNullConstantExpression() ? right : left;
@@ -346,10 +345,24 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
                 && SingleResultMethodInfos.Contains(nonNullMethodCallExpression.Method.GetGenericMethodDefinition()))
             {
                 var source = nonNullMethodCallExpression.Arguments[0];
-                if (nonNullMethodCallExpression.Arguments.Count == 2)
+                var genericMethod = nonNullMethodCallExpression.Method.GetGenericMethodDefinition();
+                if (genericMethod == QueryableMethods.FirstWithPredicate
+                    || genericMethod == QueryableMethods.FirstOrDefaultWithPredicate
+                    || genericMethod == QueryableMethods.SingleWithPredicate
+                    || genericMethod == QueryableMethods.SingleOrDefaultWithPredicate
+                    || genericMethod == QueryableMethods.LastWithPredicate
+                    || genericMethod == QueryableMethods.LastOrDefaultWithPredicate)
                 {
                     source = Expression.Call(
                         QueryableMethods.Where.MakeGenericMethod(source.Type.GetSequenceType()),
+                        source,
+                        nonNullMethodCallExpression.Arguments[1]);
+                }
+                else if ((genericMethod == QueryableMethods.ElementAt || genericMethod == QueryableMethods.ElementAtOrDefault)
+                    && nonNullMethodCallExpression.Arguments[1] is not ConstantExpression { Value: 0 })
+                {
+                    source = Expression.Call(
+                        QueryableMethods.Skip.MakeGenericMethod(source.Type.GetSequenceType()),
                         source,
                         nonNullMethodCallExpression.Arguments[1]);
                 }
@@ -383,8 +396,7 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
         var visitedLeft = Visit(left);
         var visitedRight = Visit(right);
 
-        if ((binaryExpression.NodeType == ExpressionType.Equal
-                || binaryExpression.NodeType == ExpressionType.NotEqual)
+        if (binaryExpression.NodeType is ExpressionType.Equal or ExpressionType.NotEqual
             // Visited expression could be null, We need to pass MemberInitExpression
             && TryRewriteEntityEquality(
                 binaryExpression.NodeType,
@@ -468,7 +480,7 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
                         subSelectExpression.ClearOrdering();
                     }
 
-                    return _sqlExpressionFactory.Exists(subSelectExpression, false);
+                    return _sqlExpressionFactory.Exists(subSelectExpression);
                 }
 
                 if (entityReferenceExpression.ParameterEntity != null)
@@ -550,8 +562,7 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
         static bool IsTypeConstant(Expression expression, out Type? type)
         {
             type = null;
-            if (expression is not UnaryExpression { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked } unaryExpression
-                || unaryExpression.Operand is not ConstantExpression constantExpression)
+            if (expression is not UnaryExpression { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked, Operand: ConstantExpression constantExpression })
             {
                 return false;
             }
@@ -562,9 +573,7 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
 
         static bool TryUnwrapConvertToObject(Expression expression, out Expression? operand)
         {
-            if (expression is UnaryExpression convertExpression
-                && (convertExpression.NodeType == ExpressionType.Convert
-                    || convertExpression.NodeType == ExpressionType.ConvertChecked)
+            if (expression is UnaryExpression { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked } convertExpression
                 && expression.Type == typeof(object))
             {
                 operand = convertExpression.Operand;
@@ -625,8 +634,7 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
 
                 var innerExpression = shaperExpression;
                 Type? convertedType = null;
-                if (shaperExpression is UnaryExpression unaryExpression
-                    && unaryExpression.NodeType == ExpressionType.Convert)
+                if (shaperExpression is UnaryExpression { NodeType: ExpressionType.Convert } unaryExpression)
                 {
                     convertedType = unaryExpression.Type;
                     innerExpression = unaryExpression.Operand;
@@ -647,11 +655,10 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
                 }
 
                 if (mappedProjectionBindingExpression == null
-                    && shaperExpression is BlockExpression blockExpression
-                    && blockExpression.Expressions.Count == 2
-                    && blockExpression.Expressions[0] is BinaryExpression binaryExpression
-                    && binaryExpression.NodeType == ExpressionType.Assign
-                    && binaryExpression.Right is ProjectionBindingExpression pbe2)
+                    && shaperExpression is BlockExpression
+                    {
+                        Expressions: [BinaryExpression { NodeType: ExpressionType.Assign, Right: ProjectionBindingExpression pbe2 }, _]
+                    })
                 {
                     mappedProjectionBindingExpression = pbe2;
                 }
@@ -688,6 +695,12 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
 
                 return scalarSubqueryExpression;
 
+            // We have e.g. an array parameter inside a Where clause; this is represented as a QueryableParameterQueryRootExpression so
+            // that we can translate queryable operators over it (query root in subquery context), but in normal SQL translation context
+            // we just unwrap the query root expression to get the parameter out.
+            case ParameterQueryRootExpression queryableParameterQueryRootExpression:
+                return Visit(queryableParameterQueryRootExpression.ParameterExpression);
+
             default:
                 return QueryCompilationContext.NotTranslatedExpression;
         }
@@ -720,7 +733,39 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
 
     /// <inheritdoc />
     protected override Expression VisitMemberInit(MemberInitExpression memberInitExpression)
-        => GetConstantOrNotTranslated(memberInitExpression);
+        => TryEvaluateToConstant(memberInitExpression, out var sqlConstantExpression)
+            ? sqlConstantExpression
+            : QueryCompilationContext.NotTranslatedExpression;
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [EntityFrameworkInternal]
+    public virtual bool TryTranslatePropertyAccess(Expression expression, [NotNullWhen(true)] out SqlExpression? propertyAccessExpression)
+    {
+        if (expression is MethodCallExpression methodCallExpression)
+        {
+            if (methodCallExpression.TryGetEFPropertyArguments(out var source, out var propertyName)
+                && TryBindMember(Visit(source), MemberIdentity.Create(propertyName)) is { } result)
+            {
+                propertyAccessExpression = result;
+                return true;
+            }
+
+            if (methodCallExpression.TryGetIndexerArguments(_model, out source, out propertyName)
+                && TryBindMember(Visit(source), MemberIdentity.Create(propertyName)) is { } indexerResult)
+            {
+                propertyAccessExpression = indexerResult;
+                return true;
+            }
+        }
+
+        propertyAccessExpression = null;
+        return false;
+    }
 
     /// <inheritdoc />
     protected override Expression VisitMethodCall(MethodCallExpression methodCallExpression)
@@ -949,11 +994,21 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
 
     /// <inheritdoc />
     protected override Expression VisitNew(NewExpression newExpression)
-        => GetConstantOrNotTranslated(newExpression);
+        => TryEvaluateToConstant(newExpression, out var sqlConstantExpression)
+            ? sqlConstantExpression
+            : QueryCompilationContext.NotTranslatedExpression;
 
     /// <inheritdoc />
     protected override Expression VisitNewArray(NewArrayExpression newArrayExpression)
-        => QueryCompilationContext.NotTranslatedExpression;
+    {
+        if (TryEvaluateToConstant(newArrayExpression, out var sqlConstantExpression))
+        {
+            return sqlConstantExpression;
+        }
+
+        AddTranslationErrorDetails(RelationalStrings.CannotTranslateNonConstantNewArrayExpression(newArrayExpression.Print()));
+        return QueryCompilationContext.NotTranslatedExpression;
+    }
 
     /// <inheritdoc />
     protected override Expression VisitParameter(ParameterExpression parameterExpression)
@@ -1011,7 +1066,7 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
                     subSelectExpression.ClearOrdering();
                 }
 
-                return _sqlExpressionFactory.Exists(subSelectExpression, false);
+                return _sqlExpressionFactory.Exists(subSelectExpression);
             }
 
             if (entityReferenceExpression.ParameterEntity != null)
@@ -1042,8 +1097,7 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
                         _sqlExpressionFactory.Constant(discriminatorValues[0]))
                     : _sqlExpressionFactory.In(
                         entityProjectionExpression.DiscriminatorExpression!,
-                        _sqlExpressionFactory.Constant(discriminatorValues),
-                        negated: false);
+                        discriminatorValues.Select(d => _sqlExpressionFactory.Constant(d)).ToArray());
             }
         }
         else
@@ -1062,9 +1116,7 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
                             _sqlExpressionFactory.Constant(concreteEntityTypes[0].GetDiscriminatorValue()))
                         : _sqlExpressionFactory.In(
                             discriminatorColumn,
-                            _sqlExpressionFactory.Constant(
-                                concreteEntityTypes.Select(et => et.GetDiscriminatorValue()).ToList()),
-                            negated: false);
+                            concreteEntityTypes.Select(et => _sqlExpressionFactory.Constant(et.GetDiscriminatorValue())).ToArray());
                 }
             }
             else
@@ -1085,9 +1137,7 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
         var operand = Visit(unaryExpression.Operand);
 
         if (operand is EntityReferenceExpression entityReferenceExpression
-            && (unaryExpression.NodeType == ExpressionType.Convert
-                || unaryExpression.NodeType == ExpressionType.ConvertChecked
-                || unaryExpression.NodeType == ExpressionType.TypeAs))
+            && unaryExpression.NodeType is ExpressionType.Convert or ExpressionType.ConvertChecked or ExpressionType.TypeAs)
         {
             return entityReferenceExpression.Convert(unaryExpression.Type);
         }
@@ -1347,9 +1397,7 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
             return true;
         }
 
-        if (expression is MethodCallExpression methodCallExpression
-            && methodCallExpression.Method.IsStatic
-            && methodCallExpression.Arguments.Count > 0
+        if (expression is MethodCallExpression { Method.IsStatic: true, Arguments.Count: > 0 } methodCallExpression
             && methodCallExpression.Method.DeclaringType == typeof(Queryable))
         {
             var genericMethod = methodCallExpression.Method.IsGenericMethod
@@ -1475,9 +1523,7 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
 
     private static Expression TryRemoveImplicitConvert(Expression expression)
     {
-        if (expression is UnaryExpression unaryExpression
-            && (unaryExpression.NodeType == ExpressionType.Convert
-                || unaryExpression.NodeType == ExpressionType.ConvertChecked))
+        if (expression is UnaryExpression { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked } unaryExpression)
         {
             var innerType = unaryExpression.Operand.Type.UnwrapNullableType();
             if (innerType.IsEnum)
@@ -1503,8 +1549,7 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
     }
 
     private static Expression RemoveObjectConvert(Expression expression)
-        => expression is UnaryExpression unaryExpression
-            && (unaryExpression.NodeType == ExpressionType.Convert || unaryExpression.NodeType == ExpressionType.ConvertChecked)
+        => expression is UnaryExpression { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked } unaryExpression
             && unaryExpression.Type == typeof(object)
                 ? unaryExpression.Operand
                 : expression;
@@ -1517,17 +1562,26 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
         return leftExpressions.Zip(
                 rightExpressions,
                 (l, r) => Infrastructure.ExpressionExtensions.CreateEqualsExpression(l, r))
-            .Aggregate((a, b) => Expression.AndAlso(a, b));
+            .Aggregate(Expression.AndAlso);
     }
 
-    private static Expression GetConstantOrNotTranslated(Expression expression)
-        => CanEvaluate(expression)
-            ? new SqlConstantExpression(
+    private static bool TryEvaluateToConstant(Expression expression, [NotNullWhen(true)] out SqlConstantExpression? sqlConstantExpression)
+    {
+        if (CanEvaluate(expression))
+        {
+            sqlConstantExpression = new SqlConstantExpression(
                 Expression.Constant(
-                    Expression.Lambda<Func<object>>(Expression.Convert(expression, typeof(object))).Compile().Invoke(),
+                    Expression.Lambda<Func<object>>(Expression.Convert(expression, typeof(object)))
+                        .Compile(preferInterpretation: true)
+                        .Invoke(),
                     expression.Type),
-                null)
-            : QueryCompilationContext.NotTranslatedExpression;
+                null);
+            return true;
+        }
+
+        sqlConstantExpression = null;
+        return false;
+    }
 
     private bool TryRewriteContainsEntity(Expression source, Expression item, [NotNullWhen(true)] out Expression? result)
     {
@@ -1811,29 +1865,18 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
     }
 
     private static bool CanEvaluate(Expression expression)
-    {
-#pragma warning disable IDE0066 // Convert switch statement to expression
-        switch (expression)
-#pragma warning restore IDE0066 // Convert switch statement to expression
+        => expression switch
         {
-            case ConstantExpression:
-                return true;
-
-            case NewExpression newExpression:
-                return newExpression.Arguments.All(e => CanEvaluate(e));
-
-            case MemberInitExpression memberInitExpression:
-                return CanEvaluate(memberInitExpression.NewExpression)
-                    && memberInitExpression.Bindings.All(
-                        mb => mb is MemberAssignment memberAssignment && CanEvaluate(memberAssignment.Expression));
-
-            default:
-                return false;
-        }
-    }
+            ConstantExpression => true,
+            NewExpression e => e.Arguments.All(CanEvaluate),
+            NewArrayExpression e => e.Expressions.All(CanEvaluate),
+            MemberInitExpression e => CanEvaluate(e.NewExpression)
+                && e.Bindings.All(mb => mb is MemberAssignment memberAssignment && CanEvaluate(memberAssignment.Expression)),
+            _ => false
+        };
 
     private static bool IsNullSqlConstantExpression(Expression expression)
-        => expression is SqlConstantExpression sqlConstant && sqlConstant.Value == null;
+        => expression is SqlConstantExpression { Value: null };
 
     [DebuggerStepThrough]
     private static bool TranslationFailed(Expression? original, Expression? translation, out SqlExpression? castTranslation)
@@ -1894,14 +1937,5 @@ public class RelationalSqlTranslatingExpressionVisitor : ExpressionVisitor
                 ? QueryCompilationContext.NotTranslatedExpression
                 : new EntityReferenceExpression(this, derivedEntityType);
         }
-    }
-
-    private sealed class SqlTypeMappingVerifyingExpressionVisitor : ExpressionVisitor
-    {
-        protected override Expression VisitExtension(Expression extensionExpression)
-            => extensionExpression is SqlExpression { TypeMapping: null } sqlExpression
-                && extensionExpression is not SqlFragmentExpression
-                ? throw new InvalidOperationException(RelationalStrings.NullTypeMappingInSqlTree(sqlExpression.Print()))
-                : base.VisitExtension(extensionExpression);
     }
 }

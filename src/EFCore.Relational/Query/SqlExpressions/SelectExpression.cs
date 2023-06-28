@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.IO;
 using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Query.Internal;
@@ -25,19 +24,7 @@ namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 public sealed partial class SelectExpression : TableExpressionBase
 {
     private const string DiscriminatorColumnAlias = "Discriminator";
-    private const string SqlQuerySingleColumnAlias = "Value";
     private static readonly IdentifierComparer IdentifierComparerInstance = new();
-
-    private static readonly Dictionary<ExpressionType, ExpressionType> MirroredOperationMap =
-        new()
-        {
-            { ExpressionType.Equal, ExpressionType.Equal },
-            { ExpressionType.NotEqual, ExpressionType.NotEqual },
-            { ExpressionType.LessThan, ExpressionType.GreaterThan },
-            { ExpressionType.LessThanOrEqual, ExpressionType.GreaterThanOrEqual },
-            { ExpressionType.GreaterThan, ExpressionType.LessThan },
-            { ExpressionType.GreaterThanOrEqual, ExpressionType.LessThanOrEqual }
-        };
 
     private readonly List<ProjectionExpression> _projection = new();
     private readonly List<TableExpressionBase> _tables = new();
@@ -61,7 +48,7 @@ public sealed partial class SelectExpression : TableExpressionBase
 
     private SortedDictionary<string, IAnnotation>? _annotations;
 
-    // We need to remember identfiers before GroupBy in case it is final GroupBy and element selector has a colection
+    // We need to remember identifiers before GroupBy in case it is final GroupBy and element selector has a collection
     // This state doesn't need to propagate
     // It should be only at top-level otherwise GroupBy won't be final operator.
     // Cloning skips it altogether (we don't clone top level with GroupBy)
@@ -112,14 +99,32 @@ public sealed partial class SelectExpression : TableExpressionBase
         }
     }
 
-    internal SelectExpression(Type type, RelationalTypeMapping typeMapping, FromSqlExpression fromSqlExpression)
+    /// <summary>
+    ///     Creates a new instance of the <see cref="SelectExpression" /> class given a <see cref="TableExpressionBase" />, with a single
+    ///     column projection.
+    /// </summary>
+    /// <param name="tableExpression">The table expression.</param>
+    /// <param name="columnName">The name of the column to add as the projection.</param>
+    /// <param name="columnType">The type of the column to add as the projection.</param>
+    /// <param name="columnTypeMapping">The type mapping of the column to add as the projection.</param>
+    /// <param name="isColumnNullable">Whether the column projected out is nullable.</param>
+    public SelectExpression(
+        TableExpressionBase tableExpression,
+        string columnName,
+        Type columnType,
+        RelationalTypeMapping? columnTypeMapping,
+        bool? isColumnNullable = null)
         : base(null)
     {
-        var tableReferenceExpression = new TableReferenceExpression(this, fromSqlExpression.Alias!);
-        AddTable(fromSqlExpression, tableReferenceExpression);
+        var tableReferenceExpression = new TableReferenceExpression(this, tableExpression.Alias!);
+        AddTable(tableExpression, tableReferenceExpression);
 
         var columnExpression = new ConcreteColumnExpression(
-            SqlQuerySingleColumnAlias, tableReferenceExpression, type, typeMapping, type.IsNullableType());
+            columnName,
+            tableReferenceExpression,
+            columnType.UnwrapNullableType(),
+            columnTypeMapping,
+            isColumnNullable ?? columnType.IsNullableType());
 
         _projectionMapping[new ProjectionMember()] = columnExpression;
     }
@@ -163,8 +168,9 @@ public sealed partial class SelectExpression : TableExpressionBase
                         var innerColumns = keyProperties.Select(
                             p => CreateColumnExpression(p, table, tableReferenceExpression, nullable: false));
 
-                        var joinPredicate = joinColumns.Zip(innerColumns, (l, r) => sqlExpressionFactory.Equal(l, r))
-                            .Aggregate((l, r) => sqlExpressionFactory.AndAlso(l, r));
+                        var joinPredicate = joinColumns
+                            .Zip(innerColumns, sqlExpressionFactory.Equal)
+                            .Aggregate(sqlExpressionFactory.AndAlso);
 
                         var joinExpression = new InnerJoinExpression(tableExpression, joinPredicate);
                         AddTable(joinExpression, tableReferenceExpression);
@@ -194,8 +200,9 @@ public sealed partial class SelectExpression : TableExpressionBase
                                 sqlExpressionFactory.Constant(derivedType.ShortName())));
                     }
 
-                    var joinPredicate = joinColumns.Zip(keyColumns, (l, r) => sqlExpressionFactory.Equal(l, r))
-                        .Aggregate((l, r) => sqlExpressionFactory.AndAlso(l, r));
+                    var joinPredicate = joinColumns
+                        .Zip(keyColumns, sqlExpressionFactory.Equal)
+                        .Aggregate(sqlExpressionFactory.AndAlso);
 
                     var joinExpression = new LeftJoinExpression(tableExpression, joinPredicate);
                     _removableJoinTables.Add(_tables.Count);
@@ -223,7 +230,7 @@ public sealed partial class SelectExpression : TableExpressionBase
                     var table = entityTypes[0].GetViewOrTableMappings().Single().Table;
                     var tableExpression = new TableExpression(table);
 
-                    var tableReferenceExpression = new TableReferenceExpression(this, tableExpression.Alias!);
+                    var tableReferenceExpression = new TableReferenceExpression(this, tableExpression.Alias);
                     AddTable(tableExpression, tableReferenceExpression);
 
                     var propertyExpressions = new Dictionary<IProperty, ColumnExpression>();
@@ -302,9 +309,9 @@ public sealed partial class SelectExpression : TableExpressionBase
                         for (var j = 0; j < properties.Length; j++)
                         {
                             var property = properties[j];
-                            var projection = property.DeclaringEntityType.IsAssignableFrom(et)
+                            var projection = property.DeclaringType.IsAssignableFrom(et)
                                 ? CreateColumnExpression(
-                                    property, table, tableReferenceExpression, property.DeclaringEntityType != entityType)
+                                    property, table, tableReferenceExpression, property.DeclaringType != entityType)
                                 : (SqlExpression)sqlExpressionFactory.Constant(
                                     null, property.ClrType.MakeNullable(), property.GetRelationalTypeMapping());
                             selectExpression._projection.Add(new ProjectionExpression(projection, propertyNames[j]));
@@ -398,8 +405,9 @@ public sealed partial class SelectExpression : TableExpressionBase
                                 var innerColumns = keyProperties.Select(
                                     p => CreateColumnExpression(p, table, tableReferenceExpression, nullable: false));
 
-                                var joinPredicate = joinColumns.Zip(innerColumns, (l, r) => sqlExpressionFactory.Equal(l, r))
-                                    .Aggregate((l, r) => sqlExpressionFactory.AndAlso(l, r));
+                                var joinPredicate = joinColumns
+                                    .Zip(innerColumns, sqlExpressionFactory.Equal)
+                                    .Aggregate(sqlExpressionFactory.AndAlso);
 
                                 var joinExpression = new InnerJoinExpression(tableExpression, joinPredicate);
                                 _removableJoinTables.Add(_tables.Count);
@@ -466,7 +474,9 @@ public sealed partial class SelectExpression : TableExpressionBase
             throw new InvalidOperationException(RelationalStrings.SelectExpressionNonTphWithCustomTable(entityType.DisplayName()));
         }
 
-        var table = (tableExpressionBase as FromSqlExpression)?.Table ?? ((ITableBasedExpression)tableExpressionBase).Table;
+        var table = (tableExpressionBase as ITableBasedExpression)?.Table;
+        Check.DebugAssert(table is not null, "SelectExpression with unexpected missing table");
+
         var tableReferenceExpression = new TableReferenceExpression(this, tableExpressionBase.Alias!);
         AddTable(tableExpressionBase, tableReferenceExpression);
 
@@ -504,7 +514,9 @@ public sealed partial class SelectExpression : TableExpressionBase
         {
             var targetEntityType = ownedJsonNavigation.TargetEntityType;
             var jsonColumnName = targetEntityType.GetContainerColumnName()!;
-            var jsonColumnTypeMapping = targetEntityType.GetContainerColumnTypeMapping()!;
+            var jsonColumnTypeMapping = (entityType.GetViewOrTableMappings().SingleOrDefault()?.Table
+                    ?? entityType.GetDefaultMappings().Single().Table)
+                .FindColumn(jsonColumnName)!.StoreTypeMapping;
 
             var jsonColumn = new ConcreteColumnExpression(
                 jsonColumnName,
@@ -609,7 +621,7 @@ public sealed partial class SelectExpression : TableExpressionBase
     public void ApplyDistinct()
     {
         if (_clientProjections.Count > 0
-            && _clientProjections.Any(e => e is ShapedQueryExpression sqe && sqe.ResultCardinality == ResultCardinality.Enumerable))
+            && _clientProjections.Any(e => e is ShapedQueryExpression { ResultCardinality: ResultCardinality.Enumerable }))
         {
             throw new InvalidOperationException(RelationalStrings.DistinctOnCollectionNotSupported);
         }
@@ -829,8 +841,7 @@ public sealed partial class SelectExpression : TableExpressionBase
                         containsCollection = true;
                     }
 
-                    if (sqe.ResultCardinality == ResultCardinality.Single
-                        || sqe.ResultCardinality == ResultCardinality.SingleOrDefault)
+                    if (sqe.ResultCardinality is ResultCardinality.Single or ResultCardinality.SingleOrDefault)
                     {
                         containsSingleResult = true;
                     }
@@ -846,7 +857,7 @@ public sealed partial class SelectExpression : TableExpressionBase
                 || (querySplittingBehavior == QuerySplittingBehavior.SingleQuery && containsCollection))
             {
                 // Pushdown outer since we will be adding join to this
-                // For grouping query pushown will not occur since we don't allow this terms to compose (yet!).
+                // For grouping query pushdown will not occur since we don't allow this terms to compose (yet!).
                 if (Limit != null
                     || Offset != null
                     || IsDistinct
@@ -943,15 +954,15 @@ public sealed partial class SelectExpression : TableExpressionBase
 
                             return memberInitExpression.Update((NewExpression)updatedNewExpression, newBindings);
 
-                        case UnaryExpression unaryExpression
-                        when unaryExpression.NodeType == ExpressionType.Convert
-                            || unaryExpression.NodeType == ExpressionType.ConvertChecked:
+                        case UnaryExpression { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked } unaryExpression:
                             return unaryExpression.Update(
                                 AddGroupByKeySelectorToProjection(
                                     selectExpression, clientProjectionList, projectionBindingMap, unaryExpression.Operand));
 
-                        case EntityShaperExpression entityShaperExpression
-                        when entityShaperExpression.ValueBufferExpression is EntityProjectionExpression entityProjectionExpression:
+                        case EntityShaperExpression
+                        {
+                            ValueBufferExpression: EntityProjectionExpression entityProjectionExpression
+                        } entityShaperExpression:
                         {
                             var clientProjectionToAdd = AddEntityProjection(entityProjectionExpression);
                             var existingIndex = clientProjectionList.FindIndex(
@@ -982,7 +993,7 @@ public sealed partial class SelectExpression : TableExpressionBase
                     var comparers = new List<ValueComparer>();
                     foreach (var (column, comparer) in identifyingProjection)
                     {
-                        if (!projectionBindingMap.TryGetValue(column, out var mappedExpresssion))
+                        if (!projectionBindingMap.TryGetValue(column, out var mappedExpression))
                         {
                             var index = selectExpression.AddToProjection(column);
                             var clientProjectionToAdd = Constant(index);
@@ -994,13 +1005,13 @@ public sealed partial class SelectExpression : TableExpressionBase
                                 existingIndex = clientProjectionList.Count - 1;
                             }
 
-                            mappedExpresssion = new ProjectionBindingExpression(selectExpression, existingIndex, column.Type.MakeNullable());
+                            mappedExpression = new ProjectionBindingExpression(selectExpression, existingIndex, column.Type.MakeNullable());
                         }
 
                         updatedExpressions.Add(
-                            mappedExpresssion.Type.IsValueType
-                                ? Convert(mappedExpresssion, typeof(object))
-                                : mappedExpresssion);
+                            mappedExpression.Type.IsValueType
+                                ? Convert(mappedExpression, typeof(object))
+                                : mappedExpression);
                         comparers.Add(comparer);
                     }
 
@@ -1018,8 +1029,7 @@ public sealed partial class SelectExpression : TableExpressionBase
                 baseSelectExpression = (SelectExpression)cloningExpressionVisitor!.Visit(this);
                 // We mark this as mutable because the split query will combine into this and take it over.
                 baseSelectExpression._mutable = true;
-                if (resultCardinality == ResultCardinality.Single
-                    || resultCardinality == ResultCardinality.SingleOrDefault)
+                if (resultCardinality is ResultCardinality.Single or ResultCardinality.SingleOrDefault)
                 {
                     // Update limit since split queries don't need limit 2
                     if (pushdownOccurred)
@@ -1033,9 +1043,7 @@ public sealed partial class SelectExpression : TableExpressionBase
 
                     static void UpdateLimit(SelectExpression selectExpression)
                     {
-                        if (selectExpression.Limit is SqlConstantExpression limitConstantExpression
-                            && limitConstantExpression.Value is int limitValue
-                            && limitValue == 2)
+                        if (selectExpression.Limit is SqlConstantExpression { Value: 2 } limitConstantExpression)
                         {
                             selectExpression.Limit = new SqlConstantExpression(Constant(1), limitConstantExpression.TypeMapping);
                         }
@@ -1095,9 +1103,10 @@ public sealed partial class SelectExpression : TableExpressionBase
                         break;
                     }
 
-                    case ShapedQueryExpression shapedQueryExpression
-                        when shapedQueryExpression.ResultCardinality == ResultCardinality.Single
-                        || shapedQueryExpression.ResultCardinality == ResultCardinality.SingleOrDefault:
+                    case ShapedQueryExpression
+                    {
+                        ResultCardinality: ResultCardinality.Single or ResultCardinality.SingleOrDefault
+                    } shapedQueryExpression:
                     {
                         var innerSelectExpression = (SelectExpression)shapedQueryExpression.QueryExpression;
                         var innerShaperExpression = shapedQueryExpression.ShaperExpression;
@@ -1111,8 +1120,7 @@ public sealed partial class SelectExpression : TableExpressionBase
                         }
 
                         var innerExpression = RemoveConvert(innerShaperExpression);
-                        if (!(innerExpression is EntityShaperExpression
-                                || innerExpression is IncludeExpression))
+                        if (innerExpression is not (EntityShaperExpression or IncludeExpression))
                         {
                             var sentinelExpression = innerSelectExpression.Limit!;
                             var sentinelNullableType = sentinelExpression.Type.MakeNullable();
@@ -1162,14 +1170,12 @@ public sealed partial class SelectExpression : TableExpressionBase
                         break;
 
                         static Expression RemoveConvert(Expression expression)
-                            => expression is UnaryExpression unaryExpression
-                                && unaryExpression.NodeType == ExpressionType.Convert
-                                    ? RemoveConvert(unaryExpression.Operand)
-                                    : expression;
+                            => expression is UnaryExpression { NodeType: ExpressionType.Convert } unaryExpression
+                                ? RemoveConvert(unaryExpression.Operand)
+                                : expression;
                     }
 
-                    case ShapedQueryExpression shapedQueryExpression
-                        when shapedQueryExpression.ResultCardinality == ResultCardinality.Enumerable:
+                    case ShapedQueryExpression { ResultCardinality: ResultCardinality.Enumerable } shapedQueryExpression:
                     {
                         var innerSelectExpression = (SelectExpression)shapedQueryExpression.QueryExpression;
                         if (_identifier.Count == 0
@@ -1460,12 +1466,12 @@ public sealed partial class SelectExpression : TableExpressionBase
                 TableReferenceExpression tableReferenceExpression,
                 List<OrderingExpression> orderings)
             {
-                // If operation was converted to predicate join (inner/left join),
-                // then ordering will be in rownumber expression
-                if (tableExpressionBase is SelectExpression joinedSubquery
-                    && joinedSubquery.Predicate != null
-                    && joinedSubquery.Tables.Count == 1
-                    && joinedSubquery.Tables[0] is SelectExpression rowNumberSubquery
+                // If operation was converted to predicate join (inner/left join), then ordering will be in a RowNumberExpression
+                if (tableExpressionBase is SelectExpression
+                    {
+                        Tables: [SelectExpression rowNumberSubquery],
+                        Predicate: not null
+                    } joinedSubquery
                     && rowNumberSubquery.Projection.Select(pe => pe.Expression)
                         .OfType<RowNumberExpression>().SingleOrDefault() is RowNumberExpression rowNumberExpression)
                 {
@@ -1491,8 +1497,7 @@ public sealed partial class SelectExpression : TableExpressionBase
                     }
                 }
                 // If operation remained apply then ordering will be in the subquery
-                else if (tableExpressionBase is SelectExpression collectionSelectExpression
-                         && collectionSelectExpression.Orderings.Count > 0)
+                else if (tableExpressionBase is SelectExpression { Orderings.Count: > 0 } collectionSelectExpression)
                 {
                     foreach (var ordering in collectionSelectExpression.Orderings)
                     {
@@ -1529,15 +1534,19 @@ public sealed partial class SelectExpression : TableExpressionBase
 
                         remappedConstant = Constant(newDictionary);
                     }
-                    else if (constantValue is ValueTuple<int, List<ValueTuple<IProperty, int>>, string[]> tuple)
+                    else if (constantValue is JsonProjectionInfo jsonProjectionInfo)
                     {
-                        var newList = new List<ValueTuple<IProperty, int>>();
-                        foreach (var item in tuple.Item2)
+                        var newKeyAccessInfo = new List<(IProperty?, int?, int?)>();
+                        foreach (var (keyProperty, constantKeyValue, keyProjectionIndex) in jsonProjectionInfo.KeyAccessInfo)
                         {
-                            newList.Add((item.Item1, projectionIndexMap[item.Item2]));
+                            newKeyAccessInfo.Add((keyProperty, constantKeyValue, keyProjectionIndex != null ? projectionIndexMap[keyProjectionIndex.Value] : null));
                         }
 
-                        remappedConstant = Constant((projectionIndexMap[tuple.Item1], newList, tuple.Item3));
+                        remappedConstant = Constant(
+                            new JsonProjectionInfo(
+                                projectionIndexMap[jsonProjectionInfo.JsonColumnIndex],
+                                newKeyAccessInfo,
+                                jsonProjectionInfo.AdditionalPath));
                     }
                     else
                     {
@@ -1586,11 +1595,12 @@ public sealed partial class SelectExpression : TableExpressionBase
         {
             // force reference comparison for this one, even if we implement custom equality for JsonQueryExpression in the future
             var deduplicationMap = new Dictionary<JsonQueryExpression, JsonScalarExpression>(ReferenceEqualityComparer.Instance);
-            if (projections.Count() > 0)
+            if (projections.Any())
             {
                 var ordered = projections
                     .OrderBy(x => $"{x.JsonColumn.TableAlias}.{x.JsonColumn.Name}")
-                    .ThenBy(x => x.Path.Count);
+                    .ThenBy(x => x.Path.Count)
+                    .ThenBy(x => x.Path.Count > 0 && x.Path[^1].ArrayIndex != null);
 
                 var needed = new List<JsonScalarExpression>();
                 foreach (var orderedElement in ordered)
@@ -1638,25 +1648,54 @@ public sealed partial class SelectExpression : TableExpressionBase
 
         ConstantExpression AddJsonProjection(JsonQueryExpression jsonQueryExpression, JsonScalarExpression jsonScalarToAdd)
         {
-            var additionalPath = new string[0];
-
-            // this will be more tricky once we support more complicated json path options
-            additionalPath = jsonQueryExpression.Path
+            var additionalPath = jsonQueryExpression.Path
                 .Skip(jsonScalarToAdd.Path.Count)
-                .Select(x => x.Key)
                 .ToArray();
 
             var jsonColumnIndex = AddToProjection(jsonScalarToAdd);
 
-            var keyInfo = new List<(IProperty, int)>();
+            var keyAccessInfo = new List<(IProperty?, int?, int?)>();
             var keyProperties = GetMappedKeyProperties(jsonQueryExpression.EntityType.FindPrimaryKey()!);
             foreach (var keyProperty in keyProperties)
             {
                 var keyColumn = jsonQueryExpression.BindProperty(keyProperty);
-                keyInfo.Add((keyProperty, AddToProjection(keyColumn)));
+                keyAccessInfo.Add((keyProperty, null, AddToProjection(keyColumn)));
             }
 
-            return Constant((jsonColumnIndex, keyInfo, additionalPath));
+            foreach (var elementAccessSegment in jsonScalarToAdd.Path.Where(x => x.ArrayIndex != null))
+            {
+                if (elementAccessSegment.ArrayIndex is SqlConstantExpression { Value: int intValue })
+                {
+                    keyAccessInfo.Add((null, intValue, null));
+                }
+                else
+                {
+                    keyAccessInfo.Add((null, null, AddToProjection(elementAccessSegment.ArrayIndex!)));
+                }
+            }
+
+            var additionalPathList = new List<(string?, int?, int?)>();
+            foreach (var additionalPathSegment in additionalPath)
+            {
+                if (additionalPathSegment.PropertyName is not null)
+                {
+                    additionalPathList.Add((additionalPathSegment.PropertyName, null, null));
+                }
+                else if (additionalPathSegment.ArrayIndex is SqlConstantExpression { Value: int intValue })
+                {
+                    additionalPathList.Add((null, intValue, null));
+                }
+                else
+                {
+                    additionalPathList.Add((null, null, AddToProjection(additionalPathSegment.ArrayIndex!)));
+                }
+            }
+
+            return Constant(
+                new JsonProjectionInfo(
+                    jsonColumnIndex,
+                    keyAccessInfo,
+                    additionalPathList.ToArray()));
         }
 
         static IReadOnlyList<IProperty> GetMappedKeyProperties(IKey key)
@@ -1684,7 +1723,7 @@ public sealed partial class SelectExpression : TableExpressionBase
 
         static bool JsonEntityContainedIn(JsonScalarExpression sourceExpression, JsonQueryExpression targetExpression)
         {
-            if (sourceExpression.JsonColumn != targetExpression.JsonColumn)
+            if (sourceExpression.Json != targetExpression.JsonColumn)
             {
                 return false;
             }
@@ -1711,9 +1750,7 @@ public sealed partial class SelectExpression : TableExpressionBase
         foreach (var (projectionMember, expression) in projectionMapping)
         {
             Check.DebugAssert(
-                expression is SqlExpression
-                || expression is EntityProjectionExpression
-                || expression is JsonQueryExpression,
+                expression is SqlExpression or EntityProjectionExpression or JsonQueryExpression,
                 "Invalid operation in the projection.");
             _projectionMapping[projectionMember] = expression;
         }
@@ -1731,10 +1768,7 @@ public sealed partial class SelectExpression : TableExpressionBase
         foreach (var expression in clientProjections)
         {
             Check.DebugAssert(
-                expression is SqlExpression
-                || expression is EntityProjectionExpression
-                || expression is ShapedQueryExpression
-                || expression is JsonQueryExpression,
+                expression is SqlExpression or EntityProjectionExpression or ShapedQueryExpression or JsonQueryExpression,
                 "Invalid operation in the projection.");
             _clientProjections.Add(expression);
             _aliasForClientProjections.Add(null);
@@ -1800,9 +1834,7 @@ public sealed partial class SelectExpression : TableExpressionBase
     /// <param name="sqlExpression">An expression to use for filtering.</param>
     public void ApplyPredicate(SqlExpression sqlExpression)
     {
-        if (sqlExpression is SqlConstantExpression sqlConstant
-            && sqlConstant.Value is bool boolValue
-            && boolValue)
+        if (sqlExpression is SqlConstantExpression { Value: true })
         {
             return;
         }
@@ -1813,19 +1845,16 @@ public sealed partial class SelectExpression : TableExpressionBase
             sqlExpression = PushdownIntoSubqueryInternal().Remap(sqlExpression);
         }
 
-        if ((sqlExpression is SqlBinaryExpression { OperatorType: ExpressionType.Equal }
-                || sqlExpression is InExpression { Subquery: null, IsNegated: false })
+        if (sqlExpression is SqlBinaryExpression { OperatorType: ExpressionType.Equal } or InExpression { Subquery: null }
             && _groupBy.Count == 0)
         {
             // If the intersection is empty then we don't remove predicate so that the filter empty out all results.
             if (sqlExpression is SqlBinaryExpression sqlBinaryExpression)
             {
-                if (sqlBinaryExpression.Left is ColumnExpression leftColumn
-                    && leftColumn.Table is TpcTablesExpression leftTpc
+                if (sqlBinaryExpression.Left is ColumnExpression { Table: TpcTablesExpression leftTpc } leftColumn
                     && _tpcDiscriminatorValues.TryGetValue(leftTpc, out var leftTuple)
                     && leftTuple.Item1.Equals(leftColumn)
-                    && sqlBinaryExpression.Right is SqlConstantExpression rightConstant
-                    && rightConstant.Value is string s1)
+                    && sqlBinaryExpression.Right is SqlConstantExpression { Value: string s1 })
                 {
                     var newList = leftTuple.Item2.Intersect(new List<string> { s1 }).ToList();
                     if (newList.Count > 0)
@@ -1834,12 +1863,10 @@ public sealed partial class SelectExpression : TableExpressionBase
                         return;
                     }
                 }
-                else if (sqlBinaryExpression.Right is ColumnExpression rightColumn
-                         && rightColumn.Table is TpcTablesExpression rightTpc
+                else if (sqlBinaryExpression.Right is ColumnExpression { Table: TpcTablesExpression rightTpc } rightColumn
                          && _tpcDiscriminatorValues.TryGetValue(rightTpc, out var rightTuple)
                          && rightTuple.Item1.Equals(rightColumn)
-                         && sqlBinaryExpression.Left is SqlConstantExpression leftConstant
-                         && leftConstant.Value is string s2)
+                         && sqlBinaryExpression.Left is SqlConstantExpression { Value: string s2 })
                 {
                     var newList = rightTuple.Item2.Intersect(new List<string> { s2 }).ToList();
                     if (newList.Count > 0)
@@ -1849,15 +1876,30 @@ public sealed partial class SelectExpression : TableExpressionBase
                     }
                 }
             }
-            else if (sqlExpression is InExpression inExpression
-                     && inExpression.Item is ColumnExpression itemColumn
-                     && itemColumn.Table is TpcTablesExpression itemTpc
+            // Identify application of a predicate which narrows the discriminator (e.g. OfType) for TPC, apply it to
+            // _tpcDiscriminatorValues (which will be handled later) instead of as a WHERE predicate.
+            else if (sqlExpression is InExpression
+                     {
+                         Item: ColumnExpression { Table: TpcTablesExpression itemTpc } itemColumn,
+                         Values: IReadOnlyList<SqlExpression> valueExpressions
+                     }
                      && _tpcDiscriminatorValues.TryGetValue(itemTpc, out var itemTuple)
-                     && itemTuple.Item1.Equals(itemColumn)
-                     && inExpression.Values is SqlConstantExpression itemConstant
-                     && itemConstant.Value is List<string> values)
+                     && itemTuple.Item1.Equals(itemColumn))
             {
-                var newList = itemTuple.Item2.Intersect(values).ToList();
+                var constantValues = new string[valueExpressions.Count];
+                for (var i = 0; i < constantValues.Length; i++)
+                {
+                    if (valueExpressions[i] is SqlConstantExpression { Value: string value })
+                    {
+                        constantValues[i] = value;
+                    }
+                    else
+                    {
+                        goto ApplyPredicate;
+                    }
+                }
+
+                var newList = itemTuple.Item2.Intersect(constantValues).ToList();
                 if (newList.Count > 0)
                 {
                     _tpcDiscriminatorValues[itemTpc] = (itemColumn, newList);
@@ -1866,6 +1908,7 @@ public sealed partial class SelectExpression : TableExpressionBase
             }
         }
 
+        ApplyPredicate:
         sqlExpression = AssignUniqueAliases(sqlExpression);
 
         if (_groupBy.Count > 0)
@@ -1950,8 +1993,7 @@ public sealed partial class SelectExpression : TableExpressionBase
         ClearOrdering();
 
         var keySelectorToAdd = keySelector;
-        var emptyKey = keySelector is NewExpression newExpression
-            && newExpression.Arguments.Count == 0;
+        var emptyKey = keySelector is NewExpression { Arguments.Count: 0 };
         if (emptyKey)
         {
             keySelectorToAdd = sqlExpressionFactory.ApplyDefaultTypeMapping(sqlExpressionFactory.Constant(1));
@@ -1991,7 +2033,7 @@ public sealed partial class SelectExpression : TableExpressionBase
         var clonedSelectExpression = Clone();
         var correlationPredicate = groupByTerms.Zip(clonedSelectExpression._groupBy)
             .Select(e => sqlExpressionFactory.Equal(e.First, e.Second))
-            .Aggregate((l, r) => sqlExpressionFactory.AndAlso(l, r));
+            .Aggregate(sqlExpressionFactory.AndAlso);
         clonedSelectExpression._groupBy.Clear();
         clonedSelectExpression.ApplyPredicate(correlationPredicate);
 
@@ -2044,14 +2086,11 @@ public sealed partial class SelectExpression : TableExpressionBase
 
                 break;
 
-            case UnaryExpression unaryExpression
-                when unaryExpression.NodeType == ExpressionType.Convert
-                || unaryExpression.NodeType == ExpressionType.ConvertChecked:
+            case UnaryExpression { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked } unaryExpression:
                 PopulateGroupByTerms(unaryExpression.Operand, groupByTerms, groupByAliases, name);
                 break;
 
-            case EntityShaperExpression entityShaperExpression
-                when entityShaperExpression.ValueBufferExpression is EntityProjectionExpression entityProjectionExpression:
+            case EntityShaperExpression { ValueBufferExpression: EntityProjectionExpression entityProjectionExpression }:
                 foreach (var property in GetAllPropertiesInHierarchy(entityProjectionExpression.EntityType))
                 {
                     PopulateGroupByTerms(entityProjectionExpression.BindProperty(property), groupByTerms, groupByAliases, name: null);
@@ -2244,23 +2283,30 @@ public sealed partial class SelectExpression : TableExpressionBase
         var entityProjectionValueComparers = new List<ValueComparer>();
         var otherExpressions = new List<SqlExpression>();
 
-        if (select1.Orderings.Count != 0
-            || select1.Limit != null
-            || select1.Offset != null)
+        // Push down into a subquery if limit/offset are defined. If not, any orderings can be discarded as set operations don't preserve
+        // them.
+        // Note that in some databases it may be possible to preserve the internal ordering of the set operands for Concat, but we don't
+        // currently support that.
+        if (select1.Limit != null || select1.Offset != null)
         {
             // If we are pushing down here, we need to make sure to assign unique alias to subquery also.
             var subqueryAlias = GenerateUniqueAlias(_usedAliases, "t");
-            select1.PushdownIntoSubquery();
+            select1.PushdownIntoSubqueryInternal(liftOrderings: false);
             select1._tables[0].Alias = subqueryAlias;
             select1._tableReferences[0].Alias = subqueryAlias;
+        }
+        else
+        {
             select1.ClearOrdering();
         }
 
-        if (select2.Orderings.Count != 0
-            || select2.Limit != null
-            || select2.Offset != null)
+        // Do the same for the other side of the set operation
+        if (select2.Limit != null || select2.Offset != null)
         {
-            select2.PushdownIntoSubquery();
+            select2.PushdownIntoSubqueryInternal(liftOrderings: false);
+        }
+        else
+        {
             select2.ClearOrdering();
         }
 
@@ -2296,15 +2342,6 @@ public sealed partial class SelectExpression : TableExpressionBase
 
             var innerColumn1 = (SqlExpression)expression1;
             var innerColumn2 = (SqlExpression)expression2;
-            // For now, make sure that both sides output the same store type, otherwise the query may fail.
-            // TODO: with #15586 we'll be able to also allow different store types which are implicitly convertible to one another.
-            if (!string.Equals(
-                    innerColumn1.TypeMapping!.StoreType,
-                    innerColumn2.TypeMapping!.StoreType,
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidOperationException(RelationalStrings.SetOperationsOnDifferentStoreTypes);
-            }
 
             // We have to unique-fy left side since those projections were never uniquified
             // Right side is unique already when we did it when running select2 through it.
@@ -2699,8 +2736,9 @@ public sealed partial class SelectExpression : TableExpressionBase
 
                                 var innerColumns = keyProperties.Select(
                                     p => CreateColumnExpression(p, table, tableReferenceExpression, nullable: false));
-                                var joinPredicate = joinColumns.Zip(innerColumns, (l, r) => sqlExpressionFactory.Equal(l, r))
-                                        .Aggregate((l, r) => sqlExpressionFactory.AndAlso(l, r));
+                                var joinPredicate = joinColumns
+                                    .Zip(innerColumns, sqlExpressionFactory.Equal)
+                                    .Aggregate(sqlExpressionFactory.AndAlso);
 
                                 var joinExpression = new LeftJoinExpression(tableExpression, joinPredicate);
                                 selectExpression._removableJoinTables.Add(selectExpression._tables.Count);
@@ -2750,7 +2788,7 @@ public sealed partial class SelectExpression : TableExpressionBase
                 .Zip(navigation.ForeignKey.Properties
                     .Select(p => CreateColumnExpression(p, dependentMainTable, mainTableReferenceExpression, nullable: false)))
                 .Select(i => sqlExpressionFactory.Equal(i.First, i.Second))
-                .Aggregate((l, r) => sqlExpressionFactory.AndAlso(l, r));
+                .Aggregate(sqlExpressionFactory.AndAlso);
             var joinedTable = new LeftJoinExpression(ownedTable, outerJoinPredicate);
             tableReferenceExpressionMap[dependentMainTable] = mainTableReferenceExpression;
             selectExpression.AddTable(joinedTable, mainTableReferenceExpression);
@@ -2778,8 +2816,9 @@ public sealed partial class SelectExpression : TableExpressionBase
 
                     var innerColumns = keyProperties.Select(
                         p => CreateColumnExpression(p, table, tableReferenceExpression, nullable: false));
-                    var joinPredicate = joinColumns.Zip(innerColumns, (l, r) => sqlExpressionFactory.Equal(l, r))
-                            .Aggregate((l, r) => sqlExpressionFactory.AndAlso(l, r));
+                    var joinPredicate = joinColumns
+                        .Zip(innerColumns, sqlExpressionFactory.Equal)
+                        .Aggregate(sqlExpressionFactory.AndAlso);
 
                     var joinExpression = new LeftJoinExpression(tableExpression, joinPredicate);
                     selectExpression._removableJoinTables.Add(selectExpression._tables.Count);
@@ -2824,8 +2863,7 @@ public sealed partial class SelectExpression : TableExpressionBase
 
             if (table is SelectExpression selectExpression)
             {
-                var matchingProjection =
-                    (ColumnExpression)selectExpression.Projection.Where(p => p.Alias == columnName).Single().Expression;
+                var matchingProjection = (ColumnExpression)selectExpression.Projection.Single(p => p.Alias == columnName).Expression;
 
                 return FindRootTableExpressionForColumn(matchingProjection.Table, matchingProjection.Name);
             }
@@ -2857,7 +2895,7 @@ public sealed partial class SelectExpression : TableExpressionBase
         var innerMemberInfo = transparentIdentifierType.GetTypeInfo().GetDeclaredField("Inner")!;
         var outerClientEval = _clientProjections.Count > 0;
         var innerClientEval = innerSelectExpression._clientProjections.Count > 0;
-        var innerNullable = joinType == JoinType.LeftJoin || joinType == JoinType.OuterApply;
+        var innerNullable = joinType is JoinType.LeftJoin or JoinType.OuterApply;
 
         if (outerClientEval)
         {
@@ -2960,8 +2998,7 @@ public sealed partial class SelectExpression : TableExpressionBase
     {
         innerPushdownOccurred = false;
         // Try to convert Apply to normal join
-        if (joinType == JoinType.CrossApply
-            || joinType == JoinType.OuterApply)
+        if (joinType is JoinType.CrossApply or JoinType.OuterApply)
         {
             var limit = innerSelectExpression.Limit;
             var offset = innerSelectExpression.Offset;
@@ -3101,8 +3138,7 @@ public sealed partial class SelectExpression : TableExpressionBase
         if (_identifier.Count > 0
             && innerSelectExpression._identifier.Count > 0)
         {
-            if (joinType == JoinType.LeftJoin
-                || joinType == JoinType.OuterApply)
+            if (joinType is JoinType.LeftJoin or JoinType.OuterApply)
             {
                 _identifier.AddRange(innerSelectExpression._identifier.Select(e => (e.Column.MakeNullable(), e.Comparer)));
             }
@@ -3186,7 +3222,7 @@ public sealed partial class SelectExpression : TableExpressionBase
                 joinPredicate = RemoveRedundantNullChecks(joinPredicate, outerColumnExpressions);
             }
 
-            // we can't convert apply to join in case of distinct and groupby, if the projection doesn't already contain the join keys
+            // we can't convert apply to join in case of distinct and group by, if the projection doesn't already contain the join keys
             // since we can't add the missing keys to the projection - only convert to join if all the keys are already there
             if (joinPredicate != null
                 && (inner.IsDistinct
@@ -3268,11 +3304,11 @@ public sealed partial class SelectExpression : TableExpressionBase
             {
                 if (sqlBinaryExpression.OperatorType == ExpressionType.Equal
                     || (allowNonEquality
-                        && (sqlBinaryExpression.OperatorType == ExpressionType.NotEqual
-                            || sqlBinaryExpression.OperatorType == ExpressionType.GreaterThan
-                            || sqlBinaryExpression.OperatorType == ExpressionType.GreaterThanOrEqual
-                            || sqlBinaryExpression.OperatorType == ExpressionType.LessThan
-                            || sqlBinaryExpression.OperatorType == ExpressionType.LessThanOrEqual)))
+                        && sqlBinaryExpression.OperatorType is ExpressionType.NotEqual
+                            or ExpressionType.GreaterThan
+                            or ExpressionType.GreaterThanOrEqual
+                            or ExpressionType.LessThan
+                            or ExpressionType.LessThanOrEqual))
                 {
                     if (IsContainedSql(outer, sqlBinaryExpression.Left)
                         && IsContainedSql(inner, sqlBinaryExpression.Right))
@@ -3287,8 +3323,20 @@ public sealed partial class SelectExpression : TableExpressionBase
                     {
                         outerColumnExpressions.Add(sqlBinaryExpression.Right);
 
+                        var mirroredOperation = sqlBinaryExpression.OperatorType switch
+                        {
+                            ExpressionType.Equal => ExpressionType.Equal,
+                            ExpressionType.NotEqual => ExpressionType.NotEqual,
+                            ExpressionType.LessThan => ExpressionType.GreaterThan,
+                            ExpressionType.LessThanOrEqual => ExpressionType.GreaterThanOrEqual,
+                            ExpressionType.GreaterThan => ExpressionType.LessThan,
+                            ExpressionType.GreaterThanOrEqual => ExpressionType.LessThanOrEqual,
+
+                            _ => throw new InvalidOperationException("IMPOSSIBLE")
+                        };
+
                         return new SqlBinaryExpression(
-                            MirroredOperationMap[sqlBinaryExpression.OperatorType],
+                            mirroredOperation,
                             sqlBinaryExpression.Right,
                             sqlBinaryExpression.Left,
                             sqlBinaryExpression.Type,
@@ -3300,15 +3348,13 @@ public sealed partial class SelectExpression : TableExpressionBase
                 if (sqlBinaryExpression.OperatorType == ExpressionType.NotEqual)
                 {
                     if (IsContainedSql(outer, sqlBinaryExpression.Left)
-                        && sqlBinaryExpression.Right is SqlConstantExpression rightConstant
-                        && rightConstant.Value == null)
+                        && sqlBinaryExpression.Right is SqlConstantExpression { Value: null })
                     {
                         return sqlBinaryExpression;
                     }
 
                     if (IsContainedSql(outer, sqlBinaryExpression.Right)
-                        && sqlBinaryExpression.Left is SqlConstantExpression leftConstant
-                        && leftConstant.Value == null)
+                        && sqlBinaryExpression.Left is SqlConstantExpression { Value: null })
                     {
                         return sqlBinaryExpression.Update(
                             sqlBinaryExpression.Right,
@@ -3320,25 +3366,21 @@ public sealed partial class SelectExpression : TableExpressionBase
             }
 
             static bool IsContainedSql(SelectExpression selectExpression, SqlExpression sqlExpression)
-            {
-                switch (sqlExpression)
+                => sqlExpression switch
                 {
-                    case ColumnExpression columnExpression:
-                        return selectExpression.ContainsTableReference(columnExpression);
+                    ColumnExpression columnExpression => selectExpression.ContainsTableReference(columnExpression),
 
-                    case CaseExpression caseExpression
-                        when caseExpression.ElseResult == null
-                        && caseExpression.Operand == null
-                        && caseExpression.WhenClauses.Count == 1
-                        && caseExpression.WhenClauses[0].Result is ColumnExpression resultColumn:
-                        // We check condition in a separate function to avoid matching structure of condition outside of case block
-                        return IsContainedCondition(selectExpression, caseExpression.WhenClauses[0].Test)
-                            && selectExpression.ContainsTableReference(resultColumn);
+                    // We check condition in a separate function to avoid matching structure of condition outside of case block
+                    CaseExpression
+                        {
+                            Operand: null,
+                            WhenClauses: [{ Result: ColumnExpression resultColumn } whenClause],
+                            ElseResult: null
+                        }
+                        => IsContainedCondition(selectExpression, whenClause.Test) && selectExpression.ContainsTableReference(resultColumn),
 
-                    default:
-                        return false;
-                }
-            }
+                    _ => false
+                };
 
             static bool IsContainedCondition(SelectExpression selectExpression, SqlExpression condition)
             {
@@ -3353,8 +3395,7 @@ public sealed partial class SelectExpression : TableExpressionBase
                 if (sqlBinaryExpression.OperatorType == ExpressionType.NotEqual)
                 {
                     // We don't check left/right inverted because we generate this.
-                    return sqlBinaryExpression.Right is SqlConstantExpression { Value: null }
-                        && sqlBinaryExpression.Left is ColumnExpression column
+                    return sqlBinaryExpression is { Left: ColumnExpression column, Right: SqlConstantExpression { Value: null } }
                         && selectExpression.ContainsTableReference(column);
                 }
 
@@ -3383,7 +3424,7 @@ public sealed partial class SelectExpression : TableExpressionBase
                 IDictionary<ProjectionMember, Expression> projectionMapping)
             {
                 var result = new List<ColumnExpression>();
-                foreach (var (projectionMember, expression) in projectionMapping)
+                foreach (var (_, expression) in projectionMapping)
                 {
                     if (expression is EntityProjectionExpression entityProjection)
                     {
@@ -3392,8 +3433,7 @@ public sealed partial class SelectExpression : TableExpressionBase
                             result.Add(entityProjection.BindProperty(property));
                         }
 
-                        if (entityProjection.DiscriminatorExpression != null
-                            && entityProjection.DiscriminatorExpression is ColumnExpression discriminatorColumn)
+                        if (entityProjection.DiscriminatorExpression is ColumnExpression discriminatorColumn)
                         {
                             result.Add(discriminatorColumn);
                         }
@@ -3420,8 +3460,7 @@ public sealed partial class SelectExpression : TableExpressionBase
                 {
                     if (sqlBinaryExpression.OperatorType == ExpressionType.NotEqual
                         && outerColumnExpressions.Contains(sqlBinaryExpression.Left)
-                        && sqlBinaryExpression.Right is SqlConstantExpression sqlConstantExpression
-                        && sqlConstantExpression.Value == null)
+                        && sqlBinaryExpression.Right is SqlConstantExpression { Value: null })
                     {
                         return null;
                     }
@@ -3545,7 +3584,11 @@ public sealed partial class SelectExpression : TableExpressionBase
     public void PushdownIntoSubquery()
         => PushdownIntoSubqueryInternal();
 
-    private SqlRemappingVisitor PushdownIntoSubqueryInternal()
+    /// <summary>
+    ///     Pushes down the <see cref="SelectExpression" /> into a subquery.
+    /// </summary>
+    /// <param name="liftOrderings">Whether orderings on the query should be lifted out of the subquery.</param>
+    private SqlRemappingVisitor PushdownIntoSubqueryInternal(bool liftOrderings = true)
     {
         var subqueryAlias = GenerateUniqueAlias(_usedAliases, "t");
         var subquery = new SelectExpression(
@@ -3557,9 +3600,9 @@ public sealed partial class SelectExpression : TableExpressionBase
             Having = Having,
             Offset = Offset,
             Limit = Limit,
+            _usedAliases = _usedAliases,
+            _mutable = false
         };
-        subquery._usedAliases = _usedAliases;
-        subquery._mutable = false;
         _tables.Clear();
         _tableReferences.Clear();
         _groupBy.Clear();
@@ -3709,13 +3752,14 @@ public sealed partial class SelectExpression : TableExpressionBase
         foreach (var ordering in subquery._orderings)
         {
             var orderingExpression = ordering.Expression;
-            if (projectionMap.TryGetValue(orderingExpression, out var outerColumn))
+            if (liftOrderings && projectionMap.TryGetValue(orderingExpression, out var outerColumn))
             {
                 _orderings.Add(ordering.Update(outerColumn));
             }
-            else if (!IsDistinct
-                     && GroupBy.Count == 0
-                     || GroupBy.Contains(orderingExpression))
+            else if (liftOrderings
+                     && (!IsDistinct
+                         && GroupBy.Count == 0
+                         || GroupBy.Contains(orderingExpression)))
             {
                 _orderings.Add(
                     ordering.Update(
@@ -3851,8 +3895,7 @@ public sealed partial class SelectExpression : TableExpressionBase
             && GroupBy.Count == 0
             && Having == null
             && Orderings.Count == 0
-            && Tables.Count == 1
-            && Tables[0] is FromSqlExpression fromSql
+            && Tables is [FromSqlExpression fromSql]
             && Projection.All(
                 pe => pe.Expression is ColumnExpression column
                     && string.Equals(fromSql.Alias, column.TableAlias, StringComparison.OrdinalIgnoreCase))
@@ -3862,15 +3905,41 @@ public sealed partial class SelectExpression : TableExpressionBase
     /// <summary>
     ///     Prepares the <see cref="SelectExpression" /> to apply aggregate operation over it.
     /// </summary>
-    public void PrepareForAggregate()
+    public void PrepareForAggregate(bool liftOrderings = true)
     {
         if (IsDistinct
             || Limit != null
             || Offset != null
             || _groupBy.Count > 0)
         {
-            PushdownIntoSubquery();
+            PushdownIntoSubqueryInternal(liftOrderings);
         }
+    }
+
+    /// <summary>
+    ///     Creates a <see cref="ColumnExpression" /> that references a table on this <see cref="SelectExpression" />.
+    /// </summary>
+    /// <param name="tableExpression">The table expression referenced by the column.</param>
+    /// <param name="columnName">The column name.</param>
+    /// <param name="type">The column CLR type.</param>
+    /// <param name="typeMapping">The column's type mapping.</param>
+    /// <param name="columnNullable">Whether the column is nullable.</param>
+    public ColumnExpression CreateColumnExpression(
+        TableExpressionBase tableExpression,
+        string columnName,
+        Type type,
+        RelationalTypeMapping? typeMapping,
+        bool? columnNullable = null)
+    {
+        var tableIndex = _tables.FindIndex(teb => ReferenceEquals(teb, tableExpression));
+        var tableReferenceExpression = _tableReferences[tableIndex];
+
+        return new ConcreteColumnExpression(
+            columnName,
+            tableReferenceExpression,
+            type.UnwrapNullableType(),
+            typeMapping,
+            columnNullable ?? type.IsNullableType());
     }
 
     /// <summary>
@@ -3936,9 +4005,8 @@ public sealed partial class SelectExpression : TableExpressionBase
             var table = _tables[i];
             var tableAlias = GetAliasFromTableExpressionBase(table);
             if (columnsMap[tableAlias] == null
-                && (table is LeftJoinExpression
-                    || table is OuterApplyExpression
-                    || table is InnerJoinExpression) // This is only valid for removable join table which are from entity splitting
+                // InnerJoin is only valid for removable join table which are from entity splitting
+                && table is LeftJoinExpression or OuterApplyExpression or InnerJoinExpression
                 && _removableJoinTables?.Contains(i + removedTableCount) == true)
             {
                 _tables.RemoveAt(i);
@@ -3961,6 +4029,12 @@ public sealed partial class SelectExpression : TableExpressionBase
             }
             else if (table is SetOperationBase { IsDistinct: false } setOperation)
             {
+                if (setOperation.Source1.IsDistinct
+                    || setOperation.Source2.IsDistinct)
+                {
+                    continue;
+                }
+
 #if DEBUG
                 setOperation.Source1.Prune(columnsMap[tableAlias], removedAliases);
                 setOperation.Source2.Prune(columnsMap[tableAlias], removedAliases);
@@ -4114,7 +4188,14 @@ public sealed partial class SelectExpression : TableExpressionBase
         _tableReferences.Add(tableReferenceExpression);
     }
 
-    private SqlExpression AssignUniqueAliases(SqlExpression expression)
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [EntityFrameworkInternal]
+    public SqlExpression AssignUniqueAliases(SqlExpression expression)
         => (SqlExpression)new AliasUniquifier(_usedAliases).Visit(expression);
 
     private static string GenerateUniqueAlias(HashSet<string> usedAliases, string currentAlias)
@@ -4157,7 +4238,7 @@ public sealed partial class SelectExpression : TableExpressionBase
             var newTables = VisitList(_tables, inPlace: true, out var tablesChanged);
             Check.DebugAssert(
                 !tablesChanged
-                || newTables.Select(e => GetAliasFromTableExpressionBase(e)).SequenceEqual(_tableReferences.Select(e => e.Alias)),
+                || newTables.Select(GetAliasFromTableExpressionBase).SequenceEqual(_tableReferences.Select(e => e.Alias)),
                 "Alias of updated tables must match the old tables.");
             Predicate = (SqlExpression?)visitor.Visit(Predicate);
 
@@ -4181,8 +4262,7 @@ public sealed partial class SelectExpression : TableExpressionBase
                 }
 
                 if (newGroupBy != _groupBy
-                    && !(newGroupingKey is SqlConstantExpression
-                        || newGroupingKey is SqlParameterExpression))
+                    && newGroupingKey is not (SqlConstantExpression or SqlParameterExpression))
                 {
                     newGroupBy.Add(newGroupingKey);
                 }
@@ -4235,7 +4315,7 @@ public sealed partial class SelectExpression : TableExpressionBase
 
             Check.DebugAssert(
                 !tablesChanged
-                || newTables.Select(e => GetAliasFromTableExpressionBase(e)).SequenceEqual(_tableReferences.Select(e => e.Alias)),
+                || newTables.Select(GetAliasFromTableExpressionBase).SequenceEqual(_tableReferences.Select(e => e.Alias)),
                 "Alias of updated tables must match the old tables.");
 
             var predicate = (SqlExpression?)visitor.Visit(Predicate);
@@ -4263,8 +4343,7 @@ public sealed partial class SelectExpression : TableExpressionBase
                 }
 
                 if (newGroupBy != _groupBy
-                    && !(newGroupingKey is SqlConstantExpression
-                        || newGroupingKey is SqlParameterExpression))
+                    && newGroupingKey is not (SqlConstantExpression or SqlParameterExpression))
                 {
                     newGroupBy.Add(newGroupingKey);
                 }
@@ -4311,8 +4390,8 @@ public sealed partial class SelectExpression : TableExpressionBase
                     IsDistinct = IsDistinct,
                     Tags = Tags,
                     _usedAliases = _usedAliases,
+                    _mutable = false
                 };
-                newSelectExpression._mutable = false;
                 newSelectExpression._removableJoinTables.AddRange(_removableJoinTables);
                 foreach (var kvp in newTpcDiscriminatorValues)
                 {
@@ -4423,10 +4502,9 @@ public sealed partial class SelectExpression : TableExpressionBase
             Offset = offset,
             Limit = limit,
             IsDistinct = IsDistinct,
-            Tags = Tags
+            Tags = Tags,
+            _mutable = false
         };
-
-        newSelectExpression._mutable = false;
 
         // We don't copy identifiers because when we are doing reconstruction so projection is already applied.
         // Update method should not be used pre-projection application. There are other methods to change SelectExpression.
@@ -4574,10 +4652,6 @@ public sealed partial class SelectExpression : TableExpressionBase
         {
             expressionPrinter.AppendLine().Append("ORDER BY ");
             expressionPrinter.VisitCollection(Orderings);
-        }
-        else if (Offset != null)
-        {
-            expressionPrinter.AppendLine().Append("ORDER BY (SELECT 1)");
         }
 
         if (Offset != null)

@@ -1,6 +1,9 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Text.RegularExpressions;
+using Microsoft.EntityFrameworkCore.TestModels.Northwind;
+
 namespace Microsoft.EntityFrameworkCore.Query;
 
 public class NorthwindFunctionsQuerySqliteTest : NorthwindFunctionsQueryRelationalTestBase<
@@ -12,7 +15,7 @@ public class NorthwindFunctionsQuerySqliteTest : NorthwindFunctionsQueryRelation
         : base(fixture)
     {
         Fixture.TestSqlLoggerFactory.Clear();
-        //Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
+        Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
     }
 
     public override Task Convert_ToBoolean(bool async)
@@ -117,8 +120,17 @@ public class NorthwindFunctionsQuerySqliteTest : NorthwindFunctionsQueryRelation
     public override Task Where_math_round2(bool async)
         => AssertTranslationFailed(() => base.Where_math_round2(async));
 
-    public override Task Where_math_sign(bool async)
-        => AssertTranslationFailed(() => base.Where_math_sign(async));
+    public override async Task Where_math_sign(bool async)
+    {
+        await base.Where_math_sign(async);
+
+        AssertSql(
+"""
+SELECT "o"."OrderID", "o"."ProductID", "o"."Discount", "o"."Quantity", "o"."UnitPrice"
+FROM "Order Details" AS "o"
+WHERE "o"."OrderID" = 11077 AND sign("o"."Discount") > 0
+""");
+    }
 
     public override Task Where_math_sin(bool async)
         => AssertTranslationFailed(() => base.Where_math_sin(async));
@@ -171,8 +183,17 @@ public class NorthwindFunctionsQuerySqliteTest : NorthwindFunctionsQueryRelation
     public override Task Where_mathf_square(bool async)
         => AssertTranslationFailed(() => base.Where_mathf_square(async));
 
-    public override Task Where_mathf_sign(bool async)
-        => AssertTranslationFailed(() => base.Where_mathf_sign(async));
+    public override async Task Where_mathf_sign(bool async)
+    {
+        await base.Where_mathf_sign(async);
+
+        AssertSql(
+"""
+SELECT "o"."OrderID", "o"."ProductID", "o"."Discount", "o"."Quantity", "o"."UnitPrice"
+FROM "Order Details" AS "o"
+WHERE "o"."OrderID" = 11077 AND sign("o"."Discount") > 0
+""");
+    }
 
     public override Task Where_mathf_sin(bool async)
         => AssertTranslationFailed(() => base.Where_mathf_sin(async));
@@ -194,7 +215,7 @@ public class NorthwindFunctionsQuerySqliteTest : NorthwindFunctionsQueryRelation
 """
 SELECT "c"."CustomerID", "c"."Address", "c"."City", "c"."CompanyName", "c"."ContactName", "c"."ContactTitle", "c"."Country", "c"."Fax", "c"."Phone", "c"."PostalCode", "c"."Region"
 FROM "Customers" AS "c"
-WHERE ("c"."ContactName" IS NOT NULL) AND ("c"."ContactName" LIKE 'M%')
+WHERE "c"."ContactName" IS NOT NULL AND "c"."ContactName" LIKE 'M%'
 """);
     }
 
@@ -206,7 +227,7 @@ WHERE ("c"."ContactName" IS NOT NULL) AND ("c"."ContactName" LIKE 'M%')
 """
 SELECT "c"."CustomerID", "c"."Address", "c"."City", "c"."CompanyName", "c"."ContactName", "c"."ContactTitle", "c"."Country", "c"."Fax", "c"."Phone", "c"."PostalCode", "c"."Region"
 FROM "Customers" AS "c"
-WHERE "c"."ContactName" = '' OR (("c"."ContactName" IS NOT NULL) AND ((("c"."ContactName" LIKE "c"."ContactName" || '%') AND substr("c"."ContactName", 1, length("c"."ContactName")) = "c"."ContactName") OR "c"."ContactName" = ''))
+WHERE "c"."ContactName" = '' OR ("c"."ContactName" IS NOT NULL AND (("c"."ContactName" LIKE "c"."ContactName" || '%' AND substr("c"."ContactName", 1, length("c"."ContactName")) = "c"."ContactName") OR "c"."ContactName" = ''))
 """);
     }
 
@@ -218,7 +239,7 @@ WHERE "c"."ContactName" = '' OR (("c"."ContactName" IS NOT NULL) AND ((("c"."Con
 """
 SELECT "c"."CustomerID", "c"."Address", "c"."City", "c"."CompanyName", "c"."ContactName", "c"."ContactTitle", "c"."Country", "c"."Fax", "c"."Phone", "c"."PostalCode", "c"."Region"
 FROM "Customers" AS "c"
-WHERE "c"."ContactName" = '' OR (("c"."ContactName" IS NOT NULL) AND ((("c"."ContactName" LIKE "c"."ContactName" || '%') AND substr("c"."ContactName", 1, length("c"."ContactName")) = "c"."ContactName") OR "c"."ContactName" = ''))
+WHERE "c"."ContactName" = '' OR ("c"."ContactName" IS NOT NULL AND (("c"."ContactName" LIKE "c"."ContactName" || '%' AND substr("c"."ContactName", 1, length("c"."ContactName")) = "c"."ContactName") OR "c"."ContactName" = ''))
 """);
     }
 
@@ -230,7 +251,7 @@ WHERE "c"."ContactName" = '' OR (("c"."ContactName" IS NOT NULL) AND ((("c"."Con
 """
 SELECT "c"."CustomerID", "c"."Address", "c"."City", "c"."CompanyName", "c"."ContactName", "c"."ContactTitle", "c"."Country", "c"."Fax", "c"."Phone", "c"."PostalCode", "c"."Region"
 FROM "Customers" AS "c"
-WHERE ("c"."ContactName" IS NOT NULL) AND ("c"."ContactName" LIKE 'M%')
+WHERE "c"."ContactName" IS NOT NULL AND "c"."ContactName" LIKE 'M%'
 """);
     }
 
@@ -242,7 +263,7 @@ WHERE ("c"."ContactName" IS NOT NULL) AND ("c"."ContactName" LIKE 'M%')
 """
 SELECT "c"."CustomerID", "c"."Address", "c"."City", "c"."CompanyName", "c"."ContactName", "c"."ContactTitle", "c"."Country", "c"."Fax", "c"."Phone", "c"."PostalCode", "c"."Region"
 FROM "Customers" AS "c"
-WHERE ("c"."ContactName" IS NOT NULL) AND ("c"."ContactName" LIKE '%b')
+WHERE "c"."ContactName" IS NOT NULL AND "c"."ContactName" LIKE '%b'
 """);
     }
 
@@ -254,7 +275,7 @@ WHERE ("c"."ContactName" IS NOT NULL) AND ("c"."ContactName" LIKE '%b')
 """
 SELECT "c"."CustomerID", "c"."Address", "c"."City", "c"."CompanyName", "c"."ContactName", "c"."ContactTitle", "c"."Country", "c"."Fax", "c"."Phone", "c"."PostalCode", "c"."Region"
 FROM "Customers" AS "c"
-WHERE "c"."ContactName" = '' OR (("c"."ContactName" IS NOT NULL) AND (substr("c"."ContactName", -length("c"."ContactName")) = "c"."ContactName" OR "c"."ContactName" = ''))
+WHERE "c"."ContactName" = '' OR ("c"."ContactName" IS NOT NULL AND (substr("c"."ContactName", -length("c"."ContactName")) = "c"."ContactName" OR "c"."ContactName" = ''))
 """);
     }
 
@@ -266,7 +287,7 @@ WHERE "c"."ContactName" = '' OR (("c"."ContactName" IS NOT NULL) AND (substr("c"
 """
 SELECT "c"."CustomerID", "c"."Address", "c"."City", "c"."CompanyName", "c"."ContactName", "c"."ContactTitle", "c"."Country", "c"."Fax", "c"."Phone", "c"."PostalCode", "c"."Region"
 FROM "Customers" AS "c"
-WHERE "c"."ContactName" = '' OR (("c"."ContactName" IS NOT NULL) AND (substr("c"."ContactName", -length("c"."ContactName")) = "c"."ContactName" OR "c"."ContactName" = ''))
+WHERE "c"."ContactName" = '' OR ("c"."ContactName" IS NOT NULL AND (substr("c"."ContactName", -length("c"."ContactName")) = "c"."ContactName" OR "c"."ContactName" = ''))
 """);
     }
 
@@ -278,7 +299,7 @@ WHERE "c"."ContactName" = '' OR (("c"."ContactName" IS NOT NULL) AND (substr("c"
 """
 SELECT "c"."CustomerID", "c"."Address", "c"."City", "c"."CompanyName", "c"."ContactName", "c"."ContactTitle", "c"."Country", "c"."Fax", "c"."Phone", "c"."PostalCode", "c"."Region"
 FROM "Customers" AS "c"
-WHERE ("c"."ContactName" IS NOT NULL) AND ("c"."ContactName" LIKE '%m')
+WHERE "c"."ContactName" IS NOT NULL AND "c"."ContactName" LIKE '%m'
 """);
     }
 
@@ -428,7 +449,7 @@ GROUP BY "c"."City"
 """
 SELECT "c"."CustomerID", "c"."Address", "c"."City", "c"."CompanyName", "c"."ContactName", "c"."ContactTitle", "c"."Country", "c"."Fax", "c"."Phone", "c"."PostalCode", "c"."Region"
 FROM "Customers" AS "c"
-WHERE ("c"."Region" IS NULL) OR trim("c"."Region") = ''
+WHERE "c"."Region" IS NULL OR trim("c"."Region") = ''
 """);
     }
 
@@ -440,7 +461,7 @@ WHERE ("c"."Region" IS NULL) OR trim("c"."Region") = ''
 """
 SELECT "c"."CustomerID", "c"."Address", "c"."City", "c"."CompanyName", "c"."ContactName", "c"."ContactTitle", "c"."Country", "c"."Fax", "c"."Phone", "c"."PostalCode", "c"."Region"
 FROM "Customers" AS "c"
-WHERE (instr("c"."ContactName", '') - 1) = 0
+WHERE instr("c"."ContactName", '') - 1 = 0
 """);
     }
 
@@ -452,7 +473,7 @@ WHERE (instr("c"."ContactName", '') - 1) = 0
 """
 SELECT "c"."CustomerID", "c"."Address", "c"."City", "c"."CompanyName", "c"."ContactName", "c"."ContactTitle", "c"."Country", "c"."Fax", "c"."Phone", "c"."PostalCode", "c"."Region"
 FROM "Customers" AS "c"
-WHERE (instr("c"."ContactName", 'a') - 1) = 1
+WHERE instr("c"."ContactName", 'a') - 1 = 1
 """);
     }
 
@@ -466,7 +487,7 @@ WHERE (instr("c"."ContactName", 'a') - 1) = 1
 
 SELECT "c"."CustomerID", "c"."Address", "c"."City", "c"."CompanyName", "c"."ContactName", "c"."ContactTitle", "c"."Country", "c"."Fax", "c"."Phone", "c"."PostalCode", "c"."Region"
 FROM "Customers" AS "c"
-WHERE (instr("c"."ContactName", @__pattern_0) - 1) = 1
+WHERE instr("c"."ContactName", @__pattern_0) - 1 = 1
 """);
     }
 
@@ -812,7 +833,7 @@ WHERE trim("c"."ContactTitle", 'Or') = 'wne'
 """
 SELECT "c"."CustomerID", "c"."Address", "c"."City", "c"."CompanyName", "c"."ContactName", "c"."ContactTitle", "c"."Country", "c"."Fax", "c"."Phone", "c"."PostalCode", "c"."Region"
 FROM "Customers" AS "c"
-WHERE regexp('^T', "c"."CustomerID")
+WHERE "c"."CustomerID" REGEXP '^T'
 """);
     }
 
@@ -824,7 +845,24 @@ WHERE regexp('^T', "c"."CustomerID")
 """
 SELECT "c"."CustomerID", "c"."Address", "c"."City", "c"."CompanyName", "c"."ContactName", "c"."ContactTitle", "c"."Country", "c"."Fax", "c"."Phone", "c"."PostalCode", "c"."Region"
 FROM "Customers" AS "c"
-WHERE regexp("c"."CustomerID", 'ALFKI')
+WHERE 'ALFKI' REGEXP "c"."CustomerID"
+""");
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual async Task Regex_IsMatch_MethodCall_negated(bool async)
+    {
+        await AssertQuery(
+            async,
+            ss => ss.Set<Customer>().Where(o => !Regex.IsMatch(o.CustomerID, "^[^T]")),
+            entryCount: 6);
+
+        AssertSql(
+"""
+SELECT "c"."CustomerID", "c"."Address", "c"."City", "c"."CompanyName", "c"."ContactName", "c"."ContactTitle", "c"."Country", "c"."Fax", "c"."Phone", "c"."PostalCode", "c"."Region"
+FROM "Customers" AS "c"
+WHERE "c"."CustomerID" NOT REGEXP '^[^T]'
 """);
     }
 
@@ -836,7 +874,7 @@ WHERE regexp("c"."CustomerID", 'ALFKI')
 """
 SELECT "c"."CustomerID", "c"."Address", "c"."City", "c"."CompanyName", "c"."ContactName", "c"."ContactTitle", "c"."Country", "c"."Fax", "c"."Phone", "c"."PostalCode", "c"."Region"
 FROM "Customers" AS "c"
-WHERE ("c"."Region" IS NULL) OR "c"."Region" = ''
+WHERE "c"."Region" IS NULL OR "c"."Region" = ''
 """);
     }
 
@@ -846,7 +884,7 @@ WHERE ("c"."Region" IS NULL) OR "c"."Region" = ''
 
         AssertSql(
 """
-SELECT "c"."CustomerID" AS "Id", ("c"."Region" IS NULL) OR "c"."Region" = '' AS "Value"
+SELECT "c"."CustomerID" AS "Id", "c"."Region" IS NULL OR "c"."Region" = '' AS "Value"
 FROM "Customers" AS "c"
 """);
     }
@@ -859,7 +897,7 @@ FROM "Customers" AS "c"
 """
 SELECT "c"."CustomerID", "c"."Address", "c"."City", "c"."CompanyName", "c"."ContactName", "c"."ContactTitle", "c"."Country", "c"."Fax", "c"."Phone", "c"."PostalCode", "c"."Region"
 FROM "Customers" AS "c"
-WHERE ("c"."Region" IS NOT NULL) AND "c"."Region" <> ''
+WHERE "c"."Region" IS NOT NULL AND "c"."Region" <> ''
 """);
     }
 

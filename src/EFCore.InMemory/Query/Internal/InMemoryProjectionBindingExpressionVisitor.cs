@@ -93,10 +93,7 @@ public class InMemoryProjectionBindingExpressionVisitor : ExpressionVisitor
             return null;
         }
 
-        if (!(expression is NewExpression
-                || expression is MemberInitExpression
-                || expression is EntityShaperExpression
-                || expression is IncludeExpression))
+        if (expression is not (NewExpression or MemberInitExpression or EntityShaperExpression or IncludeExpression))
         {
             if (_indexBasedBinding)
             {
@@ -388,8 +385,7 @@ public class InMemoryProjectionBindingExpressionVisitor : ExpressionVisitor
             }
 
             newBindings[i] = VisitMemberBinding(memberInitExpression.Bindings[i]);
-            if (((MemberAssignment)newBindings[i]).Expression is UnaryExpression unaryExpression
-                && unaryExpression.NodeType == ExpressionType.Convert
+            if (((MemberAssignment)newBindings[i]).Expression is UnaryExpression { NodeType: ExpressionType.Convert } unaryExpression
                 && unaryExpression.Operand == QueryCompilationContext.NotTranslatedExpression)
             {
                 return QueryCompilationContext.NotTranslatedExpression;
@@ -503,8 +499,7 @@ public class InMemoryProjectionBindingExpressionVisitor : ExpressionVisitor
     {
         var operand = Visit(unaryExpression.Operand);
 
-        return (unaryExpression.NodeType == ExpressionType.Convert
-                || unaryExpression.NodeType == ExpressionType.ConvertChecked)
+        return unaryExpression.NodeType is ExpressionType.Convert or ExpressionType.ConvertChecked
             && unaryExpression.Type == operand.Type
                 ? operand
                 : unaryExpression.Update(MatchTypes(operand, unaryExpression.Operand.Type));

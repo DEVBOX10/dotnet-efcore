@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore.Design.Internal;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Migrations.Internal;
 using Microsoft.EntityFrameworkCore.SqlServer.Design.Internal;
+using Microsoft.EntityFrameworkCore.SqlServer.Infrastructure.Internal;
 using Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal;
 
 // ReSharper disable ParameterOnlyUsedForPreconditionCheck.Local
@@ -41,7 +42,9 @@ public class CSharpMigrationsGeneratorTest
             CoreAnnotationNames.AfterSaveBehavior,
             CoreAnnotationNames.ProviderClrType,
             CoreAnnotationNames.EagerLoaded,
+            CoreAnnotationNames.LazyLoadingEnabled,
             CoreAnnotationNames.DuplicateServiceProperties,
+            CoreAnnotationNames.AdHocModel,
             RelationalAnnotationNames.ColumnName,
             RelationalAnnotationNames.ColumnOrder,
             RelationalAnnotationNames.ColumnType,
@@ -92,7 +95,9 @@ public class CSharpMigrationsGeneratorTest
             RelationalAnnotationNames.JsonPropertyName,
             // Appears on entity type but requires specific model (i.e. owned types that can map to json, otherwise validation throws)
             RelationalAnnotationNames.ContainerColumnName,
+#pragma warning disable CS0618
             RelationalAnnotationNames.ContainerColumnTypeMapping,
+#pragma warning restore CS0618
         };
 
         // Add a line here if the code generator is supposed to handle this annotation
@@ -200,6 +205,7 @@ public class CSharpMigrationsGeneratorTest
             CoreAnnotationNames.ProductVersion,
             CoreAnnotationNames.NavigationAccessMode,
             CoreAnnotationNames.EagerLoaded,
+            CoreAnnotationNames.LazyLoadingEnabled,
             CoreAnnotationNames.QueryFilter,
 #pragma warning disable CS0612 // Type or member is obsolete
             CoreAnnotationNames.DefiningQuery,
@@ -210,6 +216,7 @@ public class CSharpMigrationsGeneratorTest
             CoreAnnotationNames.NavigationCandidates,
             CoreAnnotationNames.AmbiguousNavigations,
             CoreAnnotationNames.DuplicateServiceProperties,
+            CoreAnnotationNames.AdHocModel,
             RelationalAnnotationNames.TableName,
             RelationalAnnotationNames.IsTableExcludedFromMigrations,
             RelationalAnnotationNames.ViewName,
@@ -258,7 +265,9 @@ public class CSharpMigrationsGeneratorTest
             RelationalAnnotationNames.ModelDependencies,
             RelationalAnnotationNames.FieldValueGetter,
             RelationalAnnotationNames.ContainerColumnName,
+#pragma warning disable CS0618
             RelationalAnnotationNames.ContainerColumnTypeMapping,
+#pragma warning restore CS0618
             RelationalAnnotationNames.JsonPropertyName,
         };
 
@@ -338,7 +347,8 @@ public class CSharpMigrationsGeneratorTest
     {
         var sqlServerTypeMappingSource = new SqlServerTypeMappingSource(
             TestServiceFactory.Instance.Create<TypeMappingSourceDependencies>(),
-            TestServiceFactory.Instance.Create<RelationalTypeMappingSourceDependencies>());
+            TestServiceFactory.Instance.Create<RelationalTypeMappingSourceDependencies>(),
+            new SqlServerSingletonOptions());
 
         var sqlServerAnnotationCodeGenerator = new SqlServerAnnotationCodeGenerator(
             new AnnotationCodeGeneratorDependencies(sqlServerTypeMappingSource));
@@ -440,7 +450,8 @@ public class CSharpMigrationsGeneratorTest
     {
         var sqlServerTypeMappingSource = new SqlServerTypeMappingSource(
             TestServiceFactory.Instance.Create<TypeMappingSourceDependencies>(),
-            TestServiceFactory.Instance.Create<RelationalTypeMappingSourceDependencies>());
+            TestServiceFactory.Instance.Create<RelationalTypeMappingSourceDependencies>(),
+            new SqlServerSingletonOptions());
 
         var codeHelper = new CSharpHelper(
             sqlServerTypeMappingSource);
@@ -497,7 +508,8 @@ public class CSharpMigrationsGeneratorTest
 
         var sqlServerTypeMappingSource = new SqlServerTypeMappingSource(
             TestServiceFactory.Instance.Create<TypeMappingSourceDependencies>(),
-            TestServiceFactory.Instance.Create<RelationalTypeMappingSourceDependencies>());
+            TestServiceFactory.Instance.Create<RelationalTypeMappingSourceDependencies>(),
+            new SqlServerSingletonOptions());
 
         var codeHelper = new CSharpHelper(sqlServerTypeMappingSource);
 
@@ -548,7 +560,8 @@ public class CSharpMigrationsGeneratorTest
             },
             Array.Empty<MigrationOperation>());
         Assert.Equal(
-            @"using System.Text.RegularExpressions;
+"""
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -564,23 +577,23 @@ namespace MyNamespace
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql(""-- TEST"")
-                .Annotation(""Some:EnumValue"", RegexOptions.Multiline);
+            migrationBuilder.Sql("-- TEST")
+                .Annotation("Some:EnumValue", RegexOptions.Multiline);
 
             migrationBuilder.AlterColumn<Database>(
-                name: ""C2"",
-                table: ""T1"",
+                name: "C2",
+                table: "T1",
                 nullable: false,
                 oldClrType: typeof(Property));
 
             migrationBuilder.AddColumn<PropertyEntry>(
-                name: ""C3"",
-                table: ""T1"",
+                name: "C3",
+                table: "T1",
                 nullable: false);
 
             migrationBuilder.InsertData(
-                table: ""T1"",
-                columns: new[] { ""Id"", ""C2"", ""C3"" },
+                table: "T1",
+                columns: new[] { "Id", "C2", "C3" },
                 values: new object[] { 1, null, -1 });
         }
 
@@ -591,7 +604,8 @@ namespace MyNamespace
         }
     }
 }
-",
+
+""",
             migrationCode,
             ignoreLineEndingDifferences: true);
 
@@ -617,7 +631,8 @@ namespace MyNamespace
             "20150511161616_MyMigration",
             finalizedModel);
         Assert.Equal(
-            @"// <auto-generated />
+"""
+// <auto-generated />
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -630,36 +645,37 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MyNamespace
 {
     [DbContext(typeof(CSharpMigrationsGeneratorTest.MyContext))]
-    [Migration(""20150511161616_MyMigration"")]
+    [Migration("20150511161616_MyMigration")]
     partial class MyMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation(""Some:EnumValue"", RegexOptions.Multiline);
+            modelBuilder.HasAnnotation("Some:EnumValue", RegexOptions.Multiline);
 
-            modelBuilder.Entity(""T1"", b =>
+            modelBuilder.Entity("T1", b =>
                 {
-                    b.Property<int>(""Id"")
-                        .HasColumnType(""int"");
+                    b.Property<int>("Id")
+                        .HasColumnType("int");
 
-                    b.Property<string>(""C2"")
+                    b.Property<string>("C2")
                         .IsRequired()
-                        .HasColumnType(""nvarchar(max)"");
+                        .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>(""C3"")
-                        .HasColumnType(""int"");
+                    b.Property<int>("C3")
+                        .HasColumnType("int");
 
-                    b.HasKey(""Id"");
+                    b.HasKey("Id");
 
-                    b.ToTable(""T1"");
+                    b.ToTable("T1");
                 });
 #pragma warning restore 612, 618
         }
     }
 }
-",
+
+""",
             migrationMetadataCode,
             ignoreLineEndingDifferences: true);
 
@@ -751,7 +767,8 @@ namespace MyNamespace
             "MySnapshot",
             finalizedModel);
         Assert.Equal(
-            @"// <auto-generated />
+"""
+// <auto-generated />
 using System;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
@@ -769,39 +786,40 @@ namespace MyNamespace
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation(""Some:EnumValue"", RegexOptions.Multiline);
+            modelBuilder.HasAnnotation("Some:EnumValue", RegexOptions.Multiline);
 
-            modelBuilder.Entity(""Cheese"", b =>
+            modelBuilder.Entity("Cheese", b =>
                 {
-                    b.Property<string>(""Ham"")
-                        .HasColumnType(""just_string(10)"");
+                    b.Property<string>("Ham")
+                        .HasColumnType("just_string(10)");
 
-                    b.Property<string>(""Pickle"")
-                        .HasColumnType(""just_string(10)"");
+                    b.Property<string>("Pickle")
+                        .HasColumnType("just_string(10)");
 
-                    b.HasKey(""Ham"");
+                    b.HasKey("Ham");
 
-                    b.ToTable(""Cheese"");
+                    b.ToTable("Cheese");
                 });
 
-            modelBuilder.Entity(""Microsoft.EntityFrameworkCore.Migrations.Design.CSharpMigrationsGeneratorTest+EntityWithConstructorBinding"", b =>
+            modelBuilder.Entity("Microsoft.EntityFrameworkCore.Migrations.Design.CSharpMigrationsGeneratorTest+EntityWithConstructorBinding", b =>
                 {
-                    b.Property<int>(""Id"")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType(""default_int_mapping"");
+                        .HasColumnType("default_int_mapping");
 
-                    b.Property<Guid>(""PropertyWithValueGenerator"")
-                        .HasColumnType(""default_guid_mapping"");
+                    b.Property<Guid>("PropertyWithValueGenerator")
+                        .HasColumnType("default_guid_mapping");
 
-                    b.HasKey(""Id"");
+                    b.HasKey("Id");
 
-                    b.ToTable(""EntityWithConstructorBinding"");
+                    b.ToTable("EntityWithConstructorBinding");
                 });
 #pragma warning restore 612, 618
         }
     }
 }
-", modelSnapshotCode, ignoreLineEndingDifferences: true);
+
+""", modelSnapshotCode, ignoreLineEndingDifferences: true);
 
         var snapshot = CompileModelSnapshot(modelSnapshotCode, "MyNamespace.MySnapshot");
         Assert.Equal(2, snapshot.Model.GetEntityTypes().Count());

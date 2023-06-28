@@ -132,8 +132,7 @@ public class CosmosTestStore : TestStore
         => exception switch
         {
             HttpRequestException re => re.InnerException is SocketException // Exception in Mac/Linux
-                || (re.InnerException is IOException ioException
-                    && ioException.InnerException is SocketException), // Exception in Windows
+                || re.InnerException is IOException { InnerException: SocketException }, // Exception in Windows
             _ => exception.Message.Contains(
                 "The input authorization token can't serve the request. Please check that the expected payload is built as per the protocol, and check the key being used.",
                 StringComparison.Ordinal),
@@ -512,6 +511,9 @@ public class CosmosTestStore : TestStore
         public IEnumerable<IReadOnlyServiceProperty> GetDerivedServiceProperties()
             => throw new NotImplementedException();
 
+        public bool HasServiceProperties()
+            => throw new NotImplementedException();
+
         public IEnumerable<IReadOnlySkipNavigation> GetDerivedSkipNavigations()
             => throw new NotImplementedException();
 
@@ -572,7 +574,7 @@ public class CosmosTestStore : TestStore
         IReadOnlyNavigation IReadOnlyEntityType.FindDeclaredNavigation(string name)
             => throw new NotImplementedException();
 
-        IReadOnlyProperty IReadOnlyEntityType.FindDeclaredProperty(string name)
+        IReadOnlyProperty IReadOnlyTypeBase.FindDeclaredProperty(string name)
             => throw new NotImplementedException();
 
         IReadOnlyForeignKey IReadOnlyEntityType.FindForeignKey(
@@ -596,7 +598,7 @@ public class CosmosTestStore : TestStore
         IReadOnlyKey IReadOnlyEntityType.FindPrimaryKey()
             => throw new NotImplementedException();
 
-        IReadOnlyProperty IReadOnlyEntityType.FindProperty(string name)
+        IReadOnlyProperty IReadOnlyTypeBase.FindProperty(string name)
             => throw new NotImplementedException();
 
         IReadOnlyServiceProperty IReadOnlyEntityType.FindServiceProperty(string name)
@@ -617,7 +619,7 @@ public class CosmosTestStore : TestStore
         IEnumerable<IReadOnlyNavigation> IReadOnlyEntityType.GetDeclaredNavigations()
             => throw new NotImplementedException();
 
-        IEnumerable<IReadOnlyProperty> IReadOnlyEntityType.GetDeclaredProperties()
+        IEnumerable<IReadOnlyProperty> IReadOnlyTypeBase.GetDeclaredProperties()
             => throw new NotImplementedException();
 
         IEnumerable<IReadOnlyForeignKey> IReadOnlyEntityType.GetDeclaredReferencingForeignKeys()
@@ -647,7 +649,7 @@ public class CosmosTestStore : TestStore
         IEnumerable<IReadOnlyNavigation> IReadOnlyEntityType.GetNavigations()
             => throw new NotImplementedException();
 
-        IEnumerable<IReadOnlyProperty> IReadOnlyEntityType.GetProperties()
+        IEnumerable<IReadOnlyProperty> IReadOnlyTypeBase.GetProperties()
             => throw new NotImplementedException();
 
         IEnumerable<IReadOnlyForeignKey> IReadOnlyEntityType.GetReferencingForeignKeys()
@@ -669,6 +671,30 @@ public class CosmosTestStore : TestStore
             => throw new NotImplementedException();
 
         IEnumerable<ITrigger> IEntityType.GetDeclaredTriggers()
+            => throw new NotImplementedException();
+
+        public IComplexProperty FindComplexProperty(string name)
+            => throw new NotImplementedException();
+
+        public IEnumerable<IComplexProperty> GetComplexProperties()
+            => throw new NotImplementedException();
+
+        public IEnumerable<IComplexProperty> GetDeclaredComplexProperties()
+            => throw new NotImplementedException();
+
+        IReadOnlyComplexProperty IReadOnlyTypeBase.FindComplexProperty(string name)
+            => throw new NotImplementedException();
+
+        public IReadOnlyComplexProperty FindDeclaredComplexProperty(string name)
+            => throw new NotImplementedException();
+
+        IEnumerable<IReadOnlyComplexProperty> IReadOnlyTypeBase.GetComplexProperties()
+            => throw new NotImplementedException();
+
+        IEnumerable<IReadOnlyComplexProperty> IReadOnlyTypeBase.GetDeclaredComplexProperties()
+            => throw new NotImplementedException();
+
+        public IEnumerable<IReadOnlyComplexProperty> GetDerivedComplexProperties()
             => throw new NotImplementedException();
     }
 }

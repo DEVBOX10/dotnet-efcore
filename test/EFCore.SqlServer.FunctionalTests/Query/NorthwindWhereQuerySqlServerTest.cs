@@ -12,7 +12,7 @@ public class NorthwindWhereQuerySqlServerTest : NorthwindWhereQueryRelationalTes
         : base(fixture)
     {
         ClearLog();
-        //Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
+        Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
     }
 
     protected override bool CanExecuteQueryString
@@ -498,13 +498,13 @@ WHERE EXISTS (
 """
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE (CASE
+WHERE CASE
     WHEN [c].[CustomerID] = N'ALFKI' THEN CAST(1 AS bit)
     ELSE CAST(0 AS bit)
 END | CASE
     WHEN [c].[CustomerID] = N'ANATR' THEN CAST(1 AS bit)
     ELSE CAST(0 AS bit)
-END) = CAST(1 AS bit)
+END = CAST(1 AS bit)
 """);
     }
 
@@ -516,13 +516,13 @@ END) = CAST(1 AS bit)
 """
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE (CASE
+WHERE CASE
     WHEN [c].[CustomerID] = N'ALFKI' THEN CAST(1 AS bit)
     ELSE CAST(0 AS bit)
 END & CASE
     WHEN [c].[CustomerID] = N'ANATR' THEN CAST(1 AS bit)
     ELSE CAST(0 AS bit)
-END) = CAST(1 AS bit)
+END = CAST(1 AS bit)
 """);
     }
 
@@ -569,10 +569,10 @@ FROM [Employees] AS [e]
 WHERE [e].[Title] = (
     SELECT TOP(1) [e0].[Title]
     FROM [Employees] AS [e0]
-    ORDER BY [e0].[Title]) OR (([e].[Title] IS NULL) AND ((
+    ORDER BY [e0].[Title]) OR ([e].[Title] IS NULL AND (
     SELECT TOP(1) [e0].[Title]
     FROM [Employees] AS [e0]
-    ORDER BY [e0].[Title]) IS NULL))
+    ORDER BY [e0].[Title]) IS NULL)
 """);
     }
 
@@ -801,7 +801,7 @@ WHERE CAST(LEN([c].[City]) AS int) = 6
 """
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE (CHARINDEX(N'Sea', [c].[City]) - 1) <> -1 OR ([c].[City] IS NULL)
+WHERE CHARINDEX(N'Sea', [c].[City]) - 1 <> -1 OR [c].[City] IS NULL
 """);
     }
 
@@ -1119,7 +1119,7 @@ FROM [Customers] AS [c]
 """
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE [c].[City] = [c].[City] OR ([c].[City] IS NULL)
+WHERE [c].[City] = [c].[City] OR [c].[City] IS NULL
 """);
     }
 
@@ -1145,7 +1145,7 @@ WHERE [c].[City] IN (N'London', N'Berlin') OR [c].[CustomerID] = N'ALFKI' OR [c]
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region], [e].[EmployeeID], [e].[City], [e].[Country], [e].[FirstName], [e].[ReportsTo], [e].[Title]
 FROM [Customers] AS [c]
 CROSS JOIN [Employees] AS [e]
-WHERE ([c].[City] <> N'London' OR ([c].[City] IS NULL)) AND ([e].[City] <> N'London' OR ([e].[City] IS NULL))
+WHERE ([c].[City] <> N'London' OR [c].[City] IS NULL) AND ([e].[City] <> N'London' OR [e].[City] IS NULL)
 """);
     }
 
@@ -1158,7 +1158,7 @@ WHERE ([c].[City] <> N'London' OR ([c].[City] IS NULL)) AND ([e].[City] <> N'Lon
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region], [e].[EmployeeID], [e].[City], [e].[Country], [e].[FirstName], [e].[ReportsTo], [e].[Title]
 FROM [Customers] AS [c]
 CROSS JOIN [Employees] AS [e]
-WHERE [c].[City] NOT IN (N'London', N'Berlin') OR ([c].[City] IS NULL)
+WHERE [c].[City] NOT IN (N'London', N'Berlin') OR [c].[City] IS NULL
 """);
     }
 
@@ -1171,7 +1171,7 @@ WHERE [c].[City] NOT IN (N'London', N'Berlin') OR ([c].[City] IS NULL)
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region], [e].[EmployeeID], [e].[City], [e].[Country], [e].[FirstName], [e].[ReportsTo], [e].[Title]
 FROM [Customers] AS [c]
 CROSS JOIN [Employees] AS [e]
-WHERE [c].[City] NOT IN (N'London', N'Berlin', N'Seattle') OR ([c].[City] IS NULL)
+WHERE [c].[City] NOT IN (N'London', N'Berlin', N'Seattle') OR [c].[City] IS NULL
 """);
     }
 
@@ -1184,7 +1184,7 @@ WHERE [c].[City] NOT IN (N'London', N'Berlin', N'Seattle') OR ([c].[City] IS NUL
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region], [e].[EmployeeID], [e].[City], [e].[Country], [e].[FirstName], [e].[ReportsTo], [e].[Title]
 FROM [Customers] AS [c]
 CROSS JOIN [Employees] AS [e]
-WHERE [c].[City] NOT IN (N'London', N'Berlin', N'Seattle', N'Lisboa') OR ([c].[City] IS NULL)
+WHERE [c].[City] NOT IN (N'London', N'Berlin', N'Seattle', N'Lisboa') OR [c].[City] IS NULL
 """);
     }
 
@@ -1554,7 +1554,7 @@ WHERE [c].[CustomerID] = N'ALFKI'
 
 SELECT [c].[CustomerID]
 FROM [Customers] AS [c]
-WHERE ([c].[CustomerID] + CAST(@__i_0 AS nchar(5))) = [c].[CompanyName]
+WHERE [c].[CustomerID] + CAST(@__i_0 AS nchar(5)) = [c].[CompanyName]
 """);
     }
 
@@ -1568,7 +1568,7 @@ WHERE ([c].[CustomerID] + CAST(@__i_0 AS nchar(5))) = [c].[CompanyName]
 
 SELECT [c].[CustomerID]
 FROM [Customers] AS [c]
-WHERE (CAST(@__i_0 AS nchar(5)) + [c].[CustomerID]) = [c].[CompanyName]
+WHERE CAST(@__i_0 AS nchar(5)) + [c].[CustomerID] = [c].[CompanyName]
 """);
     }
 
@@ -1583,7 +1583,7 @@ WHERE (CAST(@__i_0 AS nchar(5)) + [c].[CustomerID]) = [c].[CompanyName]
 
 SELECT [c].[CustomerID]
 FROM [Customers] AS [c]
-WHERE (((CAST(@__p_0 AS nchar(5)) + [c].[CustomerID]) + CAST(@__j_1 AS nchar(5))) + CAST(42 AS nchar(5))) = [c].[CompanyName]
+WHERE CAST(@__p_0 AS nchar(5)) + [c].[CustomerID] + CAST(@__j_1 AS nchar(5)) + CAST(42 AS nchar(5)) = [c].[CompanyName]
 """);
     }
 
@@ -1595,7 +1595,7 @@ WHERE (((CAST(@__p_0 AS nchar(5)) + [c].[CustomerID]) + CAST(@__j_1 AS nchar(5))
 """
 SELECT [o].[CustomerID]
 FROM [Orders] AS [o]
-WHERE (CAST([o].[OrderID] AS nchar(5)) + COALESCE([o].[CustomerID], N'')) = [o].[CustomerID]
+WHERE CAST([o].[OrderID] AS nchar(5)) + COALESCE([o].[CustomerID], N'') = [o].[CustomerID]
 """);
     }
 
@@ -1609,7 +1609,7 @@ WHERE (CAST([o].[OrderID] AS nchar(5)) + COALESCE([o].[CustomerID], N'')) = [o].
 
 SELECT [c].[CustomerID]
 FROM [Customers] AS [c]
-WHERE (@__i_0 + [c].[CustomerID]) = [c].[CompanyName]
+WHERE @__i_0 + [c].[CustomerID] = [c].[CompanyName]
 """);
     }
 
@@ -1623,7 +1623,7 @@ WHERE (@__i_0 + [c].[CustomerID]) = [c].[CompanyName]
 
 SELECT [c].[CustomerID]
 FROM [Customers] AS [c]
-WHERE (@__i_0 + [c].[CustomerID]) = [c].[CompanyName]
+WHERE @__i_0 + [c].[CustomerID] = [c].[CompanyName]
 """);
     }
 
@@ -1638,7 +1638,7 @@ WHERE (@__i_0 + [c].[CustomerID]) = [c].[CompanyName]
 
 SELECT [c].[CustomerID]
 FROM [Customers] AS [c]
-WHERE (@__i_0 + (@__j_1 + [c].[CustomerID])) = [c].[CompanyName]
+WHERE @__i_0 + @__j_1 + [c].[CustomerID] = [c].[CompanyName]
 """);
     }
 
@@ -1654,7 +1654,7 @@ WHERE (@__i_0 + (@__j_1 + [c].[CustomerID])) = [c].[CompanyName]
 
 SELECT [c].[CustomerID]
 FROM [Customers] AS [c]
-WHERE (@__i_0 + (@__j_1 + (@__k_2 + [c].[CustomerID]))) = [c].[CompanyName]
+WHERE @__i_0 + @__j_1 + @__k_2 + [c].[CustomerID] = [c].[CompanyName]
 """);
     }
 
@@ -1800,7 +1800,7 @@ WHERE 0 = 1
 """
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE ([c].[City] IS NULL) AND [c].[Country] = N'UK'
+WHERE [c].[City] IS NULL AND [c].[Country] = N'UK'
 """);
     }
 
@@ -1897,21 +1897,15 @@ WHERE [c].[CustomerID] = @__p_0
 """
 SELECT [o].[OrderID], [o].[ProductID], [o].[Discount], [o].[Quantity], [o].[UnitPrice]
 FROM [Order Details] AS [o]
-WHERE EXISTS (
-    SELECT 1
-    FROM (
-        SELECT TOP(1) [p].[ProductID]
-        FROM [Products] AS [p]
-        ORDER BY [p].[ProductID]
-    ) AS [t]
-    WHERE [t].[ProductID] = [o].[ProductID]) OR EXISTS (
-    SELECT 1
-    FROM (
-        SELECT TOP(1) [o0].[OrderID]
-        FROM [Orders] AS [o0]
-        ORDER BY [o0].[OrderID]
-    ) AS [t0]
-    WHERE [t0].[OrderID] = [o].[OrderID])
+WHERE [o].[ProductID] IN (
+    SELECT TOP(1) [p].[ProductID]
+    FROM [Products] AS [p]
+    ORDER BY [p].[ProductID]
+) OR [o].[OrderID] IN (
+    SELECT TOP(1) [o0].[OrderID]
+    FROM [Orders] AS [o0]
+    ORDER BY [o0].[OrderID]
+)
 """);
     }
 
@@ -1923,21 +1917,15 @@ WHERE EXISTS (
 """
 SELECT [o].[OrderID], [o].[ProductID], [o].[Discount], [o].[Quantity], [o].[UnitPrice]
 FROM [Order Details] AS [o]
-WHERE EXISTS (
-    SELECT 1
-    FROM (
-        SELECT TOP(20) [p].[ProductID]
-        FROM [Products] AS [p]
-        ORDER BY [p].[ProductID]
-    ) AS [t]
-    WHERE [t].[ProductID] = [o].[ProductID]) AND EXISTS (
-    SELECT 1
-    FROM (
-        SELECT TOP(10) [o0].[OrderID]
-        FROM [Orders] AS [o0]
-        ORDER BY [o0].[OrderID]
-    ) AS [t0]
-    WHERE [t0].[OrderID] = [o].[OrderID])
+WHERE [o].[ProductID] IN (
+    SELECT TOP(20) [p].[ProductID]
+    FROM [Products] AS [p]
+    ORDER BY [p].[ProductID]
+) AND [o].[OrderID] IN (
+    SELECT TOP(10) [o0].[OrderID]
+    FROM [Orders] AS [o0]
+    ORDER BY [o0].[OrderID]
+)
 """);
     }
 
@@ -1967,10 +1955,10 @@ WHERE EXISTS (
 """
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE NOT (EXISTS (
+WHERE NOT EXISTS (
     SELECT 1
     FROM [Orders] AS [o]
-    WHERE [c].[CustomerID] = [o].[CustomerID]))
+    WHERE [c].[CustomerID] = [o].[CustomerID])
 """);
     }
 
@@ -2081,9 +2069,14 @@ WHERE [o].[OrderID] = 1
 
         AssertSql(
 """
+@__cities_0='["Seattle"]' (Size = 4000)
+
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE [c].[City] = N'Seattle'
+WHERE EXISTS (
+    SELECT 1
+    FROM OPENJSON(@__cities_0) WITH ([value] nvarchar(15) '$') AS [c0]
+    WHERE [c0].[value] = [c].[City] OR ([c0].[value] IS NULL AND [c].[City] IS NULL))
 """);
     }
 
@@ -2136,7 +2129,7 @@ WHERE CAST([o].[OrderID] AS nvarchar(max)) LIKE N'%20%'
 
 SELECT [c].[CustomerID]
 FROM [Customers] AS [c]
-WHERE ((CAST(@__i_0 AS nchar(5)) + [c].[CustomerID]) + CAST(@__i_0 AS nchar(5))) = [c].[CompanyName]
+WHERE CAST(@__i_0 AS nchar(5)) + [c].[CustomerID] + CAST(@__i_0 AS nchar(5)) = [c].[CompanyName]
 """);
     }
 
@@ -2166,10 +2159,11 @@ ORDER BY [c].[CustomerID]
 SELECT [c].[CustomerID], [o0].[CustomerID], [o0].[OrderID]
 FROM [Customers] AS [c]
 LEFT JOIN [Orders] AS [o0] ON [c].[CustomerID] = [o0].[CustomerID]
-WHERE EXISTS (
-    SELECT 1
+WHERE N'ALFKI' IN (
+    SELECT [o].[CustomerID]
     FROM [Orders] AS [o]
-    WHERE [o].[CustomerID] = [c].[CustomerID] AND [o].[CustomerID] = N'ALFKI')
+    WHERE [o].[CustomerID] = [c].[CustomerID]
+)
 ORDER BY [c].[CustomerID]
 """);
     }
@@ -2200,10 +2194,11 @@ ORDER BY [c].[CustomerID]
 SELECT [c].[CustomerID], [o0].[CustomerID], [o0].[OrderID]
 FROM [Customers] AS [c]
 LEFT JOIN [Orders] AS [o0] ON [c].[CustomerID] = [o0].[CustomerID]
-WHERE EXISTS (
-    SELECT 1
+WHERE N'ALFKI' IN (
+    SELECT [o].[CustomerID]
     FROM [Orders] AS [o]
-    WHERE [o].[CustomerID] = [c].[CustomerID] AND [o].[CustomerID] = N'ALFKI')
+    WHERE [o].[CustomerID] = [c].[CustomerID]
+)
 ORDER BY [c].[CustomerID]
 """);
     }
@@ -2234,10 +2229,11 @@ ORDER BY [c].[CustomerID]
 SELECT [c].[CustomerID], [o0].[CustomerID], [o0].[OrderID]
 FROM [Customers] AS [c]
 LEFT JOIN [Orders] AS [o0] ON [c].[CustomerID] = [o0].[CustomerID]
-WHERE EXISTS (
-    SELECT 1
+WHERE N'ALFKI' IN (
+    SELECT [o].[CustomerID]
     FROM [Orders] AS [o]
-    WHERE [o].[CustomerID] = [c].[CustomerID] AND [o].[CustomerID] = N'ALFKI')
+    WHERE [o].[CustomerID] = [c].[CustomerID]
+)
 ORDER BY [c].[CustomerID]
 """);
     }
@@ -2251,10 +2247,10 @@ ORDER BY [c].[CustomerID]
 SELECT [c].[CustomerID], [o0].[CustomerID], [o0].[OrderID]
 FROM [Customers] AS [c]
 LEFT JOIN [Orders] AS [o0] ON [c].[CustomerID] = [o0].[CustomerID]
-WHERE NOT (EXISTS (
+WHERE NOT EXISTS (
     SELECT 1
     FROM [Orders] AS [o]
-    WHERE [o].[CustomerID] = [c].[CustomerID] AND [o].[CustomerID] = N'ALFKI'))
+    WHERE [o].[CustomerID] = [c].[CustomerID] AND [o].[CustomerID] = N'ALFKI')
 ORDER BY [c].[CustomerID]
 """);
     }
@@ -2441,9 +2437,14 @@ ORDER BY [o].[OrderID], [o1].[OrderID]
 
         AssertSql(
 """
+@__orderIds_0='[10248,10249]' (Size = 4000)
+
 SELECT [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate]
 FROM [Orders] AS [o]
-WHERE [o].[OrderID] IN (10248, 10249)
+WHERE [o].[OrderID] IN (
+    SELECT [o0].[value]
+    FROM OPENJSON(@__orderIds_0) WITH ([value] int '$') AS [o0]
+)
 """);
     }
 
@@ -2453,9 +2454,14 @@ WHERE [o].[OrderID] IN (10248, 10249)
 
         AssertSql(
 """
+@__orderIds_0='[10248,10249]' (Size = 4000)
+
 SELECT [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate]
 FROM [Orders] AS [o]
-WHERE [o].[OrderID] IN (10248, 10249)
+WHERE [o].[OrderID] IN (
+    SELECT [o0].[value]
+    FROM OPENJSON(@__orderIds_0) WITH ([value] int '$') AS [o0]
+)
 """);
     }
 
@@ -2479,7 +2485,7 @@ WHERE [c].[CustomerID] IN (N'ALFKI', N'ANATR', N'ANTON')
 """
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE [c].[Region] IN (N'WA', N'OR', N'BC') OR ([c].[Region] IS NULL)
+WHERE [c].[Region] IN (N'WA', N'OR', N'BC') OR [c].[Region] IS NULL
 """);
     }
 
@@ -2503,7 +2509,7 @@ WHERE [c].[CustomerID] IN (N'ALFKI', N'ANATR', N'ANTON')
 """
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE [c].[CustomerID] IN (N'ALFKI', N'ANATR', N'ANTON')
+WHERE [c].[CustomerID] IN (N'ANTON', N'ALFKI', N'ANATR')
 """);
     }
 
@@ -2555,9 +2561,12 @@ WHERE [c].[CustomerID] <> @__prm1_0 AND [c].[CustomerID] <> @__prm2_1 AND [c].[C
         // issue #21462
         AssertSql(
 """
+@__prm1_0='ALFKI' (Size = 5) (DbType = StringFixedLength)
+@__prm2_1='ANATR' (Size = 5) (DbType = StringFixedLength)
+
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE [c].[CustomerID] IN (N'ALFKI', N'ANATR') OR [c].[CustomerID] = N'ANTON'
+WHERE [c].[CustomerID] IN (@__prm1_0, @__prm2_1, N'ANTON')
 """);
     }
 
@@ -2570,7 +2579,7 @@ WHERE [c].[CustomerID] IN (N'ALFKI', N'ANATR') OR [c].[CustomerID] = N'ANTON'
 """
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE [c].[Region] IN (N'WA', N'OR') OR ([c].[Region] IS NULL) OR [c].[Region] = N'BC'
+WHERE [c].[Region] IN (N'WA', N'OR') OR [c].[Region] IS NULL OR [c].[Region] = N'BC'
 """);
     }
 
@@ -2580,9 +2589,14 @@ WHERE [c].[Region] IN (N'WA', N'OR') OR ([c].[Region] IS NULL) OR [c].[Region] =
 
         AssertSql(
 """
+@__array_0='["ALFKI","ANATR"]' (Size = 4000)
+
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE [c].[CustomerID] IN (N'ALFKI', N'ANATR') OR [c].[CustomerID] = N'ANTON'
+WHERE [c].[CustomerID] IN (
+    SELECT [a].[value]
+    FROM OPENJSON(@__array_0) WITH ([value] nchar(5) '$') AS [a]
+) OR [c].[CustomerID] = N'ANTON'
 """);
     }
 
@@ -2593,11 +2607,15 @@ WHERE [c].[CustomerID] IN (N'ALFKI', N'ANATR') OR [c].[CustomerID] = N'ANTON'
         AssertSql(
 """
 @__prm1_0='ANTON' (Size = 5) (DbType = StringFixedLength)
+@__array_1='["ALFKI","ANATR"]' (Size = 4000)
 @__prm2_2='ALFKI' (Size = 5) (DbType = StringFixedLength)
 
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE [c].[CustomerID] = @__prm1_0 OR [c].[CustomerID] IN (N'ALFKI', N'ANATR') OR [c].[CustomerID] = @__prm2_2
+WHERE [c].[CustomerID] = @__prm1_0 OR [c].[CustomerID] IN (
+    SELECT [a].[value]
+    FROM OPENJSON(@__array_1) WITH ([value] nchar(5) '$') AS [a]
+) OR [c].[CustomerID] = @__prm2_2
 """);
     }
 
@@ -2621,7 +2639,7 @@ WHERE [c].[CustomerID] = N'ANATR'
 """
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE [c].[Region] <> N'WA' AND ([c].[Region] IS NOT NULL)
+WHERE [c].[Region] IS NOT NULL AND [c].[Region] <> N'WA'
 """);
     }
 
@@ -2687,10 +2705,10 @@ WHERE (
 """
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE NOT (EXISTS (
+WHERE NOT EXISTS (
     SELECT 1
     FROM [Orders] AS [o]
-    WHERE [c].[CustomerID] = [o].[CustomerID]))
+    WHERE [c].[CustomerID] = [o].[CustomerID])
 """);
     }
 
@@ -2717,10 +2735,10 @@ WHERE EXISTS (
 """
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE NOT (EXISTS (
+WHERE NOT EXISTS (
     SELECT 1
     FROM [Orders] AS [o]
-    WHERE [c].[CustomerID] = [o].[CustomerID]))
+    WHERE [c].[CustomerID] = [o].[CustomerID])
 """);
     }
 
@@ -2747,10 +2765,10 @@ WHERE EXISTS (
 """
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE NOT (EXISTS (
+WHERE NOT EXISTS (
     SELECT 1
     FROM [Orders] AS [o]
-    WHERE [c].[CustomerID] = [o].[CustomerID]))
+    WHERE [c].[CustomerID] = [o].[CustomerID])
 """);
     }
 
@@ -2777,10 +2795,10 @@ WHERE EXISTS (
 """
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE NOT (EXISTS (
+WHERE NOT EXISTS (
     SELECT 1
     FROM [Orders] AS [o]
-    WHERE [c].[CustomerID] = [o].[CustomerID]))
+    WHERE [c].[CustomerID] = [o].[CustomerID])
 """);
     }
 
@@ -2799,6 +2817,40 @@ WHERE EXISTS (
 """);
     }
 
+    public override async Task ElementAt_over_custom_projection_compared_to_not_null(bool async)
+    {
+        await base.ElementAt_over_custom_projection_compared_to_not_null(async);
+
+        AssertSql(
+"""
+SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+FROM [Customers] AS [c]
+WHERE EXISTS (
+    SELECT 1
+    FROM [Orders] AS [o]
+    WHERE [c].[CustomerID] = [o].[CustomerID]
+    ORDER BY (SELECT 1)
+    OFFSET 3 ROWS)
+""");
+    }
+
+    public override async Task ElementAtOrDefault_over_custom_projection_compared_to_null(bool async)
+    {
+        await base.ElementAtOrDefault_over_custom_projection_compared_to_null(async);
+
+        AssertSql(
+"""
+SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+FROM [Customers] AS [c]
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM [Orders] AS [o]
+    WHERE [c].[CustomerID] = [o].[CustomerID]
+    ORDER BY (SELECT 1)
+    OFFSET 7 ROWS)
+""");
+    }
+
     public override async Task Single_over_custom_projection_compared_to_null(bool async)
     {
         await base.Single_over_custom_projection_compared_to_null(async);
@@ -2807,10 +2859,10 @@ WHERE EXISTS (
 """
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE NOT (EXISTS (
+WHERE NOT EXISTS (
     SELECT 1
     FROM [Orders] AS [o]
-    WHERE [c].[CustomerID] = [o].[CustomerID]))
+    WHERE [c].[CustomerID] = [o].[CustomerID])
 """);
     }
 
@@ -2837,10 +2889,10 @@ WHERE EXISTS (
 """
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE NOT (EXISTS (
+WHERE NOT EXISTS (
     SELECT 1
     FROM [Orders] AS [o]
-    WHERE [c].[CustomerID] = [o].[CustomerID]))
+    WHERE [c].[CustomerID] = [o].[CustomerID])
 """);
     }
 
@@ -2865,9 +2917,14 @@ WHERE EXISTS (
 
         AssertSql(
 """
+@__customerIds_0='["ALFKI","FISSA"]' (Size = 4000)
+
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE [c].[CustomerID] IN (N'ALFKI', N'FISSA') AND [c].[City] = N'Seattle'
+WHERE [c].[CustomerID] IN (
+    SELECT [c0].[value]
+    FROM OPENJSON(@__customerIds_0) WITH ([value] nchar(5) '$') AS [c0]
+) AND [c].[City] = N'Seattle'
 """);
     }
 
@@ -2877,9 +2934,14 @@ WHERE [c].[CustomerID] IN (N'ALFKI', N'FISSA') AND [c].[City] = N'Seattle'
 
         AssertSql(
 """
+@__customerIds_0='["ALFKI","FISSA"]' (Size = 4000)
+
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE [c].[CustomerID] IN (N'ALFKI', N'FISSA') OR [c].[City] = N'Seattle'
+WHERE [c].[CustomerID] IN (
+    SELECT [c0].[value]
+    FROM OPENJSON(@__customerIds_0) WITH ([value] nchar(5) '$') AS [c0]
+) OR [c].[City] = N'Seattle'
 """);
     }
 
@@ -2891,7 +2953,7 @@ WHERE [c].[CustomerID] IN (N'ALFKI', N'FISSA') OR [c].[City] = N'Seattle'
 """
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE ([c].[CustomerID] LIKE N'F%') AND [c].[City] = N'Seattle'
+WHERE [c].[CustomerID] LIKE N'F%' AND [c].[City] = N'Seattle'
 """);
     }
 
@@ -2903,7 +2965,7 @@ WHERE ([c].[CustomerID] LIKE N'F%') AND [c].[City] = N'Seattle'
 """
 SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE ([c].[CustomerID] LIKE N'F%') OR [c].[City] = N'Seattle'
+WHERE [c].[CustomerID] LIKE N'F%' OR [c].[City] = N'Seattle'
 """);
     }
 

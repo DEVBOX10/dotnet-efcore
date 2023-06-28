@@ -29,7 +29,7 @@ public static class ExpressionExtensions
     /// <param name="characterLimit">An optional limit to the number of characters included. Additional output will be truncated.</param>
     /// <returns>The printable representation.</returns>
     public static string Print(this Expression expression, int? characterLimit = null)
-        => new ExpressionPrinter().Print(expression, characterLimit);
+        => new ExpressionPrinter().PrintExpression(expression, characterLimit);
 
     /// <summary>
     ///     Creates a <see cref="MemberExpression"></see> that represents accessing either a field or a property.
@@ -288,11 +288,13 @@ public static class ExpressionExtensions
         Type type,
         int index,
         IPropertyBase? property)
-        => Expression.Call(
-            MakeValueBufferTryReadValueMethod(type),
-            valueBuffer,
-            Expression.Constant(index),
-            Expression.Constant(property, typeof(IPropertyBase)));
+        => property is INavigationBase
+            ? Expression.Constant(null, typeof(object))
+            : Expression.Call(
+                MakeValueBufferTryReadValueMethod(type),
+                valueBuffer,
+                Expression.Constant(index),
+                Expression.Constant(property, typeof(IPropertyBase)));
 
     /// <summary>
     ///     <para>

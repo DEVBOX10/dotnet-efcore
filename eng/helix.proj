@@ -12,7 +12,7 @@
 
     <EnableAzurePipelinesReporter>true</EnableAzurePipelinesReporter>
     <FailOnTestFailure>true</FailOnTestFailure>
-    <SqlServerTests>$(RepoRoot)/test/EFCore.SqlServer.FunctionalTests/*.csproj;$(RepoRoot)/test/EFCore.OData.FunctionalTests/*.csproj;$(RepoRoot)/test/EFCore.AspNet.SqlServer.FunctionalTests/*.csproj</SqlServerTests>
+    <SqlServerTests>$(RepoRoot)/test/EFCore.SqlServer.FunctionalTests/*.csproj;$(RepoRoot)/test/EFCore.SqlServer.HierarchyId.Tests/*.csproj;$(RepoRoot)/test/EFCore.OData.FunctionalTests/*.csproj;$(RepoRoot)/test/EFCore.AspNet.SqlServer.FunctionalTests/*.csproj;$(RepoRoot)/test/EFCore.VisualBasic.FunctionalTests/*.vbproj</SqlServerTests>
   </PropertyGroup>
 
   <PropertyGroup Condition = "'$(SYSTEM_ACCESSTOKEN)' == ''">
@@ -33,17 +33,17 @@
     <XUnitProject Remove="$(RepoRoot)/test/EFCore.Trimming.Tests/*.csproj"/>
   </ItemGroup>
 
+  <!-- Work-around for https://github.com/dotnet/runtime/issues/70758 -->
+  <ItemGroup Condition = "'$(HelixTargetQueue.StartsWith(`OSX`))'">
+    <XUnitProject Update="$(RepoRoot)/test/EFCore.InMemory.FunctionalTests/*.csproj;$(RepoRoot)/test/EFCore.Sqlite.FunctionalTests/*.csproj;$(RepoRoot)/test/ef.Tests/*.csproj">
+      <PreCommands>$(PreCommands); export COMPlus_EnableWriteXorExecute=0</PreCommands>
+    </XUnitProject>
+  </ItemGroup>
+
   <!-- Start LocalDb instance for test projects which uses SqlServer on windows -->
   <ItemGroup Condition = "'$(HelixTargetQueue.StartsWith(`Windows`))'">
     <XUnitProject Update="$(SqlServerTests);$(RepoRoot)/test/EFCore.CrossStore.FunctionalTests/*.csproj">
       <PreCommands>$(PreCommands); SqlLocalDB start</PreCommands>
-    </XUnitProject>
-  </ItemGroup>
-
-  <!-- Work-around for https://github.com/dotnet/runtime/issues/70758 -->
-  <ItemGroup Condition = "'$(HelixTargetQueue.StartsWith(`OSX`))'">
-    <XUnitProject Update="$(RepoRoot)/test/EFCore.InMemory.FunctionalTests/*.csproj;$(RepoRoot)/test/EFCore.Sqlite.FunctionalTests/*.csproj">
-      <PreCommands>$(PreCommands); export COMPlus_EnableWriteXorExecute=0</PreCommands>
     </XUnitProject>
   </ItemGroup>
 

@@ -86,8 +86,7 @@ public partial class CosmosShapedQueryCompilingExpressionVisitor
                             projectionExpression = projection.Expression;
                             storeName = projection.Alias;
                         }
-                        else if (projectionExpression is UnaryExpression convertExpression
-                                 && convertExpression.NodeType == ExpressionType.Convert)
+                        else if (projectionExpression is UnaryExpression { NodeType: ExpressionType.Convert } convertExpression)
                         {
                             // Unwrap EntityProjectionExpression when the root entity is not projected
                             projectionExpression = ((UnaryExpression)convertExpression.Operand).Operand;
@@ -155,9 +154,7 @@ public partial class CosmosShapedQueryCompilingExpressionVisitor
                     }
                 }
 
-                if (binaryExpression.Left is MemberExpression memberExpression
-                    && memberExpression.Member is FieldInfo fieldInfo
-                    && fieldInfo.IsInitOnly)
+                if (binaryExpression.Left is MemberExpression { Member: FieldInfo { IsInitOnly: true } } memberExpression)
                 {
                     return memberExpression.Assign(Visit(binaryExpression.Right));
                 }
@@ -418,8 +415,7 @@ public partial class CosmosShapedQueryCompilingExpressionVisitor
                 if (relatedEntity != null)
                 {
                     fixup(includingEntity, relatedEntity);
-                    if (inverseNavigation != null
-                        && !inverseNavigation.IsCollection)
+                    if (inverseNavigation is { IsCollection: false })
                     {
                         inverseNavigation.SetIsLoadedWhenNoTracking(relatedEntity);
                     }
@@ -602,11 +598,13 @@ public partial class CosmosShapedQueryCompilingExpressionVisitor
             var storeName = property.GetJsonPropertyName();
             if (storeName.Length == 0)
             {
-                var entityType = property.DeclaringEntityType;
-                if (!entityType.IsDocumentRoot())
+                var entityType = property.DeclaringType as IEntityType;
+                if (entityType == null
+                    || !entityType.IsDocumentRoot())
                 {
-                    var ownership = entityType.FindOwnership();
-                    if (!ownership.IsUnique
+                    var ownership = entityType?.FindOwnership();
+                    if (ownership != null
+                        && !ownership.IsUnique
                         && property.IsOrdinalKeyProperty())
                     {
                         var readExpression = _ordinalParameterBindings[jObjectExpression];
@@ -625,8 +623,8 @@ public partial class CosmosShapedQueryCompilingExpressionVisitor
                         if (_ownerMappings.TryGetValue(jObjectExpression, out var ownerInfo))
                         {
                             Check.DebugAssert(
-                                principalProperty.DeclaringEntityType.IsAssignableFrom(ownerInfo.EntityType),
-                                $"{principalProperty.DeclaringEntityType} is not assignable from {ownerInfo.EntityType}");
+                                principalProperty.DeclaringType.IsAssignableFrom(ownerInfo.EntityType),
+                                $"{principalProperty.DeclaringType} is not assignable from {ownerInfo.EntityType}");
 
                             ownerJObjectExpression = ownerInfo.JObjectExpression;
                         }

@@ -643,20 +643,14 @@ public abstract class ManyToManyFieldsLoadTestBase<TFixture> : IClassFixture<TFi
             context.Entry(left).State = EntityState.Detached;
         }
 
-        Assert.Equal(
-            CoreStrings.CannotLoadDetached(nameof(left.TwoSkip), nameof(EntityOne)),
-            (await Assert.ThrowsAsync<InvalidOperationException>(
-                async () =>
-                {
-                    if (async)
-                    {
-                        await collectionEntry.LoadAsync();
-                    }
-                    else
-                    {
-                        collectionEntry.Load();
-                    }
-                })).Message);
+        if (async)
+        {
+            await collectionEntry.LoadAsync();
+        }
+        else
+        {
+            collectionEntry.Load();
+        }
     }
 
     [ConditionalTheory]
@@ -676,9 +670,7 @@ public abstract class ManyToManyFieldsLoadTestBase<TFixture> : IClassFixture<TFi
             context.Entry(left).State = EntityState.Detached;
         }
 
-        Assert.Equal(
-            CoreStrings.CannotLoadDetached(nameof(left.TwoSkip), nameof(EntityOne)),
-            Assert.Throws<InvalidOperationException>(() => collectionEntry.Query()).Message);
+        var query = collectionEntry.Query();
     }
 
     [ConditionalTheory]
@@ -844,7 +836,7 @@ public abstract class ManyToManyFieldsLoadTestBase<TFixture> : IClassFixture<TFi
             Assert.Contains(left, right.OneSkipShared);
             foreach (var three in right.ThreeSkipFull)
             {
-                Assert.True(three.Id == 11 || three.Id == 13);
+                Assert.True(three.Id is 11 or 13);
                 Assert.Contains(right, three.TwoSkipFull);
             }
         }

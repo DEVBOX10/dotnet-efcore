@@ -51,24 +51,24 @@ public class SearchConditionConvertingExpressionVisitor : SqlExpressionVisitor
             : sqlExpression;
 
     private SqlExpression BuildCompareToExpression(SqlExpression sqlExpression)
-        => sqlExpression is SqlConstantExpression sqlConstantExpression
-            && sqlConstantExpression.Value is bool boolValue
-                ? _sqlExpressionFactory.Equal(
-                    boolValue
-                        ? _sqlExpressionFactory.Constant(1)
-                        : _sqlExpressionFactory.Constant(0),
-                    _sqlExpressionFactory.Constant(1))
-                : _sqlExpressionFactory.Equal(
-                    sqlExpression,
-                    _sqlExpressionFactory.Constant(true));
+        => sqlExpression is SqlConstantExpression { Value: bool boolValue }
+            ? _sqlExpressionFactory.Equal(
+                boolValue
+                    ? _sqlExpressionFactory.Constant(1)
+                    : _sqlExpressionFactory.Constant(0),
+                _sqlExpressionFactory.Constant(1))
+            : _sqlExpressionFactory.Equal(
+                sqlExpression,
+                _sqlExpressionFactory.Constant(true));
 
     private SqlExpression SimplifyNegatedBinary(SqlExpression sqlExpression)
     {
-        if (sqlExpression is SqlUnaryExpression sqlUnaryExpression
-            && sqlUnaryExpression.OperatorType == ExpressionType.Not
+        if (sqlExpression is SqlUnaryExpression { OperatorType: ExpressionType.Not } sqlUnaryExpression
             && sqlUnaryExpression.Type == typeof(bool)
-            && sqlUnaryExpression.Operand is SqlBinaryExpression sqlBinaryOperand
-            && (sqlBinaryOperand.OperatorType == ExpressionType.Equal || sqlBinaryOperand.OperatorType == ExpressionType.NotEqual))
+            && sqlUnaryExpression.Operand is SqlBinaryExpression
+            {
+                OperatorType: ExpressionType.Equal or ExpressionType.NotEqual
+            } sqlBinaryOperand)
         {
             if (sqlBinaryOperand.Left.Type == typeof(bool)
                 && sqlBinaryOperand.Right.Type == typeof(bool)
@@ -223,10 +223,36 @@ public class SearchConditionConvertingExpressionVisitor : SqlExpressionVisitor
         _isSearchCondition = false;
         var item = (SqlExpression)Visit(inExpression.Item);
         var subquery = (SelectExpression?)Visit(inExpression.Subquery);
-        var values = (SqlExpression?)Visit(inExpression.Values);
+
+        var values = inExpression.Values;
+        SqlExpression[]? newValues = null;
+        if (values is not null)
+        {
+            for (var i = 0; i < values.Count; i++)
+            {
+                var value = values[i];
+                var newValue = (SqlExpression)Visit(value);
+
+                if (newValue != value && newValues is null)
+                {
+                    newValues = new SqlExpression[values.Count];
+                    for (var j = 0; j < i; j++)
+                    {
+                        newValues[j] = values[j];
+                    }
+                }
+
+                if (newValues is not null)
+                {
+                    newValues[i] = newValue;
+                }
+            }
+        }
+
+        var valuesParameter = (SqlParameterExpression?)Visit(inExpression.ValuesParameter);
         _isSearchCondition = parentSearchCondition;
 
-        return ApplyConversion(inExpression.Update(item, values, subquery), condition: true);
+        return ApplyConversion(inExpression.Update(item, subquery, newValues ?? values, valuesParameter), condition: true);
     }
 
     /// <summary>
@@ -360,14 +386,14 @@ public class SearchConditionConvertingExpressionVisitor : SqlExpressionVisitor
         _isSearchCondition = parentIsSearchCondition;
 
         sqlBinaryExpression = sqlBinaryExpression.Update(newLeft, newRight);
-        var condition = sqlBinaryExpression.OperatorType == ExpressionType.AndAlso
-            || sqlBinaryExpression.OperatorType == ExpressionType.OrElse
-            || sqlBinaryExpression.OperatorType == ExpressionType.Equal
-            || sqlBinaryExpression.OperatorType == ExpressionType.NotEqual
-            || sqlBinaryExpression.OperatorType == ExpressionType.GreaterThan
-            || sqlBinaryExpression.OperatorType == ExpressionType.GreaterThanOrEqual
-            || sqlBinaryExpression.OperatorType == ExpressionType.LessThan
-            || sqlBinaryExpression.OperatorType == ExpressionType.LessThanOrEqual;
+        var condition = sqlBinaryExpression.OperatorType is ExpressionType.AndAlso
+            or ExpressionType.OrElse
+            or ExpressionType.Equal
+            or ExpressionType.NotEqual
+            or ExpressionType.GreaterThan
+            or ExpressionType.GreaterThanOrEqual
+            or ExpressionType.LessThan
+            or ExpressionType.LessThanOrEqual;
 
         return ApplyConversion(sqlBinaryExpression, condition);
     }
@@ -467,7 +493,7 @@ public class SearchConditionConvertingExpressionVisitor : SqlExpressionVisitor
         _isSearchCondition = parentSearchCondition;
         var newFunction = sqlFunctionExpression.Update(instance, arguments);
 
-        var condition = sqlFunctionExpression.Name == "FREETEXT" || sqlFunctionExpression.Name == "CONTAINS";
+        var condition = sqlFunctionExpression.Name is "FREETEXT" or "CONTAINS";
 
         return ApplyConversion(newFunction, condition);
     }
@@ -676,6 +702,27 @@ public class SearchConditionConvertingExpressionVisitor : SqlExpressionVisitor
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
+    protected override Expression VisitRowValue(RowValueExpression rowValueExpression)
+    {
+        var parentSearchCondition = _isSearchCondition;
+        _isSearchCondition = false;
+
+        var values = new SqlExpression[rowValueExpression.Values.Count];
+        for (var i = 0; i < values.Length; i++)
+        {
+            values[i] = (SqlExpression)Visit(rowValueExpression.Values[i]);
+        }
+
+        _isSearchCondition = parentSearchCondition;
+        return rowValueExpression.Update(values);
+    }
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
     protected override Expression VisitExcept(ExceptExpression exceptExpression)
     {
         var parentSearchCondition = _isSearchCondition;
@@ -764,5 +811,26 @@ public class SearchConditionConvertingExpressionVisitor : SqlExpressionVisitor
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     protected override Expression VisitJsonScalar(JsonScalarExpression jsonScalarExpression)
-        => jsonScalarExpression;
+        => ApplyConversion(jsonScalarExpression, condition: false);
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    protected override Expression VisitValues(ValuesExpression valuesExpression)
+    {
+        var parentSearchCondition = _isSearchCondition;
+        _isSearchCondition = false;
+
+        var rowValues = new RowValueExpression[valuesExpression.RowValues.Count];
+        for (var i = 0; i < rowValues.Length; i++)
+        {
+            rowValues[i] = (RowValueExpression)Visit(valuesExpression.RowValues[i]);
+        }
+
+        _isSearchCondition = parentSearchCondition;
+        return valuesExpression.Update(rowValues);
+    }
 }

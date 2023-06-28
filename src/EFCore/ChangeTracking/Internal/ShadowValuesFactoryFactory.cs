@@ -20,8 +20,7 @@ public class ShadowValuesFactoryFactory : SnapshotFactoryFactory<ValueBuffer>
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     protected override int GetPropertyIndex(IPropertyBase propertyBase)
-        // Navigations are not included in the supplied value buffer
-        => (propertyBase as IProperty)?.GetShadowIndex() ?? -1;
+        => propertyBase.GetShadowIndex();
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -29,8 +28,8 @@ public class ShadowValuesFactoryFactory : SnapshotFactoryFactory<ValueBuffer>
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    protected override int GetPropertyCount(IEntityType entityType)
-        => entityType.ShadowPropertyCount();
+    protected override int GetPropertyCount(IRuntimeTypeBase typeBase)
+        => typeBase.ShadowPropertyCount;
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -57,7 +56,7 @@ public class ShadowValuesFactoryFactory : SnapshotFactoryFactory<ValueBuffer>
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     protected override Expression CreateReadShadowValueExpression(
-        ParameterExpression parameter,
+        ParameterExpression? parameter,
         IPropertyBase property)
         => Expression.Convert(
             Expression.Call(
@@ -73,7 +72,7 @@ public class ShadowValuesFactoryFactory : SnapshotFactoryFactory<ValueBuffer>
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     protected override Expression CreateReadValueExpression(
-        ParameterExpression parameter,
+        ParameterExpression? parameter,
         IPropertyBase property)
         => CreateReadShadowValueExpression(parameter, property);
 }

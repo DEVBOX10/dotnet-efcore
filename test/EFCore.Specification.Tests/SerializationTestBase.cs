@@ -3,7 +3,6 @@
 
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.EntityFrameworkCore.TestModels.ConcurrencyModel;
 using Newtonsoft.Json;
 using JsonSerializer = System.Text.Json.JsonSerializer;
@@ -140,7 +139,7 @@ public abstract class SerializationTestBase<TFixture> : IClassFixture<TFixture>
             ReferenceLoopHandling = ignoreLoops
                 ? ReferenceLoopHandling.Ignore
                 : ReferenceLoopHandling.Error,
-            EqualityComparer = LegacyReferenceEqualityComparer.Instance,
+            EqualityComparer = ReferenceEqualityComparer.Instance,
             Formatting = writeIndented
                 ? Formatting.Indented
                 : Formatting.None

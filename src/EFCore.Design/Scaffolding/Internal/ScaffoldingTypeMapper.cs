@@ -33,9 +33,12 @@ public class ScaffoldingTypeMapper : IScaffoldingTypeMapper
     public virtual TypeScaffoldingInfo? FindMapping(
         string storeType,
         bool keyOrIndex,
-        bool rowVersion)
+        bool rowVersion,
+        Type? clrType = null)
     {
-        var mapping = _typeMappingSource.FindMapping(storeType);
+        var mapping = clrType is null
+            ? _typeMappingSource.FindMapping(storeType)
+            : _typeMappingSource.FindMapping(clrType, storeType);
         if (mapping == null)
         {
             return null;
@@ -108,7 +111,10 @@ public class ScaffoldingTypeMapper : IScaffoldingTypeMapper
                 precision: mapping.Precision,
                 scale: mapping.Scale)!;
 
-            scaffoldMaxLength = sizedMapping.Size != defaultTypeMapping.Size ? defaultTypeMapping.Size : null;
+            scaffoldMaxLength = (sizedMapping.Size == null && defaultTypeMapping.Size == -1)
+                || sizedMapping.Size == defaultTypeMapping.Size
+                    ? null
+                    : defaultTypeMapping.Size;
 
             // Check for precision
             var precisionMapping = _typeMappingSource.FindMapping(

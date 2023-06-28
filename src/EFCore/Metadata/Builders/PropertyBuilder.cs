@@ -84,11 +84,27 @@ public class PropertyBuilder : IInfrastructure<IConventionPropertyBuilder>
     ///     Configures the maximum length of data that can be stored in this property.
     ///     Maximum length can only be set on array properties (including <see cref="string" /> properties).
     /// </summary>
-    /// <param name="maxLength">The maximum length of data allowed in the property.</param>
+    /// <param name="maxLength">
+    /// The maximum length of data allowed in the property. A value of <c>-1</c> indicates that the property has no maximum length.
+    /// </param>
     /// <returns>The same builder instance so that multiple configuration calls can be chained.</returns>
     public virtual PropertyBuilder HasMaxLength(int maxLength)
     {
         Builder.HasMaxLength(maxLength, ConfigurationSource.Explicit);
+
+        return this;
+    }
+
+    /// <summary>
+    ///     Configures the value that will be used to determine if the property has been set or not. If the property is set to the
+    ///     sentinel value, then it is considered not set. By default, the sentinel value is the CLR default value for the type of
+    ///     the property.
+    /// </summary>
+    /// <param name="sentinel">The sentinel value.</param>
+    /// <returns>The same builder instance if the configuration was applied, <see langword="null" /> otherwise.</returns>
+    public virtual PropertyBuilder HasSentinel(object? sentinel)
+    {
+        Builder.HasSentinel(sentinel, ConfigurationSource.Explicit);
 
         return this;
     }
@@ -234,7 +250,7 @@ public class PropertyBuilder : IInfrastructure<IConventionPropertyBuilder>
     /// </remarks>
     /// <param name="factory">A delegate that will be used to create value generator instances.</param>
     /// <returns>The same builder instance so that multiple configuration calls can be chained.</returns>
-    public virtual PropertyBuilder HasValueGenerator(Func<IProperty, IEntityType, ValueGenerator> factory)
+    public virtual PropertyBuilder HasValueGenerator(Func<IProperty, ITypeBase, ValueGenerator> factory)
     {
         Check.NotNull(factory, nameof(factory));
 
@@ -423,7 +439,7 @@ public class PropertyBuilder : IInfrastructure<IConventionPropertyBuilder>
     ///     <para>
     ///         By default, the backing field, if one is found by convention or has been specified, is used when
     ///         new objects are constructed, typically when entities are queried from the database.
-    ///         Properties are used for all other accesses.  Calling this method will change that behavior
+    ///         Properties are used for all other accesses. Calling this method will change that behavior
     ///         for this property as described in the <see cref="PropertyAccessMode" /> enum.
     ///     </para>
     ///     <para>

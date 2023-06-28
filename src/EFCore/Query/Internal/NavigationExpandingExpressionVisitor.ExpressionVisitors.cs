@@ -104,22 +104,34 @@ public partial class NavigationExpandingExpressionVisitor
                     }
                 }
 
-                var navigation = memberIdentity.MemberInfo != null
+                var navigation = memberIdentity.MemberInfo is not null
                     ? entityType.FindNavigation(memberIdentity.MemberInfo)
-                    : entityType.FindNavigation(memberIdentity.Name!);
-                if (navigation != null)
+                    : memberIdentity.Name is not null
+                        ? entityType.FindNavigation(memberIdentity.Name)
+                        : null;
+                if (navigation is not null)
                 {
-                    return ExpandNavigation(root, entityReference, navigation, convertedType != null);
+                    return ExpandNavigation(root, entityReference, navigation, convertedType is not null);
                 }
 
-                var skipNavigation = memberIdentity.MemberInfo != null
+                var skipNavigation = memberIdentity.MemberInfo is not null
                     ? entityType.FindSkipNavigation(memberIdentity.MemberInfo)
                     : memberIdentity.Name is not null
                         ? entityType.FindSkipNavigation(memberIdentity.Name)
                         : null;
-                if (skipNavigation != null)
+                if (skipNavigation is not null)
                 {
-                    return ExpandSkipNavigation(root, entityReference, skipNavigation, convertedType != null);
+                    return ExpandSkipNavigation(root, entityReference, skipNavigation, convertedType is not null);
+                }
+
+                var property = memberIdentity.MemberInfo != null
+                    ? entityType.FindProperty(memberIdentity.MemberInfo)
+                    : memberIdentity.Name is not null
+                        ? entityType.FindProperty(memberIdentity.Name)
+                        : null;
+                if (property?.GetTypeMapping().ElementTypeMapping != null)
+                {
+                    return new PrimitiveCollectionReference(root, property);
                 }
             }
 
@@ -415,7 +427,7 @@ public partial class NavigationExpandingExpressionVisitor
 
                                     return Expression.NotEqual(left, Expression.Constant(null, left.Type));
                                 })
-                            .Aggregate((l, r) => Expression.AndAlso(l, r))
+                            .Aggregate(Expression.AndAlso)
                         : Expression.NotEqual(outerKey, Expression.Constant(null, outerKey.Type)),
                     ExpressionExtensions.CreateEqualsExpression(outerKey, innerKey));
 
@@ -502,17 +514,14 @@ public partial class NavigationExpandingExpressionVisitor
             : base(navigationExpandingExpressionVisitor, source, extensibilityHelper)
         {
             _logger = navigationExpandingExpressionVisitor._queryCompilationContext.Logger;
-            _queryStateManager = navigationExpandingExpressionVisitor._queryCompilationContext.QueryTrackingBehavior
-                == QueryTrackingBehavior.TrackAll
-                || navigationExpandingExpressionVisitor._queryCompilationContext.QueryTrackingBehavior
-                == QueryTrackingBehavior.NoTrackingWithIdentityResolution;
+            _queryStateManager = navigationExpandingExpressionVisitor._queryCompilationContext.QueryTrackingBehavior is
+                QueryTrackingBehavior.TrackAll or QueryTrackingBehavior.NoTrackingWithIdentityResolution;
             _ignoreAutoIncludes = navigationExpandingExpressionVisitor._queryCompilationContext.IgnoreAutoIncludes;
         }
 
         protected override Expression VisitBinary(BinaryExpression binaryExpression)
         {
-            if (binaryExpression.NodeType == ExpressionType.Equal
-                || binaryExpression.NodeType == ExpressionType.NotEqual)
+            if (binaryExpression.NodeType is ExpressionType.Equal or ExpressionType.NotEqual)
             {
                 // This could be entity equality. We don't want to expand include nodes over them
                 // as either they translate or throw.
@@ -761,8 +770,7 @@ public partial class NavigationExpandingExpressionVisitor
                     if (!_ignoreAutoIncludes
                         && navigationBase is INavigation
                         && navigationBase.Inverse is INavigation inverseNavigation
-                        && subquery is MethodCallExpression subqueryMethodCallExpression
-                        && subqueryMethodCallExpression.Method.IsGenericMethod)
+                        && subquery is MethodCallExpression { Method.IsGenericMethod: true } subqueryMethodCallExpression)
                     {
                         EntityReference? innerEntityReference = null;
                         if (subqueryMethodCallExpression.Method.GetGenericMethodDefinition() == QueryableMethods.Where
@@ -792,15 +800,16 @@ public partial class NavigationExpandingExpressionVisitor
                     var filterExpression = entityReference.IncludePaths[navigationBase].FilterExpression;
                     if (_queryStateManager
                         && navigationBase is ISkipNavigation skipNavigation
-                        && subquery is MethodCallExpression joinMethodCallExpression
-                        && joinMethodCallExpression.Method.IsGenericMethod
+                        && subquery is MethodCallExpression { Method.IsGenericMethod: true } joinMethodCallExpression
                         && joinMethodCallExpression.Method.GetGenericMethodDefinition()
                         == (skipNavigation.Inverse.ForeignKey.IsRequired
                             ? QueryableMethods.Join
                             : QueryableExtensions.LeftJoinMethodInfo)
-                        && joinMethodCallExpression.Arguments[4] is UnaryExpression unaryExpression
-                        && unaryExpression.NodeType == ExpressionType.Quote
-                        && unaryExpression.Operand is LambdaExpression resultSelectorLambda
+                        && joinMethodCallExpression.Arguments[4] is UnaryExpression
+                        {
+                            NodeType: ExpressionType.Quote,
+                            Operand: LambdaExpression resultSelectorLambda
+                        }
                         && resultSelectorLambda.Body == resultSelectorLambda.Parameters[1])
                     {
                         var joinParameter = resultSelectorLambda.Parameters[0];
@@ -1000,10 +1009,13 @@ public partial class NavigationExpandingExpressionVisitor
 
                     if (navigationExpansionExpression.CardinalityReducingGenericMethodInfo != null)
                     {
+                        var arguments = new List<Expression> { result };
+                        arguments.AddRange(navigationExpansionExpression.CardinalityReducingMethodArguments.Select(x => Visit(x)));
+
                         result = Expression.Call(
                             navigationExpansionExpression.CardinalityReducingGenericMethodInfo.MakeGenericMethod(
                                 result.Type.GetSequenceType()),
-                            result);
+                            arguments.ToArray());
                     }
 
                     return result;
@@ -1011,6 +1023,9 @@ public partial class NavigationExpandingExpressionVisitor
 
                 case OwnedNavigationReference ownedNavigationReference:
                     return Visit(ownedNavigationReference.Parent).CreateEFPropertyExpression(ownedNavigationReference.Navigation);
+
+                case PrimitiveCollectionReference queryablePropertyReference:
+                    return Visit(queryablePropertyReference.Parent).CreateEFPropertyExpression(queryablePropertyReference.Property);
 
                 case IncludeExpression includeExpression:
                     var entityExpression = Visit(includeExpression.EntityExpression);
@@ -1207,8 +1222,7 @@ public partial class NavigationExpandingExpressionVisitor
         }
 
         protected override Expression VisitBinary(BinaryExpression binaryExpression)
-            => (binaryExpression.NodeType == ExpressionType.Equal
-                    || binaryExpression.NodeType == ExpressionType.NotEqual)
+            => binaryExpression.NodeType is ExpressionType.Equal or ExpressionType.NotEqual
                 && TryRemoveNavigationComparison(
                     binaryExpression.NodeType, binaryExpression.Left, binaryExpression.Right, out var result)
                     ? result
@@ -1218,8 +1232,7 @@ public partial class NavigationExpandingExpressionVisitor
         {
             var method = methodCallExpression.Method;
             if (method.Name == nameof(object.Equals)
-                && methodCallExpression.Object != null
-                && methodCallExpression.Arguments.Count == 1
+                && methodCallExpression is { Object: not null, Arguments.Count: 1 }
                 && TryRemoveNavigationComparison(
                     ExpressionType.Equal, methodCallExpression.Object, methodCallExpression.Arguments[0], out var result))
             {
@@ -1299,11 +1312,9 @@ public partial class NavigationExpandingExpressionVisitor
         {
             switch (expression)
             {
-                case MemberExpression memberExpression
-                    when memberExpression.Expression != null:
+                case MemberExpression { Expression: not null } memberExpression:
                     var innerExpression = ProcessNavigationPath(memberExpression.Expression);
-                    if (innerExpression is NavigationDataExpression navigationDataExpression
-                        && navigationDataExpression.EntityType != null)
+                    if (innerExpression is NavigationDataExpression { EntityType: not null } navigationDataExpression)
                     {
                         var navigation = navigationDataExpression.EntityType.FindNavigation(memberExpression.Member);
                         if (navigation != null)

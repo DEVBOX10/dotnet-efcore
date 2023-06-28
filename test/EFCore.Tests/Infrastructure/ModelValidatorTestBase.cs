@@ -167,6 +167,46 @@ public abstract class ModelValidatorTestBase
         public bool? ImNot { get; set; }
     }
 
+    protected class E2
+    {
+        private bool? _imBool;
+
+        public int Id { get; set; }
+
+        public bool ImBool
+        {
+            get => _imBool ?? true;
+            set => _imBool = value;
+        }
+    }
+
+    protected enum X
+    {
+        A,
+        B
+    }
+
+    protected class WithEnum
+    {
+        public int Id { get; set; }
+        public X EnumWithDefaultConstraint { get; set; }
+        public X EnumNoDefaultConstraint { get; set; }
+        public X? NullableEnum { get; set; }
+    }
+
+    protected class WithEnum2
+    {
+        private X? _enumWithDefaultConstraint;
+
+        public int Id { get; set; }
+
+        public X EnumWithDefaultConstraint
+        {
+            get => _enumWithDefaultConstraint ?? X.B;
+            set => _enumWithDefaultConstraint = value;
+        }
+    }
+
     protected class EntityWithInvalidProperties
     {
         public int Id { get; set; }

@@ -18,26 +18,31 @@ public class JsonQueryContext : DbContext
     public DbSet<JsonEntitySingleOwned> JsonEntitiesSingleOwned { get; set; }
     public DbSet<JsonEntityInheritanceBase> JsonEntitiesInheritance { get; set; }
     public DbSet<JsonEntityAllTypes> JsonEntitiesAllTypes { get; set; }
+    public DbSet<JsonEntityConverters> JsonEntitiesConverters { get; set; }
 
     public static void Seed(JsonQueryContext context)
     {
         var jsonEntitiesBasic = JsonQueryData.CreateJsonEntitiesBasic();
+        var entitiesBasic = JsonQueryData.CreateEntitiesBasic();
         var jsonEntitiesBasicForReference = JsonQueryData.CreateJsonEntitiesBasicForReference();
         var jsonEntitiesBasicForCollection = JsonQueryData.CreateJsonEntitiesBasicForCollection();
-        JsonQueryData.WireUp(jsonEntitiesBasic, jsonEntitiesBasicForReference, jsonEntitiesBasicForCollection);
+        JsonQueryData.WireUp(jsonEntitiesBasic, entitiesBasic, jsonEntitiesBasicForReference, jsonEntitiesBasicForCollection);
 
         var jsonEntitiesCustomNaming = JsonQueryData.CreateJsonEntitiesCustomNaming();
         var jsonEntitiesSingleOwned = JsonQueryData.CreateJsonEntitiesSingleOwned();
         var jsonEntitiesInheritance = JsonQueryData.CreateJsonEntitiesInheritance();
         var jsonEntitiesAllTypes = JsonQueryData.CreateJsonEntitiesAllTypes();
+        var jsonEntitiesConverters = JsonQueryData.CreateJsonEntitiesConverters();
 
         context.JsonEntitiesBasic.AddRange(jsonEntitiesBasic);
+        context.EntitiesBasic.AddRange(entitiesBasic);
         context.JsonEntitiesBasicForReference.AddRange(jsonEntitiesBasicForReference);
         context.JsonEntitiesBasicForCollection.AddRange(jsonEntitiesBasicForCollection);
         context.JsonEntitiesCustomNaming.AddRange(jsonEntitiesCustomNaming);
         context.JsonEntitiesSingleOwned.AddRange(jsonEntitiesSingleOwned);
         context.JsonEntitiesInheritance.AddRange(jsonEntitiesInheritance);
         context.JsonEntitiesAllTypes.AddRange(jsonEntitiesAllTypes);
+        context.JsonEntitiesConverters.AddRange(jsonEntitiesConverters);
         context.SaveChanges();
     }
 }

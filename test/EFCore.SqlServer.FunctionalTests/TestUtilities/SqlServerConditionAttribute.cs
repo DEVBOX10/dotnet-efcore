@@ -82,7 +82,12 @@ public sealed class SqlServerConditionAttribute : Attribute, ITestCondition
             isMet &= TestEnvironment.IsFunctions2017Supported;
         }
 
-        return new ValueTask<bool>(isMet);
+        if (Conditions.HasFlag(SqlServerCondition.SupportsJsonPathExpressions))
+        {
+            isMet &= TestEnvironment.SupportsJsonPathExpressions;
+        }
+
+        return ValueTask.FromResult(isMet);
     }
 
     public string SkipReason

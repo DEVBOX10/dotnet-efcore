@@ -1,7 +1,6 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.EntityFrameworkCore.TestModels.Northwind;
 
 // ReSharper disable FormatStringProblem
@@ -57,7 +56,7 @@ public abstract class NorthwindSplitIncludeNoTrackingQueryTestBase<TFixture> : N
                     .AsNoTracking()
                     .Single(c => c.CustomerID == "ALFKI");
 
-        Assert.NotEqual(orders, customer.Orders, LegacyReferenceEqualityComparer.Instance);
+        Assert.NotEqual(orders, customer.Orders, ReferenceEqualityComparer.Instance);
         Assert.Equal(6, customer.Orders.Count);
         Assert.True(customer.Orders.All(e => ReferenceEquals(e.Customer, customer)));
 

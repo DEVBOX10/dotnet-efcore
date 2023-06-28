@@ -90,6 +90,77 @@ public abstract class NonSharedModelBulkUpdatesTestBase : NonSharedModelTestBase
     }
 
 #nullable enable
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual async Task Update_non_owned_property_on_entity_with_owned(bool async)
+    {
+        var contextFactory = await InitializeAsync<Context28671>(
+            onModelCreating: mb =>
+            {
+                mb.Entity<Owner>().OwnsOne(o => o.OwnedReference);
+            });
+
+        await AssertUpdate(
+            async,
+            contextFactory.CreateContext,
+            ss => ss.Set<Owner>(),
+            s => s.SetProperty(o => o.Title, "SomeValue"),
+            rowsAffectedCount: 0);
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual async Task Update_non_owned_property_on_entity_with_owned2(bool async)
+    {
+        var contextFactory = await InitializeAsync<Context28671>(
+            onModelCreating: mb =>
+            {
+                mb.Entity<Owner>().OwnsOne(o => o.OwnedReference);
+            });
+
+        await AssertUpdate(
+            async,
+            contextFactory.CreateContext,
+            ss => ss.Set<Owner>(),
+            s => s.SetProperty(o => o.Title, o => o.Title + "_Suffix"),
+            rowsAffectedCount: 0);
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual async Task Delete_entity_with_auto_include(bool async)
+    {
+        var contextFactory = await InitializeAsync<Context30572>();
+        await AssertDelete(async, contextFactory.CreateContext, ss => ss.Set<Context30572_Principal>(), rowsAffectedCount: 0);
+    }
+
+    protected class Context30572 : DbContext
+    {
+        public Context30572(DbContextOptions options)
+            : base(options)
+        {
+        }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+            => modelBuilder.Entity<Context30572_Principal>().Navigation(o => o.Dependent).AutoInclude();
+    }
+
+    public class Context30572_Principal
+    {
+        public int Id { get; set; }
+        public string? Title { get; set; }
+
+        public Context30572_Dependent? Dependent { get; set; }
+    }
+
+    public class Context30572_Dependent
+    {
+        public int Id { get; set; }
+
+        public int Number { get; set; }
+    }
+
     [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
     public virtual async Task Delete_predicate_based_on_optional_navigation(bool async)
@@ -124,6 +195,66 @@ public abstract class NonSharedModelBulkUpdatesTestBase : NonSharedModelTestBase
                     new { Id = 2, BlogId = 2 },
                     new { Id = 3, BlogId = 2 });
         }
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual async Task Update_with_alias_uniquification_in_setter_subquery(bool async)
+    {
+        var contextFactory = await InitializeAsync<Context31078>();
+        await AssertUpdate(
+            async,
+            contextFactory.CreateContext,
+            ss => ss.Orders.Where(o => o.Id == 1)
+                .Select(o => new
+                {
+                    Order = o,
+                    Total = o.OrderProducts.Sum(op => op.Amount)
+                }),
+            s => s.SetProperty(x => x.Order.Total, x => x.Total),
+            rowsAffectedCount: 1);
+    }
+
+    protected class Context31078 : DbContext
+    {
+        public Context31078(DbContextOptions options)
+            : base(options)
+        {
+        }
+
+        public DbSet<Order> Orders
+            => Set<Order>();
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Order>(
+                b =>
+                {
+                    b.Property(o => o.Id).ValueGeneratedNever();
+                    b.HasData(new Order { Id = 1 });
+                });
+
+            modelBuilder.Entity<OrderProduct>(b =>
+            {
+                b.Property(op => op.Id).ValueGeneratedNever();
+                b.HasData(
+                    new OrderProduct { Id = 1, Amount = 8 },
+                    new OrderProduct { Id = 2, Amount = 9 });
+            });
+        }
+    }
+
+    public class Order
+    {
+        public int Id { get; set; }
+        public int Total { get; set; }
+        public ICollection<OrderProduct> OrderProducts { get; set; } = new List<OrderProduct>();
+    }
+
+    public class OrderProduct
+    {
+        public int Id { get; set; }
+        public int Amount { get; set; }
     }
 
     public class Blog

@@ -180,7 +180,9 @@ public class RelationalScaffoldingModelFactory : IScaffoldingModelFactory
         VisitTables(modelBuilder, databaseModel.Tables);
         VisitForeignKeys(modelBuilder, databaseModel.Tables.SelectMany(table => table.ForeignKeys).ToList());
 
-        modelBuilder.Model.AddAnnotations(databaseModel.GetAnnotations());
+        modelBuilder.Model.AddAnnotations(
+            databaseModel.GetAnnotations().Where(
+                a => a.Name != ScaffoldingAnnotationNames.ConnectionString));
 
         return modelBuilder;
     }
@@ -389,7 +391,8 @@ public class RelationalScaffoldingModelFactory : IScaffoldingModelFactory
         }
 
         if (clrType == typeof(bool)
-            && column.DefaultValueSql != null)
+            && column.DefaultValueSql != null
+            && column.DefaultValue == null)
         {
             _reporter.WriteWarning(
                 DesignStrings.NonNullableBoooleanColumnHasDefaultConstraint(column.DisplayName()));
@@ -451,6 +454,11 @@ public class RelationalScaffoldingModelFactory : IScaffoldingModelFactory
             property.ValueGeneratedOnAddOrUpdate();
         }
 
+        if (column.DefaultValue != null)
+        {
+            property.HasDefaultValue(column.DefaultValue);
+        }
+
         if (column.DefaultValueSql != null)
         {
             property.HasDefaultValueSql(column.DefaultValueSql);
@@ -485,7 +493,8 @@ public class RelationalScaffoldingModelFactory : IScaffoldingModelFactory
 
         property.Metadata.AddAnnotations(
             column.GetAnnotations().Where(
-                a => a.Name != ScaffoldingAnnotationNames.ConcurrencyToken));
+                a => a.Name != ScaffoldingAnnotationNames.ConcurrencyToken
+                    && a.Name != ScaffoldingAnnotationNames.ClrType));
 
         return property;
     }
@@ -515,9 +524,7 @@ public class RelationalScaffoldingModelFactory : IScaffoldingModelFactory
 
         var keyBuilder = builder.HasKey(primaryKey.Columns.Select(GetPropertyName).ToArray());
 
-        if (primaryKey.Columns.Count == 1
-            && primaryKey.Columns[0].ValueGenerated == null
-            && primaryKey.Columns[0].DefaultValueSql == null)
+        if (primaryKey.Columns is [{ ValueGenerated: null, DefaultValueSql: null }])
         {
             var property = builder.Metadata.FindProperty(GetPropertyName(primaryKey.Columns[0]));
             if (property != null)
@@ -708,10 +715,10 @@ public class RelationalScaffoldingModelFactory : IScaffoldingModelFactory
                         uniquifier: NavigationUniquifier);
 
                 var leftSkipNavigation = leftEntityType.AddSkipNavigation(
-                    leftNavigationPropertyName, null, rightEntityType, collection: true, onDependent: false);
+                    leftNavigationPropertyName, memberInfo: null, targetEntityType: rightEntityType, collection: true, onDependent: false);
                 leftSkipNavigation.SetForeignKey(fks[0]);
                 var rightSkipNavigation = rightEntityType.AddSkipNavigation(
-                    rightNavigationPropertyName, null, leftEntityType, collection: true, onDependent: false);
+                    rightNavigationPropertyName, memberInfo: null, targetEntityType: leftEntityType, collection: true, onDependent: false);
                 rightSkipNavigation.SetForeignKey(fks[1]);
                 leftSkipNavigation.SetInverse(rightSkipNavigation);
                 rightSkipNavigation.SetInverse(leftSkipNavigation);
@@ -965,7 +972,8 @@ public class RelationalScaffoldingModelFactory : IScaffoldingModelFactory
         return _scaffoldingTypeMapper.FindMapping(
             column.StoreType,
             column.IsKeyOrIndex(),
-            column.IsRowVersion());
+            column.IsRowVersion(),
+            (Type?)column[ScaffoldingAnnotationNames.ClrType]);
     }
 
     private static void AssignOnDeleteAction(

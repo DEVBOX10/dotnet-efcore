@@ -7,7 +7,6 @@ namespace Microsoft.EntityFrameworkCore;
 
 public class UpdatesSqlServerTest : UpdatesSqlServerTestBase<UpdatesSqlServerTest.UpdatesSqlServerFixture>
 {
-    // ReSharper disable once UnusedParameter.Local
     public UpdatesSqlServerTest(UpdatesSqlServerFixture fixture, ITestOutputHelper testOutputHelper)
         : base(fixture, testOutputHelper)
     {
@@ -19,7 +18,7 @@ public class UpdatesSqlServerTest : UpdatesSqlServerTestBase<UpdatesSqlServerTes
 
         AssertContainsSql(
             @"@p0=NULL (Size = 8000) (DbType = Binary)
-@p1='ProductWithBytes' (Nullable = false) (Size = 4000)
+@p1='ProductWithBytes' (Nullable = false) (Size = 21)
 @p2=NULL (Size = 4000)
 
 SET IMPLICIT_TRANSACTIONS OFF;
@@ -27,7 +26,7 @@ SET NOCOUNT ON;
 INSERT INTO [ProductBase] ([Bytes], [Discriminator], [ProductWithBytes_Name])
 OUTPUT INSERTED.[Id]
 VALUES (@p0, @p1, @p2);",
-            @"@p0='SpecialCategory' (Nullable = false) (Size = 4000)
+            @"@p0='SpecialCategory' (Nullable = false) (Size = 21)
 @p1=NULL (Size = 4000)
 @p2='777'
 

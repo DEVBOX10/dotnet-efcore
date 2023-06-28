@@ -3,7 +3,7 @@
 
 namespace Microsoft.EntityFrameworkCore.Update;
 
-public class NonSharedModelUpdatesSqlServerTest : NonSharedModelUpdatesTestBase
+public class NonSharedModelUpdatesSqliteTest : NonSharedModelUpdatesTestBase
 {
     public override async Task Principal_and_dependent_roundtrips_with_cycle_breaking(bool async)
     {
@@ -75,6 +75,36 @@ RETURNING 1;
 DELETE FROM "Author"
 WHERE "Id" = @p0
 RETURNING 1;
+""");
+    }
+
+    public override async Task DbUpdateException_Entries_is_correct_with_multiple_inserts(bool async)
+    {
+        await base.DbUpdateException_Entries_is_correct_with_multiple_inserts(async);
+
+        AssertSql(
+"""
+@p0='Blog2' (Size = 5)
+
+INSERT INTO "Blog" ("Name")
+VALUES (@p0)
+RETURNING "Id";
+""",
+            //
+"""
+@p0='Blog1' (Size = 5)
+
+INSERT INTO "Blog" ("Name")
+VALUES (@p0)
+RETURNING "Id";
+""",
+            //
+"""
+@p0='Blog2' (Size = 5)
+
+INSERT INTO "Blog" ("Name")
+VALUES (@p0)
+RETURNING "Id";
 """);
     }
 

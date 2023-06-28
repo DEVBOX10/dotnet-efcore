@@ -5,6 +5,7 @@ using System.Data;
 using System.Globalization;
 using System.Text;
 using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore.Storage.Json;
 
 namespace Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal;
 
@@ -35,7 +36,7 @@ public class SqlServerByteArrayTypeMapping : ByteArrayTypeMapping
         StoreTypePostfix? storeTypePostfix = null)
         : this(
             new RelationalTypeMappingParameters(
-                new CoreTypeMappingParameters(typeof(byte[]), null, comparer),
+                new CoreTypeMappingParameters(typeof(byte[]), null, comparer, jsonValueReaderWriter: JsonByteArrayReaderWriter.Instance),
                 storeType ?? (fixedLength ? "binary" : "varbinary"),
                 storeTypePostfix ?? StoreTypePostfix.Size,
                 System.Data.DbType.Binary,
@@ -58,7 +59,7 @@ public class SqlServerByteArrayTypeMapping : ByteArrayTypeMapping
     }
 
     private static int CalculateSize(int? size)
-        => size.HasValue && size < MaxSize ? size.Value : MaxSize;
+        => size is > 0 and < MaxSize ? size.Value : MaxSize;
 
     /// <summary>
     ///     Creates a copy of this mapping.
@@ -99,8 +100,7 @@ public class SqlServerByteArrayTypeMapping : ByteArrayTypeMapping
                 // Fixed-sized parameters get exact length to avoid padding/truncation.
                 parameter.Size = IsFixedLength ? length.Value : maxSpecificSize;
             }
-            else if (length != null
-                     && length <= MaxSize)
+            else if (length is <= MaxSize)
             {
                 parameter.Size = IsFixedLength ? length.Value : MaxSize;
             }

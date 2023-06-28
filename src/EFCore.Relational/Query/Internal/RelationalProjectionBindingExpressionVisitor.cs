@@ -103,10 +103,7 @@ public class RelationalProjectionBindingExpressionVisitor : ExpressionVisitor
             return null;
         }
 
-        if (!(expression is NewExpression
-                || expression is MemberInitExpression
-                || expression is EntityShaperExpression
-                || expression is IncludeExpression))
+        if (expression is not NewExpression and not MemberInitExpression and not EntityShaperExpression and not IncludeExpression)
         {
             if (_indexBasedBinding)
             {
@@ -143,7 +140,7 @@ public class RelationalProjectionBindingExpressionVisitor : ExpressionVisitor
                         if (materializeCollectionNavigationExpression.Navigation.TargetEntityType.IsMappedToJson())
                         {
                             var subquery = materializeCollectionNavigationExpression.Subquery;
-                            if (subquery is MethodCallExpression methodCallSubquery && methodCallSubquery.Method.IsGenericMethod)
+                            if (subquery is MethodCallExpression { Method.IsGenericMethod: true } methodCallSubquery)
                             {
                                 // strip .Select(x => x) and .AsQueryable() from the JsonCollectionResultExpression
                                 if (methodCallSubquery.Method.GetGenericMethodDefinition() == QueryableMethods.Select
@@ -161,7 +158,7 @@ public class RelationalProjectionBindingExpressionVisitor : ExpressionVisitor
 
                             if (subquery is JsonQueryExpression jsonQueryExpression)
                             {
-                                Debug.Assert(
+                                Check.DebugAssert(
                                     jsonQueryExpression.IsCollection,
                                     "JsonQueryExpression inside materialize collection should always be a collection.");
 
@@ -510,9 +507,7 @@ public class RelationalProjectionBindingExpressionVisitor : ExpressionVisitor
             }
 
             newBindings[i] = VisitMemberBinding(memberInitExpression.Bindings[i]);
-            if (newBindings[i] is MemberAssignment memberAssignment
-                && memberAssignment.Expression is UnaryExpression unaryExpression
-                && unaryExpression.NodeType == ExpressionType.Convert
+            if (newBindings[i] is MemberAssignment { Expression: UnaryExpression { NodeType: ExpressionType.Convert } unaryExpression }
                 && unaryExpression.Operand == QueryCompilationContext.NotTranslatedExpression)
             {
                 return QueryCompilationContext.NotTranslatedExpression;
@@ -627,8 +622,7 @@ public class RelationalProjectionBindingExpressionVisitor : ExpressionVisitor
     {
         var operand = Visit(unaryExpression.Operand);
 
-        return (unaryExpression.NodeType == ExpressionType.Convert
-                || unaryExpression.NodeType == ExpressionType.ConvertChecked)
+        return unaryExpression.NodeType is ExpressionType.Convert or ExpressionType.ConvertChecked
             && unaryExpression.Type == operand.Type
                 ? operand
                 : unaryExpression.Update(MatchTypes(operand, unaryExpression.Operand.Type));

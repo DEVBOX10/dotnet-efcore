@@ -277,6 +277,21 @@ public abstract class JsonQueryFixtureBase : SharedStoreFixtureBase<JsonQueryCon
                 }
             }
         },
+        {
+            typeof(JsonEntityConverters), (e, a) =>
+            {
+                Assert.Equal(e == null, a == null);
+                if (a != null)
+                {
+                    var ee = (JsonEntityConverters)e;
+                    var aa = (JsonEntityConverters)a;
+
+                    Assert.Equal(ee.Id, aa.Id);
+
+                    AssertConverters(ee.Reference, aa.Reference);
+                }
+            }
+        },
     }.ToDictionary(e => e.Key, e => (object)e.Value);
 
     private static void AssertOwnedRoot(JsonOwnedRoot expected, JsonOwnedRoot actual)
@@ -331,6 +346,8 @@ public abstract class JsonQueryFixtureBase : SharedStoreFixtureBase<JsonQueryCon
 
     public static void AssertAllTypes(JsonOwnedAllTypes expected, JsonOwnedAllTypes actual)
     {
+        Assert.Equal(expected.TestDefaultString, actual.TestDefaultString);
+        Assert.Equal(expected.TestMaxLengthString, actual.TestMaxLengthString);
         Assert.Equal(expected.TestBoolean, actual.TestBoolean);
         Assert.Equal(expected.TestCharacter, actual.TestCharacter);
         Assert.Equal(expected.TestDateTime, actual.TestDateTime);
@@ -354,6 +371,16 @@ public abstract class JsonQueryFixtureBase : SharedStoreFixtureBase<JsonQueryCon
         Assert.Equal(expected.TestNullableEnumWithConverterThatHandlesNulls, actual.TestNullableEnumWithConverterThatHandlesNulls);
     }
 
+    public static void AssertConverters(JsonOwnedConverters expected, JsonOwnedConverters actual)
+    {
+        Assert.Equal(expected.BoolConvertedToIntZeroOne, actual.BoolConvertedToIntZeroOne);
+        Assert.Equal(expected.BoolConvertedToStringTrueFalse, actual.BoolConvertedToStringTrueFalse);
+        Assert.Equal(expected.BoolConvertedToStringYN, actual.BoolConvertedToStringYN);
+        Assert.Equal(expected.IntZeroOneConvertedToBool, actual.IntZeroOneConvertedToBool);
+        Assert.Equal(expected.StringTrueFalseConvertedToBool, actual.StringTrueFalseConvertedToBool);
+        Assert.Equal(expected.StringYNConvertedToBool, actual.StringYNConvertedToBool);
+    }
+
     protected override string StoreName { get; } = "JsonQueryTest";
 
     public new RelationalTestStore TestStore
@@ -375,6 +402,7 @@ public abstract class JsonQueryFixtureBase : SharedStoreFixtureBase<JsonQueryCon
     protected override void OnModelCreating(ModelBuilder modelBuilder, DbContext context)
     {
         modelBuilder.Entity<JsonEntityBasic>().Property(x => x.Id).ValueGeneratedNever();
+        modelBuilder.Entity<EntityBasic>().Property(x => x.Id).ValueGeneratedNever();
         modelBuilder.Entity<JsonEntityBasicForReference>().Property(x => x.Id).ValueGeneratedNever();
         modelBuilder.Entity<JsonEntityBasicForCollection>().Property(x => x.Id).ValueGeneratedNever();
         modelBuilder.Entity<JsonEntityBasic>().OwnsOne(
@@ -502,6 +530,7 @@ public abstract class JsonQueryFixtureBase : SharedStoreFixtureBase<JsonQueryCon
             x => x.Reference, b =>
             {
                 b.ToJson();
+                b.Property(x => x.TestMaxLengthString).HasMaxLength(5);
                 b.Property(x => x.TestDecimal).HasPrecision(18, 3);
                 b.Property(x => x.TestEnumWithIntConverter).HasConversion<int>();
                 b.Property(x => x.TestNullableEnumWithIntConverter).HasConversion<int>();
@@ -529,7 +558,53 @@ public abstract class JsonQueryFixtureBase : SharedStoreFixtureBase<JsonQueryCon
             x => x.Collection, b =>
             {
                 b.ToJson();
+                b.Property(x => x.TestMaxLengthString).HasMaxLength(5);
                 b.Property(x => x.TestDecimal).HasPrecision(18, 3);
+                b.Property(x => x.TestEnumWithIntConverter).HasConversion<int>();
+                b.Property(x => x.TestNullableEnumWithIntConverter).HasConversion<int>();
+                b.Property(x => x.TestNullableEnumWithConverterThatHandlesNulls).HasConversion(
+                    new ValueConverter<JsonEnum?, string>(
+                        x => x == null
+                            ? "Null"
+                            : x == JsonEnum.One
+                                ? "One"
+                                : x == JsonEnum.Two
+                                    ? "Two"
+                                    : x == JsonEnum.Three
+                                        ? "Three"
+                                        : "INVALID",
+                        x => x == "One"
+                            ? JsonEnum.One
+                            : x == "Two"
+                                ? JsonEnum.Two
+                                : x == "Three"
+                                    ? JsonEnum.Three
+                                    : null,
+                        convertsNulls: true));
+            });
+
+        modelBuilder.Entity<JsonEntityConverters>().Property(x => x.Id).ValueGeneratedNever();
+        modelBuilder.Entity<JsonEntityConverters>().OwnsOne(
+            x => x.Reference, b =>
+            {
+                b.ToJson();
+                b.Property(x => x.BoolConvertedToIntZeroOne).HasConversion<BoolToZeroOneConverter<int>>();
+                b.Property(x => x.BoolConvertedToStringTrueFalse).HasConversion(new BoolToStringConverter("False", "True"));
+                b.Property(x => x.BoolConvertedToStringYN).HasConversion(new BoolToStringConverter("N", "Y"));
+                b.Property(x => x.IntZeroOneConvertedToBool).HasConversion(
+                    new ValueConverter<int, bool>(
+                        x => x == 0 ? false : true,
+                        x => x == false ? 0 : 1));
+
+                b.Property(x => x.StringTrueFalseConvertedToBool).HasConversion(
+                    new ValueConverter<string, bool>(
+                        x => x == "True" ? true : false,
+                        x => x == true ? "True" : "False"));
+
+                b.Property(x => x.StringYNConvertedToBool).HasConversion(
+                    new ValueConverter<string, bool>(
+                        x => x == "Y" ? true : false,
+                        x => x == true ? "Y" : "N"));
             });
     }
 }

@@ -106,6 +106,7 @@ public static class SqlServerServiceCollectionExtensions
             .TryAdd<IEvaluatableExpressionFilter, SqlServerEvaluatableExpressionFilter>()
             .TryAdd<IRelationalTransactionFactory, SqlServerTransactionFactory>()
             .TryAdd<IModificationCommandBatchFactory, SqlServerModificationCommandBatchFactory>()
+            .TryAdd<IModificationCommandFactory, SqlServerModificationCommandFactory>()
             .TryAdd<IValueGeneratorSelector, SqlServerValueGeneratorSelector>()
             .TryAdd<IRelationalConnection>(p => p.GetRequiredService<ISqlServerConnection>())
             .TryAdd<IMigrationsSqlGenerator, SqlServerMigrationsSqlGenerator>()
@@ -119,6 +120,7 @@ public static class SqlServerServiceCollectionExtensions
             .TryAdd<IAggregateMethodCallTranslatorProvider, SqlServerAggregateMethodCallTranslatorProvider>()
             .TryAdd<IMemberTranslatorProvider, SqlServerMemberTranslatorProvider>()
             .TryAdd<IQuerySqlGeneratorFactory, SqlServerQuerySqlGeneratorFactory>()
+            .TryAdd<IQueryTranslationPreprocessorFactory, SqlServerQueryTranslationPreprocessorFactory>()
             .TryAdd<IRelationalSqlTranslatingExpressionVisitorFactory, SqlServerSqlTranslatingExpressionVisitorFactory>()
             .TryAdd<ISqlExpressionFactory, SqlServerSqlExpressionFactory>()
             .TryAdd<IQueryTranslationPostprocessorFactory, SqlServerQueryTranslationPostprocessorFactory>()
@@ -126,8 +128,10 @@ public static class SqlServerServiceCollectionExtensions
             .TryAdd<INavigationExpansionExtensibilityHelper, SqlServerNavigationExpansionExtensibilityHelper>()
             .TryAdd<IQueryableMethodTranslatingExpressionVisitorFactory, SqlServerQueryableMethodTranslatingExpressionVisitorFactory>()
             .TryAdd<IExceptionDetector, SqlServerExceptionDetector>()
+            .TryAdd<ISingletonOptions, ISqlServerSingletonOptions>(p => p.GetRequiredService<ISqlServerSingletonOptions>())
             .TryAddProviderSpecificServices(
                 b => b
+                    .TryAddSingleton<ISqlServerSingletonOptions, SqlServerSingletonOptions>()
                     .TryAddSingleton<ISqlServerValueGeneratorCache, SqlServerValueGeneratorCache>()
                     .TryAddSingleton<ISqlServerUpdateSqlGenerator, SqlServerUpdateSqlGenerator>()
                     .TryAddSingleton<ISqlServerSequenceValueGeneratorFactory, SqlServerSequenceValueGeneratorFactory>()

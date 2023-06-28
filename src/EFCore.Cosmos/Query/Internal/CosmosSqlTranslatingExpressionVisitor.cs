@@ -187,8 +187,7 @@ public class CosmosSqlTranslatingExpressionVisitor : ExpressionVisitor
         var visitedLeft = Visit(left);
         var visitedRight = Visit(right);
 
-        if ((binaryExpression.NodeType == ExpressionType.Equal
-                || binaryExpression.NodeType == ExpressionType.NotEqual)
+        if (binaryExpression.NodeType is ExpressionType.Equal or ExpressionType.NotEqual
             // Visited expression could be null, We need to pass MemberInitExpression
             && TryRewriteEntityEquality(
                 binaryExpression.NodeType, visitedLeft ?? left, visitedRight ?? right, equalsMethod: false, out var result))
@@ -279,21 +278,23 @@ public class CosmosSqlTranslatingExpressionVisitor : ExpressionVisitor
         static bool IsTypeConstant(Expression expression, out Type type)
         {
             type = null;
-            if (expression is not UnaryExpression { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked } unaryExpression
-                || unaryExpression.Operand is not ConstantExpression constantExpression)
+
+            if (expression is UnaryExpression
+                {
+                    NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked,
+                    Operand: ConstantExpression { Value: Type t }
+                })
             {
-                return false;
+                type = t;
+                return type != null;
             }
 
-            type = constantExpression.Value as Type;
-            return type != null;
+            return false;
         }
 
         static bool TryUnwrapConvertToObject(Expression expression, out Expression operand)
         {
-            if (expression is UnaryExpression convertExpression
-                && (convertExpression.NodeType == ExpressionType.Convert
-                    || convertExpression.NodeType == ExpressionType.ConvertChecked)
+            if (expression is UnaryExpression { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked } convertExpression
                 && expression.Type == typeof(object))
             {
                 operand = convertExpression.Operand;
@@ -353,8 +354,7 @@ public class CosmosSqlTranslatingExpressionVisitor : ExpressionVisitor
 
                 if (result.NodeType == ExpressionType.Convert
                     && result.Type == typeof(ValueBuffer)
-                    && result is UnaryExpression outerUnary
-                    && outerUnary.Operand.NodeType == ExpressionType.Convert
+                    && result is UnaryExpression { Operand.NodeType: ExpressionType.Convert } outerUnary
                     && outerUnary.Operand.Type == typeof(object))
                 {
                     result = ((UnaryExpression)outerUnary.Operand).Operand;
@@ -429,7 +429,9 @@ public class CosmosSqlTranslatingExpressionVisitor : ExpressionVisitor
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     protected override Expression VisitMemberInit(MemberInitExpression memberInitExpression)
-        => GetConstantOrNull(memberInitExpression);
+        => TryEvaluateToConstant(memberInitExpression, out var sqlConstantExpression)
+            ? sqlConstantExpression
+            : QueryCompilationContext.NotTranslatedExpression;
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -507,45 +509,12 @@ public class CosmosSqlTranslatingExpressionVisitor : ExpressionVisitor
         else if (method.IsGenericMethod
                  && method.GetGenericMethodDefinition().Equals(EnumerableMethods.Contains))
         {
-            var enumerable = Visit(methodCallExpression.Arguments[0]);
-            var item = Visit(methodCallExpression.Arguments[1]);
-
-            if (TryRewriteContainsEntity(enumerable, item ?? methodCallExpression.Arguments[1], out var result))
-            {
-                return result;
-            }
-
-            if (enumerable is SqlExpression sqlEnumerable
-                && item is SqlExpression sqlItem)
-            {
-                arguments = new[] { sqlEnumerable, sqlItem };
-            }
-            else
-            {
-                return null;
-            }
+            return TranslateContains(methodCallExpression.Arguments[1], methodCallExpression.Arguments[0]);
         }
         else if (methodCallExpression.Arguments.Count == 1
                  && method.IsContainsMethod())
         {
-            var enumerable = Visit(methodCallExpression.Object);
-            var item = Visit(methodCallExpression.Arguments[0]);
-
-            if (TryRewriteContainsEntity(enumerable, item ?? methodCallExpression.Arguments[0], out var result))
-            {
-                return result;
-            }
-
-            if (enumerable is SqlExpression sqlEnumerable
-                && item is SqlExpression sqlItem)
-            {
-                sqlObject = sqlEnumerable;
-                arguments = new[] { sqlItem };
-            }
-            else
-            {
-                return null;
-            }
+            return TranslateContains(methodCallExpression.Arguments[0], methodCallExpression.Object);
         }
         else
         {
@@ -588,9 +557,66 @@ public class CosmosSqlTranslatingExpressionVisitor : ExpressionVisitor
 
         return translation;
 
+        Expression TranslateContains(Expression untranslatedItem, Expression untranslatedCollection)
+        {
+            var collection = Visit(untranslatedCollection);
+            var itemUnchecked = Visit(untranslatedItem);
+
+            if (TryRewriteContainsEntity(collection, itemUnchecked ?? untranslatedItem, out var result))
+            {
+                return result;
+            }
+
+            if (itemUnchecked is not SqlExpression translatedItem)
+            {
+                return null;
+            }
+
+            switch (collection)
+            {
+                // If the collection was an inline NewArrayExpression with constants only, we get a single constant for that array.
+                case SqlConstantExpression { Value: IEnumerable values, TypeMapping: var typeMapping }:
+                {
+                    var translatedValues = values is IList iList
+                        ? new List<SqlExpression>(iList.Count)
+                        : new List<SqlExpression>();
+                    foreach (var value in values)
+                    {
+                        translatedValues.Add(_sqlExpressionFactory.Constant(value, typeMapping));
+                    }
+                    return _sqlExpressionFactory.In(translatedItem, translatedValues);
+                }
+
+                // If the collection was an inline NewArrayExpression with at least one non-constant, the NewArrayExpression makes it
+                // as-is to translation, where it (currently) cannot be translated. Identify this case and translate the elements.
+                case not SqlExpression when untranslatedCollection is NewArrayExpression { Expressions: var values }:
+                {
+                    var translatedValues = new SqlExpression[values.Count];
+                    for (var i = 0; i < values.Count; i++)
+                    {
+                        if (Visit(values[i]) is not SqlExpression value)
+                        {
+                            return null;
+                        }
+
+                        translatedValues[i] = value;
+                    }
+
+                    return _sqlExpressionFactory.In(translatedItem, translatedValues);
+                }
+
+                // If the collection was a captured variable (parameter), construct an InExpression over that;
+                // InExpressionValuesExpandingExpressionVisitor will expand the values as constants later.
+                case SqlParameterExpression sqlParameterExpression:
+                    return _sqlExpressionFactory.In(translatedItem, sqlParameterExpression);
+
+                default:
+                    return null;
+            }
+        }
+
         static Expression RemoveObjectConvert(Expression expression)
-            => expression is UnaryExpression unaryExpression
-                && (unaryExpression.NodeType == ExpressionType.Convert || unaryExpression.NodeType == ExpressionType.ConvertChecked)
+            => expression is UnaryExpression { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked } unaryExpression
                 && unaryExpression.Type == typeof(object)
                     ? unaryExpression.Operand
                     : expression;
@@ -603,7 +629,9 @@ public class CosmosSqlTranslatingExpressionVisitor : ExpressionVisitor
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     protected override Expression VisitNew(NewExpression newExpression)
-        => GetConstantOrNull(newExpression);
+        => TryEvaluateToConstant(newExpression, out var sqlConstantExpression)
+            ? sqlConstantExpression
+            : QueryCompilationContext.NotTranslatedExpression;
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -612,7 +640,15 @@ public class CosmosSqlTranslatingExpressionVisitor : ExpressionVisitor
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     protected override Expression VisitNewArray(NewArrayExpression newArrayExpression)
-        => null;
+    {
+        if (TryEvaluateToConstant(newArrayExpression, out var sqlConstantExpression))
+        {
+            return sqlConstantExpression;
+        }
+
+        AddTranslationErrorDetails(CosmosStrings.CannotTranslateNonConstantNewArrayExpression(newArrayExpression.Print()));
+        return QueryCompilationContext.NotTranslatedExpression;
+    }
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -636,9 +672,7 @@ public class CosmosSqlTranslatingExpressionVisitor : ExpressionVisitor
         var operand = Visit(unaryExpression.Operand);
 
         if (operand is EntityReferenceExpression entityReferenceExpression
-            && (unaryExpression.NodeType == ExpressionType.Convert
-                || unaryExpression.NodeType == ExpressionType.ConvertChecked
-                || unaryExpression.NodeType == ExpressionType.TypeAs))
+            && unaryExpression.NodeType is ExpressionType.Convert or ExpressionType.ConvertChecked or ExpressionType.TypeAs)
         {
             return entityReferenceExpression.Convert(unaryExpression.Type);
         }
@@ -704,8 +738,7 @@ public class CosmosSqlTranslatingExpressionVisitor : ExpressionVisitor
                         _sqlExpressionFactory.Constant(concreteEntityTypes[0].GetDiscriminatorValue()))
                     : _sqlExpressionFactory.In(
                         discriminatorColumn,
-                        _sqlExpressionFactory.Constant(concreteEntityTypes.Select(et => et.GetDiscriminatorValue()).ToList()),
-                        negated: false);
+                        concreteEntityTypes.Select(et => _sqlExpressionFactory.Constant(et.GetDiscriminatorValue())).ToArray());
             }
         }
 
@@ -714,7 +747,7 @@ public class CosmosSqlTranslatingExpressionVisitor : ExpressionVisitor
 
     private Expression TryBindMember(Expression source, MemberIdentity member)
     {
-        if (!(source is EntityReferenceExpression entityReferenceExpression))
+        if (source is not EntityReferenceExpression entityReferenceExpression)
         {
             return null;
         }
@@ -744,9 +777,7 @@ public class CosmosSqlTranslatingExpressionVisitor : ExpressionVisitor
 
     private static Expression TryRemoveImplicitConvert(Expression expression)
     {
-        if (expression is UnaryExpression unaryExpression
-            && (unaryExpression.NodeType == ExpressionType.Convert
-                || unaryExpression.NodeType == ExpressionType.ConvertChecked))
+        if (expression is UnaryExpression { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked } unaryExpression)
         {
             var innerType = unaryExpression.Operand.Type.UnwrapNullableType();
             if (innerType.IsEnum)
@@ -777,7 +808,7 @@ public class CosmosSqlTranslatingExpressionVisitor : ExpressionVisitor
     {
         result = null;
 
-        if (!(item is EntityReferenceExpression itemEntityReference))
+        if (item is not EntityReferenceExpression itemEntityReference)
         {
             return false;
         }
@@ -989,44 +1020,42 @@ public class CosmosSqlTranslatingExpressionVisitor : ExpressionVisitor
     }
 
     private static bool IsNullSqlConstantExpression(Expression expression)
-        => expression is SqlConstantExpression sqlConstant && sqlConstant.Value == null;
+        => expression is SqlConstantExpression { Value: null };
 
-    private static SqlConstantExpression GetConstantOrNull(Expression expression)
-        => CanEvaluate(expression)
-            ? new SqlConstantExpression(
+    private static bool TryEvaluateToConstant(Expression expression, out SqlConstantExpression sqlConstantExpression)
+    {
+        if (CanEvaluate(expression))
+        {
+            sqlConstantExpression = new SqlConstantExpression(
                 Expression.Constant(
-                    Expression.Lambda<Func<object>>(Expression.Convert(expression, typeof(object))).Compile().Invoke(),
+                    Expression.Lambda<Func<object>>(Expression.Convert(expression, typeof(object)))
+                        .Compile(preferInterpretation: true)
+                        .Invoke(),
                     expression.Type),
-                null)
-            : null;
+                null);
+            return true;
+        }
+
+        sqlConstantExpression = null;
+        return false;
+    }
 
     private static bool CanEvaluate(Expression expression)
-    {
-#pragma warning disable IDE0066 // Convert switch statement to expression
-        switch (expression)
-#pragma warning restore IDE0066 // Convert switch statement to expression
+        => expression switch
         {
-            case ConstantExpression:
-                return true;
-
-            case NewExpression newExpression:
-                return newExpression.Arguments.All(e => CanEvaluate(e));
-
-            case MemberInitExpression memberInitExpression:
-                return CanEvaluate(memberInitExpression.NewExpression)
-                    && memberInitExpression.Bindings.All(
-                        mb => mb is MemberAssignment memberAssignment && CanEvaluate(memberAssignment.Expression));
-
-            default:
-                return false;
-        }
-    }
+            ConstantExpression => true,
+            NewExpression e => e.Arguments.All(CanEvaluate),
+            NewArrayExpression e => e.Expressions.All(CanEvaluate),
+            MemberInitExpression e => CanEvaluate(e.NewExpression)
+                && e.Bindings.All(mb => mb is MemberAssignment memberAssignment && CanEvaluate(memberAssignment.Expression)),
+            _ => false
+        };
 
     [DebuggerStepThrough]
     private static bool TranslationFailed(Expression original, Expression translation, out SqlExpression castTranslation)
     {
         if (original != null
-            && !(translation is SqlExpression))
+            && translation is not SqlExpression)
         {
             castTranslation = null;
             return true;
@@ -1071,8 +1100,7 @@ public class CosmosSqlTranslatingExpressionVisitor : ExpressionVisitor
     {
         protected override Expression VisitExtension(Expression extensionExpression)
         {
-            if (extensionExpression is SqlExpression sqlExpression
-                && sqlExpression.TypeMapping == null)
+            if (extensionExpression is SqlExpression { TypeMapping: null } sqlExpression)
             {
                 throw new InvalidOperationException(CosmosStrings.NullTypeMappingInSqlTree(sqlExpression.Print()));
             }

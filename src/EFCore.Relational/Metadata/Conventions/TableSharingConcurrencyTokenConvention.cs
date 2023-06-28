@@ -1,6 +1,8 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
+
 namespace Microsoft.EntityFrameworkCore.Metadata.Conventions;
 
 /// <summary>
@@ -103,17 +105,38 @@ public class TableSharingConcurrencyTokenConvention : IModelFinalizingConvention
 
                 foreach (var (conventionEntityType, exampleProperty) in entityTypesMissingConcurrencyColumn)
                 {
-                    var providerType = exampleProperty.GetProviderClrType()
-                        ?? (exampleProperty.GetValueConverter() ?? exampleProperty.FindTypeMapping()?.Converter)?.ProviderClrType
-                        ?? exampleProperty.ClrType;
-                    conventionEntityType.Builder.CreateUniqueProperty(
-                            providerType,
+                    var propertyBuilder = conventionEntityType.Builder.CreateUniqueProperty(
+                            exampleProperty.ClrType,
                             ConcurrencyPropertyPrefix + exampleProperty.Name,
                             !exampleProperty.IsNullable)!
                         .HasColumnName(concurrencyColumnName)!
                         .HasColumnType(exampleProperty.GetColumnType())!
                         .IsConcurrencyToken(true)!
-                        .ValueGenerated(exampleProperty.ValueGenerated);
+                        .ValueGenerated(exampleProperty.ValueGenerated)!;
+
+                    var typeMapping = exampleProperty.FindTypeMapping();
+                    if (typeMapping != null)
+                    {
+                        propertyBuilder = propertyBuilder.HasTypeMapping(typeMapping)!;
+                    }
+
+                    var converter = exampleProperty.GetValueConverter();
+                    if (converter != null)
+                    {
+                        propertyBuilder = propertyBuilder.HasConversion(converter)!;
+                    }
+
+                    var providerType = exampleProperty.GetProviderClrType();
+                    if (providerType != propertyBuilder.Metadata.GetProviderClrType())
+                    {
+                        propertyBuilder = propertyBuilder.HasConversion(providerType)!;
+                    }
+
+                    var comparer = exampleProperty.GetValueComparer();
+                    if (comparer != null)
+                    {
+                        propertyBuilder.HasValueComparer(comparer);
+                    }
                 }
             }
         }
@@ -195,22 +218,24 @@ public class TableSharingConcurrencyTokenConvention : IModelFinalizingConvention
         var propertyMissing = true;
         foreach (var mappedProperty in propertiesMappedToConcurrencyColumn)
         {
-            var declaringEntityType = mappedProperty.DeclaringEntityType;
-            if (declaringEntityType.IsAssignableFrom(entityType)
-                || entityType.IsAssignableFrom(declaringEntityType)
-                || declaringEntityType.IsInOwnershipPath(entityType)
-                || entityType.IsInOwnershipPath(declaringEntityType))
+            var declaringType = mappedProperty.DeclaringType;
+            var declaringEntityType = declaringType as IEntityType;
+            if (declaringType.IsAssignableFrom(entityType)
+                || entityType.IsAssignableFrom(declaringType)
+                || declaringEntityType != null
+                    && (declaringEntityType.IsInOwnershipPath(entityType)
+                        || entityType.IsInOwnershipPath(declaringEntityType)))
             {
                 // The concurrency token is on the base type, derived type or in the same aggregate
                 propertyMissing = false;
                 continue;
             }
 
-            var linkingFks = declaringEntityType.FindForeignKeys(declaringEntityType.FindPrimaryKey()!.Properties)
-                .Where(
-                    fk => fk.PrincipalKey.IsPrimaryKey()
+            var linkingFks = declaringEntityType?.FindForeignKeys(declaringEntityType.FindPrimaryKey()!.Properties)
+                .Where(fk => fk.PrincipalKey.IsPrimaryKey()
                         && mappedTypes.Contains(fk.PrincipalEntityType)).ToList();
-            if (linkingFks.Count > 0
+            if (linkingFks != null
+                && linkingFks.Count > 0
                 && linkingFks.All(fk => fk.PrincipalEntityType != entityType)
                 && linkingFks.Any(
                     fk => fk.PrincipalEntityType.IsAssignableFrom(entityType)
@@ -245,7 +270,7 @@ public class TableSharingConcurrencyTokenConvention : IModelFinalizingConvention
             }
 
             if (!removed
-                && entityType.IsAssignableFrom(property.DeclaringEntityType))
+                && entityType.IsAssignableFrom(property.DeclaringType))
             {
                 entityTypeDictionary.Remove(entityType);
             }

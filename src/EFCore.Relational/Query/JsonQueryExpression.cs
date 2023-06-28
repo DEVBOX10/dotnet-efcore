@@ -36,7 +36,7 @@ public class JsonQueryExpression : Expression, IPrintableExpression
             entityType,
             jsonColumn,
             keyPropertyMap,
-            path: new List<PathSegment> { new("$") },
+            path: Array.Empty<PathSegment>(),
             type,
             collection,
             jsonColumn.IsNullable)
@@ -69,7 +69,7 @@ public class JsonQueryExpression : Expression, IPrintableExpression
     public virtual IEntityType EntityType { get; }
 
     /// <summary>
-    ///     The column containg JSON value.
+    ///     The column containing JSON value.
     /// </summary>
     public virtual ColumnExpression JsonColumn { get; }
 
@@ -100,8 +100,8 @@ public class JsonQueryExpression : Expression, IPrintableExpression
     /// </summary>
     public virtual SqlExpression BindProperty(IProperty property)
     {
-        if (!EntityType.IsAssignableFrom(property.DeclaringEntityType)
-            && !property.DeclaringEntityType.IsAssignableFrom(EntityType))
+        if (!EntityType.IsAssignableFrom(property.DeclaringType)
+            && !property.DeclaringType.IsAssignableFrom(EntityType))
         {
             throw new InvalidOperationException(
                 RelationalStrings.UnableToBindMemberToEntityProjection("property", property.Name, EntityType.DisplayName()));
@@ -117,8 +117,9 @@ public class JsonQueryExpression : Expression, IPrintableExpression
 
         return new JsonScalarExpression(
             JsonColumn,
-            property,
             newPath,
+            property.ClrType.UnwrapNullableType(),
+            property.FindRelationalTypeMapping()!,
             IsNullable || property.IsNullable);
     }
 
@@ -162,6 +163,31 @@ public class JsonQueryExpression : Expression, IPrintableExpression
     }
 
     /// <summary>
+    ///     Binds a collection element access with this JSON query expression to get the SQL representation.
+    /// </summary>
+    /// <param name="collectionIndexExpression">The collection index to bind.</param>
+    public virtual JsonQueryExpression BindCollectionElement(SqlExpression collectionIndexExpression)
+    {
+        // this needs to be changed IF JsonQueryExpression will also be used for collection of primitives
+        // see issue #28688
+        Check.DebugAssert(Path.Count == 0 || Path[^1].ArrayIndex == null, "Already accessing JSON array element.");
+
+        var newPath = Path.ToList();
+        newPath.Add(new PathSegment(collectionIndexExpression));
+
+        return new JsonQueryExpression(
+            EntityType,
+            JsonColumn,
+            _keyPropertyMap,
+            newPath,
+            EntityType.ClrType,
+            collection: false,
+            // TODO: computing nullability might be more complicated when we allow strict mode
+            // see issue #28656
+            nullable: true);
+    }
+
+    /// <summary>
     ///     Makes this JSON query expression nullable.
     /// </summary>
     /// <returns>A new expression which has <see cref="IsNullable" /> property set to true.</returns>
@@ -188,7 +214,7 @@ public class JsonQueryExpression : Expression, IPrintableExpression
     {
         expressionPrinter.Append("JsonQueryExpression(");
         expressionPrinter.Visit(JsonColumn);
-        expressionPrinter.Append($", {string.Join("", Path.Select(e => e.ToString()))})");
+        expressionPrinter.Append($""", "{string.Join(".", Path.Select(e => e.ToString()))}")""");
     }
 
     /// <inheritdoc />
@@ -255,6 +281,6 @@ public class JsonQueryExpression : Expression, IPrintableExpression
 
     /// <inheritdoc />
     public override int GetHashCode()
-        // not incorporating _keyPropertyMap into the hash, too much work 
+        // not incorporating _keyPropertyMap into the hash, too much work
         => HashCode.Combine(EntityType, JsonColumn, IsCollection, Path, IsNullable);
 }

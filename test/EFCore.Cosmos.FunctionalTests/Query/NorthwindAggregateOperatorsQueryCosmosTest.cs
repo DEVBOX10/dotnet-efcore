@@ -17,7 +17,7 @@ public class NorthwindAggregateOperatorsQueryCosmosTest
         : base(fixture)
     {
         ClearLog();
-        //Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
+        Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
     }
 
     [ConditionalFact]
@@ -1056,22 +1056,22 @@ ORDER BY c["CustomerID"]
 
     public override async Task Distinct_OrderBy(bool async)
         // Subquery pushdown. Issue #16156.
-        => Assert.Equal(
-            "See issue#16156",
-            (await Assert.ThrowsAsync<InvalidOperationException>(async () => await base.Distinct_OrderBy(async))).Message);
+        => await AssertTranslationFailedWithDetails(
+            () => base.Distinct_OrderBy(async),
+            CosmosStrings.NoSubqueryPushdown);
 
     public override async Task Distinct_OrderBy2(bool async)
         // Subquery pushdown. Issue #16156.
-        => Assert.Equal(
-            "See issue#16156",
-            (await Assert.ThrowsAsync<InvalidOperationException>(async () => await base.Distinct_OrderBy2(async))).Message);
+        => await AssertTranslationFailedWithDetails(
+            () => base.Distinct_OrderBy2(async),
+            CosmosStrings.NoSubqueryPushdown);
 
     public override async Task Distinct_OrderBy3(bool async)
     {
         // Subquery pushdown. Issue #16156.
-        Assert.Equal(
-            "See issue#16156",
-            (await Assert.ThrowsAsync<InvalidOperationException>(async () => await base.Distinct_OrderBy3(async))).Message);
+        await AssertTranslationFailedWithDetails(
+            () => base.Distinct_OrderBy(async),
+            CosmosStrings.NoSubqueryPushdown);
 
         AssertSql();
     }
@@ -1395,7 +1395,7 @@ WHERE ((c["Discriminator"] = "Customer") AND c["CustomerID"] IN ("ABCDE", "ANATR
 """
 SELECT c
 FROM root c
-WHERE ((c["Discriminator"] = "Customer") AND NOT(c["CustomerID"] IN ("ABCDE", "ALFKI")))
+WHERE ((c["Discriminator"] = "Customer") AND c["CustomerID"] NOT IN ("ABCDE", "ALFKI"))
 """);
     }
 
@@ -1431,7 +1431,7 @@ WHERE ((c["Discriminator"] = "Customer") AND (c["CustomerID"] IN ("ABCDE", "ALFK
 """
 SELECT c
 FROM root c
-WHERE ((c["Discriminator"] = "Customer") AND (((c["CustomerID"] = "ALFKI") OR (c["CustomerID"] = "ABCDE")) OR NOT(c["CustomerID"] IN ("ABCDE", "ALFKI"))))
+WHERE ((c["Discriminator"] = "Customer") AND (((c["CustomerID"] = "ALFKI") OR (c["CustomerID"] = "ABCDE")) OR c["CustomerID"] NOT IN ("ABCDE", "ALFKI")))
 """);
     }
 
@@ -1790,7 +1790,7 @@ WHERE (((c["Discriminator"] = "Customer") AND (c["City"] = "México D.F.")) AND 
 """
 SELECT c
 FROM root c
-WHERE ((c["Discriminator"] = "Customer") AND NOT(c["CustomerID"] IN ("ABCDE", "ALFKI", "ANATR")))
+WHERE ((c["Discriminator"] = "Customer") AND c["CustomerID"] NOT IN ("ABCDE", "ALFKI", "ANATR"))
 """);
     }
 
@@ -1802,7 +1802,7 @@ WHERE ((c["Discriminator"] = "Customer") AND NOT(c["CustomerID"] IN ("ABCDE", "A
 """
 SELECT c
 FROM root c
-WHERE ((c["Discriminator"] = "Customer") AND NOT(c["CustomerID"] IN ("ABCDE", "ALFKI", "ANATR")))
+WHERE ((c["Discriminator"] = "Customer") AND c["CustomerID"] NOT IN ("ABCDE", "ALFKI", "ANATR"))
 """);
     }
 
@@ -1814,7 +1814,7 @@ WHERE ((c["Discriminator"] = "Customer") AND NOT(c["CustomerID"] IN ("ABCDE", "A
 """
 SELECT c
 FROM root c
-WHERE ((c["Discriminator"] = "Customer") AND NOT(c["CustomerID"] IN ("ABCDE", "ALFKI", "ANATR")))
+WHERE ((c["Discriminator"] = "Customer") AND c["CustomerID"] NOT IN ("ABCDE", "ALFKI", "ANATR"))
 """);
     }
 
@@ -1826,13 +1826,13 @@ WHERE ((c["Discriminator"] = "Customer") AND NOT(c["CustomerID"] IN ("ABCDE", "A
 """
 SELECT c
 FROM root c
-WHERE (((c["Discriminator"] = "Customer") AND (c["City"] = "México D.F.")) AND NOT(c["CustomerID"] IN ("ABCDE", "ALFKI", "ANATR")))
+WHERE (((c["Discriminator"] = "Customer") AND (c["City"] = "México D.F.")) AND c["CustomerID"] NOT IN ("ABCDE", "ALFKI", "ANATR"))
 """,
                 //
 """
 SELECT c
 FROM root c
-WHERE (((c["Discriminator"] = "Customer") AND (c["City"] = "México D.F.")) AND NOT(c["CustomerID"] IN ("ABCDE", "ALFKI", "ANATR")))
+WHERE (((c["Discriminator"] = "Customer") AND (c["City"] = "México D.F.")) AND c["CustomerID"] NOT IN ("ABCDE", "ALFKI", "ANATR"))
 """);
     }
 

@@ -57,7 +57,7 @@ public abstract class SaveChangesInterceptionSqlServerTestBase : SaveChangesInte
         Assert.Equal(async, saveChangesInterceptor.AsyncCalled);
         Assert.NotEqual(async, saveChangesInterceptor.SyncCalled);
         Assert.NotEqual(saveChangesInterceptor.AsyncCalled, saveChangesInterceptor.SyncCalled);
-        Assert.True(saveChangesInterceptor.FailedCalled);
+        Assert.False(saveChangesInterceptor.FailedCalled);
         Assert.Same(context, saveChangesInterceptor.Context);
         Assert.Same(thrown, saveChangesInterceptor.Exception);
 
@@ -137,7 +137,7 @@ public abstract class SaveChangesInterceptionSqlServerTestBase : SaveChangesInte
         {
             RecordEventData(command, eventData, result);
 
-            return new ValueTask<DbDataReader>(result);
+            return ValueTask.FromResult(result);
         }
 
         private void RecordEventData(DbCommand command, CommandExecutedEventData eventData, DbDataReader result)

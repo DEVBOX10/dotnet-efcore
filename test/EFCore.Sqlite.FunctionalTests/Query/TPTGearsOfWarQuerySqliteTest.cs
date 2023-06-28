@@ -1,6 +1,7 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore.Sqlite.Internal;
 
 namespace Microsoft.EntityFrameworkCore.Query;
@@ -11,7 +12,7 @@ public class TPTGearsOfWarQuerySqliteTest : TPTGearsOfWarQueryRelationalTestBase
         : base(fixture)
     {
         Fixture.TestSqlLoggerFactory.Clear();
-        //Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
+        Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
     }
 
     public override Task Where_datetimeoffset_date_component(bool async)
@@ -207,42 +208,6 @@ public class TPTGearsOfWarQuerySqliteTest : TPTGearsOfWarQueryRelationalTestBase
                     .Correlated_collection_with_groupby_with_complex_grouping_key_not_projecting_identifier_column_with_group_aggregate_in_final_projection(
                         async))).Message);
 
-    public override async Task Negate_on_binary_expression(bool async)
-    {
-        await base.Negate_on_binary_expression(async);
-
-        AssertSql(
-"""
-SELECT "s"."Id", "s"."Banner", "s"."Banner5", "s"."InternalNumber", "s"."Name"
-FROM "Squads" AS "s"
-WHERE "s"."Id" = -("s"."Id" + "s"."Id")
-""");
-    }
-
-    public override async Task Negate_on_column(bool async)
-    {
-        await base.Negate_on_column(async);
-
-        AssertSql(
-"""
-SELECT "s"."Id", "s"."Banner", "s"."Banner5", "s"."InternalNumber", "s"."Name"
-FROM "Squads" AS "s"
-WHERE "s"."Id" = -"s"."Id"
-""");
-    }
-
-    public override async Task Negate_on_like_expression(bool async)
-    {
-        await base.Negate_on_like_expression(async);
-
-        AssertSql(
-"""
-SELECT "s"."Id", "s"."Banner", "s"."Banner5", "s"."InternalNumber", "s"."Name"
-FROM "Squads" AS "s"
-WHERE ("s"."Name" IS NOT NULL) AND NOT ("s"."Name" LIKE 'us%')
-""");
-    }
-
     public override async Task Select_datetimeoffset_comparison_in_projection(bool async)
     {
         await base.Select_datetimeoffset_comparison_in_projection(async);
@@ -393,6 +358,33 @@ WHERE "s"."Banner5" = @__byteArrayParam_0
     public override Task Where_TimeOnly_subtract_TimeOnly(bool async)
         // TimeSpan. Issue #18844.
         => AssertTranslationFailed(() => base.Where_TimeOnly_subtract_TimeOnly(async));
+
+    public override async Task Where_subquery_with_ElementAt_using_column_as_index(bool async)
+    {
+        var message = (await Assert.ThrowsAsync<SqliteException>(
+            () => base.Where_subquery_with_ElementAt_using_column_as_index(async))).Message;
+
+        Assert.Equal("SQLite Error 1: 'no such column: s.Id'.", message);
+
+        AssertSql(
+"""
+SELECT "s"."Id", "s"."Banner", "s"."Banner5", "s"."InternalNumber", "s"."Name"
+FROM "Squads" AS "s"
+WHERE (
+    SELECT "g"."Nickname"
+    FROM "Gears" AS "g"
+    LEFT JOIN "Officers" AS "o" ON "g"."Nickname" = "o"."Nickname" AND "g"."SquadId" = "o"."SquadId"
+    WHERE "s"."Id" = "g"."SquadId"
+    ORDER BY "g"."Nickname"
+    LIMIT 1 OFFSET "s"."Id") = 'Cole Train'
+""");
+    }
+
+    public override Task DateTimeOffset_to_unix_time_milliseconds(bool async)
+        => AssertTranslationFailed(() => base.DateTimeOffset_to_unix_time_milliseconds(async));
+
+    public override Task DateTimeOffset_to_unix_time_seconds(bool async)
+        => AssertTranslationFailed(() => base.DateTimeOffset_to_unix_time_seconds(async));
 
     private void AssertSql(params string[] expected)
         => Fixture.TestSqlLoggerFactory.AssertBaseline(expected);

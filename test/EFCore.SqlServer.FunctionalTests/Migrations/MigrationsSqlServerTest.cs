@@ -17,14 +17,11 @@ namespace Microsoft.EntityFrameworkCore.Migrations;
 
 public class MigrationsSqlServerTest : MigrationsTestBase<MigrationsSqlServerTest.MigrationsSqlServerFixture>
 {
-    protected static string EOL
-        => Environment.NewLine;
-
     public MigrationsSqlServerTest(MigrationsSqlServerFixture fixture, ITestOutputHelper testOutputHelper)
         : base(fixture)
     {
         Fixture.TestSqlLoggerFactory.Clear();
-        //Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
+        Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
     }
 
     public override async Task Create_table()
@@ -953,6 +950,54 @@ ALTER TABLE [Cats] ADD [IdentityColumn] int NOT NULL IDENTITY(1, 2);
             //
 """
 ALTER TABLE [Animal] ADD [IdentityColumn] int NOT NULL DEFAULT 0;
+""");
+    }
+
+    [ConditionalFact]
+    public virtual async Task Add_column_sequence()
+    {
+        await Test(
+            builder => builder.Entity("People").Property<string>("Id"),
+            builder => { },
+            builder => builder.Entity("People").Property<int>("SequenceColumn").UseSequence(),
+            model =>
+            {
+                var table = Assert.Single(model.Tables);
+                var column = Assert.Single(table.Columns, c => c.Name == "SequenceColumn");
+
+                // Note: #29863 tracks recognizing sequence columns as such
+                Assert.Equal("(NEXT VALUE FOR [PeopleSequence])", column.DefaultValueSql);
+            });
+
+        AssertSql(
+"""
+CREATE SEQUENCE [PeopleSequence] START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE NO CYCLE;
+""",
+            //
+"""
+ALTER TABLE [People] ADD [SequenceColumn] int NOT NULL DEFAULT (NEXT VALUE FOR [PeopleSequence]);
+""");
+    }
+
+    [ConditionalFact]
+    public virtual async Task Add_column_hilo()
+    {
+        await Test(
+            builder => builder.Entity("People").Property<string>("Id"),
+            builder => { },
+            builder => builder.Entity("People").Property<int>("SequenceColumn").UseHiLo(),
+            _ =>
+            {
+                // Reverse-engineering of hilo columns isn't supported
+            });
+
+        AssertSql(
+"""
+CREATE SEQUENCE [EntityFrameworkHiLoSequence] START WITH 1 INCREMENT BY 10 NO MINVALUE NO MAXVALUE NO CYCLE;
+""",
+            //
+"""
+ALTER TABLE [People] ADD [SequenceColumn] int NOT NULL DEFAULT 0;
 """);
     }
 
@@ -2651,6 +2696,14 @@ ALTER SEQUENCE [foo] RESTART WITH -3;
 """
 ALTER SEQUENCE [foo] INCREMENT BY 2 NO MINVALUE NO MAXVALUE NO CYCLE;
 """);
+    }
+
+    public override async Task Alter_sequence_restart_with()
+    {
+        await base.Alter_sequence_restart_with();
+
+        AssertSql(
+            @"ALTER SEQUENCE [foo] RESTART WITH 3;");
     }
 
     public override async Task Drop_sequence()
@@ -8883,13 +8936,13 @@ CREATE TABLE [Entity_NestedCollection] (
     CONSTRAINT [FK_Entity_NestedCollection_Entity_OwnedEntityId] FOREIGN KEY ([OwnedEntityId]) REFERENCES [Entity] ([Id]) ON DELETE CASCADE
 );
 """,
-            //
+//
 """
 CREATE TABLE [Entity_OwnedCollection] (
     [EntityId] int NOT NULL,
     [Id] int NOT NULL IDENTITY,
-    [NestedReference2_Number3] int NULL,
     [Date2] datetime2 NOT NULL,
+    [NestedReference2_Number3] int NULL,
     CONSTRAINT [PK_Entity_OwnedCollection] PRIMARY KEY ([EntityId], [Id]),
     CONSTRAINT [FK_Entity_OwnedCollection_Entity_EntityId] FOREIGN KEY ([EntityId]) REFERENCES [Entity] ([Id]) ON DELETE CASCADE
 );

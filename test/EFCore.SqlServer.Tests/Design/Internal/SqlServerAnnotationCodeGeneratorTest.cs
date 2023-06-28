@@ -2,7 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.EntityFrameworkCore.SqlServer.Design.Internal;
+using Microsoft.EntityFrameworkCore.SqlServer.Infrastructure.Internal;
 using Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal;
+using Microsoft.EntityFrameworkCore.Storage.Json;
 
 namespace Microsoft.EntityFrameworkCore.Design.Internal;
 
@@ -389,7 +391,9 @@ public class SqlServerAnnotationCodeGeneratorTest
                     new TypeMappingSourceDependencies(
                         new ValueConverterSelector(
                             new ValueConverterSelectorDependencies()),
+                        new JsonValueReaderWriterSource(new JsonValueReaderWriterSourceDependencies()),
                         Array.Empty<ITypeMappingSourcePlugin>()),
                     new RelationalTypeMappingSourceDependencies(
-                        Array.Empty<IRelationalTypeMappingSourcePlugin>()))));
+                        Array.Empty<IRelationalTypeMappingSourcePlugin>()),
+                    new SqlServerSingletonOptions())));
 }

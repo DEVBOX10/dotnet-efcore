@@ -164,6 +164,7 @@ public class ModelValidator : IModelValidator
 
             clrProperties.ExceptWith(
                 ((IEnumerable<IConventionPropertyBase>)entityType.GetProperties())
+                .Concat(entityType.GetComplexProperties())
                 .Concat(entityType.GetNavigations())
                 .Concat(entityType.GetSkipNavigations())
                 .Concat(entityType.GetServiceProperties()).Select(p => p.Name));
@@ -206,13 +207,15 @@ public class ModelValidator : IModelValidator
                     continue;
                 }
 
+                var isAdHoc = Equals(model.FindAnnotation(CoreAnnotationNames.AdHocModel)?.Value, true);
                 if (targetType != null)
                 {
                     var targetShared = conventionModel.IsShared(targetType);
                     targetOwned ??= IsOwned(targetType, conventionModel);
                     // ReSharper disable CheckForReferenceEqualityInstead.1
                     // ReSharper disable CheckForReferenceEqualityInstead.3
-                    if ((!entityType.IsKeyless
+                    if ((isAdHoc
+                            || !entityType.IsKeyless
                             || targetSequenceType == null)
                         && entityType.GetDerivedTypes().All(
                             dt => dt.GetDeclaredNavigations().FirstOrDefault(n => n.Name == clrProperty.GetSimpleMemberName())
@@ -237,8 +240,11 @@ public class ModelValidator : IModelValidator
                         }
 
                         throw new InvalidOperationException(
-                            CoreStrings.NavigationNotAdded(
-                                entityType.DisplayName(), clrProperty.Name, propertyType.ShortDisplayName()));
+                            isAdHoc
+                                ? CoreStrings.NavigationNotAddedAdHoc(
+                                    entityType.DisplayName(), clrProperty.Name, propertyType.ShortDisplayName())
+                                : CoreStrings.NavigationNotAdded(
+                                    entityType.DisplayName(), clrProperty.Name, propertyType.ShortDisplayName()));
                     }
 
                     // ReSharper restore CheckForReferenceEqualityInstead.3
@@ -254,8 +260,11 @@ public class ModelValidator : IModelValidator
                 else
                 {
                     throw new InvalidOperationException(
-                        CoreStrings.PropertyNotAdded(
-                            entityType.DisplayName(), clrProperty.Name, propertyType.ShortDisplayName()));
+                        isAdHoc
+                            ? CoreStrings.PropertyNotAddedAdHoc(
+                                entityType.DisplayName(), clrProperty.Name, propertyType.ShortDisplayName())
+                            : CoreStrings.PropertyNotAdded(
+                                entityType.DisplayName(), clrProperty.Name, propertyType.ShortDisplayName()));
                 }
             }
         }
@@ -297,7 +306,7 @@ public class ModelValidator : IModelValidator
         IModel model,
         IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
     {
-        if (!(model is IConventionModel conventionModel))
+        if (model is not IConventionModel conventionModel)
         {
             return;
         }
@@ -314,11 +323,11 @@ public class ModelValidator : IModelValidator
                 var property = entityType.FindProperty(ignoredMember);
                 if (property != null)
                 {
-                    if (property.DeclaringEntityType != entityType)
+                    if (property.DeclaringType != entityType)
                     {
                         throw new InvalidOperationException(
                             CoreStrings.InheritedPropertyCannotBeIgnored(
-                                ignoredMember, entityType.DisplayName(), property.DeclaringEntityType.DisplayName()));
+                                ignoredMember, entityType.DisplayName(), property.DeclaringType.DisplayName()));
                     }
 
                     Check.DebugFail("Should never get here...");
@@ -464,11 +473,11 @@ public class ModelValidator : IModelValidator
         graph.TopologicalSort(
             tryBreakEdge: null,
             formatCycle: c => c.Select(d => d.Item1.DisplayName()).Join(" -> "),
-            c => CoreStrings.IdentifyingRelationshipCycle(c));
+            CoreStrings.IdentifyingRelationshipCycle);
     }
 
     /// <summary>
-    ///     Validates the mapping/configuration of primary key nullability in the model.
+    ///     Validates that all trackable entity types have a primary key.
     /// </summary>
     /// <param name="model">The model to validate.</param>
     /// <param name="logger">The logger to use.</param>
@@ -513,8 +522,7 @@ public class ModelValidator : IModelValidator
             return;
         }
 
-        if (entityType.HasSharedClrType
-            && entityType.BaseType != null)
+        if (entityType is { HasSharedClrType: true, BaseType: not null })
         {
             throw new InvalidOperationException(CoreStrings.SharedTypeDerivedType(entityType.DisplayName()));
         }
@@ -694,8 +702,7 @@ public class ModelValidator : IModelValidator
                 }
 
                 foreach (var fk in entityType.GetDeclaredForeignKeys().Where(
-                             fk => !fk.IsOwnership
-                                 && fk.PrincipalToDependent != null
+                             fk => fk is { IsOwnership: false, PrincipalToDependent: not null }
                                  && !Contains(fk.DeclaringEntityType.FindOwnership(), fk)))
                 {
                     throw new InvalidOperationException(
@@ -892,7 +899,7 @@ public class ModelValidator : IModelValidator
                     throw new InvalidOperationException(
                         CoreStrings.ComparerPropertyMismatch(
                             providerComparer.Type.ShortDisplayName(),
-                            property.DeclaringEntityType.DisplayName(),
+                            property.DeclaringType.DisplayName(),
                             property.Name,
                             actualProviderClrType.ShortDisplayName()));
                 }
@@ -936,9 +943,7 @@ public class ModelValidator : IModelValidator
                 var requiredNavigationWithQueryFilter = entityType
                     .GetNavigations()
                     .FirstOrDefault(
-                        n => !n.IsCollection
-                            && n.ForeignKey.IsRequired
-                            && n.IsOnDependent
+                        n => n is { IsCollection: false, ForeignKey.IsRequired: true, IsOnDependent: true }
                             && n.ForeignKey.PrincipalEntityType.GetRootType().GetQueryFilter() != null
                             && n.ForeignKey.DeclaringEntityType.GetRootType().GetQueryFilter() == null);
 

@@ -14,7 +14,7 @@ public class NorthwindKeylessEntitiesQuerySqlServerTest : NorthwindKeylessEntiti
         : base(fixture)
     {
         ClearLog();
-        //Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
+        Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
     }
 
     protected override bool CanExecuteQueryString
@@ -129,7 +129,7 @@ LEFT JOIN [Customers] AS [c] ON [m].[CustomerID] = [c].[CustomerID]
 WHERE EXISTS (
     SELECT 1
     FROM [Orders] AS [o]
-    WHERE ([c].[CustomerID] IS NOT NULL) AND [c].[CustomerID] = [o].[CustomerID])
+    WHERE [c].[CustomerID] IS NOT NULL AND [c].[CustomerID] = [o].[CustomerID])
 """);
     }
 
@@ -184,7 +184,7 @@ FROM (
 WHERE EXISTS (
     SELECT 1
     FROM [Customers] AS [c]
-    WHERE [c].[City] = [m].[City] OR (([c].[City] IS NULL) AND ([m].[City] IS NULL)))
+    WHERE [c].[City] = [m].[City] OR ([c].[City] IS NULL AND [m].[City] IS NULL))
 ORDER BY [m].[ContactName]
 """);
     }
@@ -229,6 +229,56 @@ FROM (
 ) AS [m]
 LEFT JOIN [Customers] AS [c] ON [m].[CustomerID] = [c].[CustomerID]
 WHERE [m].[CustomerID] = N'ALFKI'
+""");
+    }
+
+    public override async Task Count_over_keyless_entity(bool async)
+    {
+        await base.Count_over_keyless_entity(async);
+
+        AssertSql(
+"""
+SELECT COUNT(*)
+FROM (
+    SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region] FROM [Customers] AS [c]
+) AS [m]
+""");
+    }
+
+    public override async Task Count_over_keyless_entity_with_pushdown(bool async)
+    {
+        await base.Count_over_keyless_entity_with_pushdown(async);
+
+        AssertSql(
+"""
+@__p_0='10'
+
+SELECT COUNT(*)
+FROM (
+    SELECT TOP(@__p_0) 1 AS empty
+    FROM (
+        SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region] FROM [Customers] AS [c]
+    ) AS [m]
+    ORDER BY [m].[ContactTitle]
+) AS [t]
+""");
+    }
+
+    public override async Task Count_over_keyless_entity_with_pushdown_empty_projection(bool async)
+    {
+        await base.Count_over_keyless_entity_with_pushdown_empty_projection(async);
+
+        AssertSql(
+"""
+@__p_0='10'
+
+SELECT COUNT(*)
+FROM (
+    SELECT TOP(@__p_0) 1 AS empty
+    FROM (
+        SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region] FROM [Customers] AS [c]
+    ) AS [m]
+) AS [t]
 """);
     }
 

@@ -65,7 +65,13 @@ public class ParameterExtractingExpressionVisitor : ExpressionVisitor
     public virtual Expression ExtractParameters(Expression expression)
         => ExtractParameters(expression, clearEvaluatedValues: true);
 
-    private Expression ExtractParameters(Expression expression, bool clearEvaluatedValues)
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    public virtual Expression ExtractParameters(Expression expression, bool clearEvaluatedValues)
     {
         var oldEvaluatableExpressions = _evaluatableExpressions;
         _evaluatableExpressions = _evaluatableExpressionFindingExpressionVisitor.Find(expression);
@@ -109,7 +115,7 @@ public class ParameterExtractingExpressionVisitor : ExpressionVisitor
     }
 
     private static bool PreserveInitializationConstant(Expression expression, bool generateParameter)
-        => !generateParameter && (expression is NewExpression || expression is MemberInitExpression);
+        => !generateParameter && expression is NewExpression or MemberInitExpression;
 
     private bool PreserveConvertNode(Expression expression)
     {
@@ -151,8 +157,7 @@ public class ParameterExtractingExpressionVisitor : ExpressionVisitor
     {
         var newTestExpression = TryGetConstantValue(conditionalExpression.Test) ?? Visit(conditionalExpression.Test);
 
-        if (newTestExpression is ConstantExpression constantTestExpression
-            && constantTestExpression.Value is bool constantTestValue)
+        if (newTestExpression is ConstantExpression { Value: bool constantTestValue })
         {
             return constantTestValue
                 ? Visit(conditionalExpression.IfTrue)
@@ -227,8 +232,7 @@ public class ParameterExtractingExpressionVisitor : ExpressionVisitor
     }
 
     private static bool ShortCircuitLogicalExpression(Expression expression, ExpressionType nodeType)
-        => expression is ConstantExpression constantExpression
-            && constantExpression.Value is bool constantValue
+        => expression is ConstantExpression { Value: bool constantValue }
             && ((constantValue && nodeType == ExpressionType.OrElse)
                 || (!constantValue && nodeType == ExpressionType.AndAlso));
 
@@ -265,7 +269,7 @@ public class ParameterExtractingExpressionVisitor : ExpressionVisitor
 
         return constantExpression.Type != returnType
             ? Expression.Convert(constantExpression, returnType)
-            : (Expression)constantExpression;
+            : constantExpression;
     }
 
     private Expression Evaluate(Expression expression, bool generateParameter)
@@ -274,7 +278,13 @@ public class ParameterExtractingExpressionVisitor : ExpressionVisitor
         string? parameterName;
         if (_evaluatedValues.TryGetValue(expression, out var cachedValue))
         {
-            var existingExpression = generateParameter ? cachedValue.Parameter : cachedValue.Constant;
+            // The _generateContextAccessors condition allows us to reuse parameter expressions evaluated in query filters.
+            // In principle, _generateContextAccessors is orthogonal to query filters, but in practice it is only used in the
+            // nav expansion query filters (and defining query). If this changes in future, they would need to be decoupled.
+            var existingExpression = generateParameter || _generateContextAccessors
+                ? cachedValue.Parameter
+                : cachedValue.Constant;
+
             if (existingExpression != null)
             {
                 return existingExpression;
@@ -365,8 +375,7 @@ public class ParameterExtractingExpressionVisitor : ExpressionVisitor
     private static Expression RemoveConvert(Expression expression)
     {
         if (expression is UnaryExpression unaryExpression
-            && (expression.NodeType == ExpressionType.Convert
-                || expression.NodeType == ExpressionType.ConvertChecked))
+            && expression.NodeType is ExpressionType.Convert or ExpressionType.ConvertChecked)
         {
             return RemoveConvert(unaryExpression.Operand);
         }
@@ -436,10 +445,8 @@ public class ParameterExtractingExpressionVisitor : ExpressionVisitor
                 parameterName = methodCallExpression.Method.Name;
                 break;
 
-            case UnaryExpression unaryExpression
-                when (unaryExpression.NodeType == ExpressionType.Convert
-                    || unaryExpression.NodeType == ExpressionType.ConvertChecked)
-                && (unaryExpression.Type.UnwrapNullableType() == unaryExpression.Operand.Type):
+            case UnaryExpression { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked } unaryExpression
+                when (unaryExpression.Type.UnwrapNullableType() == unaryExpression.Operand.Type):
                 return GetValue(unaryExpression.Operand, out parameterName);
         }
 
@@ -447,7 +454,7 @@ public class ParameterExtractingExpressionVisitor : ExpressionVisitor
         {
             return Expression.Lambda<Func<object>>(
                     Expression.Convert(expression, typeof(object)))
-                .Compile()
+                .Compile(preferInterpretation: true)
                 .Invoke();
         }
         catch (Exception exception)
@@ -508,7 +515,7 @@ public class ParameterExtractingExpressionVisitor : ExpressionVisitor
             var parentEvaluatable = _evaluatable;
             var parentContainsClosure = _containsClosure;
 
-            _evaluatable = IsEvaluatableNodeType(expression)
+            _evaluatable = IsEvaluatableNodeType(expression, out var preferNoEvaluation)
                 // Extension point to disable funcletization
                 && _evaluatableExpressionFilter.IsEvaluatableExpression(expression, _model)
                 // Don't evaluate QueryableMethods if in compiled query
@@ -517,7 +524,7 @@ public class ParameterExtractingExpressionVisitor : ExpressionVisitor
 
             base.Visit(expression);
 
-            if (_evaluatable)
+            if (_evaluatable && !preferNoEvaluation)
             {
                 // Force parameterization when not in lambda
                 _evaluatableExpressions[expression] = _containsClosure || !_inLambda;
@@ -611,7 +618,7 @@ public class ParameterExtractingExpressionVisitor : ExpressionVisitor
         protected override Expression VisitMember(MemberExpression memberExpression)
         {
             _containsClosure = memberExpression.Expression != null
-                || !(memberExpression.Member is FieldInfo fieldInfo && fieldInfo.IsInitOnly);
+                || !(memberExpression.Member is FieldInfo { IsInitOnly: true });
             return base.VisitMember(memberExpression);
         }
 
@@ -636,10 +643,23 @@ public class ParameterExtractingExpressionVisitor : ExpressionVisitor
             return base.VisitConstant(constantExpression);
         }
 
-        private static bool IsEvaluatableNodeType(Expression expression)
-            => expression.NodeType != ExpressionType.Extension
-                || expression.CanReduce
-                && IsEvaluatableNodeType(expression.ReduceAndCheck());
+        private static bool IsEvaluatableNodeType(Expression expression, out bool preferNoEvaluation)
+        {
+            switch (expression.NodeType)
+            {
+                case ExpressionType.NewArrayInit:
+                    preferNoEvaluation = true;
+                    return true;
+
+                case ExpressionType.Extension:
+                    preferNoEvaluation = false;
+                    return expression.CanReduce && IsEvaluatableNodeType(expression.ReduceAndCheck(), out preferNoEvaluation);
+
+                default:
+                    preferNoEvaluation = false;
+                    return true;
+            }
+        }
 
         private static bool IsQueryableMethod(Expression expression)
             => expression is MethodCallExpression methodCallExpression

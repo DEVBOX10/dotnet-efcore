@@ -9,6 +9,8 @@
     <IsPackable>true</IsPackable>
     <IncludeSymbols>true</IncludeSymbols>
     <ImplicitUsings>true</ImplicitUsings>
+    <!-- HACK: Work around dotnet/arcade#13798 -->
+    <NoWarn>$(NoWarn);NETSDK1023</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -49,9 +51,10 @@
 
   <ItemGroup>
     <PackageReference Include="NetTopologySuite" Version="2.5.0" />
+    <PackageReference Include="NetTopologySuite.IO.GeoJSON" Version="3.0.0" />
     <PackageReference Include="xunit.assert" Version="$(XUnitVersion)" />
     <PackageReference Include="xunit.core" Version="$(XUnitVersion)" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 
 </Project>

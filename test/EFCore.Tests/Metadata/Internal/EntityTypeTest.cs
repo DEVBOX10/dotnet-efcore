@@ -3,6 +3,7 @@
 
 using System.ComponentModel;
 using System.Globalization;
+using System.Reflection.Emit;
 
 // ReSharper disable CollectionNeverUpdated.Local
 // ReSharper disable UnusedAutoPropertyAccessor.Local
@@ -868,7 +869,7 @@ public partial class EntityTypeTest
             .AddForeignKey(new[] { orderIdProperty }, firstKey, firstEntity);
 
         var navigation = firstEntity.AddSkipNavigation(
-            nameof(Order.Products), null, secondEntity, true, false);
+            nameof(Order.Products), null, null, secondEntity, true, false);
         navigation.SetForeignKey(foreignKey);
 
         Assert.Equal(
@@ -1248,7 +1249,7 @@ public partial class EntityTypeTest
         var customerForeignKey = orderEntity
             .AddForeignKey(customerFkProperty, customerKey, customerEntity);
         var relatedNavigation = orderEntity.AddSkipNavigation(
-            nameof(Order.RelatedOrder), null, orderEntity, false, true);
+            nameof(Order.RelatedOrder), null, null, orderEntity, false, true);
         relatedNavigation.SetForeignKey(customerForeignKey);
 
         Assert.True(relatedNavigation.IsOnDependent);
@@ -1260,7 +1261,7 @@ public partial class EntityTypeTest
             .AddForeignKey(new[] { orderProductFkProperty }, orderKey, orderEntity);
 
         var productsNavigation = orderEntity.AddSkipNavigation(
-            nameof(Order.Products), null, productEntity, true, false);
+            nameof(Order.Products), null, null, productEntity, true, false);
         productsNavigation.SetForeignKey(orderProductForeignKey);
 
         Assert.Equal(new[] { productsNavigation, relatedNavigation }, orderEntity.GetSkipNavigations());
@@ -1297,7 +1298,7 @@ public partial class EntityTypeTest
             .AddForeignKey(new[] { orderProductFkProperty }, orderKey, orderEntity);
 
         var navigation = orderEntity.AddSkipNavigation(
-            nameof(Order.Products), null, productEntity, true, false);
+            nameof(Order.Products), null, null, productEntity, true, false);
         navigation.SetForeignKey(orderProductForeignKey);
 
         Assert.Equal(
@@ -1305,7 +1306,7 @@ public partial class EntityTypeTest
             Assert.Throws<InvalidOperationException>(
                 () =>
                     orderEntity.AddSkipNavigation(
-                        nameof(Order.Products), null, productEntity, true, false)).Message);
+                        nameof(Order.Products), null, null, productEntity, true, false)).Message);
     }
 
     [ConditionalFact]
@@ -1331,7 +1332,7 @@ public partial class EntityTypeTest
             Assert.Throws<InvalidOperationException>(
                 () =>
                     orderEntity.AddSkipNavigation(
-                        nameof(Order.Products), null, productEntity, true, false)).Message);
+                        nameof(Order.Products), null, null, productEntity, true, false)).Message);
     }
 
     [ConditionalFact]
@@ -1354,7 +1355,7 @@ public partial class EntityTypeTest
             Assert.Throws<InvalidOperationException>(
                 () =>
                     orderEntity.AddSkipNavigation(
-                        nameof(Order.Products), null, productEntity, true, false)).Message);
+                        nameof(Order.Products), null, null, productEntity, true, false)).Message);
     }
 
     [ConditionalFact]
@@ -1377,7 +1378,7 @@ public partial class EntityTypeTest
             Assert.Throws<InvalidOperationException>(
                 () =>
                     orderEntity.AddSkipNavigation(
-                        nameof(Order.Products), null, productEntity, true, false)).Message);
+                        nameof(Order.Products), null, null, productEntity, true, false)).Message);
     }
 
     [ConditionalFact]
@@ -1398,7 +1399,7 @@ public partial class EntityTypeTest
                 nameof(Order.Products), nameof(Order), "ICollection<Product>", "Dictionary<string, object>"),
             Assert.Throws<InvalidOperationException>(
                 () => orderEntity.AddSkipNavigation(
-                    nameof(Order.Products), Order.ProductsProperty, productEntity, true, false)).Message);
+                    nameof(Order.Products), null, Order.ProductsProperty, productEntity, true, false)).Message);
     }
 
     [ConditionalFact]
@@ -1418,7 +1419,7 @@ public partial class EntityTypeTest
             CoreStrings.NoClrNavigation(nameof(Order.Products), nameof(Product)),
             Assert.Throws<InvalidOperationException>(
                 () => productEntity.AddSkipNavigation(
-                    nameof(Order.Products), Order.ProductsProperty, productEntity, true, false)).Message);
+                    nameof(Order.Products), null, Order.ProductsProperty, productEntity, true, false)).Message);
     }
 
     [ConditionalFact]
@@ -1438,7 +1439,7 @@ public partial class EntityTypeTest
             CoreStrings.NavigationCollectionWrongClrType(nameof(Order.Products), nameof(Order), "ICollection<Product>", nameof(Order)),
             Assert.Throws<InvalidOperationException>(
                 () => orderEntity.AddSkipNavigation(
-                    nameof(Order.Products), Order.ProductsProperty, orderEntity, true, false)).Message);
+                    nameof(Order.Products), null, Order.ProductsProperty, orderEntity, true, false)).Message);
     }
 
     [ConditionalFact]
@@ -1458,7 +1459,7 @@ public partial class EntityTypeTest
             CoreStrings.NavigationSingleWrongClrType(nameof(Order.Products), nameof(Order), "ICollection<Product>", nameof(Order)),
             Assert.Throws<InvalidOperationException>(
                 () => orderEntity.AddSkipNavigation(
-                    nameof(Order.Products), Order.ProductsProperty, orderEntity, false, false)).Message);
+                    nameof(Order.Products), null, Order.ProductsProperty, orderEntity, false, false)).Message);
     }
 
     [ConditionalFact]
@@ -1479,7 +1480,7 @@ public partial class EntityTypeTest
             Assert.Throws<InvalidOperationException>(
                 () =>
                     orderEntity.AddSkipNavigation(
-                        nameof(Order.Products), Order.RelatedOrderProperty, productEntity, true, false)).Message);
+                        nameof(Order.Products), null, Order.RelatedOrderProperty, productEntity, true, false)).Message);
     }
 
     [ConditionalFact]
@@ -1669,7 +1670,7 @@ public partial class EntityTypeTest
         Assert.Equal("Id", property1.Name);
         Assert.Same(typeof(int), property1.ClrType);
         Assert.False(((IReadOnlyProperty)property1).IsConcurrencyToken);
-        Assert.Same(entityType, property1.DeclaringEntityType);
+        Assert.Same(entityType, property1.DeclaringType);
 
         var property2 = entityType.AddProperty("Name", typeof(string));
 
@@ -1700,7 +1701,7 @@ public partial class EntityTypeTest
         Assert.False(idProperty.IsShadowProperty());
         Assert.Equal("Id", idProperty.Name);
         Assert.Same(typeof(int), idProperty.ClrType);
-        Assert.Same(entityType, idProperty.DeclaringEntityType);
+        Assert.Same(entityType, idProperty.DeclaringType);
 
         Assert.Same(idProperty, entityType.FindProperty(Customer.IdProperty));
         Assert.Same(idProperty, entityType.FindProperty("Id"));
@@ -1711,7 +1712,7 @@ public partial class EntityTypeTest
         Assert.False(nameProperty.IsShadowProperty());
         Assert.Equal("Name", nameProperty.Name);
         Assert.Same(typeof(string), nameProperty.ClrType);
-        Assert.Same(entityType, nameProperty.DeclaringEntityType);
+        Assert.Same(entityType, nameProperty.DeclaringType);
 
         Assert.Same(nameProperty, entityType.FindProperty(Customer.NameProperty));
         Assert.Same(nameProperty, entityType.FindProperty("Name"));
@@ -1731,7 +1732,7 @@ public partial class EntityTypeTest
         Assert.False(property.IsShadowProperty());
         Assert.Equal("Raisin", property.Name);
         Assert.Same(typeof(string), property.ClrType);
-        Assert.Same(entityType, property.DeclaringEntityType);
+        Assert.Same(entityType, property.DeclaringType);
         Assert.Same(HiddenFieldBase.RaisinProperty, property.PropertyInfo);
         Assert.Null(property.FieldInfo);
     }
@@ -1747,7 +1748,7 @@ public partial class EntityTypeTest
         Assert.False(property.IsShadowProperty());
         Assert.Equal("_date", property.Name);
         Assert.Same(typeof(string), property.ClrType);
-        Assert.Same(entityType, property.DeclaringEntityType);
+        Assert.Same(entityType, property.DeclaringType);
         Assert.Same(HiddenFieldBase.DateField, property.FieldInfo);
         Assert.Null(property.PropertyInfo);
     }
@@ -2112,7 +2113,7 @@ public partial class EntityTypeTest
         Assert.True(mutableProperty.IsIndexerProperty());
         Assert.Equal("Nation", mutableProperty.Name);
         Assert.Same(typeof(string), mutableProperty.ClrType);
-        Assert.Same(mutatbleEntityType, mutableProperty.DeclaringEntityType);
+        Assert.Same(mutatbleEntityType, mutableProperty.DeclaringType);
 
         Assert.True(new[] { mutableProperty }.SequenceEqual(mutatbleEntityType.GetProperties()));
 
@@ -2126,7 +2127,7 @@ public partial class EntityTypeTest
         Assert.True(conventionProperty.IsIndexerProperty());
         Assert.Equal("Country", conventionProperty.Name);
         Assert.Same(typeof(string), conventionProperty.ClrType);
-        Assert.Same(mutatbleEntityType, conventionProperty.DeclaringEntityType);
+        Assert.Same(mutatbleEntityType, conventionProperty.DeclaringType);
 
         Assert.True(new[] { conventionProperty }.SequenceEqual(conventionEntityType.GetProperties()));
 
@@ -2195,7 +2196,7 @@ public partial class EntityTypeTest
                 eb.Property<int>("Mane_");
             });
 
-        var entityType = modelBuilder.FinalizeModel().FindEntityType(typeof(Customer));
+        var entityType = (IRuntimeEntityType)modelBuilder.FinalizeModel().FindEntityType(typeof(Customer));
 
         Assert.Equal(0, entityType.FindProperty("Id_").GetIndex());
         Assert.Equal(1, entityType.FindProperty("Mane_").GetIndex());
@@ -2205,7 +2206,7 @@ public partial class EntityTypeTest
         Assert.Equal(1, entityType.FindProperty("Mane_").GetShadowIndex());
         Assert.Equal(-1, entityType.FindProperty("Name").GetShadowIndex());
 
-        Assert.Equal(2, entityType.ShadowPropertyCount());
+        Assert.Equal(2, entityType.ShadowPropertyCount);
     }
 
     [ConditionalFact]
@@ -2227,7 +2228,7 @@ public partial class EntityTypeTest
     public void Indexes_for_derived_types_are_calculated_correctly()
     {
         using var context = new Levels();
-        var type = context.Model.FindEntityType(typeof(Level1));
+        var type = (IRuntimeEntityType)context.Model.FindEntityType(typeof(Level1));
 
         Assert.Equal(0, type.FindProperty("Id").GetIndex());
         Assert.Equal(1, type.FindProperty("Level1ReferenceId").GetIndex());
@@ -2255,14 +2256,14 @@ public partial class EntityTypeTest
         Assert.Equal(-1, type.FindNavigation("Level1Collection").GetStoreGeneratedIndex());
         Assert.Equal(-1, type.FindNavigation("Level1Reference").GetStoreGeneratedIndex());
 
-        Assert.Equal(4, type.PropertyCount());
-        Assert.Equal(2, type.NavigationCount());
-        Assert.Equal(2, type.ShadowPropertyCount());
-        Assert.Equal(4, type.OriginalValueCount());
-        Assert.Equal(4, type.RelationshipPropertyCount());
-        Assert.Equal(2, type.StoreGeneratedCount());
+        Assert.Equal(4, type.PropertyCount);
+        Assert.Equal(2, type.NavigationCount);
+        Assert.Equal(2, type.ShadowPropertyCount);
+        Assert.Equal(4, type.OriginalValueCount);
+        Assert.Equal(4, type.RelationshipPropertyCount);
+        Assert.Equal(2, type.StoreGeneratedCount);
 
-        type = context.Model.FindEntityType(typeof(Level2));
+        type = (IRuntimeEntityType)context.Model.FindEntityType(typeof(Level2));
 
         Assert.Equal(0, type.FindProperty("Id").GetIndex());
         Assert.Equal(1, type.FindProperty("Level1ReferenceId").GetIndex());
@@ -2306,14 +2307,14 @@ public partial class EntityTypeTest
         Assert.Equal(-1, type.FindNavigation("Level2Collection").GetStoreGeneratedIndex());
         Assert.Equal(-1, type.FindNavigation("Level2Reference").GetStoreGeneratedIndex());
 
-        Assert.Equal(6, type.PropertyCount());
-        Assert.Equal(4, type.NavigationCount());
-        Assert.Equal(3, type.ShadowPropertyCount());
-        Assert.Equal(6, type.OriginalValueCount());
-        Assert.Equal(7, type.RelationshipPropertyCount());
-        Assert.Equal(3, type.StoreGeneratedCount());
+        Assert.Equal(6, type.PropertyCount);
+        Assert.Equal(4, type.NavigationCount);
+        Assert.Equal(3, type.ShadowPropertyCount);
+        Assert.Equal(6, type.OriginalValueCount);
+        Assert.Equal(7, type.RelationshipPropertyCount);
+        Assert.Equal(3, type.StoreGeneratedCount);
 
-        type = context.Model.FindEntityType(typeof(Level3));
+        type = (IRuntimeEntityType)context.Model.FindEntityType(typeof(Level3));
 
         Assert.Equal(0, type.FindProperty("Id").GetIndex());
         Assert.Equal(1, type.FindProperty("Level1ReferenceId").GetIndex());
@@ -2373,12 +2374,12 @@ public partial class EntityTypeTest
         Assert.Equal(-1, type.FindNavigation("Level3Collection").GetStoreGeneratedIndex());
         Assert.Equal(-1, type.FindNavigation("Level3Reference").GetStoreGeneratedIndex());
 
-        Assert.Equal(8, type.PropertyCount());
-        Assert.Equal(6, type.NavigationCount());
-        Assert.Equal(4, type.ShadowPropertyCount());
-        Assert.Equal(8, type.OriginalValueCount());
-        Assert.Equal(10, type.RelationshipPropertyCount());
-        Assert.Equal(4, type.StoreGeneratedCount());
+        Assert.Equal(8, type.PropertyCount);
+        Assert.Equal(6, type.NavigationCount);
+        Assert.Equal(4, type.ShadowPropertyCount);
+        Assert.Equal(8, type.OriginalValueCount);
+        Assert.Equal(10, type.RelationshipPropertyCount);
+        Assert.Equal(4, type.StoreGeneratedCount);
     }
 
     private class Levels : DbContext
@@ -2404,8 +2405,8 @@ public partial class EntityTypeTest
         using var context = new SideBySide();
         var model = context.Model;
 
-        var parent = model.FindEntityType(typeof(Parent1Entity));
-        var indexes = GetIndexes(parent.GetPropertiesAndNavigations());
+        var parent = (IRuntimeEntityType)model.FindEntityType(typeof(Parent1Entity));
+        var indexes = GetIndexes(parent.GetSnapshottableMembers());
         Assert.Equal(2, indexes.Count);
         // Order: Index, Shadow, Original, StoreGenerated, Relationship
         Assert.Equal((0, -1, 0, 0, 0), indexes[nameof(Parent1Entity.Id)]);
@@ -2418,8 +2419,8 @@ public partial class EntityTypeTest
         Assert.Equal((1, 1, 1, 1, 1), indexes["Id"]);
         Assert.Equal((2, -1, 2, -1, -1), indexes[nameof(ChildEntity.Name)]);
 
-        parent = model.FindEntityType(typeof(Parent2Entity));
-        indexes = GetIndexes(parent.GetPropertiesAndNavigations());
+        parent = (IRuntimeEntityType)model.FindEntityType(typeof(Parent2Entity));
+        indexes = GetIndexes(parent.GetSnapshottableMembers());
         Assert.Equal(2, indexes.Count);
         // Order: Index, Shadow, Original, StoreGenerated, Relationship
         Assert.Equal((0, -1, 0, 0, 0), indexes[nameof(Parent2Entity.Id)]);
@@ -2432,8 +2433,8 @@ public partial class EntityTypeTest
         Assert.Equal((1, 1, 1, 1, 1), indexes["Id"]);
         Assert.Equal((2, -1, 2, -1, -1), indexes[nameof(ChildEntity.Name)]);
 
-        parent = model.FindEntityType(typeof(Parent3Entity));
-        indexes = GetIndexes(parent.GetPropertiesAndNavigations());
+        parent = (IRuntimeEntityType)model.FindEntityType(typeof(Parent3Entity));
+        indexes = GetIndexes(parent.GetSnapshottableMembers());
         Assert.Equal(2, indexes.Count);
         // Order: Index, Shadow, Original, StoreGenerated, Relationship
         Assert.Equal((0, -1, 0, 0, 0), indexes[nameof(Parent3Entity.Id)]);
@@ -2813,7 +2814,7 @@ public partial class EntityTypeTest
         var model = BuildFullNotificationEntityModel();
         model.FindEntityType(typeof(FullNotificationEntity))
             .SetChangeTrackingStrategy(ChangeTrackingStrategy.Snapshot);
-        var entityType = model.FinalizeModel().FindEntityType(typeof(FullNotificationEntity));
+        var entityType = (IRuntimeEntityType)model.FinalizeModel().FindEntityType(typeof(FullNotificationEntity));
 
         Assert.Equal(0, entityType.FindProperty("Id").GetOriginalValueIndex());
         Assert.Equal(1, entityType.FindProperty("AnotherEntityId").GetOriginalValueIndex());
@@ -2822,7 +2823,7 @@ public partial class EntityTypeTest
         Assert.Equal(4, entityType.FindProperty("Token").GetOriginalValueIndex());
         Assert.Equal(5, entityType.FindProperty("UniqueIndex").GetOriginalValueIndex());
 
-        Assert.Equal(6, entityType.OriginalValueCount());
+        Assert.Equal(6, entityType.OriginalValueCount);
     }
 
     [ConditionalFact]
@@ -2831,7 +2832,7 @@ public partial class EntityTypeTest
         var model = BuildFullNotificationEntityModel();
         model.FindEntityType(typeof(FullNotificationEntity))
             .SetChangeTrackingStrategy(ChangeTrackingStrategy.Snapshot);
-        var entityType = model.FinalizeModel().FindEntityType(typeof(FullNotificationEntity));
+        var entityType = (IRuntimeEntityType)model.FinalizeModel().FindEntityType(typeof(FullNotificationEntity));
 
         Assert.Equal(0, entityType.FindProperty("Id").GetRelationshipIndex());
         Assert.Equal(1, entityType.FindProperty("AnotherEntityId").GetRelationshipIndex());
@@ -2842,7 +2843,7 @@ public partial class EntityTypeTest
         Assert.Equal(2, entityType.FindNavigation("CollectionNav").GetRelationshipIndex());
         Assert.Equal(3, entityType.FindNavigation("ReferenceNav").GetRelationshipIndex());
 
-        Assert.Equal(4, entityType.RelationshipPropertyCount());
+        Assert.Equal(4, entityType.RelationshipPropertyCount);
     }
 
     [ConditionalFact]
@@ -2851,7 +2852,7 @@ public partial class EntityTypeTest
         var model = BuildFullNotificationEntityModel();
         model.FindEntityType(typeof(FullNotificationEntity))
             .SetChangeTrackingStrategy(ChangeTrackingStrategy.ChangedNotifications);
-        var entityType = model.FinalizeModel().FindEntityType(typeof(FullNotificationEntity));
+        var entityType = (IRuntimeEntityType)model.FinalizeModel().FindEntityType(typeof(FullNotificationEntity));
 
         Assert.Equal(0, entityType.FindProperty("Id").GetOriginalValueIndex());
         Assert.Equal(1, entityType.FindProperty("AnotherEntityId").GetOriginalValueIndex());
@@ -2860,7 +2861,7 @@ public partial class EntityTypeTest
         Assert.Equal(4, entityType.FindProperty("Token").GetOriginalValueIndex());
         Assert.Equal(5, entityType.FindProperty("UniqueIndex").GetOriginalValueIndex());
 
-        Assert.Equal(6, entityType.OriginalValueCount());
+        Assert.Equal(6, entityType.OriginalValueCount);
     }
 
     [ConditionalFact]
@@ -2869,7 +2870,7 @@ public partial class EntityTypeTest
         var model = BuildFullNotificationEntityModel();
         model.FindEntityType(typeof(FullNotificationEntity))
             .SetChangeTrackingStrategy(ChangeTrackingStrategy.ChangedNotifications);
-        var entityType = model.FinalizeModel().FindEntityType(typeof(FullNotificationEntity));
+        var entityType = (IRuntimeEntityType)model.FinalizeModel().FindEntityType(typeof(FullNotificationEntity));
 
         Assert.Equal(0, entityType.FindProperty("Id").GetRelationshipIndex());
         Assert.Equal(1, entityType.FindProperty("AnotherEntityId").GetRelationshipIndex());
@@ -2880,7 +2881,7 @@ public partial class EntityTypeTest
         Assert.Equal(-1, entityType.FindNavigation("CollectionNav").GetRelationshipIndex());
         Assert.Equal(2, entityType.FindNavigation("ReferenceNav").GetRelationshipIndex());
 
-        Assert.Equal(3, entityType.RelationshipPropertyCount());
+        Assert.Equal(3, entityType.RelationshipPropertyCount);
     }
 
     [ConditionalFact]
@@ -2889,7 +2890,7 @@ public partial class EntityTypeTest
         var model = BuildFullNotificationEntityModel();
         model.FindEntityType(typeof(FullNotificationEntity))
             .SetChangeTrackingStrategy(ChangeTrackingStrategy.ChangingAndChangedNotifications);
-        var entityType = model.FinalizeModel().FindEntityType(typeof(FullNotificationEntity));
+        var entityType = (IRuntimeEntityType)model.FinalizeModel().FindEntityType(typeof(FullNotificationEntity));
 
         Assert.Equal(0, entityType.FindProperty("Id").GetOriginalValueIndex());
         Assert.Equal(1, entityType.FindProperty("AnotherEntityId").GetOriginalValueIndex());
@@ -2898,7 +2899,7 @@ public partial class EntityTypeTest
         Assert.Equal(2, entityType.FindProperty("Token").GetOriginalValueIndex());
         Assert.Equal(3, entityType.FindProperty("UniqueIndex").GetOriginalValueIndex());
 
-        Assert.Equal(4, entityType.OriginalValueCount());
+        Assert.Equal(4, entityType.OriginalValueCount);
     }
 
     [ConditionalFact]
@@ -2907,7 +2908,7 @@ public partial class EntityTypeTest
         var model = BuildFullNotificationEntityModel();
         model.FindEntityType(typeof(FullNotificationEntity))
             .SetChangeTrackingStrategy(ChangeTrackingStrategy.ChangingAndChangedNotifications);
-        var entityType = model.FinalizeModel().FindEntityType(typeof(FullNotificationEntity));
+        var entityType = (IRuntimeEntityType)model.FinalizeModel().FindEntityType(typeof(FullNotificationEntity));
 
         Assert.Equal(0, entityType.FindProperty("Id").GetRelationshipIndex());
         Assert.Equal(1, entityType.FindProperty("AnotherEntityId").GetRelationshipIndex());
@@ -2918,7 +2919,7 @@ public partial class EntityTypeTest
         Assert.Equal(-1, entityType.FindNavigation("CollectionNav").GetRelationshipIndex());
         Assert.Equal(2, entityType.FindNavigation("ReferenceNav").GetRelationshipIndex());
 
-        Assert.Equal(3, entityType.RelationshipPropertyCount());
+        Assert.Equal(3, entityType.RelationshipPropertyCount);
     }
 
     [ConditionalFact]
@@ -2927,7 +2928,7 @@ public partial class EntityTypeTest
         var model = BuildFullNotificationEntityModel();
         model.FindEntityType(typeof(FullNotificationEntity))
             .SetChangeTrackingStrategy(ChangeTrackingStrategy.ChangingAndChangedNotificationsWithOriginalValues);
-        var entityType = model.FinalizeModel().FindEntityType(typeof(FullNotificationEntity));
+        var entityType = (IRuntimeEntityType)model.FinalizeModel().FindEntityType(typeof(FullNotificationEntity));
 
         Assert.Equal(0, entityType.FindProperty("Id").GetOriginalValueIndex());
         Assert.Equal(1, entityType.FindProperty("AnotherEntityId").GetOriginalValueIndex());
@@ -2936,7 +2937,7 @@ public partial class EntityTypeTest
         Assert.Equal(4, entityType.FindProperty("Token").GetOriginalValueIndex());
         Assert.Equal(5, entityType.FindProperty("UniqueIndex").GetOriginalValueIndex());
 
-        Assert.Equal(6, entityType.OriginalValueCount());
+        Assert.Equal(6, entityType.OriginalValueCount);
     }
 
     [ConditionalFact]
@@ -2945,7 +2946,7 @@ public partial class EntityTypeTest
         var model = BuildFullNotificationEntityModel();
         model.FindEntityType(typeof(FullNotificationEntity))
             .SetChangeTrackingStrategy(ChangeTrackingStrategy.ChangingAndChangedNotificationsWithOriginalValues);
-        var entityType = model.FinalizeModel().FindEntityType(typeof(FullNotificationEntity));
+        var entityType = (IRuntimeEntityType)model.FinalizeModel().FindEntityType(typeof(FullNotificationEntity));
 
         Assert.Equal(0, entityType.FindProperty("Id").GetRelationshipIndex());
         Assert.Equal(1, entityType.FindProperty("AnotherEntityId").GetRelationshipIndex());
@@ -2956,7 +2957,57 @@ public partial class EntityTypeTest
         Assert.Equal(-1, entityType.FindNavigation("CollectionNav").GetRelationshipIndex());
         Assert.Equal(2, entityType.FindNavigation("ReferenceNav").GetRelationshipIndex());
 
-        Assert.Equal(3, entityType.RelationshipPropertyCount());
+        Assert.Equal(3, entityType.RelationshipPropertyCount);
+    }
+
+    [ConditionalFact]
+    public void ShortName_on_compiler_generated_type1()
+    {
+        var model = CreateModel();
+
+        var typeName = "<>f__AnonymousType01Child";
+        model.AddEntityType(typeName);
+        var entityType = model.FinalizeModel().FindEntityType(typeName);
+
+        Assert.Equal(typeName, entityType.ShortName());
+    }
+
+    [ConditionalFact]
+    public void ShortName_on_compiler_generated_type2()
+    {
+        var model = CreateModel();
+
+        var typeName = "<>f__AnonymousType01Child";
+        var assemblyName = new AssemblyName("DynamicEntityClrTypeAssembly");
+        var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
+        var moduleBuilder = assemblyBuilder.DefineDynamicModule("MyModule");
+        var typeBuilder = moduleBuilder.DefineType(typeName);
+        var type = typeBuilder.CreateType();
+
+        model.AddEntityType(type);
+
+        var entityType = model.FinalizeModel().FindEntityType(typeName);
+
+        Assert.Equal(typeName[2..], entityType.ShortName());
+    }
+
+    [ConditionalFact]
+    public void ShortName_on_compiler_generated_type3()
+    {
+        var model = CreateModel();
+
+        var typeName = "<>__AnonymousType01Child<int>";
+        var assemblyName = new AssemblyName("DynamicEntityClrTypeAssembly");
+        var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
+        var moduleBuilder = assemblyBuilder.DefineDynamicModule("MyModule");
+        var typeBuilder = moduleBuilder.DefineType(typeName);
+        var type = typeBuilder.CreateType();
+
+        model.AddEntityType(type);
+
+        var entityType = model.FinalizeModel().FindEntityType(typeName);
+
+        Assert.Equal("__AnonymousType01Child", entityType.ShortName());
     }
 
     private readonly IMutableModel _model = BuildModel();

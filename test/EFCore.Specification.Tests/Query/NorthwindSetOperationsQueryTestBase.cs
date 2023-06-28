@@ -763,6 +763,38 @@ public abstract class NorthwindSetOperationsQueryTestBase<TFixture> : QueryTestB
 
     [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
+    public virtual Task Union_over_OrderBy_Take1(bool async)
+        => AssertQueryScalar(
+            async,
+            ss => ss.Set<Order>().OrderBy(o => o.OrderDate).Take(5).Select(o => o.OrderID)
+                .Union(ss.Set<Order>().Select(o => o.OrderID)));
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task Union_over_OrderBy_without_Skip_Take1(bool async)
+        => AssertQueryScalar(
+            async,
+            ss => ss.Set<Order>().OrderBy(o => o.OrderDate).Select(o => o.OrderID)
+                .Union(ss.Set<Order>().Select(o => o.OrderID)));
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task Union_over_OrderBy_Take2(bool async)
+        => AssertQueryScalar(
+            async,
+            ss => ss.Set<Order>().Select(o => o.OrderID)
+                .Union(ss.Set<Order>().OrderBy(o => o.OrderDate).Take(5).Select(o => o.OrderID)));
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task Union_over_OrderBy_without_Skip_Take2(bool async)
+        => AssertQueryScalar(
+            async,
+            ss => ss.Set<Order>().Select(o => o.OrderID)
+                .Union(ss.Set<Order>().OrderBy(o => o.OrderDate).Select(o => o.OrderID)));
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
     public virtual Task OrderBy_Take_Union(bool async)
         => AssertQuery(
             async,
@@ -877,4 +909,51 @@ public abstract class NorthwindSetOperationsQueryTestBase<TFixture> : QueryTestB
                 AssertCollection(e.Orders, a.Orders);
             },
             entryCount: 11);
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task Concat_with_pruning(bool async)
+           => AssertQuery(
+               async,
+               ss => ss.Set<Customer>().Where(c => c.CustomerID.StartsWith("A"))
+                   .Concat(ss.Set<Customer>().Where(c => c.CustomerID.StartsWith("B")))
+                   .Select(x => x.City));
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task Concat_with_distinct_on_one_source_and_pruning(bool async)
+        => AssertQuery(
+            async,
+            ss => ss.Set<Customer>().Where(c => c.CustomerID.StartsWith("A"))
+                .Concat(ss.Set<Customer>().Where(c => c.CustomerID.StartsWith("B")).Distinct())
+                .Select(x => x.City));
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task Concat_with_distinct_on_both_source_and_pruning(bool async)
+        => AssertQuery(
+            async,
+            ss => ss.Set<Customer>().Where(c => c.CustomerID.StartsWith("A")).Distinct()
+                .Concat(ss.Set<Customer>().Where(c => c.CustomerID.StartsWith("B")).Distinct())
+                .Select(x => x.City));
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task Nested_concat_with_pruning(bool async)
+        => AssertQuery(
+            async,
+            ss => ss.Set<Customer>().Where(c => c.CustomerID.StartsWith("A"))
+                .Concat(ss.Set<Customer>().Where(c => c.CustomerID.StartsWith("B")))
+                .Concat(ss.Set<Customer>().Where(c => c.CustomerID.StartsWith("A")))
+                .Select(x => x.City));
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual Task Nested_concat_with_distinct_in_the_middle_and_pruning(bool async)
+        => AssertQuery(
+            async,
+            ss => ss.Set<Customer>().Where(c => c.CustomerID.StartsWith("A"))
+                .Concat(ss.Set<Customer>().Where(c => c.CustomerID.StartsWith("B")).Distinct())
+                .Concat(ss.Set<Customer>().Where(c => c.CustomerID.StartsWith("A")))
+                .Select(x => x.City));
 }

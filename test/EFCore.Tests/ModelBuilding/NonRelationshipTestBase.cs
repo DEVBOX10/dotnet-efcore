@@ -1208,27 +1208,6 @@ public abstract partial class ModelBuilderTest
                 Assert.Throws<InvalidOperationException>(() => modelBuilder.FinalizeModel()).Message);
         }
 
-        private interface IWrapped<T>
-        {
-            T Value { get; init; }
-        }
-
-        private abstract class WrappedStringBase : IWrapped<string>
-        {
-            public abstract string Value { get; init; }
-        }
-
-        private class WrappedString : WrappedStringBase
-        {
-            public override string Value { get; init; }
-        }
-
-        private class WrappedStringEntity
-        {
-            public int Id { get; set; }
-            public WrappedString WrappedString { get; set; }
-        }
-
         private class WrappedStringToStringConverter : ValueConverter<WrappedString, string>
         {
             public WrappedStringToStringConverter()
@@ -1389,7 +1368,7 @@ public abstract partial class ModelBuilderTest
                     b.Property(e => e.Up).HasMaxLength(0);
                     b.Property(e => e.Down).HasMaxLength(100);
                     b.Property<int>("Charm").HasMaxLength(0);
-                    b.Property<string>("Strange").HasMaxLength(100);
+                    b.Property<string>("Strange").HasMaxLength(-1);
                     b.Property<int>("Top").HasMaxLength(0);
                     b.Property<string>("Bottom").HasMaxLength(100);
                 });
@@ -1401,7 +1380,7 @@ public abstract partial class ModelBuilderTest
             Assert.Equal(0, entityType.FindProperty("Up").GetMaxLength());
             Assert.Equal(100, entityType.FindProperty("Down").GetMaxLength());
             Assert.Equal(0, entityType.FindProperty("Charm").GetMaxLength());
-            Assert.Equal(100, entityType.FindProperty("Strange").GetMaxLength());
+            Assert.Equal(-1, entityType.FindProperty("Strange").GetMaxLength());
             Assert.Equal(0, entityType.FindProperty("Top").GetMaxLength());
             Assert.Equal(100, entityType.FindProperty("Bottom").GetMaxLength());
         }
@@ -1435,6 +1414,96 @@ public abstract partial class ModelBuilderTest
             Assert.Equal(100, entityType.FindProperty("Strange").GetMaxLength());
             Assert.Equal(0, entityType.FindProperty("Top").GetMaxLength());
             Assert.Equal(100, entityType.FindProperty("Bottom").GetMaxLength());
+        }
+
+        [ConditionalFact]
+        public virtual void Can_set_sentinel_for_properties()
+        {
+            var modelBuilder = CreateModelBuilder();
+
+            modelBuilder.Entity<Quarks>(
+                b =>
+                {
+                    b.Property(e => e.Up).HasSentinel(1);
+                    b.Property(e => e.Down).HasSentinel("100");
+                    b.Property<int>("Charm").HasSentinel(-1);
+                    b.Property<string>("Strange").HasSentinel("-1");
+                    b.Property<int>("Top").HasSentinel(77);
+                    b.Property<string>("Bottom").HasSentinel("100");
+                });
+
+            var model = modelBuilder.FinalizeModel();
+            var entityType = model.FindEntityType(typeof(Quarks))!;
+
+            Assert.Equal(0, entityType.FindProperty(Customer.IdProperty.Name)!.Sentinel);
+            Assert.Equal(1, entityType.FindProperty("Up")!.Sentinel);
+            Assert.Equal("100", entityType.FindProperty("Down")!.Sentinel);
+            Assert.Equal(-1, entityType.FindProperty("Charm")!.Sentinel);
+            Assert.Equal("-1", entityType.FindProperty("Strange")!.Sentinel);
+            Assert.Equal(77, entityType.FindProperty("Top")!.Sentinel);
+            Assert.Equal("100", entityType.FindProperty("Bottom")!.Sentinel);
+        }
+
+        [ConditionalFact]
+        public virtual void Can_set_sentinel_for_property_type()
+        {
+            var modelBuilder = CreateModelBuilder(
+                c =>
+                {
+                    c.Properties<int>().HaveSentinel(-1);
+                    c.Properties<string>().HaveSentinel("100");
+                });
+
+            modelBuilder.Entity<Quarks>(
+                b =>
+                {
+                    b.Property<int>("Charm");
+                    b.Property<string>("Strange");
+                    b.Property<int>("Top");
+                    b.Property<string>("Bottom");
+                });
+
+            var model = modelBuilder.FinalizeModel();
+            var entityType = model.FindEntityType(typeof(Quarks))!;
+
+            Assert.Equal(-1, entityType.FindProperty(Customer.IdProperty.Name)!.Sentinel);
+            Assert.Equal(-1, entityType.FindProperty("Up")!.Sentinel);
+            Assert.Equal("100", entityType.FindProperty("Down")!.Sentinel);
+            Assert.Equal(-1, entityType.FindProperty("Charm")!.Sentinel);
+            Assert.Equal("100", entityType.FindProperty("Strange")!.Sentinel);
+            Assert.Equal(-1, entityType.FindProperty("Top")!.Sentinel);
+            Assert.Equal("100", entityType.FindProperty("Bottom")!.Sentinel);
+        }
+
+        [ConditionalFact]
+        public virtual void Can_set_unbounded_max_length_for_property_type()
+        {
+            var modelBuilder = CreateModelBuilder(
+                c =>
+                {
+                    c.Properties<int>().HaveMaxLength(0);
+                    c.Properties<string>().HaveMaxLength(-1);
+                });
+
+            modelBuilder.Entity<Quarks>(
+                b =>
+                {
+                    b.Property<int>("Charm");
+                    b.Property<string>("Strange");
+                    b.Property<int>("Top");
+                    b.Property<string>("Bottom");
+                });
+
+            var model = modelBuilder.FinalizeModel();
+            var entityType = model.FindEntityType(typeof(Quarks));
+
+            Assert.Equal(0, entityType.FindProperty(Customer.IdProperty.Name).GetMaxLength());
+            Assert.Equal(0, entityType.FindProperty("Up").GetMaxLength());
+            Assert.Equal(-1, entityType.FindProperty("Down").GetMaxLength());
+            Assert.Equal(0, entityType.FindProperty("Charm").GetMaxLength());
+            Assert.Equal(-1, entityType.FindProperty("Strange").GetMaxLength());
+            Assert.Equal(0, entityType.FindProperty("Top").GetMaxLength());
+            Assert.Equal(-1, entityType.FindProperty("Bottom").GetMaxLength());
         }
 
         [ConditionalFact]
@@ -1550,7 +1619,7 @@ public abstract partial class ModelBuilderTest
 
         private class CustomValueGeneratorFactory : ValueGeneratorFactory
         {
-            public override ValueGenerator Create(IProperty property, IEntityType entityType)
+            public override ValueGenerator Create(IProperty property, ITypeBase entityType)
                 => new CustomValueGenerator();
         }
 
@@ -1605,19 +1674,6 @@ public abstract partial class ModelBuilderTest
         {
         }
 
-        [ConditionalFact]
-        public virtual void Throws_for_collection_of_string()
-        {
-            var modelBuilder = CreateModelBuilder();
-
-            modelBuilder.Entity<StringCollectionEntity>();
-
-            Assert.Equal(
-                CoreStrings.PropertyNotAdded(
-                    nameof(StringCollectionEntity), nameof(StringCollectionEntity.Property), "ICollection<string>"),
-                Assert.Throws<InvalidOperationException>(() => modelBuilder.FinalizeModel()).Message);
-        }
-
         protected class StringCollectionEntity
         {
             public ICollection<string> Property { get; set; }
@@ -1646,19 +1702,6 @@ public abstract partial class ModelBuilderTest
         }
 
         [ConditionalFact]
-        protected virtual void Mapping_throws_for_non_ignored_array()
-        {
-            var modelBuilder = CreateModelBuilder();
-
-            modelBuilder.Entity<OneDee>();
-
-            Assert.Equal(
-                CoreStrings.PropertyNotAdded(
-                    typeof(OneDee).ShortDisplayName(), "One", typeof(int[]).ShortDisplayName()),
-                Assert.Throws<InvalidOperationException>(() => modelBuilder.FinalizeModel()).Message);
-        }
-
-        [ConditionalFact]
         protected virtual void Mapping_ignores_ignored_array()
         {
             var modelBuilder = CreateModelBuilder();
@@ -1668,19 +1711,6 @@ public abstract partial class ModelBuilderTest
             var model = modelBuilder.FinalizeModel();
 
             Assert.Null(model.FindEntityType(typeof(OneDee)).FindProperty("One"));
-        }
-
-        [ConditionalFact]
-        protected virtual void Mapping_throws_for_non_ignored_two_dimensional_array()
-        {
-            var modelBuilder = CreateModelBuilder();
-
-            modelBuilder.Entity<TwoDee>();
-
-            Assert.Equal(
-                CoreStrings.PropertyNotAdded(
-                    typeof(TwoDee).ShortDisplayName(), "Two", typeof(int[,]).ShortDisplayName()),
-                Assert.Throws<InvalidOperationException>(() => modelBuilder.FinalizeModel()).Message);
         }
 
         [ConditionalFact]
@@ -1739,6 +1769,21 @@ public abstract partial class ModelBuilderTest
             public int Id { get; set; }
 
             public int[,,] Three { get; set; }
+        }
+
+        [ConditionalFact]
+        public virtual void Private_property_is_not_discovered_by_convention()
+        {
+            var modelBuilder = CreateModelBuilder();
+
+            modelBuilder.Ignore<Alpha>();
+            modelBuilder.Entity<Gamma>();
+
+            var model = modelBuilder.FinalizeModel();
+
+            Assert.Empty(
+                model.FindEntityType(typeof(Gamma)).GetProperties()
+                    .Where(p => p.Name == "PrivateProperty"));
         }
 
         [ConditionalFact]
@@ -1833,6 +1878,7 @@ public abstract partial class ModelBuilderTest
                 .ValueGeneratedOnUpdate()
                 .IsUnicode()
                 .HasMaxLength(100)
+                .HasSentinel(null)
                 .HasPrecision(10, 1)
                 .HasValueGenerator<CustomValueGenerator>()
                 .HasValueGenerator(typeof(CustomValueGenerator))
@@ -1967,7 +2013,7 @@ public abstract partial class ModelBuilderTest
         [ConditionalFact]
         public virtual void Can_set_key_on_an_entity_with_fields()
         {
-            var modelBuilder = InMemoryTestHelpers.Instance.CreateConventionBuilder();
+            var modelBuilder = CreateModelBuilder();
 
             modelBuilder.Entity<EntityWithFields>().HasKey(e => e.Id);
 
@@ -1984,7 +2030,7 @@ public abstract partial class ModelBuilderTest
         [ConditionalFact]
         public virtual void Can_set_composite_key_on_an_entity_with_fields()
         {
-            var modelBuilder = InMemoryTestHelpers.Instance.CreateConventionBuilder();
+            var modelBuilder = CreateModelBuilder();
 
             modelBuilder.Entity<EntityWithFields>().HasKey(e => new { e.TenantId, e.CompanyId });
 
@@ -2060,7 +2106,7 @@ public abstract partial class ModelBuilderTest
         [ConditionalFact]
         public virtual void Can_set_index_on_an_entity_with_fields()
         {
-            var modelBuilder = InMemoryTestHelpers.Instance.CreateConventionBuilder();
+            var modelBuilder = CreateModelBuilder();
 
             modelBuilder.Entity<EntityWithFields>().HasNoKey().HasIndex(e => e.CompanyId);
 
@@ -2075,7 +2121,7 @@ public abstract partial class ModelBuilderTest
         [ConditionalFact]
         public virtual void Can_set_composite_index_on_an_entity_with_fields()
         {
-            var modelBuilder = InMemoryTestHelpers.Instance.CreateConventionBuilder();
+            var modelBuilder = CreateModelBuilder();
 
             modelBuilder.Entity<EntityWithFields>().HasNoKey().HasIndex(e => new { e.TenantId, e.CompanyId });
 
@@ -2173,21 +2219,6 @@ public abstract partial class ModelBuilderTest
             Assert.Equal(2, data.Count());
             Assert.Equal(-1, data.First().Values.Single());
             Assert.Equal(-2, data.Last().Values.Single());
-        }
-
-        [ConditionalFact]
-        public virtual void Private_property_is_not_discovered_by_convention()
-        {
-            var modelBuilder = CreateModelBuilder();
-
-            modelBuilder.Ignore<Alpha>();
-            modelBuilder.Entity<Gamma>();
-
-            var model = modelBuilder.FinalizeModel();
-
-            Assert.Empty(
-                model.FindEntityType(typeof(Gamma)).GetProperties()
-                    .Where(p => p.Name == "PrivateProperty"));
         }
 
         [ConditionalFact]
