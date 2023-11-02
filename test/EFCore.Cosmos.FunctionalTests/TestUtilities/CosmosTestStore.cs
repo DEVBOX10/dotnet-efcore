@@ -562,6 +562,12 @@ public class CosmosTestStore : TestStore
         public IEnumerable<IServiceProperty> GetServiceProperties()
             => throw new NotImplementedException();
 
+        public Func<MaterializationContext, object> GetOrCreateMaterializer(IEntityMaterializerSource source)
+            => throw new NotImplementedException();
+
+        public Func<MaterializationContext, object> GetOrCreateEmptyMaterializer(IEntityMaterializerSource source)
+            => throw new NotImplementedException();
+
         public IEnumerable<ISkipNavigation> GetSkipNavigations()
             => throw new NotImplementedException();
 
@@ -695,6 +701,42 @@ public class CosmosTestStore : TestStore
             => throw new NotImplementedException();
 
         public IEnumerable<IReadOnlyComplexProperty> GetDerivedComplexProperties()
+            => throw new NotImplementedException();
+
+        public IEnumerable<IPropertyBase> GetMembers()
+            => throw new NotImplementedException();
+
+        public IEnumerable<IPropertyBase> GetDeclaredMembers()
+            => throw new NotImplementedException();
+
+        public IPropertyBase FindMember(string name)
+            => throw new NotImplementedException();
+
+        public IEnumerable<IPropertyBase> FindMembersInHierarchy(string name)
+            => throw new NotImplementedException();
+
+        public IEnumerable<IPropertyBase> GetSnapshottableMembers()
+            => throw new NotImplementedException();
+
+        public IEnumerable<IProperty> GetFlattenedProperties()
+            => throw new NotImplementedException();
+
+        public IEnumerable<IComplexProperty> GetFlattenedComplexProperties()
+            => throw new NotImplementedException();
+
+        public IEnumerable<IProperty> GetFlattenedDeclaredProperties()
+            => throw new NotImplementedException();
+
+        IEnumerable<IReadOnlyPropertyBase> IReadOnlyTypeBase.GetMembers()
+            => throw new NotImplementedException();
+
+        IEnumerable<IReadOnlyPropertyBase> IReadOnlyTypeBase.GetDeclaredMembers()
+            => throw new NotImplementedException();
+
+        IReadOnlyPropertyBase IReadOnlyTypeBase.FindMember(string name)
+            => throw new NotImplementedException();
+
+        IEnumerable<IReadOnlyPropertyBase> IReadOnlyTypeBase.FindMembersInHierarchy(string name)
             => throw new NotImplementedException();
     }
 }

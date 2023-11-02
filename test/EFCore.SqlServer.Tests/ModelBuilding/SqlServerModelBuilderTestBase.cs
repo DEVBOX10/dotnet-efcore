@@ -3,6 +3,8 @@
 
 #nullable enable
 
+using System.Collections.ObjectModel;
+
 namespace Microsoft.EntityFrameworkCore.ModelBuilding;
 
 public class SqlServerModelBuilderTestBase : RelationalModelBuilderTest
@@ -194,200 +196,85 @@ public class SqlServerModelBuilderTestBase : RelationalModelBuilderTest
             Assert.Equal("Latin1_General_BIN", entityType.FindProperty("Bottom")!.GetCollation());
         }
 
+        [ConditionalFact]
+        public virtual void Can_set_store_type_for_primitive_collection()
+        {
+            var modelBuilder = CreateModelBuilder();
+            modelBuilder.Entity<CollectionQuarks>(
+                b =>
+                {
+                    b.PrimitiveCollection(e => e.Up).HasColumnType("national character varying(255)");
+                    b.PrimitiveCollection(e => e.Down).HasColumnType("nchar(10)");
+                    b.PrimitiveCollection<int[]>("Charm").HasColumnType("nvarchar(25)");
+                    b.PrimitiveCollection<string[]>("Strange").HasColumnType("text");
+                    b.PrimitiveCollection<ObservableCollection<int>>("Top").HasColumnType("char(100)");
+                    ;
+                    b.PrimitiveCollection<ObservableCollection<string>?>("Bottom").HasColumnType("varchar(max)");
+                    ;
+                });
+
+            var model = modelBuilder.FinalizeModel();
+            var entityType = model.FindEntityType(typeof(CollectionQuarks))!;
+
+            Assert.Equal("int", entityType.FindProperty(nameof(CollectionQuarks.Id))!.GetColumnType());
+            Assert.Equal("national character varying(255)", entityType.FindProperty("Up")!.GetColumnType());
+            Assert.Equal("nchar(10)", entityType.FindProperty("Down")!.GetColumnType());
+            Assert.Equal("nvarchar(25)", entityType.FindProperty("Charm")!.GetColumnType());
+            Assert.Equal("text", entityType.FindProperty("Strange")!.GetColumnType());
+            Assert.Equal("char(100)", entityType.FindProperty("Top")!.GetColumnType());
+            Assert.Equal("varchar(max)", entityType.FindProperty("Bottom")!.GetColumnType());
+        }
+
+        [ConditionalFact]
+        public virtual void Can_set_fixed_length_for_primitive_collection()
+        {
+            var modelBuilder = CreateModelBuilder();
+            modelBuilder.Entity<CollectionQuarks>(
+                b =>
+                {
+                    b.PrimitiveCollection(e => e.Up).IsFixedLength(false);
+                    b.PrimitiveCollection(e => e.Down).IsFixedLength();
+                    b.PrimitiveCollection<int[]>("Charm").IsFixedLength();
+                });
+
+            var model = modelBuilder.FinalizeModel();
+            var entityType = model.FindEntityType(typeof(CollectionQuarks))!;
+
+            Assert.False(entityType.FindProperty("Up")!.IsFixedLength());
+            Assert.True(entityType.FindProperty("Down")!.IsFixedLength());
+            Assert.True(entityType.FindProperty("Charm")!.IsFixedLength());
+        }
+
+        [ConditionalFact]
+        public virtual void Can_set_collation_for_primitive_collection()
+        {
+            var modelBuilder = CreateModelBuilder();
+            modelBuilder.Entity<CollectionQuarks>(
+                b =>
+                {
+                    b.PrimitiveCollection(e => e.Up).UseCollation("Latin1_General_CS_AS_KS_WS");
+                    b.PrimitiveCollection(e => e.Down).UseCollation("Latin1_General_BIN");
+                    b.PrimitiveCollection<int[]>("Charm").UseCollation("Latin1_General_CI_AI");
+                });
+
+            var model = modelBuilder.FinalizeModel();
+            var entityType = model.FindEntityType(typeof(CollectionQuarks))!;
+
+            Assert.Equal("Latin1_General_CS_AS_KS_WS", entityType.FindProperty("Up")!.GetCollation());
+            Assert.Equal("Latin1_General_BIN", entityType.FindProperty("Down")!.GetCollation());
+            Assert.Equal("Latin1_General_CI_AI", entityType.FindProperty("Charm")!.GetCollation());
+        }
+
         protected override TestModelBuilder CreateModelBuilder(Action<ModelConfigurationBuilder>? configure = null)
             => CreateTestModelBuilder(SqlServerTestHelpers.Instance, configure);
     }
 
     public abstract class SqlServerComplexType : RelationalComplexTypeTestBase
     {
-        [ConditionalFact]
-        public virtual void Index_has_a_filter_if_nonclustered_unique_with_nullable_properties()
-        {
-            var modelBuilder = CreateModelBuilder();
-            var entityTypeBuilder = modelBuilder
-                .Entity<Customer>();
-            var indexBuilder = entityTypeBuilder
-                .HasIndex(ix => ix.Name)
-                .IsUnique();
-
-            var entityType = modelBuilder.Model.FindEntityType(typeof(Customer))!;
-            var index = entityType.GetIndexes().Single();
-            Assert.Equal("[Name] IS NOT NULL", index.GetFilter());
-
-            indexBuilder.IsUnique(false);
-
-            Assert.Null(index.GetFilter());
-
-            indexBuilder.IsUnique();
-
-            Assert.Equal("[Name] IS NOT NULL", index.GetFilter());
-
-            indexBuilder.IsClustered();
-
-            Assert.Null(index.GetFilter());
-
-            indexBuilder.IsClustered(false);
-
-            Assert.Equal("[Name] IS NOT NULL", index.GetFilter());
-
-            entityTypeBuilder.Property(e => e.Name).IsRequired();
-
-            Assert.Null(index.GetFilter());
-
-            entityTypeBuilder.Property(e => e.Name).IsRequired(false);
-
-            Assert.Equal("[Name] IS NOT NULL", index.GetFilter());
-
-            entityTypeBuilder.Property(e => e.Name).HasColumnName("RelationalName");
-
-            Assert.Equal("[RelationalName] IS NOT NULL", index.GetFilter());
-
-            entityTypeBuilder.Property(e => e.Name).HasColumnName("SqlServerName");
-
-            Assert.Equal("[SqlServerName] IS NOT NULL", index.GetFilter());
-
-            entityTypeBuilder.Property(e => e.Name).HasColumnName(null);
-
-            Assert.Equal("[Name] IS NOT NULL", index.GetFilter());
-
-            indexBuilder.HasFilter("Foo");
-
-            Assert.Equal("Foo", index.GetFilter());
-
-            indexBuilder.HasFilter(null);
-
-            Assert.Null(index.GetFilter());
-        }
-
-        [ConditionalFact]
-        public void Indexes_can_have_same_name_across_tables()
-        {
-            var modelBuilder = CreateModelBuilder();
-            modelBuilder.Entity<Customer>()
-                .HasIndex(e => e.Id, "Ix_Id")
-                .IsUnique();
-            modelBuilder.Entity<CustomerDetails>()
-                .HasIndex(e => e.CustomerId, "Ix_Id")
-                .IsUnique();
-
-            var model = modelBuilder.FinalizeModel();
-
-            var customerIndex = model.FindEntityType(typeof(Customer))!.GetIndexes().Single();
-            Assert.Equal("Ix_Id", customerIndex.Name);
-            Assert.Equal("Ix_Id", customerIndex.GetDatabaseName());
-            Assert.Equal(
-                "Ix_Id", customerIndex.GetDatabaseName(
-                    StoreObjectIdentifier.Table("Customer")));
-
-            var detailsIndex = model.FindEntityType(typeof(CustomerDetails))!.GetIndexes().Single();
-            Assert.Equal("Ix_Id", detailsIndex.Name);
-            Assert.Equal("Ix_Id", detailsIndex.GetDatabaseName());
-            Assert.Equal(
-                "Ix_Id", detailsIndex.GetDatabaseName(
-                    StoreObjectIdentifier.Table("CustomerDetails")));
-        }
-
-        [ConditionalFact]
-        public virtual void Can_set_store_type_for_property_type()
-        {
-            var modelBuilder = CreateModelBuilder(
-                c =>
-                {
-                    c.Properties<int>().HaveColumnType("smallint");
-                    c.Properties<string>().HaveColumnType("nchar(max)");
-                    c.Properties(typeof(Nullable<>)).HavePrecision(2);
-                });
-
-            modelBuilder.Entity<Quarks>(
-                b =>
-                {
-                    b.Property<int>("Charm");
-                    b.Property<string>("Strange");
-                    b.Property<int?>("Top");
-                    b.Property<string>("Bottom");
-                });
-
-            var model = modelBuilder.FinalizeModel();
-            var entityType = model.FindEntityType(typeof(Quarks))!;
-
-            Assert.Equal("smallint", entityType.FindProperty(Customer.IdProperty.Name)!.GetColumnType());
-            Assert.Equal("smallint", entityType.FindProperty("Up")!.GetColumnType());
-            Assert.Equal("nchar(max)", entityType.FindProperty("Down")!.GetColumnType());
-            var charm = entityType.FindProperty("Charm")!;
-            Assert.Equal("smallint", charm.GetColumnType());
-            Assert.Null(charm.GetPrecision());
-            Assert.Equal("nchar(max)", entityType.FindProperty("Strange")!.GetColumnType());
-            var top = entityType.FindProperty("Top")!;
-            Assert.Equal("smallint", top.GetColumnType());
-            Assert.Equal(2, top.GetPrecision());
-            Assert.Equal("nchar(max)", entityType.FindProperty("Bottom")!.GetColumnType());
-        }
-
-        [ConditionalFact]
-        public virtual void Can_set_fixed_length_for_property_type()
-        {
-            var modelBuilder = CreateModelBuilder(
-                c =>
-                {
-                    c.Properties<int>().AreFixedLength(false);
-                    c.Properties<string>().AreFixedLength();
-                });
-
-            modelBuilder.Entity<Quarks>(
-                b =>
-                {
-                    b.Property<int>("Charm");
-                    b.Property<string>("Strange");
-                    b.Property<int>("Top");
-                    b.Property<string>("Bottom");
-                });
-
-            var model = modelBuilder.FinalizeModel();
-            var entityType = model.FindEntityType(typeof(Quarks))!;
-
-            Assert.False(entityType.FindProperty(Customer.IdProperty.Name)!.IsFixedLength());
-            Assert.False(entityType.FindProperty("Up")!.IsFixedLength());
-            Assert.True(entityType.FindProperty("Down")!.IsFixedLength());
-            Assert.False(entityType.FindProperty("Charm")!.IsFixedLength());
-            Assert.True(entityType.FindProperty("Strange")!.IsFixedLength());
-            Assert.False(entityType.FindProperty("Top")!.IsFixedLength());
-            Assert.True(entityType.FindProperty("Bottom")!.IsFixedLength());
-        }
-
-        [ConditionalFact]
-        public virtual void Can_set_collation_for_property_type()
-        {
-            var modelBuilder = CreateModelBuilder(
-                c =>
-                {
-                    c.Properties<int>().UseCollation("Latin1_General_CS_AS_KS_WS");
-                    c.Properties<string>().UseCollation("Latin1_General_BIN");
-                });
-
-            modelBuilder.Entity<Quarks>(
-                b =>
-                {
-                    b.Property<int>("Charm");
-                    b.Property<string>("Strange");
-                    b.Property<int>("Top");
-                    b.Property<string>("Bottom");
-                });
-
-            var model = modelBuilder.FinalizeModel();
-            var entityType = model.FindEntityType(typeof(Quarks))!;
-
-            Assert.Equal("Latin1_General_CS_AS_KS_WS", entityType.FindProperty(Customer.IdProperty.Name)!.GetCollation());
-            Assert.Equal("Latin1_General_CS_AS_KS_WS", entityType.FindProperty("Up")!.GetCollation());
-            Assert.Equal("Latin1_General_BIN", entityType.FindProperty("Down")!.GetCollation());
-            Assert.Equal("Latin1_General_CS_AS_KS_WS", entityType.FindProperty("Charm")!.GetCollation());
-            Assert.Equal("Latin1_General_BIN", entityType.FindProperty("Strange")!.GetCollation());
-            Assert.Equal("Latin1_General_CS_AS_KS_WS", entityType.FindProperty("Top")!.GetCollation());
-            Assert.Equal("Latin1_General_BIN", entityType.FindProperty("Bottom")!.GetCollation());
-        }
-
         protected override TestModelBuilder CreateModelBuilder(Action<ModelConfigurationBuilder>? configure = null)
             => CreateTestModelBuilder(SqlServerTestHelpers.Instance, configure);
     }
+
     public abstract class SqlServerInheritance : RelationalInheritanceTestBase
     {
         [ConditionalFact] // #7240
@@ -1441,7 +1328,7 @@ public class SqlServerModelBuilderTestBase : RelationalModelBuilderTest
 
             var entity = model.FindEntityType(typeof(Customer))!;
             Assert.True(entity.IsTemporal());
-            Assert.Equal(5, entity.GetProperties().Count());
+            Assert.Equal(6, entity.GetProperties().Count());
 
             Assert.Equal("HistoryTable", entity.GetHistoryTableName());
             Assert.Equal("historySchema", entity.GetHistoryTableSchema());
@@ -1490,7 +1377,7 @@ public class SqlServerModelBuilderTestBase : RelationalModelBuilderTest
 
             var entity = model.FindEntityType(typeof(Customer))!;
             Assert.True(entity.IsTemporal());
-            Assert.Equal(5, entity.GetProperties().Count());
+            Assert.Equal(6, entity.GetProperties().Count());
 
             Assert.Equal("ChangedHistoryTable", entity.GetHistoryTableName());
             Assert.Equal("changedHistorySchema", entity.GetHistoryTableSchema());
@@ -1539,7 +1426,7 @@ public class SqlServerModelBuilderTestBase : RelationalModelBuilderTest
 
             var entity = model.FindEntityType(typeof(Customer))!;
             Assert.True(entity.IsTemporal());
-            Assert.Equal(5, entity.GetProperties().Count());
+            Assert.Equal(6, entity.GetProperties().Count());
 
             Assert.Equal("ChangedHistoryTable", entity.GetHistoryTableName());
             Assert.Equal("changedHistorySchema", entity.GetHistoryTableSchema());
@@ -1589,7 +1476,7 @@ public class SqlServerModelBuilderTestBase : RelationalModelBuilderTest
 
             var entity = model.FindEntityType(typeof(Customer))!;
             Assert.True(entity.IsTemporal());
-            Assert.Equal(5, entity.GetProperties().Count());
+            Assert.Equal(6, entity.GetProperties().Count());
 
             Assert.Equal("HistoryTable", entity.GetHistoryTableName());
 
@@ -1637,7 +1524,7 @@ public class SqlServerModelBuilderTestBase : RelationalModelBuilderTest
 
             var entity = model.FindEntityType(typeof(Customer))!;
             Assert.True(entity.IsTemporal());
-            Assert.Equal(7, entity.GetProperties().Count());
+            Assert.Equal(8, entity.GetProperties().Count());
 
             Assert.Equal("HistoryTable", entity.GetHistoryTableName());
 
@@ -1680,7 +1567,7 @@ public class SqlServerModelBuilderTestBase : RelationalModelBuilderTest
             Assert.False(entity.IsTemporal());
             Assert.Null(entity.GetPeriodStartPropertyName());
             Assert.Null(entity.GetPeriodEndPropertyName());
-            Assert.Equal(3, entity.GetProperties().Count());
+            Assert.Equal(4, entity.GetProperties().Count());
         }
 
         [ConditionalFact]
@@ -1863,7 +1750,7 @@ public class SqlServerModelBuilderTestBase : RelationalModelBuilderTest
         }
 
         [ConditionalFact]
-        public virtual void Json_entity_nested_enums_have_conversions_to_string_by_default_ToJson_first()
+        public virtual void Json_entity_nested_enums_have_conversions_to_int_by_default_ToJson_first()
         {
             var modelBuilder = CreateModelBuilder();
             modelBuilder.Entity<JsonEntityWithNesting>(
@@ -1902,7 +1789,7 @@ public class SqlServerModelBuilderTestBase : RelationalModelBuilderTest
                 Assert.True(outerOwnedEntity.IsMappedToJson());
                 var myEnum = outerOwnedEntity.GetDeclaredProperties().Where(p => p.ClrType.IsEnum).Single();
                 var typeMapping = myEnum.FindRelationalTypeMapping()!;
-                Assert.True(typeMapping.Converter is EnumToStringConverter<MyJsonEnum>);
+                Assert.True(typeMapping.Converter is EnumToNumberConverter<MyJsonEnum, int>);
             }
 
             var ownedEntities = model.FindEntityTypes(typeof(OwnedEntity));
@@ -1913,12 +1800,12 @@ public class SqlServerModelBuilderTestBase : RelationalModelBuilderTest
                 Assert.True(ownedEntity.IsMappedToJson());
                 var myEnum = ownedEntity.GetDeclaredProperties().Where(p => p.ClrType.IsEnum).Single();
                 var typeMapping = myEnum.FindRelationalTypeMapping()!;
-                Assert.True(typeMapping.Converter is EnumToStringConverter<MyJsonEnum>);
+                Assert.True(typeMapping.Converter is EnumToNumberConverter<MyJsonEnum, int>);
             }
         }
 
         [ConditionalFact]
-        public virtual void Json_entity_nested_enums_have_conversions_to_string_by_default_ToJson_last()
+        public virtual void Json_entity_nested_enums_have_conversions_to_int_by_default_ToJson_last()
         {
             var modelBuilder = CreateModelBuilder();
             modelBuilder.Entity<JsonEntityWithNesting>(
@@ -1957,7 +1844,7 @@ public class SqlServerModelBuilderTestBase : RelationalModelBuilderTest
                 Assert.True(outerOwnedEntity.IsMappedToJson());
                 var myEnum = outerOwnedEntity.GetDeclaredProperties().Where(p => p.ClrType.IsEnum).Single();
                 var typeMapping = myEnum.FindRelationalTypeMapping()!;
-                Assert.True(typeMapping.Converter is EnumToStringConverter<MyJsonEnum>);
+                Assert.True(typeMapping.Converter is EnumToNumberConverter<MyJsonEnum, int>);
             }
 
             var ownedEntities = model.FindEntityTypes(typeof(OwnedEntity));
@@ -1968,7 +1855,7 @@ public class SqlServerModelBuilderTestBase : RelationalModelBuilderTest
                 Assert.True(ownedEntity.IsMappedToJson());
                 var myEnum = ownedEntity.GetDeclaredProperties().Where(p => p.ClrType.IsEnum).Single();
                 var typeMapping = myEnum.FindRelationalTypeMapping()!;
-                Assert.True(typeMapping.Converter is EnumToStringConverter<MyJsonEnum>);
+                Assert.True(typeMapping.Converter is EnumToNumberConverter<MyJsonEnum, int>);
             }
         }
 

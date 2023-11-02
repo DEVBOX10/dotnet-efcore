@@ -3,6 +3,7 @@
 
 // ReSharper disable ArgumentsStyleOther
 // ReSharper disable ArgumentsStyleNamedExpression
+
 namespace Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 /// <summary>
@@ -115,28 +116,7 @@ public static class EntityTypeExtensions
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     public static bool IsInOwnershipPath(this IReadOnlyEntityType entityType, IReadOnlyEntityType targetType)
-    {
-        if (entityType == targetType)
-        {
-            return true;
-        }
-
-        var owner = entityType;
-        while (true)
-        {
-            var ownership = owner.FindOwnership();
-            if (ownership == null)
-            {
-                return false;
-            }
-
-            owner = ownership.PrincipalEntityType;
-            if (owner.IsAssignableFrom(targetType))
-            {
-                return true;
-            }
-        }
-    }
+        => entityType.IsInOwnershipPath(targetType);
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -172,6 +152,7 @@ public static class EntityTypeExtensions
         {
             propertyIndex = baseCounts.PropertyCount;
             navigationIndex = baseCounts.NavigationCount;
+            complexPropertyIndex = baseCounts.ComplexPropertyCount;
             originalValueIndex = baseCounts.OriginalValueCount;
             shadowIndex = baseCounts.ShadowCount;
             relationshipIndex = baseCounts.RelationshipCount;
@@ -190,17 +171,7 @@ public static class EntityTypeExtensions
             ((IRuntimePropertyBase)property).PropertyIndexes = indexes;
         }
 
-        foreach (var complexProperty in entityType.GetDeclaredComplexProperties())
-        {
-            var indexes = new PropertyIndexes(
-                index: complexPropertyIndex++,
-                originalValueIndex: -1,
-                shadowIndex: complexProperty.IsShadowProperty() ? shadowIndex++ : -1,
-                relationshipIndex: -1,
-                storeGenerationIndex: -1);
-
-            ((IRuntimePropertyBase)complexProperty).PropertyIndexes = indexes;
-        }
+        CountComplexProperties(entityType.GetDeclaredComplexProperties());
 
         var isNotifying = entityType.GetChangeTrackingStrategy() != ChangeTrackingStrategy.Snapshot;
 
@@ -237,6 +208,36 @@ public static class EntityTypeExtensions
             shadowIndex,
             relationshipIndex,
             storeGenerationIndex);
+
+        void CountComplexProperties(IEnumerable<IComplexProperty> complexProperties)
+        {
+            foreach (var complexProperty in complexProperties)
+            {
+                var indexes = new PropertyIndexes(
+                    index: complexPropertyIndex++,
+                    originalValueIndex: -1,
+                    shadowIndex: complexProperty.IsShadowProperty() ? shadowIndex++ : -1,
+                    relationshipIndex: -1,
+                    storeGenerationIndex: -1);
+
+                ((IRuntimePropertyBase)complexProperty).PropertyIndexes = indexes;
+
+                var complexType = complexProperty.ComplexType;
+                foreach (var property in complexType.GetProperties())
+                {
+                    var complexIndexes = new PropertyIndexes(
+                        index: propertyIndex++,
+                        originalValueIndex: property.RequiresOriginalValue() ? originalValueIndex++ : -1,
+                        shadowIndex: property.IsShadowProperty() ? shadowIndex++ : -1,
+                        relationshipIndex: property.IsKey() || property.IsForeignKey() ? relationshipIndex++ : -1,
+                        storeGenerationIndex: property.MayBeStoreGenerated() ? storeGenerationIndex++ : -1);
+
+                    ((IRuntimePropertyBase)property).PropertyIndexes = complexIndexes;
+                }
+
+                CountComplexProperties(complexType.GetComplexProperties());
+            }
+        }
     }
 
     /// <summary>

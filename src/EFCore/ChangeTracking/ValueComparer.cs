@@ -31,9 +31,6 @@ public abstract class ValueComparer : IEqualityComparer, IEqualityComparer<objec
     private static readonly MethodInfo FloatEqualsMethodInfo
         = typeof(float).GetRuntimeMethod(nameof(float.Equals), new[] { typeof(float) })!;
 
-    internal static readonly MethodInfo ArrayCopyMethod
-        = typeof(Array).GetRuntimeMethod(nameof(Array.Copy), new[] { typeof(Array), typeof(Array), typeof(int) })!;
-
     internal static readonly MethodInfo EqualityComparerHashCodeMethod
         = typeof(IEqualityComparer).GetRuntimeMethod(nameof(IEqualityComparer.GetHashCode), new[] { typeof(object) })!;
 
@@ -42,6 +39,42 @@ public abstract class ValueComparer : IEqualityComparer, IEqualityComparer<objec
 
     internal static readonly MethodInfo ObjectGetHashCodeMethod
         = typeof(object).GetRuntimeMethod(nameof(object.GetHashCode), Type.EmptyTypes)!;
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [EntityFrameworkInternal]
+    protected static readonly MethodInfo HashCodeAddMethod
+        = typeof(ValueComparer).GetRuntimeMethod(nameof(Add), new[] { typeof(HashCode), typeof(int) })!;
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [EntityFrameworkInternal]
+    protected static readonly MethodInfo ToHashCodeMethod
+        = typeof(HashCode).GetRuntimeMethod(nameof(HashCode.ToHashCode), new Type[0])!;
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [EntityFrameworkInternal]
+    protected static readonly Expression<Func<bool, bool>> BoolIdentity;
+
+    static ValueComparer()
+    {
+        var param = Expression.Parameter(typeof(bool), "v");
+
+        BoolIdentity = (Expression<Func<bool, bool>>)Expression.Lambda(param, param);
+    }
 
     /// <summary>
     ///     Creates a new <see cref="ValueComparer" /> with the given comparison and
@@ -174,6 +207,19 @@ public abstract class ValueComparer : IEqualityComparer, IEqualityComparer<objec
     }
 
     /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [EntityFrameworkInternal]
+    public static HashCode Add(HashCode hash, int code)
+    {
+        hash.Add(code);
+        return hash;
+    }
+
+    /// <summary>
     ///     Creates a default <see cref="ValueComparer{T}" /> for the given type.
     /// </summary>
     /// <param name="type">The type.</param>
@@ -189,8 +235,28 @@ public abstract class ValueComparer : IEqualityComparer, IEqualityComparer<objec
             | DynamicallyAccessedMemberTypes.PublicProperties)]
         Type type,
         bool favorStructuralComparisons)
+        => (ValueComparer)CreateDefaultMethod.MakeGenericMethod(type).Invoke(null, new object[] { favorStructuralComparisons })!;
+
+    private static readonly MethodInfo CreateDefaultMethod = typeof(ValueComparer).GetMethod(
+        nameof(CreateDefault),
+        genericParameterCount: 1,
+        BindingFlags.Static | BindingFlags.Public,
+        null,
+        new[] { typeof(bool) },
+        null)!;
+
+    /// <summary>
+    ///     Creates a default <see cref="ValueComparer{T}" /> for the given type.
+    /// </summary>
+    /// <param name="favorStructuralComparisons">
+    ///     If <see langword="true" />, then EF will use <see cref="IStructuralEquatable" /> if the type
+    ///     implements it. This is usually used when byte arrays act as keys.
+    /// </param>
+    /// <typeparam name="T">The type.</typeparam>
+    /// <returns>The <see cref="ValueComparer{T}" />.</returns>
+    public static ValueComparer CreateDefault<T>(bool favorStructuralComparisons)
     {
-        var nonNullableType = type.UnwrapNullableType();
+        var nonNullableType = typeof(T).UnwrapNullableType();
 
         // The equality operator returns false for NaNs, but the Equals methods returns true
         if (nonNullableType == typeof(double))
@@ -208,7 +274,7 @@ public abstract class ValueComparer : IEqualityComparer, IEqualityComparer<objec
             return new DefaultDateTimeOffsetValueComparer(favorStructuralComparisons);
         }
 
-        var comparerType = nonNullableType.IsInteger()
+        return nonNullableType.IsInteger()
             || nonNullableType == typeof(decimal)
             || nonNullableType == typeof(bool)
             || nonNullableType == typeof(string)
@@ -217,19 +283,8 @@ public abstract class ValueComparer : IEqualityComparer, IEqualityComparer<objec
             || nonNullableType == typeof(Guid)
             || nonNullableType == typeof(TimeSpan)
             || nonNullableType == typeof(TimeOnly)
-                ? typeof(DefaultValueComparer<>)
-                : typeof(ValueComparer<>);
-
-        return CreateInstance();
-
-        [UnconditionalSuppressMessage(
-            "ReflectionAnalysis", "IL2055", Justification =
-                "We only create ValueComparer or DefaultValueComparer whose generic type parameter requires Methods/Properties, "
-                + "and our type argument is properly annotated for those.")]
-        ValueComparer CreateInstance()
-            => (ValueComparer)Activator.CreateInstance(
-                comparerType.MakeGenericType(type),
-                new object[] { favorStructuralComparisons })!;
+                ? new DefaultValueComparer<T>(favorStructuralComparisons)
+                : new ValueComparer<T>(favorStructuralComparisons);
     }
 
     // PublicMethods is required to preserve e.g. GetHashCode

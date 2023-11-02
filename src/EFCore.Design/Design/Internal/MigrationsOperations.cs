@@ -242,6 +242,26 @@ public class MigrationsOperations
         return files;
     }
 
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    public virtual void HasPendingModelChanges(string? contextType)
+    {
+        using var context = _contextOperations.CreateContext(contextType);
+
+        var hasPendingModelChanges = context.Database.HasPendingModelChanges();
+
+        if (hasPendingModelChanges)
+        {
+            throw new OperationException(DesignStrings.PendingModelChanges);
+        }
+
+        _reporter.WriteInformation(DesignStrings.NoPendingModelChanges);
+    }
+
     private static void EnsureServices(IServiceProvider services)
     {
         var migrator = services.GetService<IMigrator>();

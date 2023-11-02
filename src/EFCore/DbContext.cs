@@ -83,6 +83,8 @@ public class DbContext :
         "EF Core isn't fully compatible with trimming, and running the application may generate unexpected runtime failures. "
         + "Some specific coding pattern are usually required to make trimming work properly, see https://aka.ms/efcore-docs-trimming for "
         + "more details.")]
+    [RequiresDynamicCode(
+        "EF Core isn't fully compatible with NativeAOT, and running the application may generate unexpected runtime failures.")]
     protected DbContext()
         : this(new DbContextOptions<DbContext>())
     {
@@ -102,6 +104,8 @@ public class DbContext :
         "EF Core isn't fully compatible with trimming, and running the application may generate unexpected runtime failures. "
         + "Some specific coding pattern are usually required to make trimming work properly, see https://aka.ms/efcore-docs-trimming for "
         + "more details.")]
+    [RequiresDynamicCode(
+        "EF Core isn't fully compatible with NativeAOT, and running the application may generate unexpected runtime failures.")]
     public DbContext(DbContextOptions options)
     {
         Check.NotNull(options, nameof(options));
@@ -884,6 +888,7 @@ public class DbContext :
             {
                 changeTracker.QueryTrackingBehavior = _configurationSnapshot.QueryTrackingBehavior.Value;
             }
+
             changeTracker.LazyLoadingEnabled = _configurationSnapshot.LazyLoadingEnabled;
             changeTracker.CascadeDeleteTiming = _configurationSnapshot.CascadeDeleteTiming;
             changeTracker.DeleteOrphansTiming = _configurationSnapshot.DeleteOrphansTiming;

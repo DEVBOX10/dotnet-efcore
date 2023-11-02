@@ -1,8 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
-
 namespace Microsoft.EntityFrameworkCore.Storage;
 
 public class EnumToStringConverterTest
@@ -76,16 +74,6 @@ public class EnumToStringConverterTest
         Assert.Equal(default(Beatles), converter("0"));
         Assert.Null(converter(null));
     }
-
-    [ConditionalFact]
-    public void Enum_to_string_converter_throws_for_bad_types()
-        => Assert.Equal(
-            CoreStrings.ConverterBadType(
-                typeof(StringEnumConverter<Guid, string, Guid>).ShortDisplayName(),
-                "Guid",
-                "enum types"),
-            Assert.Throws<InvalidOperationException>(
-                () => new EnumToStringConverter<Guid>()).Message);
 
     private enum Beatles
     {

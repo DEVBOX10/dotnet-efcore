@@ -43,6 +43,7 @@ public class RuntimeNavigation : RuntimePropertyBase, INavigation
         {
             SetAnnotation(CoreAnnotationNames.EagerLoaded, true);
         }
+
         if (!lazyLoadingEnabled)
         {
             SetAnnotation(CoreAnnotationNames.LazyLoadingEnabled, false);
@@ -110,9 +111,5 @@ public class RuntimeNavigation : RuntimePropertyBase, INavigation
             ref _collectionAccessor,
             ref _collectionAccessorInitialized,
             this,
-            static navigation =>
-            {
-                navigation.EnsureReadOnly();
-                return new ClrCollectionAccessorFactory().Create(navigation);
-            });
+            static navigation => new ClrCollectionAccessorFactory().Create(navigation));
 }

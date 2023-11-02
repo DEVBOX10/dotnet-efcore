@@ -27,7 +27,7 @@ public class EverythingIsBytesSqlServerTest : BuiltInDataTypesTestBase<Everythin
             nameof(AnimalIdentification));
 
         const string expected =
-"""
+            """
 BinaryForeignKeyDataType.BinaryKeyDataTypeId ---> [nullable varbinary] [MaxLength = 900]
 BinaryForeignKeyDataType.Id ---> [varbinary] [MaxLength = 4]
 BinaryKeyDataType.Ex ---> [nullable varbinary] [MaxLength = -1]
@@ -281,7 +281,7 @@ UnicodeDataTypes.StringUnicode ---> [nullable varbinary] [MaxLength = -1]
         }
 
         protected override RelationalTypeMapping FindMapping(in RelationalTypeMappingInfo mappingInfo)
-            => FindRawMapping(mappingInfo)?.Clone(mappingInfo);
+            => FindRawMapping(mappingInfo)?.WithTypeMappingInfo(mappingInfo);
 
         private RelationalTypeMapping FindRawMapping(RelationalTypeMappingInfo mappingInfo)
         {

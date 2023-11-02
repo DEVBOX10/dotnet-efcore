@@ -45,7 +45,7 @@ public static class SqlServerServiceCollectionExtensions
     ///     </para>
     ///     <para>
     ///         See <see href="https://aka.ms/efcore-docs-dbcontext-options">Using DbContextOptions</see>, and
-    ///         <see href="https://aka.ms/efcore-docs-sqlserver">Accessing SQL Server and SQL Azure databases with EF Core</see>
+    ///         <see href="https://aka.ms/efcore-docs-sqlserver">Accessing SQL Server and Azure SQL databases with EF Core</see>
     ///         for more information and examples.
     ///     </para>
     /// </remarks>
@@ -120,7 +120,6 @@ public static class SqlServerServiceCollectionExtensions
             .TryAdd<IAggregateMethodCallTranslatorProvider, SqlServerAggregateMethodCallTranslatorProvider>()
             .TryAdd<IMemberTranslatorProvider, SqlServerMemberTranslatorProvider>()
             .TryAdd<IQuerySqlGeneratorFactory, SqlServerQuerySqlGeneratorFactory>()
-            .TryAdd<IQueryTranslationPreprocessorFactory, SqlServerQueryTranslationPreprocessorFactory>()
             .TryAdd<IRelationalSqlTranslatingExpressionVisitorFactory, SqlServerSqlTranslatingExpressionVisitorFactory>()
             .TryAdd<ISqlExpressionFactory, SqlServerSqlExpressionFactory>()
             .TryAdd<IQueryTranslationPostprocessorFactory, SqlServerQueryTranslationPostprocessorFactory>()

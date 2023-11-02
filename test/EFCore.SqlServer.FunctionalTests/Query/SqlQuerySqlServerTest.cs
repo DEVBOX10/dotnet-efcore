@@ -62,7 +62,7 @@ WHERE [m].[ContactName] LIKE N'%z%'
         await base.SqlQueryRaw_queryable_composed_after_removing_whitespaces(async);
 
         AssertSql(
-"""
+            """
 SELECT [m].[Address], [m].[City], [m].[CompanyName], [m].[ContactName], [m].[ContactTitle], [m].[Country], [m].[CustomerID], [m].[Fax], [m].[Phone], [m].[Region], [m].[PostalCode]
 FROM (
 
@@ -141,7 +141,7 @@ WHERE [m].[ContactName] LIKE N'%z%'
         await base.SqlQueryRaw_composed_contains(async);
 
         AssertSql(
-"""
+            """
 SELECT [m].[Address], [m].[City], [m].[CompanyName], [m].[ContactName], [m].[ContactTitle], [m].[Country], [m].[CustomerID], [m].[Fax], [m].[Phone], [m].[Region], [m].[PostalCode]
 FROM (
     SELECT * FROM "Customers"
@@ -449,12 +449,26 @@ SELECT * FROM "Customers"
 """);
     }
 
-    public override async Task SqlQueryRaw_composed_with_nullable_predicate(bool async)
+    public override async Task SqlQueryRaw_composed_with_predicate(bool async)
     {
-        await base.SqlQueryRaw_composed_with_nullable_predicate(async);
+        await base.SqlQueryRaw_composed_with_predicate(async);
 
         AssertSql(
 """
+SELECT [m].[Address], [m].[City], [m].[CompanyName], [m].[ContactName], [m].[ContactTitle], [m].[Country], [m].[CustomerID], [m].[Fax], [m].[Phone], [m].[Region], [m].[PostalCode]
+FROM (
+    SELECT * FROM "Customers"
+) AS [m]
+WHERE SUBSTRING([m].[ContactName], 0 + 1, 1) = SUBSTRING([m].[CompanyName], 0 + 1, 1)
+""");
+    }
+
+    public override async Task SqlQueryRaw_composed_with_empty_predicate(bool async)
+    {
+        await base.SqlQueryRaw_composed_with_empty_predicate(async);
+
+        AssertSql(
+            """
 SELECT [m].[Address], [m].[City], [m].[CompanyName], [m].[ContactName], [m].[ContactTitle], [m].[Country], [m].[CustomerID], [m].[Fax], [m].[Phone], [m].[Region], [m].[PostalCode]
 FROM (
     SELECT * FROM "Customers"
@@ -553,7 +567,7 @@ SELECT * FROM "Customers" WHERE "CustomerID" = @somename
         await base.SqlQuery_parameterization_issue_12213(async);
 
         AssertSql(
-"""
+            """
 p0='10300'
 
 SELECT [m].[OrderID]
@@ -562,7 +576,7 @@ FROM (
 ) AS [m]
 """,
             //
-"""
+            """
 @__max_1='10400'
 p0='10300'
 
@@ -578,7 +592,7 @@ WHERE [m].[OrderID] <= @__max_1 AND [m].[OrderID] IN (
 )
 """,
             //
-"""
+            """
 @__max_1='10400'
 p0='10300'
 
@@ -645,7 +659,7 @@ WHERE [m].[City] = N'Seattle'
         await base.SqlQueryRaw_in_subquery_with_dbParameter(async);
 
         AssertSql(
-"""
+            """
 @city='London' (Nullable = false) (Size = 6)
 
 SELECT [m].[CustomerID], [m].[EmployeeID], [m].[Freight], [m].[OrderDate], [m].[OrderID], [m].[RequiredDate], [m].[ShipAddress], [m].[ShipCity], [m].[ShipCountry], [m].[ShipName], [m].[ShipPostalCode], [m].[ShipRegion], [m].[ShipVia], [m].[ShippedDate]
@@ -666,7 +680,7 @@ WHERE [m].[CustomerID] IN (
         await base.SqlQueryRaw_in_subquery_with_positional_dbParameter_without_name(async);
 
         AssertSql(
-"""
+            """
 p0='London' (Nullable = false) (Size = 6)
 
 SELECT [m].[CustomerID], [m].[EmployeeID], [m].[Freight], [m].[OrderDate], [m].[OrderID], [m].[RequiredDate], [m].[ShipAddress], [m].[ShipCity], [m].[ShipCountry], [m].[ShipName], [m].[ShipPostalCode], [m].[ShipRegion], [m].[ShipVia], [m].[ShippedDate]
@@ -687,7 +701,7 @@ WHERE [m].[CustomerID] IN (
         await base.SqlQueryRaw_in_subquery_with_positional_dbParameter_with_name(async);
 
         AssertSql(
-"""
+            """
 @city='London' (Nullable = false) (Size = 6)
 
 SELECT [m].[CustomerID], [m].[EmployeeID], [m].[Freight], [m].[OrderDate], [m].[OrderID], [m].[RequiredDate], [m].[ShipAddress], [m].[ShipCity], [m].[ShipCountry], [m].[ShipName], [m].[ShipPostalCode], [m].[ShipRegion], [m].[ShipVia], [m].[ShippedDate]
@@ -708,7 +722,7 @@ WHERE [m].[CustomerID] IN (
         await base.SqlQueryRaw_with_dbParameter_mixed_in_subquery(async);
 
         AssertSql(
-"""
+            """
 p0='London' (Size = 4000)
 @title='Sales Representative' (Nullable = false) (Size = 20)
 
@@ -724,7 +738,7 @@ WHERE [m].[CustomerID] IN (
 )
 """,
             //
-"""
+            """
 @city='London' (Nullable = false) (Size = 6)
 p1='Sales Representative' (Size = 4000)
 

@@ -1371,6 +1371,9 @@ public class RelationalCommandTest
 
         public WarningsConfiguration WarningsConfiguration
             => null;
+
+        public virtual bool ShouldWarnForStringEnumValueInJson(Type enumType)
+            => true;
     }
 
     private IRelationalCommand CreateRelationalCommand(

@@ -1,9 +1,11 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Collections;
 using System.ComponentModel;
 using Microsoft.EntityFrameworkCore.Diagnostics.Internal;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using Microsoft.EntityFrameworkCore.TestModels.ConcurrencyModel;
 
 // ReSharper disable UnusedMember.Local
 // ReSharper disable InconsistentNaming
@@ -180,6 +182,116 @@ public partial class ModelValidatorTest : ModelValidatorTestBase
     {
         public int Id { get; set; }
         public string[] SomeStrings { get; set; }
+    }
+
+    [ConditionalFact]
+    public virtual void Throws_when_mapping_concrete_sealed_type_that_does_not_implement_IList()
+    {
+        var modelBuilder = CreateConventionModelBuilder();
+
+        modelBuilder.Entity<WithStringCollection>(
+            eb =>
+            {
+                eb.Property(e => e.Id);
+                eb.PrimitiveCollection(e => e.SomeString);
+            });
+
+        VerifyError(CoreStrings.BadListType("string", "IList<char>"), modelBuilder, sensitiveDataLoggingEnabled: false);
+    }
+
+    protected class WithStringCollection
+    {
+        public int Id { get; set; }
+        public string SomeString { get; set; }
+    }
+
+    [ConditionalFact]
+    public virtual void Throws_when_mapping_an_IReadOnlyCollection()
+    {
+        var modelBuilder = CreateConventionModelBuilder();
+
+        modelBuilder.Entity<WithReadOnlyCollection>(
+            eb =>
+            {
+                eb.Property(e => e.Id);
+                eb.PrimitiveCollection(e => e.Tags);
+            });
+
+        VerifyError(
+            CoreStrings.ReadOnlyListType("IReadOnlyCollection<int>"),
+            modelBuilder, sensitiveDataLoggingEnabled: false);
+    }
+
+    protected class WithReadOnlyCollection
+    {
+        public int Id { get; set; }
+        public IReadOnlyCollection<int> Tags { get; set; }
+    }
+
+    [ConditionalFact]
+    public virtual void Throws_when_mapping_an_IReadOnlyList()
+    {
+        var modelBuilder = CreateConventionModelBuilder();
+
+        modelBuilder.Entity<WithReadOnlyList>(
+            eb =>
+            {
+                eb.Property(e => e.Id);
+                eb.PrimitiveCollection(e => e.Tags);
+            });
+
+        VerifyError(
+            CoreStrings.ReadOnlyListType("IReadOnlyList<char>"),
+            modelBuilder, sensitiveDataLoggingEnabled: false);
+    }
+
+    protected class WithReadOnlyList
+    {
+        public int Id { get; set; }
+        public IReadOnlyList<char> Tags { get; set; }
+    }
+
+    [ConditionalFact]
+    public virtual void Does_not_throw_for_non_generic_collection()
+    {
+        var modelBuilder = CreateConventionModelBuilder();
+
+        modelBuilder.Entity<WithNonGenericCollection>(
+            eb =>
+            {
+                eb.Property(e => e.Id);
+                eb.PrimitiveCollection(e => e.Tags);
+            });
+
+        Validate(modelBuilder);
+    }
+
+    protected class MyCollection : IList<int>
+    {
+        private readonly List<int> _list = new();
+        public IEnumerator<int> GetEnumerator() => _list.GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+        public void Add(int item) => _list.Add(item);
+        public void Clear() => _list.Clear();
+        public bool Contains(int item) => _list.Contains(item);
+        public void CopyTo(int[] array, int arrayIndex) => _list.CopyTo(array, arrayIndex);
+        public bool Remove(int item) => _list.Remove(item);
+        public int Count => _list.Count;
+        public bool IsReadOnly => ((ICollection<int>)_list).IsReadOnly;
+        public int IndexOf(int item) => _list.IndexOf(item);
+        public void Insert(int index, int item) => _list.Insert(index, item);
+        public void RemoveAt(int index) => _list.RemoveAt(index);
+        public int this[int index]
+        {
+            get => _list[index];
+            set => _list[index] = value;
+        }
+    }
+
+    protected class WithNonGenericCollection
+    {
+        public int Id { get; set; }
+        public MyCollection Tags { get; set; }
     }
 
     [ConditionalFact]
@@ -481,9 +593,7 @@ public partial class ModelValidatorTest : ModelValidatorTestBase
         modelBuilder.Entity<A>().HasOne<C>().WithOne().HasForeignKey<C>(a => a.Id).HasPrincipalKey<A>(b => b.Id).IsRequired();
         modelBuilder.Entity<C>().HasOne<B>().WithOne().HasForeignKey<B>(a => a.Id).HasPrincipalKey<C>(b => b.Id).IsRequired();
 
-        VerifyError(
-            CoreStrings.IdentifyingRelationshipCycle("A -> B -> C"),
-            modelBuilder);
+        VerifyError(CoreStrings.RelationshipCycle("B", "AId", "ValueConverter"), modelBuilder);
     }
 
     [ConditionalFact]
@@ -500,9 +610,11 @@ public partial class ModelValidatorTest : ModelValidatorTestBase
 
         var dId = modelBuilder.Model.FindEntityType(typeof(D)).FindProperty(nameof(D.Id));
 
-        Assert.Equal(CoreStrings.RelationshipCycle(nameof(D), nameof(D.Id), "ValueConverter"),
+        Assert.Equal(
+            CoreStrings.RelationshipCycle(nameof(D), nameof(D.Id), "ValueConverter"),
             Assert.Throws<InvalidOperationException>(dId.GetValueConverter).Message);
-        Assert.Equal(CoreStrings.RelationshipCycle(nameof(D), nameof(D.Id), "ProviderClrType"),
+        Assert.Equal(
+            CoreStrings.RelationshipCycle(nameof(D), nameof(D.Id), "ProviderClrType"),
             Assert.Throws<InvalidOperationException>(dId.GetProviderClrType).Message);
     }
 
@@ -871,6 +983,51 @@ public partial class ModelValidatorTest : ModelValidatorTestBase
 
         VerifyError(
             CoreStrings.SkipNavigationNonCollection(nameof(OrderDetails.Customer), nameof(OrderDetails)),
+            modelBuilder);
+    }
+
+    [ConditionalFact]
+    public virtual void Detects_collection_complex_properties()
+    {
+        var modelBuilder = CreateConventionModelBuilder();
+        modelBuilder.Ignore(typeof(Order));
+
+        var model = modelBuilder.Model;
+        var customerEntity = model.AddEntityType(typeof(Customer));
+        customerEntity.AddComplexProperty(nameof(Customer.Orders), collection: true);
+
+        VerifyError(
+            CoreStrings.ComplexPropertyCollection(nameof(Customer), nameof(Customer.Orders)),
+            modelBuilder);
+    }
+
+    [ConditionalFact]
+    public virtual void Detects_shadow_complex_properties()
+    {
+        var modelBuilder = CreateConventionModelBuilder();
+        modelBuilder.Ignore(typeof(Order));
+
+        var model = modelBuilder.Model;
+        var customerEntity = model.AddEntityType(typeof(Customer));
+        customerEntity.AddComplexProperty("CustomerDetails", typeof(SponsorDetails), typeof(SponsorDetails));
+
+        VerifyError(
+            CoreStrings.ComplexPropertyShadow(nameof(Customer), "CustomerDetails"),
+            modelBuilder);
+    }
+
+    [ConditionalFact]
+    public virtual void Detects_indexer_complex_properties()
+    {
+        var modelBuilder = CreateConventionModelBuilder();
+
+        var model = modelBuilder.Model;
+        var customerEntity = model.AddEntityType("Customer");
+        customerEntity.AddComplexProperty(
+            "CustomerDetails", typeof(SponsorDetails), customerEntity.FindIndexerPropertyInfo()!, typeof(SponsorDetails));
+
+        VerifyError(
+            CoreStrings.ComplexPropertyIndexer("Customer (Dictionary<string, object>)", "CustomerDetails"),
             modelBuilder);
     }
 
@@ -1446,6 +1603,58 @@ public partial class ModelValidatorTest : ModelValidatorTestBase
             sensitiveDataLoggingEnabled);
     }
 
+    [ConditionalTheory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public virtual void Detects_complex_properties_in_seeds(bool sensitiveDataLoggingEnabled)
+    {
+        var modelBuilder = CreateConventionModelBuilder(sensitiveDataLoggingEnabled: sensitiveDataLoggingEnabled);
+        modelBuilder.Entity<SampleEntity>(
+            e =>
+            {
+                e.HasData(
+                    new SampleEntity { Id = 1, ReferencedEntity = new ReferencedEntity { Id = 2 } });
+                e.ComplexProperty(s => s.ReferencedEntity).IsRequired();
+            });
+
+        VerifyError(
+            sensitiveDataLoggingEnabled
+                ? CoreStrings.SeedDatumComplexPropertySensitive(
+                    nameof(SampleEntity),
+                    $"{nameof(SampleEntity.Id)}:1",
+                    nameof(SampleEntity.ReferencedEntity))
+                : CoreStrings.SeedDatumComplexProperty(
+                    nameof(SampleEntity),
+                    nameof(SampleEntity.ReferencedEntity)),
+            modelBuilder,
+            sensitiveDataLoggingEnabled);
+    }
+
+    [ConditionalFact]
+    public virtual void Throws_on_two_properties_sharing_a_field()
+    {
+        var modelBuilder = CreateConventionModelBuilder();
+        modelBuilder.Entity<Customer>().Property(c => c.PartitionId).HasField("_name");
+
+        VerifyError(
+            CoreStrings.ConflictingFieldProperty(
+                nameof(Customer), nameof(Customer.PartitionId), "_name", nameof(Customer), nameof(Customer.Name)),
+            modelBuilder);
+    }
+
+    [ConditionalFact]
+    public virtual void Throws_on_property_using_a_field_mapped_as_another_property()
+    {
+        var modelBuilder = CreateConventionModelBuilder();
+        modelBuilder.Entity<Customer>().Property(c => c.PartitionId).HasField("OtherName");
+        modelBuilder.Entity<Customer>().Property(c => c.OtherName);
+
+        VerifyError(
+            CoreStrings.ConflictingFieldProperty(
+                nameof(Customer), nameof(Customer.PartitionId), nameof(Customer.OtherName), nameof(Customer), nameof(Customer.OtherName)),
+            modelBuilder);
+    }
+
     [ConditionalFact]
     public virtual void Detects_missing_discriminator_property()
     {
@@ -1523,6 +1732,15 @@ public partial class ModelValidatorTest : ModelValidatorTestBase
         entityGeneric.RemoveDiscriminatorValue();
 
         VerifyError(CoreStrings.NoDiscriminatorValue(entityGeneric.DisplayName()), modelBuilder);
+    }
+
+    [ConditionalFact]
+    public virtual void Detects_missing_non_hierarchy_discriminator_value()
+    {
+        var modelBuilder = CreateConventionModelBuilder();
+        modelBuilder.Entity<A>().HasDiscriminator<byte>("ClassType");
+
+        VerifyError(CoreStrings.NoDiscriminatorValue(typeof(A).Name), modelBuilder);
     }
 
     [ConditionalFact]

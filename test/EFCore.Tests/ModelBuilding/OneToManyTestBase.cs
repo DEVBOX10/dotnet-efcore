@@ -2196,6 +2196,27 @@ public abstract partial class ModelBuilderTest
         }
 
         [ConditionalFact]
+        public virtual void Nullable_FK_overrides_NRT_navigation()
+        {
+            var modelBuilder = CreateModelBuilder();
+            modelBuilder.Entity<DependentEntity>(eb =>
+            {
+                eb.Property(d => d.PrincipalEntityId);
+                eb.Ignore(d => d.Nav);
+                eb.HasOne(d => d.Nav).WithMany(p => p.InverseNav);
+            });
+
+            var model = modelBuilder.FinalizeModel();
+
+            var entityType = model.FindEntityType(typeof(DependentEntity));
+            var fk = entityType.GetForeignKeys().Single();
+            Assert.False(fk.IsRequired);
+            var fkProperty = entityType.FindProperty(nameof(DependentEntity.PrincipalEntityId));
+            Assert.True(fkProperty.IsNullable);
+            Assert.Contains(fkProperty, fk.Properties);
+        }
+
+        [ConditionalFact]
         public virtual void Can_change_delete_behavior()
         {
             var modelBuilder = HobNobBuilder();
@@ -2671,7 +2692,7 @@ public abstract partial class ModelBuilderTest
 
             Assert.Equal(
                 CoreStrings.NonConfiguredNavigationToSharedType("Navigation", nameof(CollectionNavigationToSharedType)),
-                Assert.Throws<InvalidOperationException>(() => modelBuilder.FinalizeModel()).Message);
+                Assert.Throws<InvalidOperationException>(modelBuilder.FinalizeModel).Message);
         }
 
         [ConditionalFact]
@@ -2702,6 +2723,38 @@ public abstract partial class ModelBuilderTest
                         .HasOne(e => e.Reference).WithMany(e => e.Collection)).Message);
         }
 
+        [ConditionalFact]
+        public virtual void HasNoKey_call_on_principal_entity_throws()
+        {
+            var modelBuilder = CreateModelBuilder();
+            modelBuilder.Entity<KeylessCollectionNavigation>().HasMany(e => e.Stores).WithOne();
+            Assert.Equal(
+                CoreStrings.PrincipalKeylessType(
+                    nameof(KeylessCollectionNavigation),
+                    nameof(KeylessCollectionNavigation) + "." + nameof(KeylessCollectionNavigation.Stores),
+                    nameof(Store)),
+                Assert.Throws<InvalidOperationException>(
+                    () => modelBuilder.Entity<KeylessCollectionNavigation>().HasNoKey()).Message);
+        }
+
+        [ConditionalFact]
+        public virtual void HasNoKey_call_on_principal_with_navigation_throws()
+        {
+            var modelBuilder = CreateModelBuilder();
+            modelBuilder.Entity<KeylessReferenceNavigation>();
+            modelBuilder.Entity<KeylessCollectionNavigation>()
+                .HasOne(e => e.Reference)
+                .WithMany(e => e.Collection);
+
+            Assert.Equal(
+                CoreStrings.NavigationToKeylessType(
+                    nameof(KeylessReferenceNavigation.Collection),
+                    nameof(KeylessCollectionNavigation)),
+                Assert.Throws<InvalidOperationException>(
+                    () => modelBuilder.Entity<KeylessCollectionNavigation>().HasNoKey()).Message);
+        }
+
+        [ConditionalFact]
         public virtual void Reference_navigation_from_keyless_entity_type_works()
         {
             var modelBuilder = CreateModelBuilder();

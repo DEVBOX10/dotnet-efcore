@@ -36,7 +36,9 @@ public class RuntimeComplexProperty : RuntimePropertyBase, IComplexProperty
         bool collection,
         ChangeTrackingStrategy changeTrackingStrategy,
         PropertyInfo? indexerPropertyInfo,
-        bool propertyBag)
+        bool propertyBag,
+        int propertyCount,
+        int complexPropertyCount)
         : base(name, propertyInfo, fieldInfo, propertyAccessMode)
     {
         DeclaringType = declaringType;
@@ -44,7 +46,9 @@ public class RuntimeComplexProperty : RuntimePropertyBase, IComplexProperty
         _isNullable = nullable;
         _isCollection = collection;
         ComplexType = new RuntimeComplexType(
-            targetTypeName, targetType, this, changeTrackingStrategy, indexerPropertyInfo, propertyBag);
+            targetTypeName, targetType, this, changeTrackingStrategy, indexerPropertyInfo, propertyBag,
+            propertyCount: propertyCount,
+            complexPropertyCount: complexPropertyCount);
     }
 
     /// <summary>
@@ -64,14 +68,15 @@ public class RuntimeComplexProperty : RuntimePropertyBase, IComplexProperty
     public virtual RuntimeComplexType ComplexType { get; }
 
     /// <inheritdoc />
-    public override object? Sentinel => null;
+    public override object? Sentinel
+        => null;
 
     /// <summary>
     ///     Returns a string that represents the current object.
     /// </summary>
     /// <returns>A string that represents the current object.</returns>
     public override string ToString()
-        => ((IProperty)this).ToDebugString(MetadataDebugStringOptions.SingleLineDefault);
+        => ((IReadOnlyComplexProperty)this).ToDebugString(MetadataDebugStringOptions.SingleLineDefault);
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -82,8 +87,8 @@ public class RuntimeComplexProperty : RuntimePropertyBase, IComplexProperty
     [EntityFrameworkInternal]
     public virtual DebugView DebugView
         => new(
-            () => ((IProperty)this).ToDebugString(),
-            () => ((IProperty)this).ToDebugString(MetadataDebugStringOptions.LongDefault));
+            () => ((IReadOnlyComplexProperty)this).ToDebugString(),
+            () => ((IReadOnlyComplexProperty)this).ToDebugString(MetadataDebugStringOptions.LongDefault));
 
     /// <inheritdoc />
     IReadOnlyTypeBase IReadOnlyPropertyBase.DeclaringType
@@ -98,6 +103,7 @@ public class RuntimeComplexProperty : RuntimePropertyBase, IComplexProperty
         [DebuggerStepThrough]
         get => DeclaringType;
     }
+
     /// <inheritdoc />
 
     IComplexType IComplexProperty.ComplexType

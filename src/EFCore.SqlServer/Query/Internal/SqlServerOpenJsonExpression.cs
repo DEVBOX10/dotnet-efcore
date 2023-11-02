@@ -37,8 +37,7 @@ public class SqlServerOpenJsonExpression : TableValuedFunctionExpression, IClona
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    public virtual SqlExpression? Path
-        => Arguments.Count == 1 ? null : Arguments[1];
+    public virtual IReadOnlyList<PathSegment>? Path { get; }
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -57,11 +56,68 @@ public class SqlServerOpenJsonExpression : TableValuedFunctionExpression, IClona
     public SqlServerOpenJsonExpression(
         string alias,
         SqlExpression jsonExpression,
-        SqlExpression? path = null,
+        IReadOnlyList<PathSegment>? path = null,
         IReadOnlyList<ColumnInfo>? columnInfos = null)
-        : base(alias, "OPENJSON", schema: null, builtIn: true, path is null ? new[] { jsonExpression } : new[] { jsonExpression, path })
+        : base(alias, "OPENJSON", schema: null, builtIn: true, new[] { jsonExpression })
     {
+        Path = path;
         ColumnInfos = columnInfos;
+    }
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    protected override Expression VisitChildren(ExpressionVisitor visitor)
+    {
+        var visitedJsonExpression = (SqlExpression)visitor.Visit(JsonExpression);
+
+        PathSegment[]? visitedPath = null;
+
+        if (Path is not null)
+        {
+            for (var i = 0; i < Path.Count; i++)
+            {
+                var segment = Path[i];
+                PathSegment newSegment;
+
+                if (segment.PropertyName is not null)
+                {
+                    // PropertyName segments are (currently) constants, nothing to visit.
+                    newSegment = segment;
+                }
+                else
+                {
+                    var newArrayIndex = (SqlExpression)visitor.Visit(segment.ArrayIndex)!;
+                    if (newArrayIndex == segment.ArrayIndex)
+                    {
+                        newSegment = segment;
+                    }
+                    else
+                    {
+                        newSegment = new PathSegment(newArrayIndex);
+
+                        if (visitedPath is null)
+                        {
+                            visitedPath = new PathSegment[Path.Count];
+                            for (var j = 0; j < i; i++)
+                            {
+                                visitedPath[j] = Path[j];
+                            }
+                        }
+                    }
+                }
+
+                if (visitedPath is not null)
+                {
+                    visitedPath[i] = newSegment;
+                }
+            }
+        }
+
+        return Update(visitedJsonExpression, visitedPath ?? Path, ColumnInfos);
     }
 
     /// <summary>
@@ -72,14 +128,14 @@ public class SqlServerOpenJsonExpression : TableValuedFunctionExpression, IClona
     /// </summary>
     public virtual SqlServerOpenJsonExpression Update(
         SqlExpression jsonExpression,
-        SqlExpression? path,
+        IReadOnlyList<PathSegment>? path,
         IReadOnlyList<ColumnInfo>? columnInfos = null)
         => jsonExpression == JsonExpression
-        && path == Path
-        && (columnInfos is null ? ColumnInfos is null : ColumnInfos is not null && columnInfos.SequenceEqual(ColumnInfos))
-            ? this
-            : new SqlServerOpenJsonExpression(Alias, jsonExpression, path, columnInfos);
-
+            && (ReferenceEquals(path, Path) || path is not null && Path is not null && path.SequenceEqual(Path))
+            && (ReferenceEquals(columnInfos, ColumnInfos)
+                || columnInfos is not null && ColumnInfos is not null && columnInfos.SequenceEqual(ColumnInfos))
+                ? this
+                : new SqlServerOpenJsonExpression(Alias, jsonExpression, path, columnInfos);
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -100,12 +156,26 @@ public class SqlServerOpenJsonExpression : TableValuedFunctionExpression, IClona
         return clone;
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
     protected override void Print(ExpressionPrinter expressionPrinter)
     {
         expressionPrinter.Append(Name);
         expressionPrinter.Append("(");
-        expressionPrinter.VisitCollection(Arguments);
+        expressionPrinter.Visit(JsonExpression);
+
+        if (Path is not null)
+        {
+            expressionPrinter
+                .Append(", '")
+                .Append(string.Join(".", Path.Select(e => e.ToString())))
+                .Append("'");
+        }
+
         expressionPrinter.Append(")");
 
         if (ColumnInfos is not null)
@@ -124,11 +194,14 @@ public class SqlServerOpenJsonExpression : TableValuedFunctionExpression, IClona
                 expressionPrinter
                     .Append(columnInfo.Name)
                     .Append(" ")
-                    .Append(columnInfo.StoreType ?? "<UNKNOWN>");
+                    .Append(columnInfo.TypeMapping.StoreType);
 
                 if (columnInfo.Path is not null)
                 {
-                    expressionPrinter.Append(" ").Append("'" + columnInfo.Path + "'");
+                    expressionPrinter
+                        .Append(" '")
+                        .Append(string.Join(".", columnInfo.Path.Select(e => e.ToString())))
+                        .Append("'");
                 }
 
                 if (columnInfo.AsJson)
@@ -141,6 +214,7 @@ public class SqlServerOpenJsonExpression : TableValuedFunctionExpression, IClona
         }
 
         PrintAnnotations(expressionPrinter);
+
         expressionPrinter.Append(" AS ");
         expressionPrinter.Append(Alias);
     }
@@ -149,11 +223,35 @@ public class SqlServerOpenJsonExpression : TableValuedFunctionExpression, IClona
     public override bool Equals(object? obj)
         => ReferenceEquals(this, obj) || (obj is SqlServerOpenJsonExpression openJsonExpression && Equals(openJsonExpression));
 
-    private bool Equals(SqlServerOpenJsonExpression openJsonExpression)
-        => base.Equals(openJsonExpression)
-            && (ColumnInfos is null
-                ? openJsonExpression.ColumnInfos is null
-                : openJsonExpression.ColumnInfos is not null && ColumnInfos.SequenceEqual(openJsonExpression.ColumnInfos));
+    private bool Equals(SqlServerOpenJsonExpression other)
+    {
+        if (!base.Equals(other) || ColumnInfos?.Count != other.ColumnInfos?.Count)
+        {
+            return false;
+        }
+
+        if (ReferenceEquals(ColumnInfos, other.ColumnInfos))
+        {
+            return true;
+        }
+
+        for (var i = 0; i < ColumnInfos!.Count; i++)
+        {
+            var (columnInfo, otherColumnInfo) = (ColumnInfos[i], other.ColumnInfos![i]);
+
+            if (columnInfo.Name != otherColumnInfo.Name
+                || !columnInfo.TypeMapping.Equals(otherColumnInfo.TypeMapping)
+                || (columnInfo.Path is null != otherColumnInfo.Path is null
+                    || (columnInfo.Path is not null
+                        && otherColumnInfo.Path is not null
+                        && columnInfo.Path.SequenceEqual(otherColumnInfo.Path))))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     /// <inheritdoc />
     public override int GetHashCode()
@@ -165,5 +263,9 @@ public class SqlServerOpenJsonExpression : TableValuedFunctionExpression, IClona
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    public readonly record struct ColumnInfo(string Name, string StoreType, string? Path = null, bool AsJson = false);
+    public readonly record struct ColumnInfo(
+        string Name,
+        RelationalTypeMapping TypeMapping,
+        IReadOnlyList<PathSegment>? Path = null,
+        bool AsJson = false);
 }

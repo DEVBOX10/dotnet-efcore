@@ -3,7 +3,6 @@
 
 using System.CodeDom.Compiler;
 using System.Runtime.CompilerServices;
-using System.Xml.Linq;
 
 // ReSharper disable InconsistentNaming
 namespace Microsoft.EntityFrameworkCore;
@@ -72,13 +71,15 @@ public abstract class ApiConsistencyTestBase<TFixture> : IClassFixture<TFixture>
                         && !Fixture.UnmatchedMetadataMethods.Contains(method))
                     {
                         var methodFound = false;
-                        foreach (var hidingMethod in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                        foreach (var hidingMethod in type.GetMethods(
+                                     BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
                         {
                             if (method.Name != hidingMethod.Name
                                 || hidingMethod.GetGenericArguments().Length != method.GetGenericArguments().Length
                                 || hidingMethod.ReturnType != type
                                 || !hidingMethod.GetParameters().Select(p => p.ParameterType)
-                                    .SequenceEqual(method.GetParameters().Select(
+                                    .SequenceEqual(
+                                        method.GetParameters().Select(
                                             p => GetEquivalentGenericType(p.ParameterType, hidingMethod.GetGenericArguments()))))
                             {
                                 continue;
@@ -160,7 +161,8 @@ public abstract class ApiConsistencyTestBase<TFixture> : IClassFixture<TFixture>
             {
                 return typeof(Action<>).MakeGenericType(genericBuilder.MakeGenericType(genericArguments));
             }
-            else if (builder.IsGenericType)
+
+            if (builder.IsGenericType)
             {
                 var builderDefinition = builder.GetGenericTypeDefinition();
                 if (builderDefinition.GetGenericArguments().Length == genericArguments.Length)
@@ -183,7 +185,9 @@ public abstract class ApiConsistencyTestBase<TFixture> : IClassFixture<TFixture>
 
             foreach (var method in tuple.Key.GetMethods(PublicInstance | BindingFlags.DeclaredOnly))
             {
-                if (!Fixture.UnmatchedMetadataMethods.Contains(method))
+                if (!Fixture.UnmatchedMetadataMethods.Contains(method)
+                    && !(Fixture.UnmatchedMirrorMethods.TryGetValue(tuple.Value, out var unmatchedMirrorMethods)
+                        && unmatchedMirrorMethods.Contains(method)))
                 {
                     MethodInfo matchingMethod = null;
                     foreach (var targetMethod in tuple.Value.GetMethods(PublicInstance | BindingFlags.DeclaredOnly))
@@ -630,8 +634,9 @@ public abstract class ApiConsistencyTestBase<TFixture> : IClassFixture<TFixture>
     public void Convention_builder_methods_have_matching_returns()
     {
         var errors =
-            Fixture.MetadataTypes.Select(t =>
-                ValidateConventionBuilderMethodReturns(t.Value.ConventionBuilder, t.Value.Convention))
+            Fixture.MetadataTypes.Select(
+                    t =>
+                        ValidateConventionBuilderMethodReturns(t.Value.ConventionBuilder, t.Value.Convention))
                 .Where(e => e != null)
                 .ToList();
 
@@ -742,8 +747,8 @@ public abstract class ApiConsistencyTestBase<TFixture> : IClassFixture<TFixture>
                 {
                     var expectedParameters = new[] { builderType }.Concat(
                             parameters
-                            .Skip(1)
-                            .Select(p => GetEquivalentGenericType(p.ParameterType, builderType.GetGenericArguments())))
+                                .Skip(1)
+                                .Select(p => GetEquivalentGenericType(p.ParameterType, builderType.GetGenericArguments())))
                         .ToArray();
                     var hidingMethod = extensionType.GetMethod(
                         method.Name,
@@ -1263,7 +1268,9 @@ public abstract class ApiConsistencyTestBase<TFixture> : IClassFixture<TFixture>
             { typeof(OwnedEntityTypeBuilder), typeof(OwnedEntityTypeBuilder<>) },
             { typeof(OwnershipBuilder), typeof(OwnershipBuilder<,>) },
             { typeof(PropertyBuilder), typeof(PropertyBuilder<>) },
+            { typeof(PrimitiveCollectionBuilder), typeof(PrimitiveCollectionBuilder<>) },
             { typeof(ComplexTypePropertyBuilder), typeof(ComplexTypePropertyBuilder<>) },
+            { typeof(ComplexTypePrimitiveCollectionBuilder), typeof(ComplexTypePrimitiveCollectionBuilder<>) },
             { typeof(ReferenceCollectionBuilder), typeof(ReferenceCollectionBuilder<,>) },
             { typeof(ReferenceNavigationBuilder), typeof(ReferenceNavigationBuilder<,>) },
             { typeof(ReferenceReferenceBuilder), typeof(ReferenceReferenceBuilder<,>) },
@@ -1276,6 +1283,7 @@ public abstract class ApiConsistencyTestBase<TFixture> : IClassFixture<TFixture>
         public virtual HashSet<MethodInfo> NotAnnotatedMethods { get; } = new();
         public virtual HashSet<MethodInfo> AsyncMethodExceptions { get; } = new();
         public virtual HashSet<MethodInfo> UnmatchedMetadataMethods { get; } = new();
+        public virtual Dictionary<Type, HashSet<MethodInfo>> UnmatchedMirrorMethods { get; } = new();
         public virtual Dictionary<MethodInfo, string> MetadataMethodNameTransformers { get; } = new();
         public virtual HashSet<MethodInfo> MetadataMethodExceptions { get; } = new();
 
@@ -1394,6 +1402,12 @@ public abstract class ApiConsistencyTestBase<TFixture> : IClassFixture<TFixture>
                         typeof(IConventionPropertyBase),
                         typeof(IConventionPropertyBaseBuilder<>),
                         typeof(IPropertyBase))
+                },
+                {
+                    typeof(IReadOnlyElementType), (typeof(IMutableElementType),
+                        typeof(IConventionElementType),
+                        typeof(IConventionElementTypeBuilder),
+                        typeof(IElementType))
                 }
             };
 
@@ -1427,7 +1441,7 @@ public abstract class ApiConsistencyTestBase<TFixture> : IClassFixture<TFixture>
                             || (mi.IsGenericMethod && mi.GetGenericArguments().Length == genericParameterCount))
                         && mi.GetParameters().Select(e => e.ParameterType).SequenceEqual(
                             parameterGenerator(
-                                type.IsGenericType ? type.GenericTypeArguments : Array.Empty<Type>(),
+                                type.IsGenericType ? type.GetGenericArguments() : Array.Empty<Type>(),
                                 mi.IsGenericMethod ? mi.GetGenericArguments() : Array.Empty<Type>())));
 
         protected virtual void Initialize()

@@ -1,8 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-#nullable enable
-
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace Microsoft.EntityFrameworkCore.Metadata.Conventions;
@@ -64,8 +62,8 @@ public class RelationalRuntimeModelConvention : RuntimeModelConvention
 
             if (annotations.TryGetValue(RelationalAnnotationNames.DbFunctions, out var functions))
             {
-                var runtimeFunctions = new SortedDictionary<string, IDbFunction>(StringComparer.Ordinal);
-                foreach (var (key, dbFunction) in (SortedDictionary<string, IDbFunction>)functions!)
+                var runtimeFunctions = new Dictionary<string, IDbFunction>(StringComparer.Ordinal);
+                foreach (var (key, dbFunction) in (Dictionary<string, IDbFunction>)functions!)
                 {
                     var runtimeFunction = Create(dbFunction, runtimeModel);
                     runtimeFunctions[key] = runtimeFunction;
@@ -89,8 +87,8 @@ public class RelationalRuntimeModelConvention : RuntimeModelConvention
 
             if (annotations.TryGetValue(RelationalAnnotationNames.Sequences, out var sequences))
             {
-                var runtimeSequences = new SortedDictionary<(string, string?), ISequence>();
-                foreach (var (key, value) in (SortedDictionary<(string, string?), ISequence>)sequences!)
+                var runtimeSequences = new Dictionary<(string, string?), ISequence>();
+                foreach (var (key, value) in (Dictionary<(string, string?), ISequence>)sequences!)
                 {
                     var runtimeSequence = Create(value, runtimeModel);
                     runtimeSequences[key] = runtimeSequence;

@@ -46,7 +46,7 @@ public class PropertyAccessorsFactory
         IPropertyBase propertyBase,
         bool useStoreGeneratedValues)
     {
-        var entityClrType = propertyBase.DeclaringType.ClrType;
+        var entityClrType = propertyBase.DeclaringType.ContainingEntityType.ClrType;
         var entryParameter = Expression.Parameter(typeof(InternalEntityEntry), "entry");
         var propertyIndex = propertyBase.GetIndex();
         var shadowIndex = propertyBase.GetShadowIndex();
@@ -61,18 +61,19 @@ public class PropertyAccessorsFactory
                 InternalEntityEntry.MakeReadShadowValueMethod(typeof(TProperty)),
                 Expression.Constant(shadowIndex));
 
-            hasSentinelValueExpression = currentValueExpression.MakeHasSentinelValue(propertyBase);
+            hasSentinelValueExpression = currentValueExpression.MakeHasSentinel(propertyBase);
         }
         else
         {
             var convertedExpression = Expression.Convert(
-                Expression.Property(entryParameter, "Entity"),
+                Expression.Property(entryParameter, nameof(InternalEntityEntry.Entity)),
                 entityClrType);
 
             var memberInfo = propertyBase.GetMemberInfo(forMaterialization: false, forSet: false);
 
-            currentValueExpression = PropertyBase.CreateMemberAccess(propertyBase, convertedExpression, memberInfo);
-            hasSentinelValueExpression = currentValueExpression.MakeHasSentinelValue(propertyBase);
+            currentValueExpression = PropertyBase.CreateMemberAccess(
+                propertyBase, convertedExpression, memberInfo, fromContainingType: false);
+            hasSentinelValueExpression = currentValueExpression.MakeHasSentinel(propertyBase);
 
             if (currentValueExpression.Type != typeof(TProperty))
             {
@@ -90,9 +91,9 @@ public class PropertyAccessorsFactory
                                 currentValueExpression),
                             currentValueExpression.Type.IsValueType
                                 ? Expression.Condition(
-                                    Expression.Call(
+                                    Expression.MakeMemberAccess(
                                         nullableValue,
-                                        nullableValue.Type.GetMethod("get_HasValue")!),
+                                        nullableValue.Type.GetProperty("HasValue")!),
                                     Expression.Convert(nullableValue, typeof(TProperty)),
                                     Expression.Default(typeof(TProperty)))
                                 : Expression.Condition(
@@ -113,7 +114,7 @@ public class PropertyAccessorsFactory
             currentValueExpression = Expression.Condition(
                 Expression.Call(
                     entryParameter,
-                    typeof(InternalEntityEntry).GetMethod(nameof(InternalEntityEntry.FlaggedAsStoreGenerated))!,
+                    InternalEntityEntry.FlaggedAsStoreGeneratedMethod,
                     Expression.Constant(propertyIndex)),
                 Expression.Call(
                     entryParameter,
@@ -123,7 +124,7 @@ public class PropertyAccessorsFactory
                     Expression.AndAlso(
                         Expression.Call(
                             entryParameter,
-                            typeof(InternalEntityEntry).GetMethod(nameof(InternalEntityEntry.FlaggedAsTemporary))!,
+                            InternalEntityEntry.FlaggedAsTemporaryMethod,
                             Expression.Constant(propertyIndex)),
                         hasSentinelValueExpression),
                     Expression.Call(

@@ -21,7 +21,7 @@ public class JsonQuerySqliteTest : JsonQueryTestBase<JsonQuerySqliteFixture>
         await base.Json_scalar_length(async);
 
         AssertSql(
-"""
+            """
 SELECT "j"."Name"
 FROM "JsonEntitiesBasic" AS "j"
 WHERE length("j"."OwnedReferenceRoot" ->> 'Name') > 2
@@ -33,7 +33,7 @@ WHERE length("j"."OwnedReferenceRoot" ->> 'Name') > 2
         await base.Basic_json_projection_enum_inside_json_entity(async);
 
         AssertSql(
-"""
+            """
 SELECT "j"."Id", "j"."OwnedReferenceRoot" ->> '$.OwnedReferenceBranch.Enum' AS "Enum"
 FROM "JsonEntitiesBasic" AS "j"
 """);
@@ -67,6 +67,122 @@ FROM "JsonEntitiesBasic" AS "j"
                 () => base.Project_json_entity_FirstOrDefault_subquery_deduplication_outer_reference_and_pruning(async)))
             .Message);
 
+    public override async Task Json_collection_Any_with_predicate(bool async)
+    {
+        await base.Json_collection_Any_with_predicate(async);
+
+        AssertSql(
+"""
+SELECT "j"."Id", "j"."EntityBasicId", "j"."Name", "j"."OwnedCollectionRoot", "j"."OwnedReferenceRoot"
+FROM "JsonEntitiesBasic" AS "j"
+WHERE EXISTS (
+    SELECT 1
+    FROM (
+        SELECT "o"."value" ->> 'Date' AS "Date", "o"."value" ->> 'Enum' AS "Enum", "o"."value" ->> 'Enums' AS "Enums", "o"."value" ->> 'Fraction' AS "Fraction", "o"."value" ->> 'NullableEnum' AS "NullableEnum", "o"."value" ->> 'NullableEnums' AS "NullableEnums", "o"."value" ->> 'OwnedCollectionLeaf' AS "OwnedCollectionLeaf", "o"."value" ->> 'OwnedReferenceLeaf' AS "OwnedReferenceLeaf", "o"."key"
+        FROM json_each("j"."OwnedReferenceRoot", '$.OwnedCollectionBranch') AS "o"
+    ) AS "t"
+    WHERE "t"."OwnedReferenceLeaf" ->> 'SomethingSomething' = 'e1_r_c1_r')
+""");
+    }
+
+    public override async Task Json_collection_Where_ElementAt(bool async)
+    {
+        await base.Json_collection_Where_ElementAt(async);
+
+        AssertSql(
+            """
+SELECT "j"."Id", "j"."EntityBasicId", "j"."Name", "j"."OwnedCollectionRoot", "j"."OwnedReferenceRoot"
+FROM "JsonEntitiesBasic" AS "j"
+WHERE (
+    SELECT "t"."OwnedReferenceLeaf" ->> 'SomethingSomething'
+    FROM (
+        SELECT "o"."value" ->> 'Date' AS "Date", "o"."value" ->> 'Enum' AS "Enum", "o"."value" ->> 'Enums' AS "Enums", "o"."value" ->> 'Fraction' AS "Fraction", "o"."value" ->> 'NullableEnum' AS "NullableEnum", "o"."value" ->> 'NullableEnums' AS "NullableEnums", "o"."value" ->> 'OwnedCollectionLeaf' AS "OwnedCollectionLeaf", "o"."value" ->> 'OwnedReferenceLeaf' AS "OwnedReferenceLeaf", "o"."key"
+        FROM json_each("j"."OwnedReferenceRoot", '$.OwnedCollectionBranch') AS "o"
+    ) AS "t"
+    WHERE "t"."Enum" = 2
+    ORDER BY "t"."key"
+    LIMIT 1 OFFSET 0) = 'e1_r_c2_r'
+""");
+    }
+
+    public override async Task Json_collection_Skip(bool async)
+    {
+        await base.Json_collection_Skip(async);
+
+        AssertSql(
+            """
+SELECT "j"."Id", "j"."EntityBasicId", "j"."Name", "j"."OwnedCollectionRoot", "j"."OwnedReferenceRoot"
+FROM "JsonEntitiesBasic" AS "j"
+WHERE (
+    SELECT "t0"."c"
+    FROM (
+        SELECT "t"."OwnedReferenceLeaf" ->> 'SomethingSomething' AS "c", "t"."key", "t"."key" AS "key0"
+        FROM (
+            SELECT "o"."value" ->> 'Date' AS "Date", "o"."value" ->> 'Enum' AS "Enum", "o"."value" ->> 'Enums' AS "Enums", "o"."value" ->> 'Fraction' AS "Fraction", "o"."value" ->> 'NullableEnum' AS "NullableEnum", "o"."value" ->> 'NullableEnums' AS "NullableEnums", "o"."value" ->> 'OwnedCollectionLeaf' AS "OwnedCollectionLeaf", "o"."value" ->> 'OwnedReferenceLeaf' AS "OwnedReferenceLeaf", "o"."key"
+            FROM json_each("j"."OwnedReferenceRoot", '$.OwnedCollectionBranch') AS "o"
+        ) AS "t"
+        ORDER BY "t"."key"
+        LIMIT -1 OFFSET 1
+    ) AS "t0"
+    ORDER BY "t0"."key0"
+    LIMIT 1 OFFSET 0) = 'e1_r_c2_r'
+""");
+    }
+
+    public override async Task Json_collection_OrderByDescending_Skip_ElementAt(bool async)
+    {
+        await base.Json_collection_OrderByDescending_Skip_ElementAt(async);
+
+        AssertSql(
+            """
+SELECT "j"."Id", "j"."EntityBasicId", "j"."Name", "j"."OwnedCollectionRoot", "j"."OwnedReferenceRoot"
+FROM "JsonEntitiesBasic" AS "j"
+WHERE (
+    SELECT "t0"."c"
+    FROM (
+        SELECT "t"."OwnedReferenceLeaf" ->> 'SomethingSomething' AS "c", "t"."key", "t"."Date" AS "c0"
+        FROM (
+            SELECT "o"."value" ->> 'Date' AS "Date", "o"."value" ->> 'Enum' AS "Enum", "o"."value" ->> 'Enums' AS "Enums", "o"."value" ->> 'Fraction' AS "Fraction", "o"."value" ->> 'NullableEnum' AS "NullableEnum", "o"."value" ->> 'NullableEnums' AS "NullableEnums", "o"."value" ->> 'OwnedCollectionLeaf' AS "OwnedCollectionLeaf", "o"."value" ->> 'OwnedReferenceLeaf' AS "OwnedReferenceLeaf", "o"."key"
+            FROM json_each("j"."OwnedReferenceRoot", '$.OwnedCollectionBranch') AS "o"
+        ) AS "t"
+        ORDER BY "t"."Date" DESC
+        LIMIT -1 OFFSET 1
+    ) AS "t0"
+    ORDER BY "t0"."c0" DESC
+    LIMIT 1 OFFSET 0) = 'e1_r_c1_r'
+""");
+    }
+
+    public override async Task Json_collection_within_collection_Count(bool async)
+    {
+        await base.Json_collection_within_collection_Count(async);
+
+        AssertSql(
+            """
+SELECT "j"."Id", "j"."EntityBasicId", "j"."Name", "j"."OwnedCollectionRoot", "j"."OwnedReferenceRoot"
+FROM "JsonEntitiesBasic" AS "j"
+WHERE EXISTS (
+    SELECT 1
+    FROM (
+        SELECT "o"."value" ->> 'Name' AS "Name", "o"."value" ->> 'Names' AS "Names", "o"."value" ->> 'Number' AS "Number", "o"."value" ->> 'Numbers' AS "Numbers", "o"."value" ->> 'OwnedCollectionBranch' AS "OwnedCollectionBranch", "o"."value" ->> 'OwnedReferenceBranch' AS "OwnedReferenceBranch", "o"."key"
+        FROM json_each("j"."OwnedCollectionRoot", '$') AS "o"
+    ) AS "t"
+    WHERE (
+        SELECT COUNT(*)
+        FROM (
+            SELECT "o0"."value" ->> 'Date' AS "Date", "o0"."value" ->> 'Enum' AS "Enum", "o0"."value" ->> 'Enums' AS "Enums", "o0"."value" ->> 'Fraction' AS "Fraction", "o0"."value" ->> 'NullableEnum' AS "NullableEnum", "o0"."value" ->> 'NullableEnums' AS "NullableEnums", "o0"."value" ->> 'OwnedCollectionLeaf' AS "OwnedCollectionLeaf", "o0"."value" ->> 'OwnedReferenceLeaf' AS "OwnedReferenceLeaf", "o0"."key"
+            FROM json_each("t"."OwnedCollectionBranch", '$') AS "o0"
+        ) AS "t0") = 2)
+""");
+    }
+
+    public override async Task Json_collection_Select_entity_with_initializer_ElementAt(bool async)
+        => Assert.Equal(
+            SqliteStrings.ApplyNotSupported,
+            (await Assert.ThrowsAsync<InvalidOperationException>(
+                () => base.Json_collection_Select_entity_with_initializer_ElementAt(async)))
+            .Message);
+
     [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
     public virtual async Task FromSqlInterpolated_on_entity_with_json_with_predicate(bool async)
@@ -75,12 +191,12 @@ FROM "JsonEntitiesBasic" AS "j"
         await AssertQuery(
             async,
             ss => ((DbSet<JsonEntityBasic>)ss.Set<JsonEntityBasic>()).FromSql(
-                Fixture.TestStore.NormalizeDelimitersInInterpolatedString($"SELECT * FROM [JsonEntitiesBasic] AS j WHERE [j].[Id] = {parameter}")),
-            ss => ss.Set<JsonEntityBasic>(),
-            entryCount: 40);
+                Fixture.TestStore.NormalizeDelimitersInInterpolatedString(
+                    $"SELECT * FROM [JsonEntitiesBasic] AS j WHERE [j].[Id] = {parameter}")),
+            ss => ss.Set<JsonEntityBasic>());
 
         AssertSql(
-"""
+            """
 prm='1' (DbType = String)
 
 SELECT "m"."Id", "m"."EntityBasicId", "m"."Name", "m"."OwnedCollectionRoot", "m"."OwnedReferenceRoot"
@@ -90,12 +206,12 @@ FROM (
 """);
     }
 
-    public override async Task Json_collection_element_access_in_predicate_nested_mix(bool async)
+    public override async Task Json_collection_index_in_predicate_nested_mix(bool async)
     {
-        await base.Json_collection_element_access_in_predicate_nested_mix(async);
+        await base.Json_collection_index_in_predicate_nested_mix(async);
 
         AssertSql(
-"""
+            """
 @__prm_0='0'
 
 SELECT "j"."Id", "j"."EntityBasicId", "j"."Name", "j"."OwnedCollectionRoot", "j"."OwnedReferenceRoot"
@@ -109,7 +225,7 @@ WHERE "j"."OwnedCollectionRoot" ->> '$[1].OwnedCollectionBranch' ->> @__prm_0 ->
         await base.Json_predicate_on_bool_converted_to_int_zero_one(async);
 
         AssertSql(
-"""
+            """
 SELECT "j"."Id", "j"."Reference"
 FROM "JsonEntitiesConverters" AS "j"
 WHERE "j"."Reference" ->> 'BoolConvertedToIntZeroOne' = 1
@@ -121,7 +237,7 @@ WHERE "j"."Reference" ->> 'BoolConvertedToIntZeroOne' = 1
         await base.Json_predicate_on_bool_converted_to_string_True_False(async);
 
         AssertSql(
-"""
+            """
 SELECT "j"."Id", "j"."Reference"
 FROM "JsonEntitiesConverters" AS "j"
 WHERE "j"."Reference" ->> 'BoolConvertedToStringTrueFalse' = 'True'
@@ -133,11 +249,154 @@ WHERE "j"."Reference" ->> 'BoolConvertedToStringTrueFalse' = 'True'
         await base.Json_predicate_on_bool_converted_to_string_Y_N(async);
 
         AssertSql(
-"""
+            """
 SELECT "j"."Id", "j"."Reference"
 FROM "JsonEntitiesConverters" AS "j"
 WHERE "j"."Reference" ->> 'BoolConvertedToStringYN' = 'Y'
 """);
+    }
+
+    public override async Task Json_collection_in_projection_with_anonymous_projection_of_scalars(bool async)
+        => Assert.Equal(
+            SqliteStrings.ApplyNotSupported,
+            (await Assert.ThrowsAsync<InvalidOperationException>(
+                () => base.Json_collection_in_projection_with_anonymous_projection_of_scalars(async)))
+            .Message);
+
+    public override async Task Json_collection_in_projection_with_composition_where_and_anonymous_projection_of_scalars(bool async)
+        => Assert.Equal(
+            SqliteStrings.ApplyNotSupported,
+            (await Assert.ThrowsAsync<InvalidOperationException>(
+                () => base.Json_collection_in_projection_with_composition_where_and_anonymous_projection_of_scalars(async)))
+            .Message);
+
+    public override async Task Json_collection_in_projection_with_composition_where_and_anonymous_projection_of_primitive_arrays(bool async)
+        => Assert.Equal(
+            SqliteStrings.ApplyNotSupported,
+            (await Assert.ThrowsAsync<InvalidOperationException>(
+                () => base.Json_collection_in_projection_with_composition_where_and_anonymous_projection_of_primitive_arrays(async)))
+            .Message);
+
+    public override async Task Json_collection_Select_entity_in_anonymous_object_ElementAt(bool async)
+        => Assert.Equal(
+            SqliteStrings.ApplyNotSupported,
+            (await Assert.ThrowsAsync<InvalidOperationException>(
+                () => base.Json_collection_Select_entity_in_anonymous_object_ElementAt(async)))
+            .Message);
+
+    public override async Task Json_collection_skip_take_in_projection_project_into_anonymous_type(bool async)
+        => Assert.Equal(
+            SqliteStrings.ApplyNotSupported,
+            (await Assert.ThrowsAsync<InvalidOperationException>(
+                () => base.Json_collection_skip_take_in_projection_project_into_anonymous_type(async)))
+            .Message);
+
+    public override async Task Json_collection_skip_take_in_projection_with_json_reference_access_as_final_operation(bool async)
+        => Assert.Equal(
+            SqliteStrings.ApplyNotSupported,
+            (await Assert.ThrowsAsync<InvalidOperationException>(
+                () => base.Json_collection_skip_take_in_projection_with_json_reference_access_as_final_operation(async)))
+            .Message);
+
+    public override async Task Json_collection_distinct_in_projection(bool async)
+        => Assert.Equal(
+            SqliteStrings.ApplyNotSupported,
+            (await Assert.ThrowsAsync<InvalidOperationException>(
+                () => base.Json_collection_distinct_in_projection(async)))
+            .Message);
+
+    public override async Task Json_collection_filter_in_projection(bool async)
+        => Assert.Equal(
+            SqliteStrings.ApplyNotSupported,
+            (await Assert.ThrowsAsync<InvalidOperationException>(
+                () => base.Json_collection_filter_in_projection(async)))
+            .Message);
+
+    public override async Task Json_collection_leaf_filter_in_projection(bool async)
+        => Assert.Equal(
+            SqliteStrings.ApplyNotSupported,
+            (await Assert.ThrowsAsync<InvalidOperationException>(
+                () => base.Json_collection_leaf_filter_in_projection(async)))
+            .Message);
+
+    public override async Task Json_branch_collection_distinct_and_other_collection(bool async)
+        => Assert.Equal(
+            SqliteStrings.ApplyNotSupported,
+            (await Assert.ThrowsAsync<InvalidOperationException>(
+                () => base.Json_branch_collection_distinct_and_other_collection(async)))
+            .Message);
+
+    public override async Task Json_leaf_collection_distinct_and_other_collection(bool async)
+        => Assert.Equal(
+            SqliteStrings.ApplyNotSupported,
+            (await Assert.ThrowsAsync<InvalidOperationException>(
+                () => base.Json_leaf_collection_distinct_and_other_collection(async)))
+            .Message);
+
+    public override async Task Json_multiple_collection_projections(bool async)
+        => Assert.Equal(
+            SqliteStrings.ApplyNotSupported,
+            (await Assert.ThrowsAsync<InvalidOperationException>(
+                () => base.Json_multiple_collection_projections(async)))
+            .Message);
+
+    public override async Task Json_collection_SelectMany(bool async)
+        => Assert.Equal(
+            SqliteStrings.ApplyNotSupported,
+            (await Assert.ThrowsAsync<InvalidOperationException>(
+                () => base.Json_collection_SelectMany(async)))
+            .Message);
+
+    public override async Task Json_collection_skip_take_in_projection(bool async)
+        => Assert.Equal(
+            SqliteStrings.ApplyNotSupported,
+            (await Assert.ThrowsAsync<InvalidOperationException>(
+                () => base.Json_collection_skip_take_in_projection(async)))
+            .Message);
+
+    public override async Task Json_nested_collection_anonymous_projection_in_projection(bool async)
+        => Assert.Equal(
+            SqliteStrings.ApplyNotSupported,
+            (await Assert.ThrowsAsync<InvalidOperationException>(
+                () => base.Json_nested_collection_anonymous_projection_in_projection(async)))
+            .Message);
+
+    public override async Task Json_nested_collection_filter_in_projection(bool async)
+        => Assert.Equal(
+            SqliteStrings.ApplyNotSupported,
+            (await Assert.ThrowsAsync<InvalidOperationException>(
+                () => base.Json_nested_collection_filter_in_projection(async)))
+            .Message);
+
+    public override async Task Json_nested_collection_SelectMany(bool async)
+        => Assert.Equal(
+            SqliteStrings.ApplyNotSupported,
+            (await Assert.ThrowsAsync<InvalidOperationException>(
+                () => base.Json_nested_collection_SelectMany(async)))
+            .Message);
+
+    public override async Task Json_collection_index_in_projection_using_untranslatable_client_method(bool async)
+    {
+        var message = (await Assert.ThrowsAsync<InvalidOperationException>(
+            () => base.Json_collection_index_in_projection_using_untranslatable_client_method(async))).Message;
+
+        Assert.Contains(
+            CoreStrings.QueryUnableToTranslateMethod(
+                "Microsoft.EntityFrameworkCore.Query.JsonQueryTestBase<Microsoft.EntityFrameworkCore.Query.JsonQuerySqliteFixture>",
+                "MyMethod"),
+            message);
+    }
+
+    public override async Task Json_collection_index_in_projection_using_untranslatable_client_method2(bool async)
+    {
+        var message = (await Assert.ThrowsAsync<InvalidOperationException>(
+            () => base.Json_collection_index_in_projection_using_untranslatable_client_method2(async))).Message;
+
+        Assert.Contains(
+            CoreStrings.QueryUnableToTranslateMethod(
+                "Microsoft.EntityFrameworkCore.Query.JsonQueryTestBase<Microsoft.EntityFrameworkCore.Query.JsonQuerySqliteFixture>",
+                "MyMethod"),
+            message);
     }
 
     private void AssertSql(params string[] expected)

@@ -7,7 +7,7 @@ using Xunit;
 
 namespace Microsoft.EntityFrameworkCore.SqlServer;
 
-[SqlServerConfiguredCondition]
+[SqlServerCondition(SqlServerCondition.SupportsSqlClr)]
 public class QueryTests : IDisposable
 {
     private readonly AbrahamicContext _db;
@@ -281,7 +281,8 @@ public class QueryTests : IDisposable
                        select p.Name).ToList();
 
         Assert.Equal(
-            Condense(@"SELECT [p].[Name] FROM [Patriarchy] AS [p] WHERE [p].[Id].GetAncestor(CAST([p].[Id].GetLevel() AS int)) = hierarchyid::Parse('/')"),
+            Condense(
+                @"SELECT [p].[Name] FROM [Patriarchy] AS [p] WHERE [p].[Id].GetAncestor(CAST([p].[Id].GetLevel() AS int)) = hierarchyid::Parse('/')"),
             Condense(_db.Sql));
 
         var all = (from p in _db.Patriarchy
@@ -355,10 +356,33 @@ public class QueryTests : IDisposable
         Assert.Equal(new[] { HierarchyId.Parse("/") }, results);
     }
 
-    public void Dispose()
+    [ConditionalFact]
+    public void Contains_with_parameter_list_can_translate()
     {
-        _db.Dispose();
+        var ids = new[] { HierarchyId.Parse("/1/1/7/"), HierarchyId.Parse("/1/1/99/") };
+        var result = (from p in _db.Patriarchy
+                       where ids.Contains(p.Id)
+                       select p.Name).Single();
+
+        Assert.Equal(
+            """
+@__ids_0='?' (Size = 4000)
+
+SELECT TOP(2) [p].[Name]
+FROM [Patriarchy] AS [p]
+WHERE [p].[Id] IN (
+    SELECT CAST([i].[value] AS hierarchyid) AS [value]
+    FROM OPENJSON(@__ids_0) AS [i]
+)
+""",
+            _db.Sql,
+            ignoreLineEndingDifferences: true);
+
+        Assert.Equal("Dan", result);
     }
+
+    public void Dispose()
+        => _db.Dispose();
 
     // replace whitespace with a single space
     private static string Condense(string str)

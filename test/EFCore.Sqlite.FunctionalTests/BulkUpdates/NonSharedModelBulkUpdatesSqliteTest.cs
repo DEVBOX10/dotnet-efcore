@@ -17,7 +17,7 @@ public class NonSharedModelBulkUpdatesSqliteTest : NonSharedModelBulkUpdatesTest
         await base.Delete_aggregate_root_when_eager_loaded_owned_collection(async);
 
         AssertSql(
-"""
+            """
 DELETE FROM "Owner" AS "o"
 """);
     }
@@ -27,7 +27,7 @@ DELETE FROM "Owner" AS "o"
         await base.Delete_aggregate_root_when_table_sharing_with_owned(async);
 
         AssertSql(
-"""
+            """
 DELETE FROM "Owner" AS "o"
 """);
     }
@@ -44,7 +44,7 @@ DELETE FROM "Owner" AS "o"
         await base.Update_non_owned_property_on_entity_with_owned(async);
 
         AssertSql(
-"""
+            """
 UPDATE "Owner" AS "o"
 SET "Title" = 'SomeValue'
 """);
@@ -55,9 +55,44 @@ SET "Title" = 'SomeValue'
         await base.Update_non_owned_property_on_entity_with_owned2(async);
 
         AssertSql(
-"""
+            """
 UPDATE "Owner" AS "o"
 SET "Title" = COALESCE("o"."Title", '') || '_Suffix'
+""");
+    }
+
+    public override async Task Update_owned_and_non_owned_properties_with_table_sharing(bool async)
+    {
+        await base.Update_owned_and_non_owned_properties_with_table_sharing(async);
+
+        AssertSql(
+            """
+UPDATE "Owner" AS "o"
+SET "OwnedReference_Number" = length("o"."Title"),
+    "Title" = CAST("o"."OwnedReference_Number" AS TEXT)
+""");
+    }
+
+    public override async Task Update_main_table_in_entity_with_entity_splitting(bool async)
+    {
+        await base.Update_main_table_in_entity_with_entity_splitting(async);
+
+        AssertSql(
+            """
+UPDATE "Blogs" AS "b"
+SET "CreationTimestamp" = '2020-01-01 00:00:00'
+""");
+    }
+
+    public override async Task Update_non_main_table_in_entity_with_entity_splitting(bool async)
+    {
+        await base.Update_non_main_table_in_entity_with_entity_splitting(async);
+
+        AssertSql(
+            """
+UPDATE "BlogsPart1" AS "b0"
+SET "Rating" = length("b0"."Title"),
+    "Title" = CAST("b0"."Rating" AS TEXT)
 """);
     }
 
@@ -69,13 +104,14 @@ SET "Title" = COALESCE("o"."Title", '') || '_Suffix'
         await base.Delete_predicate_based_on_optional_navigation(async);
 
         AssertSql(
-"""
+            """
 DELETE FROM "Posts" AS "p"
-WHERE EXISTS (
-    SELECT 1
+WHERE "p"."Id" IN (
+    SELECT "p0"."Id"
     FROM "Posts" AS "p0"
     LEFT JOIN "Blogs" AS "b" ON "p0"."BlogId" = "b"."Id"
-    WHERE "b"."Title" IS NOT NULL AND "b"."Title" LIKE 'Arthur%' AND "p0"."Id" = "p"."Id")
+    WHERE "b"."Title" LIKE 'Arthur%'
+)
 """);
     }
 
@@ -84,7 +120,7 @@ WHERE EXISTS (
         await base.Update_with_alias_uniquification_in_setter_subquery(async);
 
         AssertSql(
-"""
+            """
 UPDATE "Orders" AS "o"
 SET "Total" = (
     SELECT COALESCE(SUM("o0"."Amount"), 0)

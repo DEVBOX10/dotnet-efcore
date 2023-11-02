@@ -52,6 +52,11 @@ public class ConventionSet
     public virtual List<IEntityTypeMemberIgnoredConvention> EntityTypeMemberIgnoredConventions { get; } = new();
 
     /// <summary>
+    ///     Conventions to run when a discriminator property is set.
+    /// </summary>
+    public virtual List<IDiscriminatorPropertySetConvention> DiscriminatorPropertySetConventions { get; } = new();
+
+    /// <summary>
     ///     Conventions to run when the base entity type is changed.
     /// </summary>
     public virtual List<IEntityTypeBaseTypeChangedConvention> EntityTypeBaseTypeChangedConventions { get; } = new();
@@ -258,6 +263,11 @@ public class ConventionSet
     public virtual List<IPropertyFieldChangedConvention> PropertyFieldChangedConventions { get; } = new();
 
     /// <summary>
+    ///     Conventions to run when the field of a property is changed.
+    /// </summary>
+    public virtual List<IPropertyElementTypeChangedConvention> PropertyElementTypeChangedConventions { get; } = new();
+
+    /// <summary>
     ///     Conventions to run when an annotation is changed on a property.
     /// </summary>
     public virtual List<IPropertyAnnotationChangedConvention> PropertyAnnotationChangedConventions { get; } = new();
@@ -266,6 +276,16 @@ public class ConventionSet
     ///     Conventions to run when a property is removed.
     /// </summary>
     public virtual List<IPropertyRemovedConvention> PropertyRemovedConventions { get; } = new();
+
+    /// <summary>
+    ///     Conventions to run when the nullability of the element of a collection is changed.
+    /// </summary>
+    public virtual List<IElementTypeNullabilityChangedConvention> ElementTypeNullabilityChangedConventions { get; } = new();
+
+    /// <summary>
+    ///     Conventions to run when an annotation is changed on the element of a collection.
+    /// </summary>
+    public virtual List<IElementTypeAnnotationChangedConvention> ElementTypeAnnotationChangedConventions { get; } = new();
 
     /// <summary>
     ///     Replaces an existing convention with a derived convention. Also registers the new convention for any
@@ -323,6 +343,12 @@ public class ConventionSet
             && !Replace(EntityTypeMemberIgnoredConventions, entityTypeMemberIgnoredConvention, oldConvetionType))
         {
             EntityTypeMemberIgnoredConventions.Add(entityTypeMemberIgnoredConvention);
+        }
+
+        if (newConvention is IDiscriminatorPropertySetConvention discriminatorPropertySetConvention
+            && !Replace(DiscriminatorPropertySetConventions, discriminatorPropertySetConvention, oldConvetionType))
+        {
+            DiscriminatorPropertySetConventions.Add(discriminatorPropertySetConvention);
         }
 
         if (newConvention is IEntityTypeBaseTypeChangedConvention entityTypeBaseTypeChangedConvention
@@ -665,6 +691,11 @@ public class ConventionSet
             EntityTypeMemberIgnoredConventions.Add(entityTypeMemberIgnoredConvention);
         }
 
+        if (convention is IDiscriminatorPropertySetConvention discriminatorPropertySetConvention)
+        {
+            DiscriminatorPropertySetConventions.Add(discriminatorPropertySetConvention);
+        }
+
         if (convention is IEntityTypeBaseTypeChangedConvention entityTypeBaseTypeChangedConvention)
         {
             EntityTypeBaseTypeChangedConventions.Add(entityTypeBaseTypeChangedConvention);
@@ -976,6 +1007,11 @@ public class ConventionSet
         if (typeof(IEntityTypeMemberIgnoredConvention).IsAssignableFrom(conventionType))
         {
             Remove(EntityTypeMemberIgnoredConventions, conventionType);
+        }
+
+        if (typeof(IDiscriminatorPropertySetConvention).IsAssignableFrom(conventionType))
+        {
+            Remove(DiscriminatorPropertySetConventions, conventionType);
         }
 
         if (typeof(IEntityTypeBaseTypeChangedConvention).IsAssignableFrom(conventionType))

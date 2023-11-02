@@ -349,7 +349,7 @@ public class CosmosSqlTranslatingExpressionVisitor : ExpressionVisitor
             case SqlExpression:
                 return extensionExpression;
 
-            case EntityShaperExpression entityShaperExpression:
+            case StructuralTypeShaperExpression entityShaperExpression:
                 var result = Visit(entityShaperExpression.ValueBufferExpression);
 
                 if (result.NodeType == ExpressionType.Convert
@@ -584,6 +584,7 @@ public class CosmosSqlTranslatingExpressionVisitor : ExpressionVisitor
                     {
                         translatedValues.Add(_sqlExpressionFactory.Constant(value, typeMapping));
                     }
+
                     return _sqlExpressionFactory.In(translatedItem, translatedValues);
                 }
 
@@ -971,7 +972,7 @@ public class CosmosSqlTranslatingExpressionVisitor : ExpressionVisitor
         {
             case SqlConstantExpression sqlConstantExpression:
                 return Expression.Constant(
-                    property.GetGetter().GetClrValue(sqlConstantExpression.Value), property.ClrType.MakeNullable());
+                    property.GetGetter().GetClrValue(sqlConstantExpression.Value!), property.ClrType.MakeNullable());
 
             case SqlParameterExpression sqlParameterExpression
                 when sqlParameterExpression.Name.StartsWith(QueryCompilationContext.QueryParameterPrefix, StringComparison.Ordinal):

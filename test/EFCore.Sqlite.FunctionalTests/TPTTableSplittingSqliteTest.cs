@@ -10,6 +10,10 @@ public class TPTTableSplittingSqliteTest : TPTTableSplittingTestBase
     {
     }
 
+    public override Task Can_insert_dependent_with_just_one_parent()
+        // This scenario is not valid for TPT
+        => Task.CompletedTask;
+
     protected override ITestStoreFactory TestStoreFactory
         => SqliteTestStoreFactory.Instance;
 }

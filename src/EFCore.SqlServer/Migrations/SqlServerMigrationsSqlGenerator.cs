@@ -23,7 +23,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations;
 ///     </para>
 ///     <para>
 ///         See <see href="https://aka.ms/efcore-docs-migrations">Database migrations</see>, and
-///         <see href="https://aka.ms/efcore-docs-sqlserver">Accessing SQL Server and SQL Azure databases with EF Core</see>
+///         <see href="https://aka.ms/efcore-docs-sqlserver">Accessing SQL Server and Azure SQL databases with EF Core</see>
 ///         for more information and examples.
 ///     </para>
 /// </remarks>
@@ -1674,16 +1674,16 @@ public class SqlServerMigrationsSqlGenerator : MigrationsSqlGenerator
             .Append(" AS ")
             .Append(operation.ComputedColumnSql!);
 
-        if (operation.IsStored == true)
-        {
-            builder.Append(" PERSISTED");
-        }
-
         if (operation.Collation != null)
         {
             builder
                 .Append(" COLLATE ")
                 .Append(operation.Collation);
+        }
+
+        if (operation.IsStored == true)
+        {
+            builder.Append(" PERSISTED");
         }
     }
 
@@ -1849,6 +1849,27 @@ public class SqlServerMigrationsSqlGenerator : MigrationsSqlGenerator
         if (operation[SqlServerAnnotationNames.CreatedOnline] is bool isOnline && isOnline)
         {
             options.Add("ONLINE = ON");
+        }
+
+        if (operation[SqlServerAnnotationNames.SortInTempDb] is bool sortInTempDb && sortInTempDb)
+        {
+            options.Add("SORT_IN_TEMPDB = ON");
+        }
+
+        if (operation[SqlServerAnnotationNames.DataCompression] is DataCompressionType dataCompressionType)
+        {
+            switch (dataCompressionType)
+            {
+                case DataCompressionType.None:
+                    options.Add("DATA_COMPRESSION = NONE");
+                    break;
+                case DataCompressionType.Row:
+                    options.Add("DATA_COMPRESSION = ROW");
+                    break;
+                case DataCompressionType.Page:
+                    options.Add("DATA_COMPRESSION = PAGE");
+                    break;
+            }
         }
 
         if (options.Count > 0)
@@ -2452,6 +2473,15 @@ public class SqlServerMigrationsSqlGenerator : MigrationsSqlGenerator
                         // if only difference is in temporal annotations being removed or history table changed etc - we can ignore this operation
                         if (!CanSkipAlterColumnOperation(alterColumnOperation.OldColumn, alterColumnOperation))
                         {
+                            // for alter column operation converting column from nullable to non-nullable in the temporal table
+                            // we must disable versioning in order to properly handle it
+                            // specifically, for null -> non-null, switching values in history table from
+                            // null to the default value for the non-nullable column
+                            if (alterColumnOperation.OldColumn.IsNullable && !alterColumnOperation.IsNullable)
+                            {
+                                DisableVersioning(table!, schema, historyTableName!, historyTableSchema, suppressTransaction);
+                            }
+
                             operations.Add(operation);
 
                             // when modifying a period column, we need to perform the operations as a normal column first, and only later enable period

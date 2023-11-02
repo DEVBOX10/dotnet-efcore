@@ -44,6 +44,14 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Internal
                 operation);
 
         /// <summary>
+        ///     EF Core's SQL Server compatibility level is set to {compatibilityLevel}; compatibility level 130 (SQL Server 2016) is the minimum for most forms of querying of JSON arrays.
+        /// </summary>
+        public static string CompatibilityLevelTooLowForScalarCollections(object? compatibilityLevel)
+            => string.Format(
+                GetString("CompatibilityLevelTooLowForScalarCollections", nameof(compatibilityLevel)),
+                compatibilityLevel);
+
+        /// <summary>
         ///     '{entityType1}.{property1}' and '{entityType2}.{property2}' are both mapped to column '{columnName}' in '{table}', but are configured with different identity increment values.
         /// </summary>
         public static string DuplicateColumnIdentityIncrementMismatch(object? entityType1, object? property1, object? entityType2, object? property2, object? columnName, object? table)
@@ -92,6 +100,14 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Internal
                 index1, entityType1, index2, entityType2, table, indexName);
 
         /// <summary>
+        ///     The indexes {index1} on '{entityType1}' and {index2} on '{entityType2}' are both mapped to '{table}.{indexName}', but have different data compression configurations.
+        /// </summary>
+        public static string DuplicateIndexDataCompressionMismatch(object? index1, object? entityType1, object? index2, object? entityType2, object? table, object? indexName)
+            => string.Format(
+                GetString("DuplicateIndexDataCompressionMismatch", nameof(index1), nameof(entityType1), nameof(index2), nameof(entityType2), nameof(table), nameof(indexName)),
+                index1, entityType1, index2, entityType2, table, indexName);
+
+        /// <summary>
         ///     The indexes {index1} on '{entityType1}' and {index2} on '{entityType2}' are both mapped to '{table}.{indexName}', but have different fill factor configurations.
         /// </summary>
         public static string DuplicateIndexFillFactorMismatch(object? index1, object? entityType1, object? index2, object? entityType2, object? table, object? indexName)
@@ -113,6 +129,14 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Internal
         public static string DuplicateIndexOnlineMismatch(object? index1, object? entityType1, object? index2, object? entityType2, object? table, object? indexName)
             => string.Format(
                 GetString("DuplicateIndexOnlineMismatch", nameof(index1), nameof(entityType1), nameof(index2), nameof(entityType2), nameof(table), nameof(indexName)),
+                index1, entityType1, index2, entityType2, table, indexName);
+
+        /// <summary>
+        ///     The indexes {index1} on '{entityType1}' and {index2} on '{entityType2}' are both mapped to '{table}.{indexName}', but have different sort in tempdb configurations.
+        /// </summary>
+        public static string DuplicateIndexSortInTempDbMismatch(object? index1, object? entityType1, object? index2, object? entityType2, object? table, object? indexName)
+            => string.Format(
+                GetString("DuplicateIndexSortInTempDbMismatch", nameof(index1), nameof(entityType1), nameof(index2), nameof(entityType2), nameof(table), nameof(indexName)),
                 index1, entityType1, index2, entityType2, table, indexName);
 
         /// <summary>
@@ -192,10 +216,12 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Internal
                 table);
 
         /// <summary>
-        ///     A non-constant array index or property name was used when navigating inside a JSON document; this is only supported starting with SQL Server 2017.
+        ///     A non-constant array index or property name was used when navigating inside a JSON document, but EF Core's SQL Server compatibility level is set to {compatibilityLevel}; this is only supported with compatibility level 140 (SQL Server 2017) or higher.
         /// </summary>
-        public static string JsonValuePathExpressionsNotSupported
-            => GetString("JsonValuePathExpressionsNotSupported");
+        public static string JsonValuePathExpressionsNotSupported(object? compatibilityLevel)
+            => string.Format(
+                GetString("JsonValuePathExpressionsNotSupported", nameof(compatibilityLevel)),
+                compatibilityLevel);
 
         /// <summary>
         ///     The properties {properties} are configured to use 'Identity' value generation and are mapped to the same table '{table}', but only one column per table can be configured as 'Identity'. Call 'ValueGeneratedNever' in 'OnModelCreating' for properties that should not use 'Identity'.
@@ -216,6 +242,12 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Internal
         /// </summary>
         public static string NoSavepointRelease
             => GetString("NoSavepointRelease");
+
+        /// <summary>
+        ///     The query is attempting to query a JSON collection of binary data in a context that requires preserving the ordering of the collection; this isn't supported by SQL Server.
+        /// </summary>
+        public static string QueryingOrderedBinaryJsonCollectionsNotSupported
+            => GetString("QueryingOrderedBinaryJsonCollectionsNotSupported");
 
         /// <summary>
         ///     Could not save changes because the target table has computed column with a function that performs data access. Please configure your table accordingly, see https://aka.ms/efcore-docs-sqlserver-save-changes-and-output-clause for more information.

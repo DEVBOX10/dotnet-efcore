@@ -57,9 +57,24 @@ public static class RelationalPropertyExtensions
             return overrides.ColumnName;
         }
 
-        if (storeObject.StoreObjectType != StoreObjectType.Function
-            && storeObject.StoreObjectType != StoreObjectType.SqlQuery)
+        if (!ShouldBeMapped(property, storeObject))
         {
+            return null;
+        }
+
+        var columnAnnotation = property.FindAnnotation(RelationalAnnotationNames.ColumnName);
+        return columnAnnotation != null
+            ? (string?)columnAnnotation.Value
+            : GetDefaultColumnName(property, storeObject);
+
+        static bool ShouldBeMapped(IReadOnlyProperty property, in StoreObjectIdentifier storeObject)
+        {
+            if (storeObject.StoreObjectType == StoreObjectType.Function
+                || storeObject.StoreObjectType == StoreObjectType.SqlQuery)
+            {
+                return true;
+            }
+
             if (property.IsPrimaryKey())
             {
                 var tableFound = false;
@@ -67,7 +82,7 @@ public static class RelationalPropertyExtensions
                 {
                     tableFound = true;
                 }
-                else if(property.DeclaringType is IReadOnlyEntityType declaringEntityType)
+                else if (property.DeclaringType is IReadOnlyEntityType declaringEntityType)
                 {
                     foreach (var containingType in declaringEntityType.GetDerivedTypesInclusive())
                     {
@@ -81,72 +96,68 @@ public static class RelationalPropertyExtensions
 
                 if (!tableFound)
                 {
-                    return null;
+                    return false;
                 }
             }
-            else 
+            else
             {
-                var declaringEntityType = property.DeclaringType.FundamentalEntityType;
-                if (declaringEntityType.GetMappingStrategy() != RelationalAnnotationNames.TpcMappingStrategy)
+                var declaringEntityType = property.DeclaringType.ContainingEntityType;
+                if (declaringEntityType.GetMappingStrategy() == RelationalAnnotationNames.TpcMappingStrategy)
                 {
-                    var declaringStoreObject = StoreObjectIdentifier.Create(property.DeclaringType, storeObject.StoreObjectType);
-                    if (declaringStoreObject == null)
+                    return true;
+                }
+
+                var declaringStoreObject = StoreObjectIdentifier.Create(property.DeclaringType, storeObject.StoreObjectType);
+                if (declaringStoreObject == null)
+                {
+                    var tableFound = false;
+                    var queue = new Queue<IReadOnlyEntityType>();
+                    queue.Enqueue(declaringEntityType);
+                    while (queue.Count > 0 && !tableFound)
                     {
-                        var tableFound = false;
-                        var queue = new Queue<IReadOnlyEntityType>();
-                        queue.Enqueue(declaringEntityType);
-                        while (queue.Count > 0 && !tableFound)
+                        foreach (var containingType in queue.Dequeue().GetDirectlyDerivedTypes())
                         {
-                            foreach (var containingType in queue.Dequeue().GetDirectlyDerivedTypes())
+                            declaringStoreObject = StoreObjectIdentifier.Create(containingType, storeObject.StoreObjectType);
+                            if (declaringStoreObject == null)
                             {
-                                declaringStoreObject = StoreObjectIdentifier.Create(containingType, storeObject.StoreObjectType);
-                                if (declaringStoreObject == null)
-                                {
-                                    queue.Enqueue(containingType);
-                                    continue;
-                                }
-
-                                if (declaringStoreObject == storeObject)
-                                {
-                                    tableFound = true;
-                                    break;
-                                }
+                                queue.Enqueue(containingType);
+                                continue;
                             }
-                        }
 
-                        if (!tableFound)
-                        {
-                            return null;
+                            if (declaringStoreObject == storeObject)
+                            {
+                                tableFound = true;
+                                break;
+                            }
                         }
                     }
-                    else
+
+                    if (!tableFound)
                     {
-                        var fragments = property.DeclaringType.GetMappingFragments(storeObject.StoreObjectType).ToList();
-                        if (fragments.Count > 0)
+                        return false;
+                    }
+                }
+                else
+                {
+                    var fragments = property.DeclaringType.GetMappingFragments(storeObject.StoreObjectType).ToList();
+                    if (fragments.Count > 0)
+                    {
+                        if (property.FindOverrides(storeObject) == null
+                            && (declaringStoreObject != storeObject
+                                || fragments.Any(f => property.FindOverrides(f.StoreObject) != null)))
                         {
-                            if (overrides == null
-                                && (declaringStoreObject != storeObject
-                                    || fragments.Any(f => property.FindOverrides(f.StoreObject) != null)))
-                            {
-                                return null;
-                            }
+                            return false;
                         }
-                        else if (declaringStoreObject != storeObject)
-                        {
-                            return null;
-                        }
+                    }
+                    else if (declaringStoreObject != storeObject)
+                    {
+                        return false;
                     }
                 }
             }
-        }
 
-        var columnAnnotation = property.FindAnnotation(RelationalAnnotationNames.ColumnName);
-        if (columnAnnotation != null)
-        {
-            return (string?)columnAnnotation.Value;
+            return true;
         }
-
-        return GetDefaultColumnName(property, storeObject);
     }
 
     /// <summary>
@@ -213,7 +224,6 @@ public static class RelationalPropertyExtensions
             return sharedTablePrincipalConcurrencyProperty.GetColumnName(storeObject)!;
         }
 
-        
         StringBuilder? builder = null;
         var currentStoreObject = storeObject;
         if (property.DeclaringType is IReadOnlyEntityType entityType)
@@ -242,8 +252,8 @@ public static class RelationalPropertyExtensions
             }
         }
         else if (StoreObjectIdentifier.Create(property.DeclaringType, currentStoreObject.StoreObjectType) == currentStoreObject
-                    || property.DeclaringType.GetMappingFragments(storeObject.StoreObjectType)
-                        .Any(f => f.StoreObject == currentStoreObject))
+                 || property.DeclaringType.GetMappingFragments(storeObject.StoreObjectType)
+                     .Any(f => f.StoreObject == currentStoreObject))
         {
             var complexType = (IReadOnlyComplexType)property.DeclaringType;
             builder ??= new StringBuilder();
@@ -414,6 +424,8 @@ public static class RelationalPropertyExtensions
     ///     be found.
     /// </returns>
     public static string? GetColumnType(this IReadOnlyProperty property)
+        // Note that the type-mapped store type is used in preference to the annotation, since the annotation may
+        // be an incomplete type name like `varchar` which will become `varchar(64)` after the max length facet is required.
         => (string?)(property.FindRelationalTypeMapping()?.StoreType
             ?? property.FindAnnotation(RelationalAnnotationNames.ColumnType)?.Value);
 
@@ -1144,7 +1156,7 @@ public static class RelationalPropertyExtensions
     /// <returns><see langword="true" /> if the mapped column is nullable; <see langword="false" /> otherwise.</returns>
     public static bool IsColumnNullable(this IReadOnlyProperty property)
         => property.IsNullable
-            || (property.DeclaringType is IReadOnlyEntityType entityType
+            || (property.DeclaringType.ContainingEntityType is IReadOnlyEntityType entityType
                 && entityType.BaseType != null
                 && entityType.GetMappingStrategy() == RelationalAnnotationNames.TphMappingStrategy);
 
@@ -1176,7 +1188,7 @@ public static class RelationalPropertyExtensions
         return property.IsNullable
             || (property.DeclaringType is IReadOnlyEntityType entityType
                 && ((entityType.BaseType != null
-                    && entityType.GetMappingStrategy() == RelationalAnnotationNames.TphMappingStrategy)
+                        && entityType.GetMappingStrategy() == RelationalAnnotationNames.TphMappingStrategy)
                     || IsOptionalSharingDependent(entityType, storeObject, 0)));
     }
 

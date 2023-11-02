@@ -5,7 +5,6 @@ using System.Data;
 using System.Globalization;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore.Design.Internal;
-using Microsoft.EntityFrameworkCore.SqlServer.Infrastructure.Internal;
 using Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal;
 
 // ReSharper disable InconsistentNaming
@@ -135,7 +134,7 @@ public class SqlServerTypeMappingTest : RelationalTypeMappingTest
             33,
             true);
 
-        var clone = (SqlServerUdtTypeMapping)mapping.Clone("<clone>", 66);
+        var clone = (SqlServerUdtTypeMapping)mapping.WithStoreTypeAndSize("<clone>", 66);
 
         Assert.NotSame(mapping, clone);
         Assert.Same(mapping.GetType(), clone.GetType());
@@ -158,7 +157,7 @@ public class SqlServerTypeMappingTest : RelationalTypeMappingTest
         Assert.Same(literalGenerator, clone.LiteralGenerator);
 
         var newConverter = CreateConverter(typeof(object));
-        clone = (SqlServerUdtTypeMapping)mapping.Clone(newConverter);
+        clone = (SqlServerUdtTypeMapping)mapping.WithComposedConverter(newConverter);
 
         Assert.NotSame(mapping, clone);
         Assert.Same(mapping.GetType(), clone.GetType());
@@ -183,8 +182,7 @@ public class SqlServerTypeMappingTest : RelationalTypeMappingTest
     public static RelationalTypeMapping GetMapping(Type type)
         => new SqlServerTypeMappingSource(
                 TestServiceFactory.Instance.Create<TypeMappingSourceDependencies>(),
-                TestServiceFactory.Instance.Create<RelationalTypeMappingSourceDependencies>(),
-                new SqlServerSingletonOptions())
+                TestServiceFactory.Instance.Create<RelationalTypeMappingSourceDependencies>())
             .FindMapping(type);
 
     public override void ByteArray_literal_generated_correctly()
@@ -223,12 +221,10 @@ public class SqlServerTypeMappingTest : RelationalTypeMappingTest
 
     [ConditionalFact]
     public override void DateOnly_literal_generated_correctly()
-    {
-        Test_GenerateSqlLiteral_helper(
+        => Test_GenerateSqlLiteral_helper(
             GetMapping(typeof(DateOnly)),
             new DateOnly(2015, 3, 12),
             "'2015-03-12'");
-    }
 
     [ConditionalFact]
     public override void Timespan_literal_generated_correctly()
@@ -418,8 +414,7 @@ public class SqlServerTypeMappingTest : RelationalTypeMappingTest
     public static SqlServerTypeMappingSource GetTypeMappingSource()
         => new(
             TestServiceFactory.Instance.Create<TypeMappingSourceDependencies>(),
-            TestServiceFactory.Instance.Create<RelationalTypeMappingSourceDependencies>(),
-            new SqlServerSingletonOptions());
+            TestServiceFactory.Instance.Create<RelationalTypeMappingSourceDependencies>());
 
     protected virtual void Test_GenerateCodeLiteral_helper(
         RelationalTypeMapping typeMapping,
@@ -428,8 +423,7 @@ public class SqlServerTypeMappingTest : RelationalTypeMappingTest
     {
         var typeMappingSource = new SqlServerTypeMappingSource(
             TestServiceFactory.Instance.Create<TypeMappingSourceDependencies>(),
-            TestServiceFactory.Instance.Create<RelationalTypeMappingSourceDependencies>(),
-            new SqlServerSingletonOptions());
+            TestServiceFactory.Instance.Create<RelationalTypeMappingSourceDependencies>());
 
         var csharpHelper = new CSharpHelper(typeMappingSource);
 

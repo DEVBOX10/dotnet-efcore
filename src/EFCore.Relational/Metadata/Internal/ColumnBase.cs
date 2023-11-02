@@ -22,7 +22,10 @@ public class ColumnBase<TColumnMappingBase> : Annotatable, IColumnBase
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    public ColumnBase(string name, string type, TableBase table,
+    public ColumnBase(
+        string name,
+        string type,
+        TableBase table,
         RelationalTypeMapping? storeTypeMapping = null,
         ValueComparer? providerValueComparer = null)
     {
@@ -131,10 +134,9 @@ public class ColumnBase<TColumnMappingBase> : Annotatable, IColumnBase
     /// </summary>
     public virtual bool AddPropertyMapping(TColumnMappingBase columnMapping)
     {
-        if (PropertyMappings.IndexOf(columnMapping, ColumnMappingBaseComparer.Instance) != -1)
-        {
-            return false;
-        }
+        Check.DebugAssert(
+            PropertyMappings.IndexOf(columnMapping, ColumnMappingBaseComparer.Instance) == -1,
+            $"Duplicate mapping for column {Name}");
 
         PropertyMappings.Add(columnMapping);
         PropertyMappings.Sort(ColumnMappingBaseComparer.Instance);

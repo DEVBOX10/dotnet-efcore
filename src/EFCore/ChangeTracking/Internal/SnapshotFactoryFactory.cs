@@ -21,12 +21,8 @@ public abstract class SnapshotFactoryFactory
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    public virtual Func<ISnapshot> CreateEmpty(IRuntimeTypeBase typeBase)
-        => GetPropertyCount(typeBase) == 0
-            ? (() => Snapshot.Empty)
-            : Expression.Lambda<Func<ISnapshot>>(
-                    CreateConstructorExpression(typeBase, null!))
-                .Compile();
+    public virtual Func<ISnapshot> CreateEmpty(IRuntimeEntityType entityType)
+        => CreateEmptyExpression(entityType).Compile();
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -34,16 +30,29 @@ public abstract class SnapshotFactoryFactory
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    protected virtual Expression CreateConstructorExpression(
-        IRuntimeTypeBase typeBase,
-        ParameterExpression? parameter)
+    public virtual Expression<Func<ISnapshot>> CreateEmptyExpression(IRuntimeEntityType entityType)
+        => Expression.Lambda<Func<ISnapshot>>(CreateConstructorExpression(entityType, null));
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    public virtual Expression CreateConstructorExpression(
+        IRuntimeEntityType entityType,
+        Expression? parameter)
     {
-        var count = GetPropertyCount(typeBase);
+        var count = GetPropertyCount(entityType);
+        if (count == 0)
+        {
+            return Expression.MakeMemberAccess(null, Snapshot.EmptyField);
+        }
 
         var types = new Type[count];
         var propertyBases = new IPropertyBase?[count];
 
-        foreach (var propertyBase in typeBase.GetSnapshottableMembers())
+        foreach (var propertyBase in entityType.GetSnapshottableMembers())
         {
             var index = GetPropertyIndex(propertyBase);
             if (index >= 0)
@@ -62,7 +71,7 @@ public abstract class SnapshotFactoryFactory
             {
                 snapshotExpressions.Add(
                     CreateSnapshotExpression(
-                        typeBase.ClrType,
+                        entityType.ClrType,
                         parameter,
                         types.Skip(i).Take(Snapshot.MaxGenericTypes).ToArray(),
                         propertyBases.Skip(i).Take(Snapshot.MaxGenericTypes).ToList()));
@@ -77,7 +86,7 @@ public abstract class SnapshotFactoryFactory
         }
         else
         {
-            constructorExpression = CreateSnapshotExpression(typeBase.ClrType, parameter, types, propertyBases);
+            constructorExpression = CreateSnapshotExpression(entityType.ClrType, parameter, types, propertyBases);
         }
 
         return constructorExpression;
@@ -91,7 +100,7 @@ public abstract class SnapshotFactoryFactory
     /// </summary>
     protected virtual Expression CreateSnapshotExpression(
         Type? entityType,
-        ParameterExpression? parameter,
+        Expression? parameter,
         Type[] types,
         IList<IPropertyBase?> propertyBases)
     {
@@ -119,6 +128,12 @@ public abstract class SnapshotFactoryFactory
                 continue;
             }
 
+            if (propertyBase is IComplexProperty complexProperty)
+            {
+                arguments[i] = CreateSnapshotValueExpression(CreateReadValueExpression(parameter, complexProperty), complexProperty);
+                continue;
+            }
+
             if (propertyBase.IsShadowProperty())
             {
                 arguments[i] = CreateSnapshotValueExpression(CreateReadShadowValueExpression(parameter, propertyBase), propertyBase);
@@ -126,11 +141,11 @@ public abstract class SnapshotFactoryFactory
             }
 
             var memberInfo = propertyBase.GetMemberInfo(forMaterialization: false, forSet: false);
-            var memberAccess = PropertyBase.CreateMemberAccess(propertyBase, entityVariable!, memberInfo);
+            var memberAccess = PropertyBase.CreateMemberAccess(propertyBase, entityVariable!, memberInfo, fromContainingType: false);
 
             if (memberAccess.Type != propertyBase.ClrType)
             {
-                var hasDefaultValueExpression = memberAccess.MakeHasSentinelValue(propertyBase);
+                var hasDefaultValueExpression = memberAccess.MakeHasSentinel(propertyBase);
 
                 memberAccess = Expression.Condition(
                     hasDefaultValueExpression,
@@ -165,7 +180,7 @@ public abstract class SnapshotFactoryFactory
                         Expression.Assign(
                             entityVariable,
                             Expression.Convert(
-                                Expression.Property(parameter!, "Entity"),
+                                Expression.Property(parameter!, nameof(InternalEntityEntry.Entity)),
                                 entityType!)),
                         constructorExpression
                     })
@@ -174,35 +189,33 @@ public abstract class SnapshotFactoryFactory
 
     private Expression CreateSnapshotValueExpression(Expression expression, IPropertyBase propertyBase)
     {
-        if (propertyBase is IProperty property)
+        if (propertyBase is not IProperty property
+            || GetValueComparer(property) is not ValueComparer comparer)
         {
-            var comparer = GetValueComparer(property);
-
-            if (comparer != null)
-            {
-                if (expression.Type != comparer.Type)
-                {
-                    expression = Expression.Convert(expression, comparer.Type);
-                }
-
-                var snapshotExpression = ReplacingExpressionVisitor.Replace(
-                    comparer.SnapshotExpression.Parameters.Single(),
-                    expression,
-                    comparer.SnapshotExpression.Body);
-
-                if (snapshotExpression.Type != propertyBase.ClrType)
-                {
-                    snapshotExpression = Expression.Convert(snapshotExpression, propertyBase.ClrType);
-                }
-
-                expression = propertyBase.ClrType.IsNullableType()
-                    ? Expression.Condition(
-                        Expression.Equal(expression, Expression.Constant(null, propertyBase.ClrType)),
-                        Expression.Constant(null, propertyBase.ClrType),
-                        snapshotExpression)
-                    : snapshotExpression;
-            }
+            return expression;
         }
+
+        if (expression.Type != comparer.Type)
+        {
+            expression = Expression.Convert(expression, comparer.Type);
+        }
+
+        var snapshotExpression = ReplacingExpressionVisitor.Replace(
+            comparer.SnapshotExpression.Parameters.Single(),
+            expression,
+            comparer.SnapshotExpression.Body);
+
+        if (snapshotExpression.Type != propertyBase.ClrType)
+        {
+            snapshotExpression = Expression.Convert(snapshotExpression, propertyBase.ClrType);
+        }
+
+        expression = propertyBase.ClrType.IsNullableType()
+            ? Expression.Condition(
+                Expression.Equal(expression, Expression.Constant(null, propertyBase.ClrType)),
+                Expression.Constant(null, propertyBase.ClrType),
+                snapshotExpression)
+            : snapshotExpression;
 
         return expression;
     }
@@ -222,7 +235,7 @@ public abstract class SnapshotFactoryFactory
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     protected virtual Expression CreateReadShadowValueExpression(
-        ParameterExpression? parameter,
+        Expression? parameter,
         IPropertyBase property)
         => Expression.Call(
             parameter,
@@ -236,12 +249,12 @@ public abstract class SnapshotFactoryFactory
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     protected virtual Expression CreateReadValueExpression(
-        ParameterExpression? parameter,
+        Expression? parameter,
         IPropertyBase property)
         => Expression.Call(
             parameter,
             InternalEntityEntry.MakeGetCurrentValueMethod(property.ClrType),
-            Expression.Constant(property, typeof(IProperty)));
+            Expression.Constant(property, typeof(IPropertyBase)));
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -257,7 +270,7 @@ public abstract class SnapshotFactoryFactory
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    protected abstract int GetPropertyCount(IRuntimeTypeBase typeBase);
+    protected abstract int GetPropertyCount(IRuntimeEntityType entityType);
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to

@@ -38,14 +38,6 @@ public class QueryOptimizingExpressionVisitor : ExpressionVisitor
     private static readonly MethodInfo StringCompareWithoutComparisonMethod =
         typeof(string).GetRuntimeMethod(nameof(string.Compare), new[] { typeof(string), typeof(string) })!;
 
-    private static readonly MethodInfo StartsWithMethodInfo =
-        typeof(string).GetRuntimeMethod(nameof(string.StartsWith), new[] { typeof(string) })!;
-
-    private static readonly MethodInfo EndsWithMethodInfo =
-        typeof(string).GetRuntimeMethod(nameof(string.EndsWith), new[] { typeof(string) })!;
-
-    private static readonly Expression ConstantNullString = Expression.Constant(null, typeof(string));
-
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
     ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
@@ -180,38 +172,14 @@ public class QueryOptimizingExpressionVisitor : ExpressionVisitor
     /// </summary>
     protected override Expression VisitMethodCall(MethodCallExpression methodCallExpression)
     {
-        if (Equals(StartsWithMethodInfo, methodCallExpression.Method)
-            || Equals(EndsWithMethodInfo, methodCallExpression.Method))
-        {
-            if (methodCallExpression.Arguments[0] is ConstantExpression { Value: "" })
-            {
-                // every string starts/ends with empty string.
-                return Expression.Constant(true);
-            }
-
-            var newObject = Visit(methodCallExpression.Object)!;
-            var newArgument = Visit(methodCallExpression.Arguments[0]);
-
-            var result = Expression.AndAlso(
-                Expression.NotEqual(newObject, ConstantNullString),
-                Expression.AndAlso(
-                    Expression.NotEqual(newArgument, ConstantNullString),
-                    methodCallExpression.Update(newObject, new[] { newArgument })));
-
-            return newArgument is ConstantExpression
-                ? result
-                : Expression.OrElse(
-                    Expression.Equal(
-                        newArgument,
-                        Expression.Constant(string.Empty)),
-                    result);
-        }
-
         // Normalize x.Any(i => i == foo) to x.Contains(foo)
         // And x.All(i => i != foo) to !x.Contains(foo)
         if (methodCallExpression.Method.IsGenericMethod
             && methodCallExpression.Method.GetGenericMethodDefinition() is MethodInfo methodInfo
-            && (methodInfo == EnumerableMethods.AnyWithPredicate || methodInfo == EnumerableMethods.All || methodInfo == QueryableMethods.AnyWithPredicate || methodInfo == QueryableMethods.All)
+            && (methodInfo == EnumerableMethods.AnyWithPredicate
+                || methodInfo == EnumerableMethods.All
+                || methodInfo == QueryableMethods.AnyWithPredicate
+                || methodInfo == QueryableMethods.All)
             && methodCallExpression.Arguments[1].UnwrapLambdaFromQuote() is var lambda
             && TryExtractEqualityOperands(lambda.Body, out var left, out var right, out var negated))
         {
@@ -335,38 +303,7 @@ public class QueryOptimizingExpressionVisitor : ExpressionVisitor
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     protected override Expression VisitUnary(UnaryExpression unaryExpression)
-    {
-        if (unaryExpression is { NodeType: ExpressionType.Not, Operand: MethodCallExpression innerMethodCall }
-            && (Equals(StartsWithMethodInfo, innerMethodCall.Method)
-                || Equals(EndsWithMethodInfo, innerMethodCall.Method)))
-        {
-            if (innerMethodCall.Arguments[0] is ConstantExpression { Value: "" })
-            {
-                // every string starts/ends with empty string.
-                return Expression.Constant(false);
-            }
-
-            var newObject = Visit(innerMethodCall.Object)!;
-            var newArgument = Visit(innerMethodCall.Arguments[0]);
-
-            var result = Expression.AndAlso(
-                Expression.NotEqual(newObject, ConstantNullString),
-                Expression.AndAlso(
-                    Expression.NotEqual(newArgument, ConstantNullString),
-                    Expression.Not(innerMethodCall.Update(newObject, new[] { newArgument }))));
-
-            return newArgument is ConstantExpression
-                ? result
-                : Expression.AndAlso(
-                    Expression.NotEqual(
-                        newArgument,
-                        Expression.Constant(string.Empty)),
-                    result);
-        }
-
-        return unaryExpression.Update(
-            Visit(unaryExpression.Operand));
-    }
+        => unaryExpression.Update(Visit(unaryExpression.Operand));
 
     private static Expression MatchExpressionType(Expression expression, Type typeToMatch)
         => expression.Type != typeToMatch
@@ -438,46 +375,57 @@ public class QueryOptimizingExpressionVisitor : ExpressionVisitor
         // Simplify (a != null ? new { Member = b, ... } : null).Member
         // to a != null ? b : null
         // Later null check removal will simplify it further
-        if (expression is MemberExpression
-            {
-                Expression: ConditionalExpression
-                {
-                    Test: BinaryExpression { NodeType: ExpressionType.Equal or ExpressionType.NotEqual } binaryTest
-                } conditionalExpression
-            } visitedMemberExpression
-            // Exclude HasValue/Value over Nullable<> as they return non-null type and we don't have equivalent for it for null part
-            && !(conditionalExpression.Type.IsNullableValueType()
-                && visitedMemberExpression.Member.Name is nameof(Nullable<int>.HasValue) or nameof(Nullable<int>.Value)))
+        if (expression is MemberExpression { Expression: Expression inner } visitedMemberExpression)
         {
-            var isLeftNullConstant = IsNullConstant(binaryTest.Left);
-            var isRightNullConstant = IsNullConstant(binaryTest.Right);
-
-            if (isLeftNullConstant != isRightNullConstant
-                && ((binaryTest.NodeType == ExpressionType.Equal
-                        && IsNullConstant(conditionalExpression.IfTrue))
-                    || (binaryTest.NodeType == ExpressionType.NotEqual
-                        && IsNullConstant(conditionalExpression.IfFalse))))
+            var (conditional, convert) = inner switch
             {
-                var nonNullExpression = binaryTest.NodeType == ExpressionType.Equal
-                    ? conditionalExpression.IfFalse
-                    : conditionalExpression.IfTrue;
+                ConditionalExpression c => (c, null),
+                UnaryExpression { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked, Operand: ConditionalExpression cond } conv => (cond, conv),
+                _ => (null, null)
+            };
 
-                // Use ReplacingExpressionVisitor rather than creating MemberExpression
-                // So that member access chain on NewExpression/MemberInitExpression condenses
-                nonNullExpression = ReplacingExpressionVisitor.Replace(
-                    visitedMemberExpression.Expression, nonNullExpression, visitedMemberExpression);
-                nonNullExpression = TryOptimizeMemberAccessOverConditional(nonNullExpression) ?? nonNullExpression;
-                if (!nonNullExpression.Type.IsNullableType())
+            if (conditional is { Test: BinaryExpression { NodeType: ExpressionType.Equal or ExpressionType.NotEqual } binaryTest } conditionalExpression
+                && !(conditionalExpression.Type.IsNullableValueType()
+                    && visitedMemberExpression.Member.Name is nameof(Nullable<int>.HasValue) or nameof(Nullable<int>.Value)))
+            {
+                var isLeftNullConstant = IsNullConstant(binaryTest.Left);
+                var isRightNullConstant = IsNullConstant(binaryTest.Right);
+
+                if (isLeftNullConstant != isRightNullConstant
+                    && ((binaryTest.NodeType == ExpressionType.Equal
+                            && IsNullConstant(conditionalExpression.IfTrue))
+                        || (binaryTest.NodeType == ExpressionType.NotEqual
+                            && IsNullConstant(conditionalExpression.IfFalse))))
                 {
-                    nonNullExpression = Expression.Convert(nonNullExpression, nonNullExpression.Type.MakeNullable());
+                    var nonNullExpression = binaryTest.NodeType == ExpressionType.Equal
+                        ? conditionalExpression.IfFalse
+                        : conditionalExpression.IfTrue;
+
+                    // if we removed convert around ConditionalExpression
+                    // we need to re-apply it before we apply the MemberExpression
+                    if (convert is not null)
+                    {
+                        nonNullExpression = convert.Update(nonNullExpression);
+                    }
+
+                    // Use ReplacingExpressionVisitor rather than creating MemberExpression
+                    // So that member access chain on NewExpression/MemberInitExpression condenses
+                    nonNullExpression = ReplacingExpressionVisitor.Replace(
+                        visitedMemberExpression.Expression, nonNullExpression, visitedMemberExpression);
+
+                    nonNullExpression = TryOptimizeMemberAccessOverConditional(nonNullExpression) ?? nonNullExpression;
+                    if (!nonNullExpression.Type.IsNullableType())
+                    {
+                        nonNullExpression = Expression.Convert(nonNullExpression, nonNullExpression.Type.MakeNullable());
+                    }
+
+                    var nullExpression = Expression.Constant(null, nonNullExpression.Type);
+
+                    return Expression.Condition(
+                        conditionalExpression.Test,
+                        binaryTest.NodeType == ExpressionType.Equal ? nullExpression : nonNullExpression,
+                        binaryTest.NodeType == ExpressionType.Equal ? nonNullExpression : nullExpression);
                 }
-
-                var nullExpression = Expression.Constant(null, nonNullExpression.Type);
-
-                return Expression.Condition(
-                    conditionalExpression.Test,
-                    binaryTest.NodeType == ExpressionType.Equal ? nullExpression : nonNullExpression,
-                    binaryTest.NodeType == ExpressionType.Equal ? nonNullExpression : nullExpression);
             }
         }
 

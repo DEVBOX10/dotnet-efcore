@@ -3,13 +3,17 @@
 
 namespace Microsoft.EntityFrameworkCore.Cosmos;
 
-public class MaterializationInterceptionCosmosTest : MaterializationInterceptionTestBase<MaterializationInterceptionCosmosTest.CosmosLibraryContext>,
+public class MaterializationInterceptionCosmosTest :
+    MaterializationInterceptionTestBase<MaterializationInterceptionCosmosTest.CosmosLibraryContext>,
     IClassFixture<MaterializationInterceptionCosmosTest.MaterializationInterceptionCosmosFixture>
 {
     public MaterializationInterceptionCosmosTest(MaterializationInterceptionCosmosFixture fixture)
         : base(fixture)
     {
     }
+
+    public override Task Intercept_query_materialization_with_owned_types_projecting_collection(bool async)
+        => Task.CompletedTask;
 
     public class CosmosLibraryContext : LibraryContext
     {

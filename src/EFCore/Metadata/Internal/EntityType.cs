@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
 using Microsoft.EntityFrameworkCore.Internal;
 
@@ -64,7 +65,7 @@ public class EntityType : TypeBase, IMutableEntityType, IConventionEntityType, I
     private Func<InternalEntityEntry, ISnapshot>? _originalValuesFactory;
     private Func<InternalEntityEntry, ISnapshot>? _temporaryValuesFactory;
     private Func<ISnapshot>? _storeGeneratedValuesFactory;
-    private Func<ValueBuffer, ISnapshot>? _shadowValuesFactory;
+    private Func<IDictionary<string, object?>, ISnapshot>? _shadowValuesFactory;
     private Func<ISnapshot>? _emptyShadowValuesFactory;
     private IProperty[]? _foreignKeyProperties;
     private IProperty[]? _valueGeneratingProperties;
@@ -204,6 +205,11 @@ public class EntityType : TypeBase, IMutableEntityType, IConventionEntityType, I
             }
         }
 
+        foreach (var property in Properties.Values)
+        {
+            Model.RemoveProperty(property);
+        }
+
         _builder = null;
         BaseType?.DirectlyDerivedTypes.Remove(this);
 
@@ -216,7 +222,7 @@ public class EntityType : TypeBase, IMutableEntityType, IConventionEntityType, I
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    new public virtual EntityType? BaseType
+    public new virtual EntityType? BaseType
         => (EntityType?)base.BaseType;
 
     /// <summary>
@@ -474,15 +480,6 @@ public class EntityType : TypeBase, IMutableEntityType, IConventionEntityType, I
         => (EntityType)((IReadOnlyEntityType)this).GetRootType();
 
     /// <summary>
-    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
-    ///     any release. You should only use it directly in your code with extreme caution and knowing that
-    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
-    /// </summary>
-    public override string ToString()
-        => ((IReadOnlyEntityType)this).ToDebugString(MetadataDebugStringOptions.SingleLineDefault);
-
-    /// <summary>
     ///     Runs the conventions when an annotation was set or removed.
     /// </summary>
     /// <param name="name">The key of the set annotation.</param>
@@ -501,9 +498,9 @@ public class EntityType : TypeBase, IMutableEntityType, IConventionEntityType, I
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    public override IEnumerable<IConventionPropertyBase> GetMembers()
-        => GetProperties().Cast<IConventionPropertyBase>()
-            .Concat(GetComplexProperties())
+    public override IEnumerable<PropertyBase> GetMembers()
+        => GetProperties()
+            .Concat<PropertyBase>(GetComplexProperties())
             .Concat(GetServiceProperties())
             .Concat(GetNavigations())
             .Concat(GetSkipNavigations());
@@ -514,9 +511,9 @@ public class EntityType : TypeBase, IMutableEntityType, IConventionEntityType, I
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    public override IEnumerable<IConventionPropertyBase> GetDeclaredMembers()
-        => GetDeclaredProperties().Cast<IConventionPropertyBase>()
-            .Concat(GetDeclaredComplexProperties())
+    public override IEnumerable<PropertyBase> GetDeclaredMembers()
+        => GetDeclaredProperties()
+            .Concat<PropertyBase>(GetDeclaredComplexProperties())
             .Concat(GetDeclaredServiceProperties())
             .Concat(GetDeclaredNavigations())
             .Concat(GetDeclaredSkipNavigations());
@@ -527,9 +524,22 @@ public class EntityType : TypeBase, IMutableEntityType, IConventionEntityType, I
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    public override IEnumerable<IConventionPropertyBase> FindMembersInHierarchy(string name)
-        => FindPropertiesInHierarchy(name).Cast<IConventionPropertyBase>()
-            .Concat(FindComplexPropertiesInHierarchy(name))
+    public override PropertyBase? FindMember(string name)
+        => FindProperty(name)
+            ?? FindNavigation(name)
+            ?? FindComplexProperty(name)
+            ?? FindSkipNavigation(name)
+            ?? ((PropertyBase?)FindServiceProperty(name));
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    public override IEnumerable<PropertyBase> FindMembersInHierarchy(string name)
+        => FindPropertiesInHierarchy(name)
+            .Concat<PropertyBase>(FindComplexPropertiesInHierarchy(name))
             .Concat(FindServicePropertiesInHierarchy(name))
             .Concat(FindNavigationsInHierarchy(name))
             .Concat(FindSkipNavigationsInHierarchy(name));
@@ -1819,9 +1829,8 @@ public class EntityType : TypeBase, IMutableEntityType, IConventionEntityType, I
         var removed = _skipNavigations.Remove(navigation.Name);
         Check.DebugAssert(removed, "Expected the navigation to be removed");
 
-        removed = navigation.ForeignKey is ForeignKey foreignKey
-            ? foreignKey.ReferencingSkipNavigations!.Remove(navigation)
-            : true;
+        removed = navigation.ForeignKey is not ForeignKey foreignKey
+            || foreignKey.ReferencingSkipNavigations!.Remove(navigation);
         Check.DebugAssert(removed, "removed is false");
 
         removed = navigation.TargetEntityType.DeclaredReferencingSkipNavigations!.Remove(navigation);
@@ -2101,7 +2110,7 @@ public class EntityType : TypeBase, IMutableEntityType, IConventionEntityType, I
         => DirectlyDerivedTypes.Count == 0
             ? Enumerable.Empty<Index>()
             : (IEnumerable<Index>)GetDerivedTypes<EntityType>()
-            .Select(et => et.FindDeclaredIndex(properties)).Where(i => i != null);
+                .Select(et => et.FindDeclaredIndex(properties)).Where(i => i != null);
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -2253,13 +2262,22 @@ public class EntityType : TypeBase, IMutableEntityType, IConventionEntityType, I
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
+    public override IEnumerable<PropertyBase> GetSnapshottableMembers()
+        => base.GetSnapshottableMembers().Concat(GetNavigations());
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
     public virtual Func<InternalEntityEntry, ISnapshot> RelationshipSnapshotFactory
         => NonCapturingLazyInitializer.EnsureInitialized(
             ref _relationshipSnapshotFactory, this,
             static entityType =>
             {
                 entityType.EnsureReadOnly();
-                return new RelationshipSnapshotFactoryFactory().Create(entityType);
+                return RelationshipSnapshotFactoryFactory.Instance.Create(entityType);
             });
 
     /// <summary>
@@ -2274,7 +2292,7 @@ public class EntityType : TypeBase, IMutableEntityType, IConventionEntityType, I
             static entityType =>
             {
                 entityType.EnsureReadOnly();
-                return new OriginalValuesFactoryFactory().Create(entityType);
+                return OriginalValuesFactoryFactory.Instance.Create(entityType);
             });
 
     /// <summary>
@@ -2289,7 +2307,7 @@ public class EntityType : TypeBase, IMutableEntityType, IConventionEntityType, I
             static entityType =>
             {
                 entityType.EnsureReadOnly();
-                return new StoreGeneratedValuesFactoryFactory().CreateEmpty(entityType);
+                return StoreGeneratedValuesFactoryFactory.Instance.CreateEmpty(entityType);
             });
 
     /// <summary>
@@ -2304,7 +2322,7 @@ public class EntityType : TypeBase, IMutableEntityType, IConventionEntityType, I
             static entityType =>
             {
                 entityType.EnsureReadOnly();
-                return new TemporaryValuesFactoryFactory().Create(entityType);
+                return TemporaryValuesFactoryFactory.Instance.Create(entityType);
             });
 
     /// <summary>
@@ -2313,13 +2331,13 @@ public class EntityType : TypeBase, IMutableEntityType, IConventionEntityType, I
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    public virtual Func<ValueBuffer, ISnapshot> ShadowValuesFactory
+    public virtual Func<IDictionary<string, object?>, ISnapshot> ShadowValuesFactory
         => NonCapturingLazyInitializer.EnsureInitialized(
             ref _shadowValuesFactory, this,
             static entityType =>
             {
                 entityType.EnsureReadOnly();
-                return new ShadowValuesFactoryFactory().Create(entityType);
+                return ShadowValuesFactoryFactory.Instance.Create(entityType);
             });
 
     /// <summary>
@@ -2334,7 +2352,7 @@ public class EntityType : TypeBase, IMutableEntityType, IConventionEntityType, I
             static entityType =>
             {
                 entityType.EnsureReadOnly();
-                return new EmptyShadowValuesFactoryFactory().CreateEmpty(entityType);
+                return EmptyShadowValuesFactoryFactory.Instance.CreateEmpty(entityType);
             });
 
     /// <summary>
@@ -2692,6 +2710,7 @@ public class EntityType : TypeBase, IMutableEntityType, IConventionEntityType, I
             propertiesList ??= GetProperties()
                 .Concat<IPropertyBase>(GetNavigations())
                 .Concat(GetSkipNavigations())
+                .Concat(GetComplexProperties())
                 .ToList();
             if (ClrType.IsAssignableFrom(type))
             {
@@ -2919,10 +2938,16 @@ public class EntityType : TypeBase, IMutableEntityType, IConventionEntityType, I
     /// </summary>
     public virtual Property? SetDiscriminatorProperty(Property? property, ConfigurationSource configurationSource)
     {
+        if ((string?)this[CoreAnnotationNames.DiscriminatorProperty] == property?.Name)
+        {
+            return property;
+        }
+
         CheckDiscriminatorProperty(property);
 
-        return ((string?)SetAnnotation(CoreAnnotationNames.DiscriminatorProperty, property?.Name, configurationSource)?.Value)
-            == property?.Name
+        SetAnnotation(CoreAnnotationNames.DiscriminatorProperty, property?.Name, configurationSource);
+
+        return Model.ConventionDispatcher.OnDiscriminatorPropertySet(Builder, property?.Name) == property?.Name
                 ? property
                 : (Property?)((IReadOnlyEntityType)this).FindDiscriminatorProperty();
     }
@@ -2950,14 +2975,9 @@ public class EntityType : TypeBase, IMutableEntityType, IConventionEntityType, I
     /// </summary>
     /// <returns>The name of the property that will be used for storing a discriminator value.</returns>
     public virtual string? GetDiscriminatorPropertyName()
-    {
-        if (BaseType != null)
-        {
-            return ((IReadOnlyEntityType)this).GetRootType().GetDiscriminatorPropertyName();
-        }
-
-        return (string?)this[CoreAnnotationNames.DiscriminatorProperty];
-    }
+        => BaseType is null
+            ? (string?)this[CoreAnnotationNames.DiscriminatorProperty]
+            : ((IReadOnlyEntityType)this).GetRootType().GetDiscriminatorPropertyName();
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -2985,7 +3005,7 @@ public class EntityType : TypeBase, IMutableEntityType, IConventionEntityType, I
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    public virtual InstantiationBinding? ConstructorBinding
+    public override InstantiationBinding? ConstructorBinding
     {
         get => IsReadOnly && !ClrType.IsAbstract
             ? NonCapturingLazyInitializer.EnsureInitialized(
@@ -3089,6 +3109,26 @@ public class EntityType : TypeBase, IMutableEntityType, IConventionEntityType, I
     private void UpdateServiceOnlyConstructorBindingConfigurationSource(ConfigurationSource configurationSource)
         => _serviceOnlyConstructorBindingConfigurationSource =
             configurationSource.Max(_serviceOnlyConstructorBindingConfigurationSource);
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [EntityFrameworkInternal]
+    public virtual Func<MaterializationContext, object> GetOrCreateMaterializer(IEntityMaterializerSource source)
+        => source.GetMaterializer(this);
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [EntityFrameworkInternal]
+    public virtual Func<MaterializationContext, object> GetOrCreateEmptyMaterializer(IEntityMaterializerSource source)
+        => source.GetEmptyMaterializer(this);
 
     #endregion
 
@@ -4793,4 +4833,13 @@ public class EntityType : TypeBase, IMutableEntityType, IConventionEntityType, I
         => new(
             () => ((IReadOnlyEntityType)this).ToDebugString(),
             () => ((IReadOnlyEntityType)this).ToDebugString(MetadataDebugStringOptions.LongDefault));
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    public override string ToString()
+        => ((IReadOnlyEntityType)this).ToDebugString(MetadataDebugStringOptions.SingleLineDefault);
 }

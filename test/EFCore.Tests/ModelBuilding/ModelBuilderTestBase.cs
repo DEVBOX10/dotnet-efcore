@@ -4,8 +4,6 @@
 #nullable enable
 
 using Microsoft.EntityFrameworkCore.Diagnostics.Internal;
-using Microsoft.EntityFrameworkCore.Metadata;
-using static Microsoft.EntityFrameworkCore.ModelBuilding.ModelBuilderTest;
 
 // ReSharper disable InconsistentNaming
 namespace Microsoft.EntityFrameworkCore.ModelBuilding;
@@ -101,7 +99,7 @@ public abstract partial class ModelBuilderTest
 
         protected abstract TestModelBuilder CreateTestModelBuilder(
             TestHelpers testHelpers,
-            Action<ModelConfigurationBuilder>? configure);
+            Action<ModelConfigurationBuilder>? configure = null);
     }
 
     public abstract class TestModelBuilder : IInfrastructure<ModelBuilder>
@@ -201,18 +199,35 @@ public abstract partial class ModelBuilderTest
             Expression<Func<TEntity, TProperty>> propertyExpression);
 
         public abstract TestPropertyBuilder<TProperty> Property<TProperty>(string propertyName);
+
+        public abstract TestPrimitiveCollectionBuilder<TProperty> PrimitiveCollection<TProperty>(
+            Expression<Func<TEntity, TProperty>> propertyExpression);
+
+        public abstract TestPrimitiveCollectionBuilder<TProperty> PrimitiveCollection<TProperty>(string propertyName);
+
         public abstract TestPropertyBuilder<TProperty> IndexerProperty<TProperty>(string propertyName);
+
+        public abstract TestComplexPropertyBuilder<TProperty> ComplexProperty<TProperty>(string propertyName);
 
         public abstract TestComplexPropertyBuilder<TProperty> ComplexProperty<TProperty>(
             Expression<Func<TEntity, TProperty>> propertyExpression);
 
-        public abstract TestComplexPropertyBuilder<TProperty> ComplexProperty<TProperty>(string propertyName);
+        public abstract TestComplexPropertyBuilder<TProperty> ComplexProperty<TProperty>(
+            Expression<Func<TEntity, TProperty>> propertyExpression,
+            string complexTypeName);
 
         public abstract TestEntityTypeBuilder<TEntity> ComplexProperty<TProperty>(
-            Expression<Func<TEntity, TProperty>> propertyExpression, Action<TestComplexPropertyBuilder<TProperty>> buildAction);
+            Expression<Func<TEntity, TProperty>> propertyExpression,
+            Action<TestComplexPropertyBuilder<TProperty>> buildAction);
 
         public abstract TestEntityTypeBuilder<TEntity> ComplexProperty<TProperty>(
-            string propertyName, Action<TestComplexPropertyBuilder<TProperty>> buildAction);
+            Expression<Func<TEntity, TProperty>> propertyExpression,
+            string complexTypeName,
+            Action<TestComplexPropertyBuilder<TProperty>> buildAction);
+
+        public abstract TestEntityTypeBuilder<TEntity> ComplexProperty<TProperty>(
+            string propertyName,
+            Action<TestComplexPropertyBuilder<TProperty>> buildAction);
 
         public abstract TestNavigationBuilder Navigation<TNavigation>(
             Expression<Func<TEntity, TNavigation?>> navigationExpression)
@@ -357,18 +372,35 @@ public abstract partial class ModelBuilderTest
             Expression<Func<TComplex, TProperty>> propertyExpression);
 
         public abstract TestComplexTypePropertyBuilder<TProperty> Property<TProperty>(string propertyName);
+
+        public abstract TestComplexTypePrimitiveCollectionBuilder<TProperty> PrimitiveCollection<TProperty>(
+            Expression<Func<TComplex, TProperty>> propertyExpression);
+
+        public abstract TestComplexTypePrimitiveCollectionBuilder<TProperty> PrimitiveCollection<TProperty>(string propertyName);
+
         public abstract TestComplexTypePropertyBuilder<TProperty> IndexerProperty<TProperty>(string propertyName);
+
+        public abstract TestComplexPropertyBuilder<TProperty> ComplexProperty<TProperty>(string propertyName);
 
         public abstract TestComplexPropertyBuilder<TProperty> ComplexProperty<TProperty>(
             Expression<Func<TComplex, TProperty>> propertyExpression);
 
-        public abstract TestComplexPropertyBuilder<TProperty> ComplexProperty<TProperty>(string propertyName);
+        public abstract TestComplexPropertyBuilder<TProperty> ComplexProperty<TProperty>(
+            Expression<Func<TComplex, TProperty>> propertyExpression,
+            string complexTypeName);
 
         public abstract TestComplexPropertyBuilder<TComplex> ComplexProperty<TProperty>(
-            Expression<Func<TComplex, TProperty>> propertyExpression, Action<TestComplexPropertyBuilder<TProperty>> buildAction);
+            Expression<Func<TComplex, TProperty>> propertyExpression,
+            Action<TestComplexPropertyBuilder<TProperty>> buildAction);
 
         public abstract TestComplexPropertyBuilder<TComplex> ComplexProperty<TProperty>(
-            string propertyName, Action<TestComplexPropertyBuilder<TProperty>> buildAction);
+            Expression<Func<TComplex, TProperty>> propertyExpression,
+            string complexTypeName,
+            Action<TestComplexPropertyBuilder<TProperty>> buildAction);
+
+        public abstract TestComplexPropertyBuilder<TComplex> ComplexProperty<TProperty>(
+            string propertyName,
+            Action<TestComplexPropertyBuilder<TProperty>> buildAction);
 
         public abstract TestComplexPropertyBuilder<TComplex> Ignore(
             Expression<Func<TComplex, object?>> propertyExpression);
@@ -497,6 +529,92 @@ public abstract partial class ModelBuilderTest
             where TProviderComparer : ValueComparer;
     }
 
+    public abstract class TestPrimitiveCollectionBuilder<TProperty>
+    {
+        public abstract TestElementTypeBuilder ElementType();
+        public abstract TestPrimitiveCollectionBuilder<TProperty> ElementType(Action<TestElementTypeBuilder> builderAction);
+
+        public abstract IMutableProperty Metadata { get; }
+        public abstract TestPrimitiveCollectionBuilder<TProperty> HasAnnotation(string annotation, object? value);
+        public abstract TestPrimitiveCollectionBuilder<TProperty> IsRequired(bool isRequired = true);
+        public abstract TestPrimitiveCollectionBuilder<TProperty> HasMaxLength(int maxLength);
+        public abstract TestPrimitiveCollectionBuilder<TProperty> HasSentinel(object? sentinel);
+        public abstract TestPrimitiveCollectionBuilder<TProperty> IsUnicode(bool unicode = true);
+        public abstract TestPrimitiveCollectionBuilder<TProperty> IsConcurrencyToken(bool isConcurrencyToken = true);
+
+        public abstract TestPrimitiveCollectionBuilder<TProperty> ValueGeneratedNever();
+        public abstract TestPrimitiveCollectionBuilder<TProperty> ValueGeneratedOnAdd();
+        public abstract TestPrimitiveCollectionBuilder<TProperty> ValueGeneratedOnAddOrUpdate();
+        public abstract TestPrimitiveCollectionBuilder<TProperty> ValueGeneratedOnUpdate();
+
+        public abstract TestPrimitiveCollectionBuilder<TProperty> HasValueGenerator<TGenerator>()
+            where TGenerator : ValueGenerator;
+
+        public abstract TestPrimitiveCollectionBuilder<TProperty> HasValueGenerator(Type valueGeneratorType);
+
+        public abstract TestPrimitiveCollectionBuilder<TProperty> HasValueGeneratorFactory<TFactory>()
+            where TFactory : ValueGeneratorFactory;
+
+        public abstract TestPrimitiveCollectionBuilder<TProperty> HasValueGeneratorFactory(Type valueGeneratorFactoryType);
+
+        public abstract TestPrimitiveCollectionBuilder<TProperty> HasField(string fieldName);
+        public abstract TestPrimitiveCollectionBuilder<TProperty> UsePropertyAccessMode(PropertyAccessMode propertyAccessMode);
+    }
+
+    public class TestElementTypeBuilder(ElementTypeBuilder elementTypeBuilder)
+    {
+        public virtual ElementTypeBuilder ElementTypeBuilder { get; } = elementTypeBuilder;
+
+        public virtual IMutableElementType Metadata
+            => ElementTypeBuilder.Metadata;
+
+        protected virtual TestElementTypeBuilder Wrap(ElementTypeBuilder elementTypeBuilder)
+            => new(elementTypeBuilder);
+
+        public virtual TestElementTypeBuilder HasAnnotation(string annotation, object? value)
+            => Wrap(ElementTypeBuilder.HasAnnotation(annotation, value));
+
+        public virtual TestElementTypeBuilder IsRequired(bool required = true)
+            => Wrap(ElementTypeBuilder.IsRequired(required));
+
+        public virtual TestElementTypeBuilder HasMaxLength(int maxLength)
+            => Wrap(ElementTypeBuilder.HasMaxLength(maxLength));
+
+        public virtual TestElementTypeBuilder HasPrecision(int precision, int scale)
+            => Wrap(ElementTypeBuilder.HasPrecision(precision, scale));
+
+        public virtual TestElementTypeBuilder HasPrecision(int precision)
+            => Wrap(ElementTypeBuilder.HasPrecision(precision));
+
+        public virtual TestElementTypeBuilder IsUnicode(bool unicode = true)
+            => Wrap(ElementTypeBuilder.IsUnicode(unicode));
+
+        public virtual TestElementTypeBuilder HasConversion<TConversion>()
+            => Wrap(ElementTypeBuilder.HasConversion<TConversion>());
+
+        public virtual TestElementTypeBuilder HasConversion(Type? conversionType)
+            => Wrap(ElementTypeBuilder.HasConversion(conversionType));
+
+        public virtual TestElementTypeBuilder HasConversion(ValueConverter? converter)
+            => Wrap(ElementTypeBuilder.HasConversion(converter));
+
+        public virtual TestElementTypeBuilder HasConversion<TConversion>(ValueComparer? valueComparer)
+            => Wrap(ElementTypeBuilder.HasConversion<TConversion>(valueComparer));
+
+        public virtual TestElementTypeBuilder HasConversion(Type conversionType, ValueComparer? valueComparer)
+            => Wrap(ElementTypeBuilder.HasConversion(conversionType, valueComparer));
+
+        public virtual TestElementTypeBuilder HasConversion(ValueConverter? converter, ValueComparer? valueComparer)
+            => Wrap(ElementTypeBuilder.HasConversion(converter, valueComparer));
+
+        public virtual TestElementTypeBuilder HasConversion<TConversion, TComparer>()
+            where TComparer : ValueComparer
+            => Wrap(ElementTypeBuilder.HasConversion<TConversion, TComparer>());
+
+        public virtual TestElementTypeBuilder HasConversion(Type conversionType, Type? comparerType)
+            => Wrap(ElementTypeBuilder.HasConversion(conversionType, comparerType));
+    }
+
     public abstract class TestComplexTypePropertyBuilder<TProperty>
     {
         public abstract IMutableProperty Metadata { get; }
@@ -519,9 +637,6 @@ public abstract partial class ModelBuilderTest
             where TGenerator : ValueGenerator;
 
         public abstract TestComplexTypePropertyBuilder<TProperty> HasValueGenerator(Type valueGeneratorType);
-
-        public abstract TestComplexTypePropertyBuilder<TProperty> HasValueGenerator(
-            Func<IReadOnlyProperty, ITypeBase, ValueGenerator> factory);
 
         public abstract TestComplexTypePropertyBuilder<TProperty> HasValueGeneratorFactory<TFactory>()
             where TFactory : ValueGeneratorFactory;
@@ -578,6 +693,33 @@ public abstract partial class ModelBuilderTest
         public abstract TestComplexTypePropertyBuilder<TProperty> HasConversion<TConverter, TComparer, TProviderComparer>()
             where TComparer : ValueComparer
             where TProviderComparer : ValueComparer;
+    }
+
+    public abstract class TestComplexTypePrimitiveCollectionBuilder<TProperty>
+    {
+        public abstract IMutableProperty Metadata { get; }
+        public abstract TestComplexTypePrimitiveCollectionBuilder<TProperty> HasAnnotation(string annotation, object? value);
+        public abstract TestComplexTypePrimitiveCollectionBuilder<TProperty> IsRequired(bool isRequired = true);
+        public abstract TestComplexTypePrimitiveCollectionBuilder<TProperty> HasMaxLength(int maxLength);
+        public abstract TestComplexTypePrimitiveCollectionBuilder<TProperty> HasSentinel(object? sentinel);
+        public abstract TestComplexTypePrimitiveCollectionBuilder<TProperty> IsUnicode(bool unicode = true);
+        public abstract TestComplexTypePrimitiveCollectionBuilder<TProperty> IsConcurrencyToken(bool isConcurrencyToken = true);
+        public abstract TestComplexTypePrimitiveCollectionBuilder<TProperty> ValueGeneratedNever();
+        public abstract TestComplexTypePrimitiveCollectionBuilder<TProperty> ValueGeneratedOnAdd();
+        public abstract TestComplexTypePrimitiveCollectionBuilder<TProperty> ValueGeneratedOnAddOrUpdate();
+        public abstract TestComplexTypePrimitiveCollectionBuilder<TProperty> ValueGeneratedOnUpdate();
+
+        public abstract TestComplexTypePrimitiveCollectionBuilder<TProperty> HasValueGenerator<TGenerator>()
+            where TGenerator : ValueGenerator;
+
+        public abstract TestComplexTypePrimitiveCollectionBuilder<TProperty> HasValueGenerator(Type valueGeneratorType);
+
+        public abstract TestComplexTypePrimitiveCollectionBuilder<TProperty> HasValueGeneratorFactory<TFactory>()
+            where TFactory : ValueGeneratorFactory;
+
+        public abstract TestComplexTypePrimitiveCollectionBuilder<TProperty> HasValueGeneratorFactory(Type valueGeneratorFactoryType);
+        public abstract TestComplexTypePrimitiveCollectionBuilder<TProperty> HasField(string fieldName);
+        public abstract TestComplexTypePrimitiveCollectionBuilder<TProperty> UsePropertyAccessMode(PropertyAccessMode propertyAccessMode);
     }
 
     public abstract class TestNavigationBuilder

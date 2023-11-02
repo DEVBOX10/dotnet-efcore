@@ -28,6 +28,8 @@ public class ApiConsistencyTest : ApiConsistencyTestBase<ApiConsistencyTest.ApiC
         {
             AddInstanceMethods(MetadataTypes);
 
+            MirrorTypes.Add(typeof(PropertyBuilder), typeof(ComplexTypePropertyBuilder));
+
             base.Initialize();
         }
 
@@ -44,8 +46,11 @@ public class ApiConsistencyTest : ApiConsistencyTestBase<ApiConsistencyTest.ApiC
             typeof(DiscriminatorBuilder<>),
             typeof(EntityTypeBuilder),
             typeof(EntityTypeBuilder<>),
+            typeof(ElementTypeBuilder),
             typeof(ComplexPropertyBuilder),
             typeof(ComplexPropertyBuilder<>),
+            typeof(ComplexTypePrimitiveCollectionBuilder),
+            typeof(ComplexTypePrimitiveCollectionBuilder<>),
             typeof(IndexBuilder),
             typeof(IndexBuilder<>),
             typeof(TriggerBuilder),
@@ -62,6 +67,8 @@ public class ApiConsistencyTest : ApiConsistencyTestBase<ApiConsistencyTest.ApiC
             typeof(OwnershipBuilder<,>),
             typeof(PropertyBuilder),
             typeof(PropertyBuilder<>),
+            typeof(PrimitiveCollectionBuilder),
+            typeof(PrimitiveCollectionBuilder<>),
             typeof(ComplexTypePropertyBuilder),
             typeof(ComplexTypePropertyBuilder<>),
             typeof(ReferenceCollectionBuilder),
@@ -90,7 +97,9 @@ public class ApiConsistencyTest : ApiConsistencyTestBase<ApiConsistencyTest.ApiC
             typeof(StateManager).GetMethod("get_ChangeDetector"),
             typeof(JsonValueReaderWriter<>).GetMethod(nameof(JsonValueReaderWriter.FromJson)),
             typeof(JsonValueReaderWriter<>).GetMethod(nameof(JsonValueReaderWriter.ToJson)),
-            typeof(JsonValueReaderWriter<>).GetMethod("get_ValueType")
+            typeof(JsonValueReaderWriter<>).GetMethod("get_ValueType"),
+            typeof(JsonValueReaderWriter).GetMethod(nameof(JsonValueReaderWriter.FromJsonString)),
+            typeof(JsonValueReaderWriter).GetMethod(nameof(JsonValueReaderWriter.ToJsonString))
         };
 
         public override HashSet<MethodInfo> NotAnnotatedMethods { get; } = new()
@@ -116,10 +125,14 @@ public class ApiConsistencyTest : ApiConsistencyTestBase<ApiConsistencyTest.ApiC
 
         public override HashSet<MethodInfo> UnmatchedMetadataMethods { get; } = new()
         {
+            typeof(PropertyBuilder).GetMethod(
+                nameof(PropertyBuilder.HasValueGenerator), 0, new[] { typeof(Func<IProperty, ITypeBase, ValueGenerator>) }),
             typeof(ComplexPropertyBuilder).GetMethod(
                 nameof(ComplexPropertyBuilder.ComplexProperty), 0, new[] { typeof(string) }),
             typeof(ComplexPropertyBuilder).GetMethod(
                 nameof(ComplexPropertyBuilder.ComplexProperty), 0, new[] { typeof(Type), typeof(string) }),
+            typeof(ComplexPropertyBuilder).GetMethod(
+                nameof(ComplexPropertyBuilder.ComplexProperty), 0, new[] { typeof(Type), typeof(string), typeof(string) }),
             typeof(OwnedNavigationBuilder).GetMethod(
                 nameof(OwnedNavigationBuilder.OwnsOne), 0, new[] { typeof(string), typeof(string) }),
             typeof(OwnedNavigationBuilder).GetMethod(
@@ -156,6 +169,7 @@ public class ApiConsistencyTest : ApiConsistencyTestBase<ApiConsistencyTest.ApiC
             typeof(IConventionAnnotatable).GetMethod(nameof(IConventionAnnotatable.SetAnnotation)),
             typeof(IConventionAnnotatable).GetMethod(nameof(IConventionAnnotatable.SetOrRemoveAnnotation)),
             typeof(IConventionModelBuilder).GetMethod(nameof(IConventionModelBuilder.HasNoEntityType)),
+            typeof(IConventionModelBuilder).GetMethod(nameof(IConventionModelBuilder.ComplexType)),
             typeof(IReadOnlyEntityType).GetMethod(nameof(IReadOnlyEntityType.GetConcreteDerivedTypesInclusive)),
             typeof(IMutableEntityType).GetMethod(nameof(IMutableEntityType.AddData)),
             typeof(IReadOnlyNavigationBase).GetMethod("get_DeclaringEntityType"),

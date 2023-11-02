@@ -49,7 +49,8 @@ public class StoreStoredProcedure : TableBase, IStoreStoredProcedure
         foreach (var parameter in storedProcedure.Parameters)
         {
             var storeParameter = FindParameter(parameter.Name)!;
-            Check.DebugAssert(parameter.StoreParameter == null,
+            Check.DebugAssert(
+                parameter.StoreParameter == null,
                 $"'{parameter.StoredProcedure.Name}.{parameter.Name}' StoreParameter should be null");
 
             ((IRuntimeStoredProcedureParameter)parameter).StoreParameter = storeParameter;
@@ -58,7 +59,8 @@ public class StoreStoredProcedure : TableBase, IStoreStoredProcedure
         foreach (var resultColumn in storedProcedure.ResultColumns)
         {
             var column = FindResultColumn(resultColumn.Name)!;
-            Check.DebugAssert(resultColumn.StoreResultColumn == null,
+            Check.DebugAssert(
+                resultColumn.StoreResultColumn == null,
                 $"'{resultColumn.StoredProcedure.Name}.{resultColumn.Name}' StoreResultColumn should be null");
 
             ((IRuntimeStoredProcedureResultColumn)resultColumn).StoreResultColumn = column;
@@ -171,7 +173,6 @@ public class StoreStoredProcedure : TableBase, IStoreStoredProcedure
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    [EntityFrameworkInternal]
     public virtual DebugView DebugView
         => new(
             () => ((IStoreStoredProcedure)this).ToDebugString(),

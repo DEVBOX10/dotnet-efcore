@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Query.Internal;
+using Microsoft.EntityFrameworkCore.Storage.Json;
 
 // ReSharper disable UnusedMember.Local
 // ReSharper disable UnusedAutoPropertyAccessor.Local
@@ -310,8 +311,18 @@ public class ChangeDetectorTest
         {
         }
 
-        public override CoreTypeMapping Clone(ValueConverter converter)
-            => new ConcreteTypeMapping(Parameters.WithComposedConverter(converter));
+        public override CoreTypeMapping WithComposedConverter(
+            ValueConverter converter,
+            ValueComparer comparer = null,
+            ValueComparer keyComparer = null,
+            CoreTypeMapping elementMapping = null,
+            JsonValueReaderWriter jsonValueReaderWriter = null)
+            => new ConcreteTypeMapping(
+                Parameters.WithComposedConverter(
+                    converter, comparer, keyComparer, elementMapping, jsonValueReaderWriter));
+
+        protected override CoreTypeMapping Clone(CoreTypeMappingParameters parameters)
+            => new ConcreteTypeMapping(parameters);
     }
 
     private class BaxterContext : DbContext
@@ -1252,7 +1263,6 @@ public class ChangeDetectorTest
     {
         var contextServices = CreateContextServices(BuildNotifyingModel());
 
-        var changeDetector = contextServices.GetRequiredService<IChangeDetector>();
         var stateManager = contextServices.GetRequiredService<IStateManager>();
 
         var category = new NotifyingCategory { Id = -1, PrincipalId = 77 };
@@ -1678,7 +1688,6 @@ public class ChangeDetectorTest
     {
         var contextServices = CreateContextServices(BuildNotifyingModel());
 
-        var changeDetector = contextServices.GetRequiredService<IChangeDetector>();
         var stateManager = contextServices.GetRequiredService<IStateManager>();
 
         var product1 = new NotifyingProduct { Id = Guid.NewGuid(), DependentId = 77 };

@@ -18,12 +18,12 @@ public class FromSqlQuerySqliteTest : FromSqlQueryTestBase<NorthwindQuerySqliteF
         await base.FromSqlRaw_queryable_composed(async);
 
         AssertSql(
-"""
+            """
 SELECT "m"."CustomerID", "m"."Address", "m"."City", "m"."CompanyName", "m"."ContactName", "m"."ContactTitle", "m"."Country", "m"."Fax", "m"."Phone", "m"."PostalCode", "m"."Region"
 FROM (
     SELECT * FROM "Customers"
 ) AS "m"
-WHERE 'z' = '' OR instr("m"."ContactName", 'z') > 0
+WHERE "m"."ContactName" IS NOT NULL AND instr("m"."ContactName", 'z') > 0
 """);
     }
 
@@ -65,7 +65,7 @@ WHERE ""m"".""ContactTitle"" = @__contactTitle_1", queryString, ignoreLineEnding
         await base.FromSqlRaw_composed_with_common_table_expression(async);
 
         AssertSql(
-"""
+            """
 SELECT "m"."CustomerID", "m"."Address", "m"."City", "m"."CompanyName", "m"."ContactName", "m"."ContactTitle", "m"."Country", "m"."Fax", "m"."Phone", "m"."PostalCode", "m"."Region"
 FROM (
     WITH "Customers2" AS (
@@ -73,7 +73,7 @@ FROM (
     )
     SELECT * FROM "Customers2"
 ) AS "m"
-WHERE 'z' = '' OR instr("m"."ContactName", 'z') > 0
+WHERE "m"."ContactName" IS NOT NULL AND instr("m"."ContactName", 'z') > 0
 """);
     }
 

@@ -100,6 +100,14 @@ public class ClrPropertySetterFactoryTest
         public JsonValueReaderWriter GetJsonValueReaderWriter()
             => throw new NotImplementedException();
 
+        IReadOnlyElementType IReadOnlyProperty.GetElementType()
+            => GetElementType();
+
+        public bool IsPrimitiveCollection { get; }
+
+        public IElementType GetElementType()
+            => throw new NotImplementedException();
+
         public bool IsForeignKey()
             => throw new NotImplementedException();
 

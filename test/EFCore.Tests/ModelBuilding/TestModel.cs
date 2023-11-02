@@ -3,6 +3,7 @@
 
 #nullable enable
 
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -97,6 +98,8 @@ public abstract partial class ModelBuilderTest
 
         public IEnumerable<Order>? Orders { get; set; }
 
+        public List<string>? Notes { get; set; }
+
         [NotMapped]
         public ICollection<SpecialOrder>? SomeOrders { get; set; }
 
@@ -165,8 +168,8 @@ public abstract partial class ModelBuilderTest
 
         public int OrderId { get; set; }
         public int ProductId { get; set; }
-        public virtual Order Order { get; set; } = null!;
-        public virtual Product Product { get; set; } = null!;
+        public virtual required Order Order { get; set; } = null!;
+        public virtual required Product Product { get; set; } = null!;
     }
 
     protected class UniProduct
@@ -239,13 +242,13 @@ public abstract partial class ModelBuilderTest
         public SpecialCustomer? SpecialCustomer { get; set; }
         public BackOrder? BackOrder { get; set; }
         public OrderCombination? SpecialOrderCombination { get; set; }
-        public StreetAddress ShippingAddress { get; set; } = null!;
+        public required StreetAddress ShippingAddress { get; set; }
     }
 
     protected class BackOrder : Order
     {
         public int SpecialOrderId { get; set; }
-        public SpecialOrder SpecialOrder { get; set; } = null!;
+        public required SpecialOrder SpecialOrder { get; set; }
     }
 
     [NotMapped]
@@ -253,10 +256,10 @@ public abstract partial class ModelBuilderTest
     {
         public int Id { get; set; }
         public int OrderId { get; set; }
-        public Order Order { get; set; } = null!;
+        public required Order Order { get; set; }
         public int SpecialOrderId { get; set; }
-        public SpecialOrder SpecialOrder { get; set; } = null!;
-        public DetailsBase Details { get; set; } = null!;
+        public required SpecialOrder SpecialOrder { get; set; }
+        public required DetailsBase Details { get; set; }
     }
 
     protected class OrderDetails : DetailsBase
@@ -291,6 +294,41 @@ public abstract partial class ModelBuilderTest
 
         // ReSharper disable once ConvertToAutoProperty
         public string? Down
+        {
+            get => _forDown;
+            set => _forDown = value;
+        }
+
+#pragma warning disable 67
+        public event PropertyChangingEventHandler? PropertyChanging;
+        public event PropertyChangedEventHandler? PropertyChanged;
+#pragma warning restore 67
+    }
+
+    // INotify interfaces not really implemented; just marking the classes to test metadata construction
+    protected class CollectionQuarks : INotifyPropertyChanging, INotifyPropertyChanged
+    {
+        private ObservableCollection<int> _forUp = null!;
+        private ObservableCollection<string>? _forDown;
+#pragma warning disable IDE0044 // Add readonly modifier
+#pragma warning disable IDE0051 // Remove unused private members
+#pragma warning disable CS0169 // Remove unused private fields
+        private ObservableCollection<string>? _forWierd;
+#pragma warning restore CS0169 // Remove unused private fields
+#pragma warning restore IDE0051 // Remove unused private members
+#pragma warning restore IDE0044 // Add readonly modifier
+
+        public int Id { get; set; }
+
+        // ReSharper disable once ConvertToAutoProperty
+        public ObservableCollection<int> Up
+        {
+            get => _forUp;
+            set => _forUp = value;
+        }
+
+        // ReSharper disable once ConvertToAutoProperty
+        public ObservableCollection<string>? Down
         {
             get => _forDown;
             set => _forDown = value;
@@ -363,7 +401,7 @@ public abstract partial class ModelBuilderTest
 
         public string Name { get; set; } = "";
 
-        public User CreatedBy { get; set; } = null!;
+        public required User CreatedBy { get; set; }
 
         public User? UpdatedBy { get; set; }
 
@@ -382,24 +420,24 @@ public abstract partial class ModelBuilderTest
 
         public int Id { get; set; }
 
-        public BookLabel Label { get; set; } = null!;
+        public required BookLabel Label { get; set; }
 
-        public BookLabel AlternateLabel { get; set; } = null!;
+        public required BookLabel AlternateLabel { get; set; }
 
-        public BookDetails Details { get; set; } = null!;
+        public required BookDetails Details { get; set; }
     }
 
     protected abstract class BookDetailsBase : DetailsBase
     {
         public int AnotherBookId { get; set; }
 
-        public Book AnotherBook { get; set; } = null!;
+        public required Book AnotherBook { get; set; }
     }
 
     protected class BookDetails : BookDetailsBase
     {
         [NotMapped]
-        public Book Book { get; set; } = null!;
+        public required Book Book { get; set; }
     }
 
     protected class BookLabel
@@ -407,7 +445,7 @@ public abstract partial class ModelBuilderTest
         public int Id { get; set; }
 
         [InverseProperty("Label")]
-        public Book Book { get; set; } = null!;
+        public required Book Book { get; set; }
 
         public int BookId { get; set; }
 
@@ -446,9 +484,9 @@ public abstract partial class ModelBuilderTest
         public int Id { get; set; }
 
         [NotMapped]
-        public int PrincipalEntityId { get; set; }
+        public int? PrincipalEntityId { get; set; }
 
-        public PrincipalEntity Nav { get; set; } = null!;
+        public required PrincipalEntity Nav { get; set; }
     }
 
     protected class Alpha
@@ -486,6 +524,7 @@ public abstract partial class ModelBuilderTest
     {
         public int Id { get; set; }
         private int PrivateProperty { get; set; }
+        private List<string> PrivateCollection { get; set; } = null!;
 
         public List<Alpha>? Alphas { get; set; }
     }
@@ -521,10 +560,10 @@ public abstract partial class ModelBuilderTest
         public int CommonFkProperty { get; set; }
 
         [ForeignKey("CommonFkProperty")]
-        public Alpha AlphaOne { get; set; } = null!;
+        public required Alpha AlphaOne { get; set; }
 
         [ForeignKey("CommonFkProperty")]
-        public Alpha AlphaTwo { get; set; } = null!;
+        public required Alpha AlphaTwo { get; set; }
     }
 
     [NotMapped]
@@ -598,7 +637,7 @@ public abstract partial class ModelBuilderTest
         public int OneToOneDependentEntityId { get; set; }
 
         [NotMapped]
-        public OneToOneDependentEntity NavOneToOneDependentEntity { get; set; } = null!;
+        public required OneToOneDependentEntity NavOneToOneDependentEntity { get; set; }
     }
 
     protected class OneToOneDependentEntity
@@ -618,7 +657,7 @@ public abstract partial class ModelBuilderTest
         public int OneToOnePrincipalEntityId { get; set; }
 
         [NotMapped]
-        public OneToOnePrincipalEntity NavOneToOnePrincipalEntity { get; set; } = null!;
+        public required OneToOnePrincipalEntity NavOneToOnePrincipalEntity { get; set; }
     }
 
     protected class OneToOnePrincipalEntityWithAnnotation
@@ -631,7 +670,7 @@ public abstract partial class ModelBuilderTest
 
         [NotMapped]
         [ForeignKey("FkProperty")]
-        public OneToOneDependentEntityWithAnnotation NavOneToOneDependentEntityWithAnnotation { get; set; } = null!;
+        public required OneToOneDependentEntityWithAnnotation NavOneToOneDependentEntityWithAnnotation { get; set; }
     }
 
     protected class OneToOneDependentEntityWithAnnotation
@@ -642,7 +681,7 @@ public abstract partial class ModelBuilderTest
         public int OneToOnePrincipalEntityWithAnnotationId { get; set; }
 
         [NotMapped]
-        public OneToOnePrincipalEntityWithAnnotation NavOneToOnePrincipalEntityWithAnnotation { get; set; } = null!;
+        public required OneToOnePrincipalEntityWithAnnotation NavOneToOnePrincipalEntityWithAnnotation { get; set; }
     }
 
     protected class BaseTypeWithKeyAnnotation
@@ -655,7 +694,7 @@ public abstract partial class ModelBuilderTest
         public int ForeignKeyProperty { get; set; }
 
         [ForeignKey("ForeignKeyProperty")]
-        public PrincipalTypeWithKeyAnnotation Navigation { get; set; } = null!;
+        public required PrincipalTypeWithKeyAnnotation Navigation { get; set; }
     }
 
     protected class DerivedTypeWithKeyAnnotation : BaseTypeWithKeyAnnotation
@@ -674,11 +713,11 @@ public abstract partial class ModelBuilderTest
     {
         public int Id { get; set; }
 
-        public virtual ICollection<CitizenViewModel> People { get; set; } = null!;
+        public virtual required ICollection<CitizenViewModel> People { get; set; }
 
-        public virtual ICollection<PoliceViewModel> Police { get; set; } = null!;
+        public virtual required ICollection<PoliceViewModel> Police { get; set; }
 
-        public virtual ICollection<DoctorViewModel> Medics { get; set; } = null!;
+        public virtual required ICollection<DoctorViewModel> Medics { get; set; }
 
         public Dictionary<string, string>? CustomValues { get; set; } = new();
     }
@@ -689,7 +728,7 @@ public abstract partial class ModelBuilderTest
 
         public int CityVMId { get; set; }
 
-        public virtual CityViewModel CityVM { get; set; } = null!;
+        public virtual required CityViewModel CityVM { get; set; }
     }
 
     protected class CitizenViewModel : PersonBaseViewModel
@@ -722,16 +761,16 @@ public abstract partial class ModelBuilderTest
         public int Id { get; set; }
 
         public int ActionUserId { get; set; }
-        public ApplicationUser ActionUser { get; set; } = null!;
+        public required ApplicationUser ActionUser { get; set; }
 
         public int ApplicationUserId { get; set; }
-        public ApplicationUser ApplicationUser { get; set; } = null!;
+        public required ApplicationUser ApplicationUser { get; set; }
     }
 
     protected class ApplicationUser
     {
         public int Id { get; set; }
-        public IList<Friendship> Friendships { get; set; } = null!;
+        public required IList<Friendship> Friendships { get; set; }
     }
 
     public class EntityWithFields
@@ -739,6 +778,9 @@ public abstract partial class ModelBuilderTest
         public long Id;
         public int CompanyId;
         public int TenantId;
+        public long[] CollectionId = null!;
+        public int[] CollectionCompanyId = null!;
+        public int[] CollectionTenantId = null!;
         public KeylessEntityWithFields? KeylessEntity;
     }
 
@@ -750,9 +792,9 @@ public abstract partial class ModelBuilderTest
 
     protected class QueryResult
     {
-        public CustomId Id { get; set; } = null!;
+        public required CustomId Id { get; set; }
         public int ValueFk { get; set; }
-        public Value Value { get; set; } = null!;
+        public required Value Value { get; set; }
     }
 
     [Owned]
@@ -770,26 +812,26 @@ public abstract partial class ModelBuilderTest
 
     protected class ValueCategory
     {
-        public CustomId Id { get; set; } = null!;
+        public required CustomId Id { get; set; }
     }
 
     protected class KeylessEntity
     {
         public int CustomerId { get; set; }
-        public Customer Customer { get; set; } = null!;
+        public required Customer Customer { get; set; }
     }
 
     protected class Parent
     {
         public int Id { get; set; }
-        public List<CompositeChild> Children { get; set; } = null!;
+        public required List<CompositeChild> Children { get; set; }
     }
 
     protected class CompositeChild
     {
         public int Id { get; set; }
         public int Value { get; set; }
-        public Parent Parent { get; set; } = null!;
+        public required Parent Parent { get; set; }
     }
 
     protected class BillingOwner
@@ -815,7 +857,7 @@ public abstract partial class ModelBuilderTest
         public Guid DependentShadowFkId { get; set; }
 
         [ForeignKey("PrincipalShadowFkId")]
-        public PrincipalShadowFk Principal { get; set; } = null!;
+        public required PrincipalShadowFk Principal { get; set; }
     }
 
     protected class PrincipalShadowFk
@@ -827,8 +869,8 @@ public abstract partial class ModelBuilderTest
     protected class BaseOwner
     {
         public int Id { get; set; }
-        public OwnedTypeInheritance1 Owned1 { get; set; } = null!;
-        public OwnedTypeInheritance2 Owned2 { get; set; } = null!;
+        public required OwnedTypeInheritance1 Owned1 { get; set; }
+        public required OwnedTypeInheritance2 Owned2 { get; set; }
     }
 
     protected class DerivedOwner : BaseOwner
@@ -852,20 +894,46 @@ public abstract partial class ModelBuilderTest
         int Property { get; set; }
     }
 
-    protected class ComplexProperties
+    protected class ComplexPropertiesBase
     {
         public int Id { get; set; }
-        public Customer Customer { get; set; } = null!;
-        public DoubleProperty DoubleProperty { get; set; } = null!;
-        public IndexedClass IndexedClass { get; set; } = null!;
-        public Quarks Quarks { get; set; } = null!;
+    }
+
+    protected class ComplexProperties : ComplexPropertiesBase
+    {
+        public required Customer Customer { get; set; }
+        public required DoubleProperty DoubleProperty { get; set; }
+        public required IndexedClass IndexedClass { get; set; }
+        public required Quarks Quarks { get; set; }
+        public CollectionQuarks CollectionQuarks { get; set; } = null!;
 
         [NotMapped]
-        public DynamicProperty DynamicProperty { get; set; } = null!;
+        public required DynamicProperty DynamicProperty { get; set; }
+
         [NotMapped]
-        public EntityWithFields EntityWithFields { get; set; } = null!;
+        public required EntityWithFields EntityWithFields { get; set; }
+
         [NotMapped]
-        public WrappedStringEntity WrappedStringEntity { get; set; } = null!;
+        public required WrappedStringEntity WrappedStringEntity { get; set; }
+    }
+
+    protected class ValueComplexProperties
+    {
+        public int Id { get; set; }
+        public ProductLabel Label { get; set; }
+        public ProductLabel OldLabel { get; set; }
+        public (string, int) Tuple { get; set; }
+    }
+
+    protected struct ProductLabel
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public decimal Price { get; set; }
+        public Customer Customer { get; set; }
+
+        [NotMapped]
+        public ValueComplexProperties Parent { get; set; }
     }
 
     protected interface IWrapped<T>
@@ -886,7 +954,7 @@ public abstract partial class ModelBuilderTest
     protected class WrappedStringEntity
     {
         public int Id { get; set; }
-        public WrappedString WrappedString { get; set; } = new WrappedString();
+        public WrappedString WrappedString { get; set; } = new();
     }
 
     protected class DoubleProperty : IReplaceable
@@ -901,6 +969,7 @@ public abstract partial class ModelBuilderTest
         }
     }
 
+    [ComplexType]
     protected class IndexedClass
     {
         private int _required;
@@ -941,6 +1010,21 @@ public abstract partial class ModelBuilderTest
                 }
             }
         }
+
+        public NestedComplexType Nested { get; set; } = null!;
+    }
+
+    [ComplexType]
+    protected class NestedComplexType
+    {
+        public int Foo { get; set; }
+        public DoubleNestedComplexType DoubleNested { get; set; } = null!;
+    }
+
+    [ComplexType]
+    protected class DoubleNestedComplexType
+    {
+        public int Foo { get; set; }
     }
 
     protected class IndexedClassByDictionary
@@ -985,7 +1069,7 @@ public abstract partial class ModelBuilderTest
         public string? Name { get; set; }
 
         [BackingField("_randomField")]
-        public List<NavDependent> Dependents { get; set; } = null!;
+        public required List<NavDependent> Dependents { get; set; }
     }
 
     protected class NavDependent
@@ -1095,8 +1179,8 @@ public abstract partial class ModelBuilderTest
         public int ManyToManyPrincipalWithFieldId;
         public int DependentWithFieldId;
 
-        public ManyToManyPrincipalWithField ManyToManyPrincipalWithField { get; set; } = null!;
-        public DependentWithField DependentWithField { get; set; } = null!;
+        public required ManyToManyPrincipalWithField ManyToManyPrincipalWithField { get; set; }
+        public required DependentWithField DependentWithField { get; set; }
     }
 
     protected class DependentWithField
@@ -1107,8 +1191,8 @@ public abstract partial class ModelBuilderTest
         public Guid AnotherOneToManyPrincipalId;
         public OneToManyPrincipalWithField? OneToManyPrincipal { get; set; }
         public int OneToOnePrincipalId;
-        public OneToOnePrincipalWithField OneToOnePrincipal { get; set; } = null!;
-        public List<ManyToManyPrincipalWithField> ManyToManyPrincipals { get; set; } = null!;
+        public required OneToOnePrincipalWithField OneToOnePrincipal { get; set; }
+        public required List<ManyToManyPrincipalWithField> ManyToManyPrincipals { get; set; }
     }
 
     protected class OneToManyOwnerWithField
@@ -1274,7 +1358,7 @@ public abstract partial class ModelBuilderTest
     {
         public Guid Id { get; set; }
         public decimal Number { get; set; }
-        public OwnedOtter OwnedEntity { get; set; } = null!;
+        public required OwnedOtter OwnedEntity { get; set; }
     }
 
     protected class OtherOtter
@@ -1287,5 +1371,26 @@ public abstract partial class ModelBuilderTest
     protected class OwnedOtter
     {
         public decimal Number { get; set; }
+    }
+
+    protected class OneDee
+    {
+        public int Id { get; set; }
+
+        public int[]? One { get; set; }
+    }
+
+    protected class TwoDee
+    {
+        public int Id { get; set; }
+
+        public int[,]? Two { get; set; }
+    }
+
+    protected class ThreeDee
+    {
+        public int Id { get; set; }
+
+        public int[,,]? Three { get; set; }
     }
 }

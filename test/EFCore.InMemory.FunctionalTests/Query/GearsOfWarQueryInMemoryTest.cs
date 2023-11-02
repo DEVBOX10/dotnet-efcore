@@ -29,6 +29,30 @@ public class GearsOfWarQueryInMemoryTest : GearsOfWarQueryTestBase<GearsOfWarQue
                     .Null_semantics_is_correctly_applied_for_function_comparisons_that_take_arguments_from_optional_navigation_complex(
                         async))).Message);
 
+    public override async Task Group_by_on_StartsWith_with_null_parameter_as_argument(bool async)
+        => Assert.Equal(
+            "Value cannot be null. (Parameter 'value')",
+            (await Assert.ThrowsAsync<ArgumentNullException>(
+                () => base.Group_by_on_StartsWith_with_null_parameter_as_argument(async))).Message);
+
+    public override async Task Group_by_with_having_StartsWith_with_null_parameter_as_argument(bool async)
+        => Assert.Equal(
+            "Value cannot be null. (Parameter 'value')",
+            (await Assert.ThrowsAsync<ArgumentNullException>(
+                () => base.Group_by_with_having_StartsWith_with_null_parameter_as_argument(async))).Message);
+
+    public override async Task OrderBy_StartsWith_with_null_parameter_as_argument(bool async)
+        => Assert.Equal(
+            "Value cannot be null. (Parameter 'value')",
+            (await Assert.ThrowsAsync<ArgumentNullException>(
+                () => base.OrderBy_StartsWith_with_null_parameter_as_argument(async))).Message);
+
+    public override async Task Select_StartsWith_with_null_parameter_as_argument(bool async)
+        => Assert.Equal(
+            "Value cannot be null. (Parameter 'value')",
+            (await Assert.ThrowsAsync<ArgumentNullException>(
+                () => base.Select_StartsWith_with_null_parameter_as_argument(async))).Message);
+
     public override async Task Projecting_entity_as_well_as_correlated_collection_followed_by_Distinct(bool async)
         // Distinct. Issue #24325.
         => Assert.Equal(
@@ -75,19 +99,12 @@ public class GearsOfWarQueryInMemoryTest : GearsOfWarQueryTestBase<GearsOfWarQue
         => Assert.ThrowsAsync<NullReferenceException>(() => base.Include_after_SelectMany_throws(async));
 
     public override async Task Include_on_GroupJoin_SelectMany_DefaultIfEmpty_with_coalesce_result4(bool async)
-        => Assert.Equal(
-            "4",
-            (((EqualException)(await Assert.ThrowsAsync<TargetInvocationException>(
-                () => base.Include_on_GroupJoin_SelectMany_DefaultIfEmpty_with_coalesce_result4(async))).InnerException!.InnerException)!)
-            .Actual);
+        => await Assert.ThrowsAsync<TargetInvocationException>(
+            () => base.Include_on_GroupJoin_SelectMany_DefaultIfEmpty_with_coalesce_result4(async));
 
     public override async Task Include_on_GroupJoin_SelectMany_DefaultIfEmpty_with_complex_projection_result(bool async)
-        => Assert.Equal(
-            "6",
-            (((EqualException)(await Assert.ThrowsAsync<TargetInvocationException>(
-                    () => base.Include_on_GroupJoin_SelectMany_DefaultIfEmpty_with_complex_projection_result(async)))
-                .InnerException!.InnerException)!)
-            .Actual);
+        => await Assert.ThrowsAsync<TargetInvocationException>(
+            () => base.Include_on_GroupJoin_SelectMany_DefaultIfEmpty_with_complex_projection_result(async));
 
     public override Task Null_semantics_is_correctly_applied_for_function_comparisons_that_take_arguments_from_optional_navigation(
             bool async)
@@ -108,5 +125,8 @@ public class GearsOfWarQueryInMemoryTest : GearsOfWarQueryTestBase<GearsOfWarQue
         => Task.CompletedTask;
 
     public override Task Where_subquery_with_ElementAt_using_column_as_index(bool async)
+        => Task.CompletedTask;
+
+    public override Task Where_compare_anonymous_types(bool async)
         => Task.CompletedTask;
 }

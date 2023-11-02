@@ -54,12 +54,18 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             => GetString("CannotChangeWhenOpen");
 
         /// <summary>
-        ///     Can't configure a trigger on entity type '{entityType}', which is in a TPH hierarchy and isn't the root. Configure the trigger on the TPH root entity type '{rootEntityType}' instead.
+        ///     Comparing complex types to null is not supported.
         /// </summary>
-        public static string CannotConfigureTriggerNonRootTphEntity(object? entityType, object? rootEntityType)
+        public static string CannotCompareComplexTypeToNull
+            => GetString("CannotCompareComplexTypeToNull");
+
+        /// <summary>
+        ///     You are attempting to project out complex type '{complexType}' via an optional navigation; that is currently not supported. Either project out the complex type in a non-optional context, or project the containing entity type along with the complex type.
+        /// </summary>
+        public static string CannotProjectNullableComplexType(object? complexType)
             => string.Format(
-                GetString("CannotConfigureTriggerNonRootTphEntity", nameof(entityType), nameof(rootEntityType)),
-                entityType, rootEntityType);
+                GetString("CannotProjectNullableComplexType", nameof(complexType)),
+                complexType);
 
         /// <summary>
         ///     The query contained a new array expression containing non-constant elements, which could not be translated: '{newArrayExpression}'.
@@ -76,28 +82,12 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             => GetString("ClientGroupByNotSupported");
 
         /// <summary>
-        ///     The function parameter '{function}({parameter})' has a custom type mapping configured. Configure it in '{customize}' in a partial '{className}' class instead.
-        /// </summary>
-        public static string CompiledModelFunctionParameterTypeMapping(object? function, object? parameter, object? customize, object? className)
-            => string.Format(
-                GetString("CompiledModelFunctionParameterTypeMapping", nameof(function), nameof(parameter), nameof(customize), nameof(className)),
-                function, parameter, customize, className);
-
-        /// <summary>
         ///     The function '{function}' has a custom translation. Compiled model can't be generated, because custom function translations are not supported.
         /// </summary>
         public static string CompiledModelFunctionTranslation(object? function)
             => string.Format(
                 GetString("CompiledModelFunctionTranslation", nameof(function)),
                 function);
-
-        /// <summary>
-        ///     The function '{function}' has a custom type mapping configured. Configure it in '{customize}' in a partial '{className}' class instead.
-        /// </summary>
-        public static string CompiledModelFunctionTypeMapping(object? function, object? customize, object? className)
-            => string.Format(
-                GetString("CompiledModelFunctionTypeMapping", nameof(function), nameof(customize), nameof(className)),
-                function, customize, className);
 
         /// <summary>
         ///     The computed column SQL has not been specified for the column '{table}.{column}'. Specify the SQL before using Entity Framework to create the database schema.
@@ -128,7 +118,7 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             => GetString("ConflictingEnlistedTransaction");
 
         /// <summary>
-        ///     An instance of entity type '{firstEntityType}' and an instance of entity type '{secondEntityType}' are mapped to the same row, but have different original property values for the properties {firstProperty} and {secondProperty} mapped to '{column}'. Consider using 'DbContextOptionsBuilder.EnableSensitiveDataLogging' to see the conflicting values.
+        ///     Instances of types '{firstEntityType}' and '{secondEntityType}' are mapped to the same row, but have different original property values for the properties {firstProperty} and {secondProperty} mapped to '{column}'. Consider using 'DbContextOptionsBuilder.EnableSensitiveDataLogging' to see the conflicting values.
         /// </summary>
         public static string ConflictingOriginalRowValues(object? firstEntityType, object? secondEntityType, object? firstProperty, object? secondProperty, object? column)
             => string.Format(
@@ -136,7 +126,7 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 firstEntityType, secondEntityType, firstProperty, secondProperty, column);
 
         /// <summary>
-        ///     Instances of entity types '{firstEntityType}' and '{secondEntityType}' are mapped to the same row with the key value '{keyValue}', but have different original property values {firstConflictingValues} and {secondConflictingValues} for the column '{column}'.
+        ///     Instances of types '{firstEntityType}' and '{secondEntityType}' are mapped to the same row with the key value '{keyValue}', but have different original property values {firstConflictingValues} and {secondConflictingValues} for the column '{column}'.
         /// </summary>
         public static string ConflictingOriginalRowValuesSensitive(object? firstEntityType, object? secondEntityType, object? keyValue, object? firstConflictingValues, object? secondConflictingValues, object? column)
             => string.Format(
@@ -160,7 +150,7 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 firstEntityType, firstKeyValue, firstState, secondEntityType, secondKeyValue, secondState);
 
         /// <summary>
-        ///     Instances of entity types '{firstEntityType}' and '{secondEntityType}' are mapped to the same row, but have different property values for the properties {firstProperty} and {secondProperty} mapped to '{column}'. Consider using 'DbContextOptionsBuilder.EnableSensitiveDataLogging' to see the conflicting values.
+        ///     Instances of types '{firstEntityType}' and '{secondEntityType}' are mapped to the same row, but have different property values for the properties {firstProperty} and {secondProperty} mapped to '{column}'. Consider using 'DbContextOptionsBuilder.EnableSensitiveDataLogging' to see the conflicting values.
         /// </summary>
         public static string ConflictingRowValues(object? firstEntityType, object? secondEntityType, object? firstProperty, object? secondProperty, object? column)
             => string.Format(
@@ -168,7 +158,7 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 firstEntityType, secondEntityType, firstProperty, secondProperty, column);
 
         /// <summary>
-        ///     Instances of entity types '{firstEntityType}' and '{secondEntityType}' are mapped to the same row with the key value '{keyValue}', but have different property values '{firstConflictingValue}' and '{secondConflictingValue}' for the column '{column}'.
+        ///     Instances of types '{firstEntityType}' and '{secondEntityType}' are mapped to the same row with the key value '{keyValue}', but have different property values '{firstConflictingValue}' and '{secondConflictingValue}' for the column '{column}'.
         /// </summary>
         public static string ConflictingRowValuesSensitive(object? firstEntityType, object? secondEntityType, object? keyValue, object? firstConflictingValue, object? secondConflictingValue, object? column)
             => string.Format(
@@ -800,6 +790,14 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 operation);
 
         /// <summary>
+        ///     ExecuteUpdate is being used over a LINQ operator which isn't natively supported by the database; this cannot be translated because complex type '{complexType}' is projected out. Rewrite your query to project out the containing entity type instead.
+        /// </summary>
+        public static string ExecuteUpdateSubqueryNotSupportedOverComplexTypes(object? complexType)
+            => string.Format(
+                GetString("ExecuteUpdateSubqueryNotSupportedOverComplexTypes", nameof(complexType)),
+                complexType);
+
+        /// <summary>
         ///     The required column '{column}' was not present in the results of a 'FromSql' operation.
         /// </summary>
         public static string FromSqlMissingColumn(object? column)
@@ -820,6 +818,14 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             => string.Format(
                 GetString("FunctionOverrideMismatch", nameof(propertySpecification), nameof(function)),
                 propertySpecification, function);
+
+        /// <summary>
+        ///     Can't use HasData for entity type '{entity}'. HasData is not supported for entities mapped to JSON.
+        /// </summary>
+        public static string HasDataNotSupportedForEntitiesMappedToJson(object? entity)
+            => string.Format(
+                GetString("HasDataNotSupportedForEntitiesMappedToJson", nameof(entity)),
+                entity);
 
         /// <summary>
         ///     Cannot use table '{table}' for entity type '{entityType}' since it is being used for entity type '{otherEntityType}' and the comment '{comment}' does not match the comment '{otherComment}'.
@@ -1018,6 +1024,14 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 propertyExpression);
 
         /// <summary>
+        ///     The following lambda argument to 'SetProperty' does not represent a valid value: '{valueExpression}'.
+        /// </summary>
+        public static string InvalidValueInSetProperty(object? valueExpression)
+            => string.Format(
+                GetString("InvalidValueInSetProperty", nameof(valueExpression)),
+                valueExpression);
+
+        /// <summary>
         ///     Can't navigate from JSON-mapped entity '{jsonEntity}' to its parent entity '{parentEntity}' using navigation '{navigation}'. Entities mapped to JSON can only navigate to their children.
         /// </summary>
         public static string JsonCantNavigateToParentEntity(object? jsonEntity, object? parentEntity, object? navigation)
@@ -1026,12 +1040,20 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 jsonEntity, parentEntity, navigation);
 
         /// <summary>
-        ///     Entity '{jsonType}' is mapped to JSON and also to a view '{viewName}', but its owner '{ownerType}' is mapped to a different view '{ownerViewName}'. Every entity mapped to JSON must also map to the same view as its owner.
+        ///     Entity '{jsonType}' is mapped to JSON and also to a table or view '{tableOrViewName}', but its owner '{ownerType}' is mapped to a different table or view '{ownerTableOrViewName}'. Every entity mapped to JSON must also map to the same table or view as its owner.
         /// </summary>
-        public static string JsonEntityMappedToDifferentViewThanOwner(object? jsonType, object? viewName, object? ownerType, object? ownerViewName)
+        public static string JsonEntityMappedToDifferentTableOrViewThanOwner(object? jsonType, object? tableOrViewName, object? ownerType, object? ownerTableOrViewName)
             => string.Format(
-                GetString("JsonEntityMappedToDifferentViewThanOwner", nameof(jsonType), nameof(viewName), nameof(ownerType), nameof(ownerViewName)),
-                jsonType, viewName, ownerType, ownerViewName);
+                GetString("JsonEntityMappedToDifferentTableOrViewThanOwner", nameof(jsonType), nameof(tableOrViewName), nameof(ownerType), nameof(ownerTableOrViewName)),
+                jsonType, tableOrViewName, ownerType, ownerTableOrViewName);
+
+        /// <summary>
+        ///     JSON entity '{jsonEntity}' is missing key information. This is not allowed for tracking queries since EF can't correctly build identity for this entity object.
+        /// </summary>
+        public static string JsonEntityMissingKeyInformation(object? jsonEntity)
+            => string.Format(
+                GetString("JsonEntityMissingKeyInformation", nameof(jsonEntity)),
+                jsonEntity);
 
         /// <summary>
         ///     Multiple owned root entities are mapped to the same JSON column '{column}' in table '{table}'. Each owned root entity must map to a different column.
@@ -1040,6 +1062,14 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             => string.Format(
                 GetString("JsonEntityMultipleRootsMappedToTheSameJsonColumn", nameof(column), nameof(table)),
                 column, table);
+
+        /// <summary>
+        ///     JSON entity or collection can't be projected directly in a tracked query. Either disable tracking by using '{asNoTracking}' method or project the owner entity instead.
+        /// </summary>
+        public static string JsonEntityOrCollectionProjectedAtRootLevelInTrackingQuery(object? asNoTracking)
+            => string.Format(
+                GetString("JsonEntityOrCollectionProjectedAtRootLevelInTrackingQuery", nameof(asNoTracking)),
+                asNoTracking);
 
         /// <summary>
         ///     Owned entity type '{nonJsonType}' is mapped to table '{table}' and contains JSON columns. This is currently not supported. All owned types containing a JSON column must be mapped to a JSON column themselves.
@@ -1138,6 +1168,20 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         /// </summary>
         public static string JsonPropertyNameShouldBeConfiguredOnNestedNavigation
             => GetString("JsonPropertyNameShouldBeConfiguredOnNestedNavigation");
+
+        /// <summary>
+        ///     Composing LINQ operators over collections inside JSON documents isn't supported or hasn't been implemented by your EF provider.
+        /// </summary>
+        public static string JsonQueryLinqOperatorsNotSupported
+            => GetString("JsonQueryLinqOperatorsNotSupported");
+
+        /// <summary>
+        ///     Invalid token type: '{tokenType}'.
+        /// </summary>
+        public static string JsonReaderInvalidTokenType(object? tokenType)
+            => string.Format(
+                GetString("JsonReaderInvalidTokenType", nameof(tokenType)),
+                tokenType);
 
         /// <summary>
         ///     Entity {entity} is required but the JSON element containing it is null.
@@ -1270,18 +1314,18 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 entityType, keyValues, entityState);
 
         /// <summary>
-        ///     Multiple 'SetProperty' invocations refer to properties on different entity types ('{entityType1}' and '{entityType2}'). A single 'ExecuteUpdate' call can only update the properties of a single entity type.
-        /// </summary>
-        public static string MultipleEntityPropertiesInSetProperty(object? entityType1, object? entityType2)
-            => string.Format(
-                GetString("MultipleEntityPropertiesInSetProperty", nameof(entityType1), nameof(entityType2)),
-                entityType1, entityType2);
-
-        /// <summary>
         ///     Multiple relational database provider configurations found. A context can only be configured to use a single database provider.
         /// </summary>
         public static string MultipleProvidersConfigured
             => GetString("MultipleProvidersConfigured");
+
+        /// <summary>
+        ///     Multiple 'SetProperty' invocations refer to different tables ('{propertySelector1}' and '{propertySelector2}'). A single 'ExecuteUpdate' call can only update the columns of a single table.
+        /// </summary>
+        public static string MultipleTablesInExecuteUpdate(object? propertySelector1, object? propertySelector2)
+            => string.Format(
+                GetString("MultipleTablesInExecuteUpdate", nameof(propertySelector1), nameof(propertySelector2)),
+                propertySelector1, propertySelector2);
 
         /// <summary>
         ///     A named connection string was used, but the name '{name}' was not found in the application's configuration. Note that named connection strings are only supported when using 'IConfiguration' and a service provider, such as in a typical ASP.NET Core application. See https://go.microsoft.com/fwlink/?linkid=850912 for more information.
@@ -1488,6 +1532,12 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             => GetString("RelationalNotInUse");
 
         /// <summary>
+        ///     SelectExpression can only be built over a JsonQueryExpression that represents a collection within the JSON document.
+        /// </summary>
+        public static string SelectCanOnlyBeBuiltOnCollectionJsonQuery
+            => GetString("SelectCanOnlyBeBuiltOnCollectionJsonQuery");
+
+        /// <summary>
         ///     Cannot create a 'SelectExpression' with a custom 'TableExpressionBase' since the result type '{entityType}' is part of a hierarchy and does not contain a discriminator property.
         /// </summary>
         public static string SelectExpressionNonTphWithCustomTable(object? entityType)
@@ -1496,16 +1546,26 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 entityType);
 
         /// <summary>
+        ///     Set operations over different entity or complex types are not supported ('{type1}' and '{type2}').
+        /// </summary>
+        public static string SetOperationOverDifferentStructuralTypes(object? type1, object? type2)
+            => string.Format(
+                GetString("SetOperationOverDifferentStructuralTypes", nameof(type1), nameof(type2)),
+                type1, type2);
+
+        /// <summary>
         ///     Unable to translate set operation after client projection has been applied. Consider moving the set operation before the last 'Select' call.
         /// </summary>
         public static string SetOperationsNotAllowedAfterClientEvaluation
             => GetString("SetOperationsNotAllowedAfterClientEvaluation");
 
         /// <summary>
-        ///     Unable to translate set operation when matching columns on both sides have different store types.
+        ///     A set operation '{setOperationType}' requires valid type mapping for at least one of its sides.
         /// </summary>
-        public static string SetOperationsOnDifferentStoreTypes
-            => GetString("SetOperationsOnDifferentStoreTypes");
+        public static string SetOperationsRequireAtLeastOneSideWithValidTypeMapping(object? setOperationType)
+            => string.Format(
+                GetString("SetOperationsRequireAtLeastOneSideWithValidTypeMapping", nameof(setOperationType)),
+                setOperationType);
 
         /// <summary>
         ///     The SetProperty&lt;TProperty&gt; method can only be used within 'ExecuteUpdate' method.
@@ -1808,6 +1868,14 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 entityType);
 
         /// <summary>
+        ///     The query requires a subquery over complex type '{complexType}'. Subqueries over complex types are currently unsupported.
+        /// </summary>
+        public static string SubqueryOverComplexTypesNotSupported(object? complexType)
+            => string.Format(
+                GetString("SubqueryOverComplexTypesNotSupported", nameof(complexType)),
+                complexType);
+
+        /// <summary>
         ///     Expression type '{expressionType}' does not implement proper cloning logic. Every expression derived from '{tableExpressionBase}' must implement '{clonableTableExpressionBase}' interface or have it's cloning logic added to the '{cloningExpressionVisitor}' inside '{selectExpression}'.
         /// </summary>
         public static string TableExpressionBaseWithoutCloningLogic(object? expressionType, object? tableExpressionBase, object? clonableTableExpressionBase, object? cloningExpressionVisitor, object? selectExpression)
@@ -1946,14 +2014,6 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 memberType, member, entityType);
 
         /// <summary>
-        ///     The following 'SetProperty' failed to translate: 'SetProperty({property}, {value})'. {details}
-        /// </summary>
-        public static string UnableToTranslateSetProperty(object? property, object? value, object? details)
-            => string.Format(
-                GetString("UnableToTranslateSetProperty", nameof(property), nameof(value), nameof(details)),
-                property, value, details);
-
-        /// <summary>
         ///     Unhandled annotatable type '{annotatableType}'.
         /// </summary>
         public static string UnhandledAnnotatableType(object? annotatableType)
@@ -1976,6 +2036,14 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
             => string.Format(
                 GetString("UnknownOperation", nameof(sqlGeneratorType), nameof(operationType)),
                 sqlGeneratorType, operationType);
+
+        /// <summary>
+        ///     The entity type '{ownerType}' is not mapped, so by default the owned type '{navigation}.{ownedType}' will also be unmapped. If this is intended explicitly map the owned type to 'null', otherwise map it to a named '{storeObjectType}'.
+        /// </summary>
+        public static string UnmappedNonTPHOwner(object? ownerType, object? navigation, object? ownedType, object? storeObjectType)
+            => string.Format(
+                GetString("UnmappedNonTPHOwner", nameof(ownerType), nameof(navigation), nameof(ownedType), nameof(storeObjectType)),
+                ownerType, navigation, ownedType, storeObjectType);
 
         /// <summary>
         ///     The store type '{type}' used for the column '{column}' in a migration data operation is not supported by the current provider.
@@ -2220,7 +2288,7 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics.Internal
         }
 
         /// <summary>
-        ///     An error occurred while rolling back the transaction to a savepoint, after an exception occured during `SaveChanges`.
+        ///     An error occurred while rolling back the transaction to a savepoint, after an exception occurred during `SaveChanges`.
         /// </summary>
         public static EventDefinition LogBatchExecutorFailedToRollbackToSavepoint(IDiagnosticsLogger logger)
         {
@@ -3808,6 +3876,31 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics.Internal
             }
 
             return (EventDefinition)definition;
+        }
+
+        /// <summary>
+        ///     Can't configure a trigger on entity type '{entityType}', which is in a TPH hierarchy and isn't the root. Configure the trigger on the TPH root entity type '{rootEntityType}' instead.
+        /// </summary>
+        public static EventDefinition<string, string> LogTriggerOnNonRootTphEntity(IDiagnosticsLogger logger)
+        {
+            var definition = ((RelationalLoggingDefinitions)logger.Definitions).LogTriggerOnNonRootTphEntity;
+            if (definition == null)
+            {
+                definition = NonCapturingLazyInitializer.EnsureInitialized(
+                    ref ((RelationalLoggingDefinitions)logger.Definitions).LogTriggerOnNonRootTphEntity,
+                    logger,
+                    static logger => new EventDefinition<string, string>(
+                        logger.Options,
+                        RelationalEventId.TriggerOnNonRootTphEntity,
+                        LogLevel.Warning,
+                        "RelationalEventId.TriggerOnNonRootTphEntity",
+                        level => LoggerMessage.Define<string, string>(
+                            level,
+                            RelationalEventId.TriggerOnNonRootTphEntity,
+                            _resourceManager.GetString("LogTriggerOnNonRootTphEntity")!)));
+            }
+
+            return (EventDefinition<string, string>)definition;
         }
 
         /// <summary>

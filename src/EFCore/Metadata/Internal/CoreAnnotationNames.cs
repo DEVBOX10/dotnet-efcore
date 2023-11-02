@@ -274,6 +274,14 @@ public static class CoreAnnotationNames
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
+    public const string ComplexCandidates = "ComplexPropertyDiscoveryConvention:ComplexCandidates";
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
     public const string DerivedTypes = "BaseTypeDiscoveryConvention:DerivedTypes";
 
     /// <summary>
@@ -330,6 +338,14 @@ public static class CoreAnnotationNames
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
+    public const string ElementType = "ElementType";
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
     public static readonly ISet<string> AllNames = new HashSet<string>
     {
         MaxLength,
@@ -367,11 +383,13 @@ public static class CoreAnnotationNames
         DerivedTypes,
         InverseNavigationCandidates,
         NavigationCandidates,
+        ComplexCandidates,
         AmbiguousNavigations,
         AmbiguousField,
         DuplicateServiceProperties,
         FullChangeTrackingNotificationsRequired,
         AdHocModel,
-        JsonValueReaderWriterType
+        JsonValueReaderWriterType,
+        ElementType
     };
 }

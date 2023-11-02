@@ -1,6 +1,8 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
+
 namespace Microsoft.EntityFrameworkCore.Metadata.Conventions.Internal;
 
 public partial class ConventionDispatcher
@@ -25,15 +27,15 @@ public partial class ConventionDispatcher
         private readonly ConventionContext<IConventionKey> _keyConventionContext;
         private readonly ConventionContext<IConventionPropertyBuilder> _propertyBuilderConventionContext;
         private readonly ConventionContext<IConventionProperty> _propertyConventionContext;
-        private readonly ConventionContext<IConventionPropertyBuilder> _complexTypePropertyBuilderConventionContext;
-        private readonly ConventionContext<IConventionProperty> _complexTypePropertyConventionContext;
         private readonly ConventionContext<IConventionModelBuilder> _modelBuilderConventionContext;
         private readonly ConventionContext<IConventionTriggerBuilder> _triggerBuilderConventionContext;
         private readonly ConventionContext<IConventionTrigger> _triggerConventionContext;
         private readonly ConventionContext<IConventionAnnotation> _annotationConventionContext;
         private readonly ConventionContext<IReadOnlyList<IConventionProperty>> _propertyListConventionContext;
         private readonly ConventionContext<string> _stringConventionContext;
+        private readonly ConventionContext<string?> _nullableStringConventionContext;
         private readonly ConventionContext<FieldInfo> _fieldInfoConventionContext;
+        private readonly ConventionContext<IElementType> _elementTypeConventionContext;
         private readonly ConventionContext<bool?> _boolConventionContext;
         private readonly ConventionContext<IReadOnlyList<bool>?> _boolListConventionContext;
 
@@ -57,15 +59,15 @@ public partial class ConventionDispatcher
             _keyConventionContext = new ConventionContext<IConventionKey>(dispatcher);
             _propertyBuilderConventionContext = new ConventionContext<IConventionPropertyBuilder>(dispatcher);
             _propertyConventionContext = new ConventionContext<IConventionProperty>(dispatcher);
-            _complexTypePropertyBuilderConventionContext = new ConventionContext<IConventionPropertyBuilder>(dispatcher);
-            _complexTypePropertyConventionContext = new ConventionContext<IConventionProperty>(dispatcher);
             _modelBuilderConventionContext = new ConventionContext<IConventionModelBuilder>(dispatcher);
             _triggerBuilderConventionContext = new ConventionContext<IConventionTriggerBuilder>(dispatcher);
             _triggerConventionContext = new ConventionContext<IConventionTrigger>(dispatcher);
             _annotationConventionContext = new ConventionContext<IConventionAnnotation>(dispatcher);
             _propertyListConventionContext = new ConventionContext<IReadOnlyList<IConventionProperty>>(dispatcher);
             _stringConventionContext = new ConventionContext<string>(dispatcher);
+            _nullableStringConventionContext = new ConventionContext<string?>(dispatcher);
             _fieldInfoConventionContext = new ConventionContext<FieldInfo>(dispatcher);
+            _elementTypeConventionContext = new ConventionContext<IElementType>(dispatcher);
             _boolConventionContext = new ConventionContext<bool?>(dispatcher);
             _boolListConventionContext = new ConventionContext<IReadOnlyList<bool>?>(dispatcher);
         }
@@ -133,7 +135,8 @@ public partial class ConventionDispatcher
                     }
 
 #if DEBUG
-                    Check.DebugAssert(initialValue == modelBuilder.Metadata[name],
+                    Check.DebugAssert(
+                        initialValue == modelBuilder.Metadata[name],
                         $"Convention {modelConvention.GetType().Name} changed value without terminating");
 #endif
                 }
@@ -158,7 +161,8 @@ public partial class ConventionDispatcher
                         return _stringConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(initialValue == modelBuilder.Metadata.IsIgnored(name),
+                    Check.DebugAssert(
+                        initialValue == modelBuilder.Metadata.IsIgnored(name),
                         $"Convention {entityTypeConvention.GetType().Name} changed value without terminating");
 #endif
                 }
@@ -188,7 +192,8 @@ public partial class ConventionDispatcher
                         return _entityTypeBuilderConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(initialValue == entityTypeBuilder.Metadata.IsInModel,
+                    Check.DebugAssert(
+                        initialValue == entityTypeBuilder.Metadata.IsInModel,
                         $"Convention {entityTypeConvention.GetType().Name} changed value without terminating");
 #endif
                 }
@@ -246,7 +251,8 @@ public partial class ConventionDispatcher
                             return _stringConventionContext.Result;
                         }
 #if DEBUG
-                        Check.DebugAssert(initialValue == entityTypeBuilder.Metadata.IsIgnored(name),
+                        Check.DebugAssert(
+                            initialValue == entityTypeBuilder.Metadata.IsIgnored(name),
                             $"Convention {entityTypeConvention.GetType().Name} changed value without terminating");
 #endif
                     }
@@ -254,6 +260,39 @@ public partial class ConventionDispatcher
             }
 
             return !entityTypeBuilder.Metadata.IsIgnored(name) ? null : name;
+        }
+
+        public override string? OnDiscriminatorPropertySet(IConventionEntityTypeBuilder entityTypeBuilder, string? name)
+        {
+            if (!entityTypeBuilder.Metadata.IsInModel)
+            {
+                return null;
+            }
+
+#if DEBUG
+            var initialValue = entityTypeBuilder.Metadata.GetDiscriminatorPropertyName();
+#endif
+            using (_dispatcher.DelayConventions())
+            {
+                _stringConventionContext.ResetState(name);
+
+                foreach (var entityTypeConvention in _conventionSet.DiscriminatorPropertySetConventions)
+                {
+                    entityTypeConvention.ProcessDiscriminatorPropertySet(
+                        entityTypeBuilder, name, _nullableStringConventionContext);
+                    if (_stringConventionContext.ShouldStopProcessing())
+                    {
+                        return _stringConventionContext.Result;
+                    }
+#if DEBUG
+                    Check.DebugAssert(
+                        initialValue == entityTypeBuilder.Metadata.GetDiscriminatorPropertyName(),
+                        $"Convention {entityTypeConvention.GetType().Name} changed value without terminating");
+#endif
+                }
+            }
+
+            return entityTypeBuilder.Metadata.GetDiscriminatorPropertyName();
         }
 
         public override IConventionEntityType? OnEntityTypeBaseTypeChanged(
@@ -281,7 +320,8 @@ public partial class ConventionDispatcher
                         return _entityTypeConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(initialValue == entityTypeBuilder.Metadata.BaseType,
+                    Check.DebugAssert(
+                        initialValue == entityTypeBuilder.Metadata.BaseType,
                         $"Convention {entityTypeConvention.GetType().Name} changed value without terminating");
 #endif
                 }
@@ -316,7 +356,8 @@ public partial class ConventionDispatcher
                         return _keyConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(initialValue == entityTypeBuilder.Metadata.FindPrimaryKey(),
+                    Check.DebugAssert(
+                        initialValue == entityTypeBuilder.Metadata.FindPrimaryKey(),
                         $"Convention {keyConvention.GetType().Name} changed value without terminating");
 #endif
                 }
@@ -343,7 +384,6 @@ public partial class ConventionDispatcher
                 _annotationConventionContext.ResetState(annotation);
                 foreach (var entityTypeConvention in _conventionSet.EntityTypeAnnotationChangedConventions)
                 {
-
                     entityTypeConvention.ProcessEntityTypeAnnotationChanged(
                         entityTypeBuilder, name, annotation, oldAnnotation, _annotationConventionContext);
                     if (_annotationConventionContext.ShouldStopProcessing())
@@ -351,7 +391,8 @@ public partial class ConventionDispatcher
                         return _annotationConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(entityTypeBuilder.Metadata.IsInModel
+                    Check.DebugAssert(
+                        entityTypeBuilder.Metadata.IsInModel
                         && initialValue == entityTypeBuilder.Metadata[name],
                         $"Convention {entityTypeConvention.GetType().Name} changed value without terminating");
 #endif
@@ -389,7 +430,8 @@ public partial class ConventionDispatcher
                         return _stringConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(initialValue == propertyBuilder.Metadata.IsIgnored(name),
+                    Check.DebugAssert(
+                        initialValue == propertyBuilder.Metadata.IsIgnored(name),
                         $"Convention {entityTypeConvention.GetType().Name} changed value without terminating");
 #endif
                 }
@@ -416,7 +458,6 @@ public partial class ConventionDispatcher
                 _annotationConventionContext.ResetState(annotation);
                 foreach (var complexTypeConvention in _conventionSet.ComplexTypeAnnotationChangedConventions)
                 {
-
                     complexTypeConvention.ProcessComplexTypeAnnotationChanged(
                         complexTypeBuilder, name, annotation, oldAnnotation, _annotationConventionContext);
                     if (_annotationConventionContext.ShouldStopProcessing())
@@ -424,7 +465,8 @@ public partial class ConventionDispatcher
                         return _annotationConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(complexTypeBuilder.Metadata.IsInModel
+                    Check.DebugAssert(
+                        complexTypeBuilder.Metadata.IsInModel
                         && initialValue == complexTypeBuilder.Metadata[name],
                         $"Convention {complexTypeConvention.GetType().Name} changed value without terminating");
 #endif
@@ -456,7 +498,8 @@ public partial class ConventionDispatcher
                         return _complexPropertyBuilderConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(initialValue == propertyBuilder.Metadata.IsInModel,
+                    Check.DebugAssert(
+                        initialValue == propertyBuilder.Metadata.IsInModel,
                         $"Convention {complexPropertyConvention.GetType().Name} changed value without terminating");
 #endif
                 }
@@ -511,7 +554,8 @@ public partial class ConventionDispatcher
                         return _boolConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(initialValue == propertyBuilder.Metadata.IsNullable,
+                    Check.DebugAssert(
+                        initialValue == propertyBuilder.Metadata.IsNullable,
                         $"Convention {propertyConvention.GetType().Name} changed value without terminating");
 #endif
                 }
@@ -543,7 +587,8 @@ public partial class ConventionDispatcher
                     return _fieldInfoConventionContext.Result;
                 }
 #if DEBUG
-                Check.DebugAssert(initialValue == propertyBuilder.Metadata.FieldInfo,
+                Check.DebugAssert(
+                    initialValue == propertyBuilder.Metadata.FieldInfo,
                     $"Convention {propertyConvention.GetType().Name} changed value without terminating");
 #endif
             }
@@ -569,7 +614,6 @@ public partial class ConventionDispatcher
                 _annotationConventionContext.ResetState(annotation);
                 foreach (var propertyConvention in _conventionSet.ComplexPropertyAnnotationChangedConventions)
                 {
-
                     propertyConvention.ProcessComplexPropertyAnnotationChanged(
                         propertyBuilder, name, annotation, oldAnnotation, _annotationConventionContext);
                     if (_annotationConventionContext.ShouldStopProcessing())
@@ -577,7 +621,8 @@ public partial class ConventionDispatcher
                         return _annotationConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(propertyBuilder.Metadata.IsInModel
+                    Check.DebugAssert(
+                        propertyBuilder.Metadata.IsInModel
                         && initialValue == propertyBuilder.Metadata[name],
                         $"Convention {propertyConvention.GetType().Name} changed value without terminating");
 #endif
@@ -612,7 +657,8 @@ public partial class ConventionDispatcher
                         return _relationshipBuilderConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(relationshipBuilder.Metadata.DeclaringEntityType.IsInModel
+                    Check.DebugAssert(
+                        relationshipBuilder.Metadata.DeclaringEntityType.IsInModel
                         && relationshipBuilder.Metadata.PrincipalEntityType.IsInModel
                         && relationshipBuilder.Metadata.IsInModel,
                         $"Convention {foreignKeyConvention.GetType().Name} changed value without terminating");
@@ -672,9 +718,11 @@ public partial class ConventionDispatcher
                         return _propertyListConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(initialProperties == relationshipBuilder.Metadata.Properties,
+                    Check.DebugAssert(
+                        initialProperties == relationshipBuilder.Metadata.Properties,
                         $"Convention {foreignKeyConvention.GetType().Name} changed value without terminating");
-                    Check.DebugAssert(initialPrincipalKey == relationshipBuilder.Metadata.PrincipalKey,
+                    Check.DebugAssert(
+                        initialPrincipalKey == relationshipBuilder.Metadata.PrincipalKey,
                         $"Convention {foreignKeyConvention.GetType().Name} changed value without terminating");
 #endif
                 }
@@ -705,7 +753,8 @@ public partial class ConventionDispatcher
                         return _boolConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(initialValue == relationshipBuilder.Metadata.IsUnique,
+                    Check.DebugAssert(
+                        initialValue == relationshipBuilder.Metadata.IsUnique,
                         $"Convention {foreignKeyConvention.GetType().Name} changed value without terminating");
 #endif
                 }
@@ -737,7 +786,8 @@ public partial class ConventionDispatcher
                         return _boolConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(initialValue == relationshipBuilder.Metadata.IsRequired,
+                    Check.DebugAssert(
+                        initialValue == relationshipBuilder.Metadata.IsRequired,
                         $"Convention {foreignKeyConvention.GetType().Name} changed value without terminating");
 #endif
                 }
@@ -769,7 +819,8 @@ public partial class ConventionDispatcher
                         return _boolConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(initialValue == relationshipBuilder.Metadata.IsRequiredDependent,
+                    Check.DebugAssert(
+                        initialValue == relationshipBuilder.Metadata.IsRequiredDependent,
                         $"Convention {foreignKeyConvention.GetType().Name} changed value without terminating");
 #endif
                 }
@@ -800,7 +851,8 @@ public partial class ConventionDispatcher
                         return _boolConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(initialValue == relationshipBuilder.Metadata.IsOwnership,
+                    Check.DebugAssert(
+                        initialValue == relationshipBuilder.Metadata.IsOwnership,
                         $"Convention {foreignKeyConvention.GetType().Name} changed value without terminating");
 #endif
                 }
@@ -859,8 +911,9 @@ public partial class ConventionDispatcher
                         return _annotationConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(relationshipBuilder.Metadata.IsInModel
-                    && initialValue == relationshipBuilder.Metadata[name],
+                    Check.DebugAssert(
+                        relationshipBuilder.Metadata.IsInModel
+                        && initialValue == relationshipBuilder.Metadata[name],
                         $"Convention {foreignKeyConvention.GetType().Name} changed value without terminating");
 #endif
                 }
@@ -895,7 +948,9 @@ public partial class ConventionDispatcher
                         return _navigationConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(initialValue == (pointsToPrincipal
+                    Check.DebugAssert(
+                        initialValue
+                        == (pointsToPrincipal
                             ? relationshipBuilder.Metadata.DependentToPrincipal
                             : relationshipBuilder.Metadata.PrincipalToDependent),
                         $"Convention {foreignKeyConvention.GetType().Name} changed value without terminating");
@@ -924,7 +979,8 @@ public partial class ConventionDispatcher
                         return _navigationConventionBuilderContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(navigationBuilder.Metadata.IsInModel,
+                    Check.DebugAssert(
+                        navigationBuilder.Metadata.IsInModel,
                         $"Convention {navigationConvention.GetType().Name} changed value without terminating");
 #endif
                 }
@@ -960,7 +1016,8 @@ public partial class ConventionDispatcher
                         return _annotationConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(relationshipBuilder.Metadata.IsInModel
+                    Check.DebugAssert(
+                        relationshipBuilder.Metadata.IsInModel
                         && relationshipBuilder.Metadata.GetNavigation(navigation.IsOnDependent) == navigation
                         && initialValue == navigation[name],
                         $"Convention {navigationConvention.GetType().Name} changed value without terminating");
@@ -1019,7 +1076,8 @@ public partial class ConventionDispatcher
                         return _skipNavigationBuilderConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(navigationBuilder.Metadata.IsInModel,
+                    Check.DebugAssert(
+                        navigationBuilder.Metadata.IsInModel,
                         $"Convention {skipNavigationConvention.GetType().Name} changed value without terminating");
 #endif
                 }
@@ -1060,7 +1118,8 @@ public partial class ConventionDispatcher
                         return _annotationConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(navigationBuilder.Metadata.IsInModel
+                    Check.DebugAssert(
+                        navigationBuilder.Metadata.IsInModel
                         && initialValue == navigationBuilder.Metadata[name],
                         $"Convention {skipNavigationConvention.GetType().Name} changed value without terminating");
 #endif
@@ -1100,7 +1159,8 @@ public partial class ConventionDispatcher
                         return _foreignKeyConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(initialValue == navigationBuilder.Metadata.ForeignKey,
+                    Check.DebugAssert(
+                        initialValue == navigationBuilder.Metadata.ForeignKey,
                         $"Convention {skipNavigationConvention.GetType().Name} changed value without terminating");
 #endif
                 }
@@ -1134,7 +1194,8 @@ public partial class ConventionDispatcher
                         return _skipNavigationConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(initialValue == navigationBuilder.Metadata.Inverse,
+                    Check.DebugAssert(
+                        initialValue == navigationBuilder.Metadata.Inverse,
                         $"Convention {skipNavigationConvention.GetType().Name} changed value without terminating");
 #endif
                 }
@@ -1187,7 +1248,8 @@ public partial class ConventionDispatcher
                         return _triggerBuilderConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(triggerBuilder.Metadata.IsInModel,
+                    Check.DebugAssert(
+                        triggerBuilder.Metadata.IsInModel,
                         $"Convention {triggerConvention.GetType().Name} changed value without terminating");
 #endif
                 }
@@ -1237,7 +1299,8 @@ public partial class ConventionDispatcher
                         return _keyBuilderConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(keyBuilder.Metadata.IsInModel,
+                    Check.DebugAssert(
+                        keyBuilder.Metadata.IsInModel,
                         $"Convention {keyConvention.GetType().Name} changed value without terminating");
 #endif
                 }
@@ -1290,7 +1353,8 @@ public partial class ConventionDispatcher
                         return _annotationConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(keyBuilder.Metadata.IsInModel
+                    Check.DebugAssert(
+                        keyBuilder.Metadata.IsInModel
                         && initialValue == keyBuilder.Metadata[name],
                         $"Convention {keyConvention.GetType().Name} changed value without terminating");
 #endif
@@ -1323,7 +1387,8 @@ public partial class ConventionDispatcher
                         return _indexBuilderConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(indexBuilder.Metadata.IsInModel,
+                    Check.DebugAssert(
+                        indexBuilder.Metadata.IsInModel,
                         $"Convention {indexConvention.GetType().Name} changed value without terminating");
 #endif
                 }
@@ -1371,7 +1436,8 @@ public partial class ConventionDispatcher
                         return _boolConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(initialValue == indexBuilder.Metadata.IsUnique,
+                    Check.DebugAssert(
+                        initialValue == indexBuilder.Metadata.IsUnique,
                         $"Convention {indexConvention.GetType().Name} changed value without terminating");
 #endif
                 }
@@ -1401,7 +1467,8 @@ public partial class ConventionDispatcher
                         return _boolListConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(initialValue == indexBuilder.Metadata.IsDescending,
+                    Check.DebugAssert(
+                        initialValue == indexBuilder.Metadata.IsDescending,
                         $"Convention {indexConvention.GetType().Name} changed value without terminating");
 #endif
                 }
@@ -1435,7 +1502,8 @@ public partial class ConventionDispatcher
                         return _annotationConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(indexBuilder.Metadata.IsInModel
+                    Check.DebugAssert(
+                        indexBuilder.Metadata.IsInModel
                         && initialValue == indexBuilder.Metadata[name],
                         $"Convention {indexConvention.GetType().Name} changed value without terminating");
 #endif
@@ -1468,7 +1536,8 @@ public partial class ConventionDispatcher
                         return _propertyBuilderConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(propertyBuilder.Metadata.IsInModel,
+                    Check.DebugAssert(
+                        propertyBuilder.Metadata.IsInModel,
                         $"Convention {propertyConvention.GetType().Name} changed value without terminating");
 #endif
                 }
@@ -1502,13 +1571,49 @@ public partial class ConventionDispatcher
                         return _boolConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(initialValue == propertyBuilder.Metadata.IsNullable,
+                    Check.DebugAssert(
+                        initialValue == propertyBuilder.Metadata.IsNullable,
                         $"Convention {propertyConvention.GetType().Name} changed value without terminating");
 #endif
                 }
             }
 
             return !propertyBuilder.Metadata.IsInModel ? null : _boolConventionContext.Result;
+        }
+
+        public override bool? OnElementTypeNullabilityChanged(IConventionElementTypeBuilder builder)
+        {
+            if (!builder.Metadata.CollectionProperty.IsInModel)
+            {
+                return null;
+            }
+#if DEBUG
+            var initialValue = builder.Metadata.IsNullable;
+#endif
+            using (_dispatcher.DelayConventions())
+            {
+                _boolConventionContext.ResetState(builder.Metadata.IsNullable);
+                foreach (var elementConvention in _conventionSet.ElementTypeNullabilityChangedConventions)
+                {
+                    if (!builder.Metadata.IsInModel)
+                    {
+                        return null;
+                    }
+
+                    elementConvention.ProcessElementTypeNullabilityChanged(builder, _boolConventionContext);
+                    if (_boolConventionContext.ShouldStopProcessing())
+                    {
+                        return _boolConventionContext.Result;
+                    }
+#if DEBUG
+                    Check.DebugAssert(
+                        initialValue == builder.Metadata.IsNullable,
+                        $"Convention {elementConvention.GetType().Name} changed value without terminating");
+#endif
+                }
+            }
+
+            return !builder.Metadata.IsInModel ? null : _boolConventionContext.Result;
         }
 
         public override FieldInfo? OnPropertyFieldChanged(
@@ -1534,12 +1639,45 @@ public partial class ConventionDispatcher
                     return _fieldInfoConventionContext.Result;
                 }
 #if DEBUG
-                Check.DebugAssert(initialValue == propertyBuilder.Metadata.FieldInfo,
+                Check.DebugAssert(
+                    initialValue == propertyBuilder.Metadata.FieldInfo,
                     $"Convention {propertyConvention.GetType().Name} changed value without terminating");
 #endif
             }
 
             return _fieldInfoConventionContext.Result;
+        }
+
+        public override IElementType? OnPropertyElementTypeChanged(
+            IConventionPropertyBuilder propertyBuilder,
+            IElementType? newElementType,
+            IElementType? oldElementType)
+        {
+            if (!propertyBuilder.Metadata.IsInModel
+                || !propertyBuilder.Metadata.DeclaringType.IsInModel)
+            {
+                return null;
+            }
+#if DEBUG
+            var initialValue = propertyBuilder.Metadata.GetElementType();
+#endif
+            _elementTypeConventionContext.ResetState(newElementType);
+            foreach (var propertyConvention in _conventionSet.PropertyElementTypeChangedConventions)
+            {
+                propertyConvention.ProcessPropertyElementTypeChanged(
+                    propertyBuilder, newElementType, oldElementType, _elementTypeConventionContext);
+                if (_elementTypeConventionContext.ShouldStopProcessing())
+                {
+                    return _elementTypeConventionContext.Result;
+                }
+#if DEBUG
+                Check.DebugAssert(
+                    initialValue == propertyBuilder.Metadata.GetElementType(),
+                    $"Convention {propertyConvention.GetType().Name} changed value without terminating");
+#endif
+            }
+
+            return _elementTypeConventionContext.Result;
         }
 
         public override IConventionAnnotation? OnPropertyAnnotationChanged(
@@ -1569,7 +1707,8 @@ public partial class ConventionDispatcher
                         return _annotationConventionContext.Result;
                     }
 #if DEBUG
-                    Check.DebugAssert(propertyBuilder.Metadata is { IsInModel: true, DeclaringType.IsInModel: true }
+                    Check.DebugAssert(
+                        propertyBuilder.Metadata is { IsInModel: true, DeclaringType.IsInModel: true }
                         && initialValue == propertyBuilder.Metadata[name],
                         $"Convention {propertyConvention.GetType().Name} changed value without terminating");
 #endif
@@ -1577,6 +1716,44 @@ public partial class ConventionDispatcher
             }
 
             return !propertyBuilder.Metadata.IsInModel ? null : annotation;
+        }
+
+        public override IConventionAnnotation? OnElementTypeAnnotationChanged(
+            IConventionElementTypeBuilder builder,
+            string name,
+            IConventionAnnotation? annotation,
+            IConventionAnnotation? oldAnnotation)
+        {
+            if (!builder.Metadata.IsInModel
+                || !builder.Metadata.CollectionProperty.IsInModel)
+            {
+                return null;
+            }
+#if DEBUG
+            var initialValue = builder.Metadata[name];
+#endif
+            using (_dispatcher.DelayConventions())
+            {
+                _annotationConventionContext.ResetState(annotation);
+                foreach (var elementConvention in _conventionSet.ElementTypeAnnotationChangedConventions)
+                {
+                    elementConvention.ProcessElementTypeAnnotationChanged(
+                        builder, name, annotation, oldAnnotation, _annotationConventionContext);
+
+                    if (_annotationConventionContext.ShouldStopProcessing())
+                    {
+                        return _annotationConventionContext.Result;
+                    }
+#if DEBUG
+                    Check.DebugAssert(
+                        builder.Metadata is { IsInModel: true, CollectionProperty.IsInModel: true }
+                        && initialValue == builder.Metadata[name],
+                        $"Convention {elementConvention.GetType().Name} changed value without terminating");
+#endif
+                }
+            }
+
+            return !builder.Metadata.IsInModel ? null : annotation;
         }
 
         public override IConventionProperty? OnPropertyRemoved(

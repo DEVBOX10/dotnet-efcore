@@ -63,12 +63,15 @@ public abstract class JsonQueryFixtureBase : SharedStoreFixtureBase<JsonQueryCon
                     Assert.Equal(ee.Id, aa.Id);
                     Assert.Equal(ee.Name, aa.Name);
 
-                    AssertOwnedRoot(ee.OwnedReferenceRoot, aa.OwnedReferenceRoot);
-
-                    Assert.Equal(ee.OwnedCollectionRoot.Count, aa.OwnedCollectionRoot.Count);
-                    for (var i = 0; i < ee.OwnedCollectionRoot.Count; i++)
+                    if (ee.OwnedReferenceRoot is not null || aa.OwnedReferenceRoot is not null)
                     {
-                        AssertOwnedRoot(ee.OwnedCollectionRoot[i], aa.OwnedCollectionRoot[i]);
+                        AssertOwnedRoot(ee.OwnedReferenceRoot, aa.OwnedReferenceRoot);
+
+                        Assert.Equal(ee.OwnedCollectionRoot.Count, aa.OwnedCollectionRoot.Count);
+                        for (var i = 0; i < ee.OwnedCollectionRoot.Count; i++)
+                        {
+                            AssertOwnedRoot(ee.OwnedCollectionRoot[i], aa.OwnedCollectionRoot[i]);
+                        }
                     }
                 }
             }
@@ -278,6 +281,19 @@ public abstract class JsonQueryFixtureBase : SharedStoreFixtureBase<JsonQueryCon
             }
         },
         {
+            typeof(JsonOwnedAllTypes), (e, a) =>
+            {
+                Assert.Equal(e == null, a == null);
+                if (a != null)
+                {
+                    var ee = (JsonOwnedAllTypes)e;
+                    var aa = (JsonOwnedAllTypes)a;
+
+                    AssertAllTypes(ee, aa);
+                }
+            }
+        },
+        {
             typeof(JsonEntityConverters), (e, a) =>
             {
                 Assert.Equal(e == null, a == null);
@@ -292,12 +308,27 @@ public abstract class JsonQueryFixtureBase : SharedStoreFixtureBase<JsonQueryCon
                 }
             }
         },
+        {
+            typeof(JsonOwnedConverters), (e, a) =>
+            {
+                Assert.Equal(e == null, a == null);
+                if (a != null)
+                {
+                    var ee = (JsonOwnedConverters)e;
+                    var aa = (JsonOwnedConverters)a;
+
+                    AssertConverters(ee, aa);
+                }
+            }
+        },
     }.ToDictionary(e => e.Key, e => (object)e.Value);
 
-    private static void AssertOwnedRoot(JsonOwnedRoot expected, JsonOwnedRoot actual)
+    public static void AssertOwnedRoot(JsonOwnedRoot expected, JsonOwnedRoot actual)
     {
         Assert.Equal(expected.Name, actual.Name);
         Assert.Equal(expected.Number, actual.Number);
+        Assert.Equal(expected.Names, actual.Names);
+        Assert.Equal(expected.Numbers, actual.Numbers);
 
         AssertOwnedBranch(expected.OwnedReferenceBranch, actual.OwnedReferenceBranch);
         Assert.Equal(expected.OwnedCollectionBranch.Count, actual.OwnedCollectionBranch.Count);
@@ -307,12 +338,14 @@ public abstract class JsonQueryFixtureBase : SharedStoreFixtureBase<JsonQueryCon
         }
     }
 
-    private static void AssertOwnedBranch(JsonOwnedBranch expected, JsonOwnedBranch actual)
+    public static void AssertOwnedBranch(JsonOwnedBranch expected, JsonOwnedBranch actual)
     {
         Assert.Equal(expected.Date, actual.Date);
         Assert.Equal(expected.Fraction, actual.Fraction);
         Assert.Equal(expected.Enum, actual.Enum);
         Assert.Equal(expected.NullableEnum, actual.NullableEnum);
+        Assert.Equal(expected.Enums, actual.Enums);
+        Assert.Equal(expected.NullableEnums, actual.NullableEnums);
 
         AssertOwnedLeaf(expected.OwnedReferenceLeaf, actual.OwnedReferenceLeaf);
         Assert.Equal(expected.OwnedCollectionLeaf.Count, actual.OwnedCollectionLeaf.Count);
@@ -322,7 +355,7 @@ public abstract class JsonQueryFixtureBase : SharedStoreFixtureBase<JsonQueryCon
         }
     }
 
-    private static void AssertOwnedLeaf(JsonOwnedLeaf expected, JsonOwnedLeaf actual)
+    public static void AssertOwnedLeaf(JsonOwnedLeaf expected, JsonOwnedLeaf actual)
         => Assert.Equal(expected.SomethingSomething, actual.SomethingSomething);
 
     public static void AssertCustomNameRoot(JsonOwnedCustomNameRoot expected, JsonOwnedCustomNameRoot actual)
@@ -360,6 +393,8 @@ public abstract class JsonQueryFixtureBase : SharedStoreFixtureBase<JsonQueryCon
         Assert.Equal(expected.TestSignedByte, actual.TestSignedByte);
         Assert.Equal(expected.TestSingle, actual.TestSingle);
         Assert.Equal(expected.TestTimeSpan, actual.TestTimeSpan);
+        Assert.Equal(expected.TestDateOnly, actual.TestDateOnly);
+        Assert.Equal(expected.TestTimeOnly, actual.TestTimeOnly);
         Assert.Equal(expected.TestUnsignedInt16, actual.TestUnsignedInt16);
         Assert.Equal(expected.TestUnsignedInt32, actual.TestUnsignedInt32);
         Assert.Equal(expected.TestUnsignedInt64, actual.TestUnsignedInt64);
@@ -369,6 +404,43 @@ public abstract class JsonQueryFixtureBase : SharedStoreFixtureBase<JsonQueryCon
         Assert.Equal(expected.TestNullableEnum, actual.TestNullableEnum);
         Assert.Equal(expected.TestNullableEnumWithIntConverter, actual.TestNullableEnumWithIntConverter);
         Assert.Equal(expected.TestNullableEnumWithConverterThatHandlesNulls, actual.TestNullableEnumWithConverterThatHandlesNulls);
+
+        AssertPrimitiveCollection(expected.TestDefaultStringCollection, actual.TestDefaultStringCollection);
+        AssertPrimitiveCollection(expected.TestMaxLengthStringCollection, actual.TestMaxLengthStringCollection);
+        AssertPrimitiveCollection(expected.TestBooleanCollection, actual.TestBooleanCollection);
+        AssertPrimitiveCollection(expected.TestCharacterCollection, actual.TestCharacterCollection);
+        AssertPrimitiveCollection(expected.TestDateTimeCollection, actual.TestDateTimeCollection);
+        AssertPrimitiveCollection(expected.TestDateTimeOffsetCollection, actual.TestDateTimeOffsetCollection);
+        AssertPrimitiveCollection(expected.TestDoubleCollection, actual.TestDoubleCollection);
+        AssertPrimitiveCollection(expected.TestGuidCollection, actual.TestGuidCollection);
+        AssertPrimitiveCollection(expected.TestInt16Collection, actual.TestInt16Collection);
+        AssertPrimitiveCollection(expected.TestInt32Collection, actual.TestInt32Collection);
+        AssertPrimitiveCollection(expected.TestInt64Collection, actual.TestInt64Collection);
+        AssertPrimitiveCollection(expected.TestSignedByteCollection, actual.TestSignedByteCollection);
+        AssertPrimitiveCollection(expected.TestSingleCollection, actual.TestSingleCollection);
+        AssertPrimitiveCollection(expected.TestTimeSpanCollection, actual.TestTimeSpanCollection);
+        AssertPrimitiveCollection(expected.TestDateOnlyCollection, actual.TestDateOnlyCollection);
+        AssertPrimitiveCollection(expected.TestTimeOnlyCollection, actual.TestTimeOnlyCollection);
+        AssertPrimitiveCollection(expected.TestUnsignedInt16Collection, actual.TestUnsignedInt16Collection);
+        AssertPrimitiveCollection(expected.TestUnsignedInt32Collection, actual.TestUnsignedInt32Collection);
+        AssertPrimitiveCollection(expected.TestUnsignedInt64Collection, actual.TestUnsignedInt64Collection);
+        AssertPrimitiveCollection(expected.TestNullableInt32Collection, actual.TestNullableInt32Collection);
+        AssertPrimitiveCollection(expected.TestEnumCollection, actual.TestEnumCollection);
+        AssertPrimitiveCollection(expected.TestEnumWithIntConverterCollection, actual.TestEnumWithIntConverterCollection);
+        AssertPrimitiveCollection(expected.TestNullableEnumCollection, actual.TestNullableEnumCollection);
+        AssertPrimitiveCollection(expected.TestNullableEnumWithIntConverterCollection, actual.TestNullableEnumWithIntConverterCollection);
+        AssertPrimitiveCollection(
+            expected.TestNullableEnumWithConverterThatHandlesNullsCollection,
+            actual.TestNullableEnumWithConverterThatHandlesNullsCollection);
+    }
+
+    public static void AssertPrimitiveCollection<T>(IList<T> expected, IList<T> actual)
+    {
+        Assert.Equal(expected?.Count, actual?.Count);
+        for (var i = 0; i < (expected?.Count ?? 0); i++)
+        {
+            Assert.Equal(expected![i], actual![i]);
+        }
     }
 
     public static void AssertConverters(JsonOwnedConverters expected, JsonOwnedConverters actual)
@@ -403,7 +475,13 @@ public abstract class JsonQueryFixtureBase : SharedStoreFixtureBase<JsonQueryCon
     {
         modelBuilder.Entity<JsonEntityBasic>().Property(x => x.Id).ValueGeneratedNever();
         modelBuilder.Entity<EntityBasic>().Property(x => x.Id).ValueGeneratedNever();
-        modelBuilder.Entity<JsonEntityBasicForReference>().Property(x => x.Id).ValueGeneratedNever();
+        modelBuilder.Entity<JsonEntityBasicForReference>(
+            b =>
+            {
+                b.Property(x => x.Id).ValueGeneratedNever();
+                b.Property(x => x.Name);
+            });
+
         modelBuilder.Entity<JsonEntityBasicForCollection>().Property(x => x.Id).ValueGeneratedNever();
         modelBuilder.Entity<JsonEntityBasic>().OwnsOne(
             x => x.OwnedReferenceRoot, b =>

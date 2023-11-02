@@ -3,15 +3,25 @@
 
 #nullable enable
 
+using Microsoft.EntityFrameworkCore.Sqlite.Internal;
+
 namespace Microsoft.EntityFrameworkCore;
 
-public class MaterializationInterceptionSqliteTest : MaterializationInterceptionTestBase<MaterializationInterceptionSqliteTest.SqliteLibraryContext>,
+public class MaterializationInterceptionSqliteTest :
+    MaterializationInterceptionTestBase<MaterializationInterceptionSqliteTest.SqliteLibraryContext>,
     IClassFixture<MaterializationInterceptionSqliteTest.MaterializationInterceptionSqliteFixture>
 {
     public MaterializationInterceptionSqliteTest(MaterializationInterceptionSqliteFixture fixture)
         : base(fixture)
     {
     }
+
+    public override async Task Intercept_query_materialization_with_owned_types_projecting_collection(bool async)
+        => Assert.Equal(
+            SqliteStrings.ApplyNotSupported,
+            (await Assert.ThrowsAsync<InvalidOperationException>(
+                () => base.Intercept_query_materialization_with_owned_types_projecting_collection(async)))
+            .Message);
 
     public class SqliteLibraryContext : LibraryContext
     {

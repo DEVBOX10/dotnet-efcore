@@ -66,6 +66,7 @@ public class RuntimeSkipNavigation : RuntimePropertyBase, IRuntimeSkipNavigation
         {
             SetAnnotation(CoreAnnotationNames.EagerLoaded, true);
         }
+
         if (!lazyLoadingEnabled)
         {
             SetAnnotation(CoreAnnotationNames.LazyLoadingEnabled, false);
@@ -115,6 +116,7 @@ public class RuntimeSkipNavigation : RuntimePropertyBase, IRuntimeSkipNavigation
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
+    [EntityFrameworkInternal]
     public virtual DebugView DebugView
         => new(
             () => ((IReadOnlySkipNavigation)this).ToDebugString(),
@@ -168,18 +170,10 @@ public class RuntimeSkipNavigation : RuntimePropertyBase, IRuntimeSkipNavigation
             ref _collectionAccessor,
             ref _collectionAccessorInitialized,
             this,
-            static navigation =>
-            {
-                navigation.EnsureReadOnly();
-                return new ClrCollectionAccessorFactory().Create(navigation);
-            });
+            static navigation => new ClrCollectionAccessorFactory().Create(navigation));
 
     /// <inheritdoc />
     ICollectionLoader IRuntimeSkipNavigation.GetManyToManyLoader()
         => NonCapturingLazyInitializer.EnsureInitialized(
-            ref _manyToManyLoader, this, static navigation =>
-            {
-                navigation.EnsureReadOnly();
-                return new ManyToManyLoaderFactory().Create(navigation);
-            });
+            ref _manyToManyLoader, this, static navigation => new ManyToManyLoaderFactory().Create(navigation));
 }

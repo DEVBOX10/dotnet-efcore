@@ -309,7 +309,8 @@ public static class ExpressionExtensions
     public static readonly MethodInfo ValueBufferTryReadValueMethod
         = typeof(ExpressionExtensions).GetTypeInfo().GetDeclaredMethod(nameof(ValueBufferTryReadValue))!;
 
-    [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2060",
+    [UnconditionalSuppressMessage(
+        "ReflectionAnalysis", "IL2060",
         Justification = "ValueBufferTryReadValueMethod has no DynamicallyAccessedMembers annotations and is safe to construct.")]
     private static MethodInfo MakeValueBufferTryReadValueMethod(Type type)
         => ValueBufferTryReadValueMethod.MakeGenericMethod(type);
@@ -382,6 +383,13 @@ public static class ExpressionExtensions
         if (makeNullable)
         {
             propertyType = propertyType.MakeNullable();
+        }
+
+        // EF.Property expects an object as its first argument. If the target is a struct (complex type), we need an explicit up-cast to
+        // object.
+        if (target.Type.IsValueType)
+        {
+            target = Expression.Convert(target, typeof(object));
         }
 
         return Expression.Call(

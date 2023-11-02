@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Diagnostics.CodeAnalysis;
-using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
+using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
@@ -14,7 +14,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata;
 /// <remarks>
 ///     See <see href="https://aka.ms/efcore-docs-modeling">Modeling entity types and relationships</see> for more information and examples.
 /// </remarks>
-public abstract class RuntimePropertyBase : AnnotatableBase, IRuntimePropertyBase
+public abstract class RuntimePropertyBase : RuntimeAnnotatableBase, IRuntimePropertyBase
 {
     private readonly PropertyInfo? _propertyInfo;
     private readonly FieldInfo? _fieldInfo;
@@ -26,7 +26,6 @@ public abstract class RuntimePropertyBase : AnnotatableBase, IRuntimePropertyBas
     private IClrPropertySetter? _materializationSetter;
     private PropertyAccessors? _accessors;
     private PropertyIndexes? _indexes;
-    private IComparer<IUpdateEntry>? _currentValueComparer;
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -93,21 +92,20 @@ public abstract class RuntimePropertyBase : AnnotatableBase, IRuntimePropertyBas
     }
 
     /// <inheritdoc />
-    IClrPropertySetter IRuntimePropertyBase.Setter
-        => NonCapturingLazyInitializer.EnsureInitialized(
-            ref _setter, this, static property => new ClrPropertySetterFactory().Create(property));
-
-    /// <inheritdoc />
     IClrPropertySetter IRuntimePropertyBase.MaterializationSetter
         => NonCapturingLazyInitializer.EnsureInitialized(
             ref _materializationSetter, this, static property =>
-                new ClrPropertyMaterializationSetterFactory().Create(property));
+                RuntimeFeature.IsDynamicCodeSupported
+                    ? new ClrPropertyMaterializationSetterFactory().Create(property)
+                    : throw new InvalidOperationException(CoreStrings.NativeAotNoCompiledModel));
 
     /// <inheritdoc />
     PropertyAccessors IRuntimePropertyBase.Accessors
         => NonCapturingLazyInitializer.EnsureInitialized(
             ref _accessors, this, static property =>
-                new PropertyAccessorsFactory().Create(property));
+                RuntimeFeature.IsDynamicCodeSupported
+                    ? new PropertyAccessorsFactory().Create(property)
+                    : throw new InvalidOperationException(CoreStrings.NativeAotNoCompiledModel));
 
     /// <inheritdoc />
     PropertyIndexes IRuntimePropertyBase.PropertyIndexes
@@ -116,7 +114,7 @@ public abstract class RuntimePropertyBase : AnnotatableBase, IRuntimePropertyBas
             ref _indexes, this,
             static property =>
             {
-                var _ = ((IRuntimeTypeBase)property.DeclaringType).Counts;
+                _ = ((IRuntimeEntityType)((IRuntimeTypeBase)property.DeclaringType).ContainingEntityType).Counts;
             });
         set => NonCapturingLazyInitializer.EnsureInitialized(ref _indexes, value);
     }
@@ -129,16 +127,51 @@ public abstract class RuntimePropertyBase : AnnotatableBase, IRuntimePropertyBas
         get => ClrType;
     }
 
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [EntityFrameworkInternal]
+    public virtual void SetAccessors(PropertyAccessors accessors)
+        => _accessors = accessors;
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [EntityFrameworkInternal]
+    public virtual void SetSetter<TEntity, TValue>(Action<TEntity, TValue> setter)
+        where TEntity : class
+        => _setter = new ClrPropertySetter<TEntity, TValue>(setter);
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [EntityFrameworkInternal]
+    public virtual void SetGetter<TEntity, TStructuralType, TValue>(
+        Func<TEntity, TValue> getter,
+        Func<TEntity, bool> hasDefaultValue,
+        Func<TStructuralType, TValue> structuralTypeGetter,
+        Func<TStructuralType, bool> hasStructuralTypeSentinelValue)
+        where TEntity : class
+        => _getter = new ClrPropertyGetter<TEntity, TStructuralType, TValue>(
+            getter, hasDefaultValue, structuralTypeGetter, hasStructuralTypeSentinelValue);
+
+    /// <inheritdoc />
+    IClrPropertySetter IRuntimePropertyBase.GetSetter()
+        => NonCapturingLazyInitializer.EnsureInitialized(
+            ref _setter, this, static property => new ClrPropertySetterFactory().Create(property));
+
     /// <inheritdoc />
     [DebuggerStepThrough]
     IClrPropertyGetter IPropertyBase.GetGetter()
         => NonCapturingLazyInitializer.EnsureInitialized(
             ref _getter, this, static property => new ClrPropertyGetterFactory().Create(property));
-
-    /// <inheritdoc />
-    [DebuggerStepThrough]
-    IComparer<IUpdateEntry> IPropertyBase.GetCurrentValueComparer()
-        => NonCapturingLazyInitializer.EnsureInitialized(
-            ref _currentValueComparer, this, static property =>
-                new CurrentValueComparerFactory().Create(property));
 }

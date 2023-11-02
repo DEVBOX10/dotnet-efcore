@@ -87,10 +87,7 @@ public abstract class ExecutionStrategy : IExecutionStrategy
         int maxRetryCount,
         TimeSpan maxRetryDelay)
     {
-        if (maxRetryCount < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(maxRetryCount));
-        }
+        ArgumentOutOfRangeException.ThrowIfNegative(maxRetryCount);
 
         if (maxRetryDelay.TotalMilliseconds < 0.0)
         {
@@ -123,7 +120,7 @@ public abstract class ExecutionStrategy : IExecutionStrategy
     ///     See <see href="https://aka.ms/efcore-docs-connection-resiliency">Connection resiliency and database retries</see>
     ///     for more information and examples.
     /// </remarks>
-    protected virtual int MaxRetryCount { get; }
+    public virtual int MaxRetryCount { get; }
 
     /// <summary>
     ///     The maximum delay between retries.
@@ -132,7 +129,7 @@ public abstract class ExecutionStrategy : IExecutionStrategy
     ///     See <see href="https://aka.ms/efcore-docs-connection-resiliency">Connection resiliency and database retries</see>
     ///     for more information and examples.
     /// </remarks>
-    protected virtual TimeSpan MaxRetryDelay { get; }
+    public virtual TimeSpan MaxRetryDelay { get; }
 
     /// <summary>
     ///     Dependencies for this service.

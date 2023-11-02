@@ -10,10 +10,8 @@ public class NorthwindBulkUpdatesSqliteTest : NorthwindBulkUpdatesTestBase<North
     public NorthwindBulkUpdatesSqliteTest(
         NorthwindBulkUpdatesSqliteFixture<NoopModelCustomizer> fixture,
         ITestOutputHelper testOutputHelper)
-        : base(fixture)
+        : base(fixture, testOutputHelper)
     {
-        ClearLog();
-        Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
     }
 
     [ConditionalFact]
@@ -25,7 +23,7 @@ public class NorthwindBulkUpdatesSqliteTest : NorthwindBulkUpdatesTestBase<North
         await base.Delete_Where_TagWith(async);
 
         AssertSql(
-"""
+            """
 -- MyDelete
 
 DELETE FROM "Order Details" AS "o"
@@ -38,7 +36,7 @@ WHERE "o"."OrderID" < 10300
         await base.Delete_Where(async);
 
         AssertSql(
-"""
+            """
 DELETE FROM "Order Details" AS "o"
 WHERE "o"."OrderID" < 10300
 """);
@@ -49,14 +47,14 @@ WHERE "o"."OrderID" < 10300
         await base.Delete_Where_parameter(async);
 
         AssertSql(
-"""
+            """
 @__quantity_0='1' (Nullable = true) (DbType = Int16)
 
 DELETE FROM "Order Details" AS "o"
 WHERE "o"."Quantity" = @__quantity_0
 """,
             //
-"""
+            """
 DELETE FROM "Order Details" AS "o"
 WHERE 0
 """);
@@ -67,7 +65,7 @@ WHERE 0
         await base.Delete_Where_OrderBy(async);
 
         AssertSql(
-"""
+            """
 DELETE FROM "Order Details" AS "o"
 WHERE EXISTS (
     SELECT 1
@@ -81,7 +79,7 @@ WHERE EXISTS (
         await base.Delete_Where_OrderBy_Skip(async);
 
         AssertSql(
-"""
+            """
 @__p_0='100'
 
 DELETE FROM "Order Details" AS "o"
@@ -103,7 +101,7 @@ WHERE EXISTS (
         await base.Delete_Where_OrderBy_Take(async);
 
         AssertSql(
-"""
+            """
 @__p_0='100'
 
 DELETE FROM "Order Details" AS "o"
@@ -125,7 +123,7 @@ WHERE EXISTS (
         await base.Delete_Where_OrderBy_Skip_Take(async);
 
         AssertSql(
-"""
+            """
 @__p_0='100'
 
 DELETE FROM "Order Details" AS "o"
@@ -147,7 +145,7 @@ WHERE EXISTS (
         await base.Delete_Where_Skip(async);
 
         AssertSql(
-"""
+            """
 @__p_0='100'
 
 DELETE FROM "Order Details" AS "o"
@@ -168,7 +166,7 @@ WHERE EXISTS (
         await base.Delete_Where_Take(async);
 
         AssertSql(
-"""
+            """
 @__p_0='100'
 
 DELETE FROM "Order Details" AS "o"
@@ -189,7 +187,7 @@ WHERE EXISTS (
         await base.Delete_Where_Skip_Take(async);
 
         AssertSql(
-"""
+            """
 @__p_0='100'
 
 DELETE FROM "Order Details" AS "o"
@@ -210,7 +208,7 @@ WHERE EXISTS (
         await base.Delete_Where_predicate_with_GroupBy_aggregate(async);
 
         AssertSql(
-"""
+            """
 DELETE FROM "Order Details" AS "o"
 WHERE "o"."OrderID" < (
     SELECT (
@@ -230,21 +228,22 @@ WHERE "o"."OrderID" < (
         await base.Delete_Where_predicate_with_GroupBy_aggregate_2(async);
 
         AssertSql(
-"""
+            """
 DELETE FROM "Order Details" AS "o"
 WHERE EXISTS (
     SELECT 1
     FROM "Order Details" AS "o0"
     INNER JOIN "Orders" AS "o1" ON "o0"."OrderID" = "o1"."OrderID"
-    WHERE EXISTS (
-        SELECT 1
-        FROM "Orders" AS "o2"
-        GROUP BY "o2"."CustomerID"
-        HAVING COUNT(*) > 9 AND (
+    WHERE "o1"."OrderID" IN (
+        SELECT (
             SELECT "o3"."OrderID"
             FROM "Orders" AS "o3"
             WHERE "o2"."CustomerID" = "o3"."CustomerID" OR ("o2"."CustomerID" IS NULL AND "o3"."CustomerID" IS NULL)
-            LIMIT 1) = "o1"."OrderID") AND "o0"."OrderID" = "o"."OrderID" AND "o0"."ProductID" = "o"."ProductID")
+            LIMIT 1)
+        FROM "Orders" AS "o2"
+        GROUP BY "o2"."CustomerID"
+        HAVING COUNT(*) > 9
+    ) AND "o0"."OrderID" = "o"."OrderID" AND "o0"."ProductID" = "o"."ProductID")
 """);
     }
 
@@ -267,7 +266,7 @@ WHERE EXISTS (
         await base.Delete_Where_Skip_Take_Skip_Take_causing_subquery(async);
 
         AssertSql(
-"""
+            """
 @__p_0='100'
 @__p_2='5'
 @__p_1='20'
@@ -294,7 +293,7 @@ WHERE EXISTS (
         await base.Delete_Where_Distinct(async);
 
         AssertSql(
-"""
+            """
 DELETE FROM "Order Details" AS "o"
 WHERE "o"."OrderID" < 10300
 """);
@@ -305,7 +304,7 @@ WHERE "o"."OrderID" < 10300
         await base.Delete_SelectMany(async);
 
         AssertSql(
-"""
+            """
 DELETE FROM "Order Details" AS "o"
 WHERE EXISTS (
     SELECT 1
@@ -320,7 +319,7 @@ WHERE EXISTS (
         await base.Delete_SelectMany_subquery(async);
 
         AssertSql(
-"""
+            """
 DELETE FROM "Order Details" AS "o"
 WHERE EXISTS (
     SELECT 1
@@ -339,7 +338,7 @@ WHERE EXISTS (
         await base.Delete_Where_using_navigation(async);
 
         AssertSql(
-"""
+            """
 DELETE FROM "Order Details" AS "o"
 WHERE EXISTS (
     SELECT 1
@@ -354,14 +353,14 @@ WHERE EXISTS (
         await base.Delete_Where_using_navigation_2(async);
 
         AssertSql(
-"""
+            """
 DELETE FROM "Order Details" AS "o"
 WHERE EXISTS (
     SELECT 1
     FROM "Order Details" AS "o0"
     INNER JOIN "Orders" AS "o1" ON "o0"."OrderID" = "o1"."OrderID"
     LEFT JOIN "Customers" AS "c" ON "o1"."CustomerID" = "c"."CustomerID"
-    WHERE "c"."CustomerID" IS NOT NULL AND "c"."CustomerID" LIKE 'F%' AND "o0"."OrderID" = "o"."OrderID" AND "o0"."ProductID" = "o"."ProductID")
+    WHERE "c"."CustomerID" LIKE 'F%' AND "o0"."OrderID" = "o"."OrderID" AND "o0"."ProductID" = "o"."ProductID")
 """);
     }
 
@@ -370,7 +369,7 @@ WHERE EXISTS (
         await base.Delete_Union(async);
 
         AssertSql(
-"""
+            """
 DELETE FROM "Order Details" AS "o"
 WHERE EXISTS (
     SELECT 1
@@ -392,7 +391,7 @@ WHERE EXISTS (
         await base.Delete_Concat(async);
 
         AssertSql(
-"""
+            """
 DELETE FROM "Order Details" AS "o"
 WHERE EXISTS (
     SELECT 1
@@ -414,7 +413,7 @@ WHERE EXISTS (
         await base.Delete_Intersect(async);
 
         AssertSql(
-"""
+            """
 DELETE FROM "Order Details" AS "o"
 WHERE EXISTS (
     SELECT 1
@@ -436,7 +435,7 @@ WHERE EXISTS (
         await base.Delete_Except(async);
 
         AssertSql(
-"""
+            """
 DELETE FROM "Order Details" AS "o"
 WHERE EXISTS (
     SELECT 1
@@ -479,7 +478,7 @@ WHERE EXISTS (
         await base.Delete_FromSql_converted_to_subquery(async);
 
         AssertSql(
-"""
+            """
 DELETE FROM "Order Details" AS "o"
 WHERE EXISTS (
     SELECT 1
@@ -497,14 +496,14 @@ WHERE EXISTS (
         await base.Delete_Where_optional_navigation_predicate(async);
 
         AssertSql(
-"""
+            """
 DELETE FROM "Order Details" AS "o"
 WHERE EXISTS (
     SELECT 1
     FROM "Order Details" AS "o0"
     INNER JOIN "Orders" AS "o1" ON "o0"."OrderID" = "o1"."OrderID"
     LEFT JOIN "Customers" AS "c" ON "o1"."CustomerID" = "c"."CustomerID"
-    WHERE "c"."City" IS NOT NULL AND "c"."City" LIKE 'Se%' AND "o0"."OrderID" = "o"."OrderID" AND "o0"."ProductID" = "o"."ProductID")
+    WHERE "c"."City" LIKE 'Se%' AND "o0"."OrderID" = "o"."OrderID" AND "o0"."ProductID" = "o"."ProductID")
 """);
     }
 
@@ -513,7 +512,7 @@ WHERE EXISTS (
         await base.Delete_with_join(async);
 
         AssertSql(
-"""
+            """
 @__p_1='100'
 @__p_0='0'
 
@@ -537,7 +536,7 @@ WHERE EXISTS (
         await base.Delete_with_left_join(async);
 
         AssertSql(
-"""
+            """
 @__p_1='100'
 @__p_0='0'
 
@@ -561,7 +560,7 @@ WHERE EXISTS (
         await base.Delete_with_cross_join(async);
 
         AssertSql(
-"""
+            """
 DELETE FROM "Order Details" AS "o"
 WHERE EXISTS (
     SELECT 1
@@ -592,7 +591,7 @@ WHERE EXISTS (
         await base.Update_Where_set_constant_TagWith(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 -- MyUpdate
 
 UPDATE "Customers" AS "c"
@@ -606,7 +605,7 @@ WHERE "c"."CustomerID" LIKE 'F%'
         await base.Update_Where_set_constant(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 UPDATE "Customers" AS "c"
 SET "ContactName" = 'Updated'
 WHERE "c"."CustomerID" LIKE 'F%'
@@ -618,7 +617,7 @@ WHERE "c"."CustomerID" LIKE 'F%'
         await base.Update_Where_parameter_set_constant(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 @__customer_0='ALFKI' (Size = 5)
 
 UPDATE "Customers" AS "c"
@@ -626,7 +625,7 @@ SET "ContactName" = 'Updated'
 WHERE "c"."CustomerID" = @__customer_0
 """,
             //
-"""
+            """
 @__customer_0='ALFKI' (Size = 5)
 
 SELECT "c"."CustomerID", "c"."Address", "c"."City", "c"."CompanyName", "c"."ContactName", "c"."ContactTitle", "c"."Country", "c"."Fax", "c"."Phone", "c"."PostalCode", "c"."Region"
@@ -634,13 +633,13 @@ FROM "Customers" AS "c"
 WHERE "c"."CustomerID" = @__customer_0
 """,
             //
-"""
+            """
 SELECT "c"."CustomerID", "c"."Address", "c"."City", "c"."CompanyName", "c"."ContactName", "c"."ContactTitle", "c"."Country", "c"."Fax", "c"."Phone", "c"."PostalCode", "c"."Region"
 FROM "Customers" AS "c"
 WHERE 0
 """,
             //
-"""
+            """
 UPDATE "Customers" AS "c"
 SET "ContactName" = 'Updated'
 WHERE 0
@@ -652,7 +651,7 @@ WHERE 0
         await base.Update_Where_set_parameter(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 @__value_0='Abc' (Size = 3)
 
 UPDATE "Customers" AS "c"
@@ -666,7 +665,7 @@ WHERE "c"."CustomerID" LIKE 'F%'
         await base.Update_Where_set_parameter_from_closure_array(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 @__p_0='Abc' (Size = 3)
 
 UPDATE "Customers" AS "c"
@@ -680,7 +679,7 @@ WHERE "c"."CustomerID" LIKE 'F%'
         await base.Update_Where_set_parameter_from_inline_list(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 UPDATE "Customers" AS "c"
 SET "ContactName" = 'Abc'
 WHERE "c"."CustomerID" LIKE 'F%'
@@ -692,7 +691,7 @@ WHERE "c"."CustomerID" LIKE 'F%'
         await base.Update_Where_set_parameter_from_multilevel_property_access(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 @__container_Containee_Property_0='Abc' (Size = 3)
 
 UPDATE "Customers" AS "c"
@@ -706,7 +705,7 @@ WHERE "c"."CustomerID" LIKE 'F%'
         await base.Update_Where_Skip_set_constant(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 @__p_0='4'
 
 UPDATE "Customers" AS "c"
@@ -726,7 +725,7 @@ WHERE "c"."CustomerID" = "t"."CustomerID"
         await base.Update_Where_Take_set_constant(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 @__p_0='4'
 
 UPDATE "Customers" AS "c"
@@ -746,7 +745,7 @@ WHERE "c"."CustomerID" = "t"."CustomerID"
         await base.Update_Where_Skip_Take_set_constant(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 @__p_1='4'
 @__p_0='2'
 
@@ -767,7 +766,7 @@ WHERE "c"."CustomerID" = "t"."CustomerID"
         await base.Update_Where_OrderBy_set_constant(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 UPDATE "Customers" AS "c"
 SET "ContactName" = 'Updated'
 FROM (
@@ -784,7 +783,7 @@ WHERE "c"."CustomerID" = "t"."CustomerID"
         await base.Update_Where_OrderBy_Skip_set_constant(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 @__p_0='4'
 
 UPDATE "Customers" AS "c"
@@ -805,7 +804,7 @@ WHERE "c"."CustomerID" = "t"."CustomerID"
         await base.Update_Where_OrderBy_Take_set_constant(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 @__p_0='4'
 
 UPDATE "Customers" AS "c"
@@ -826,7 +825,7 @@ WHERE "c"."CustomerID" = "t"."CustomerID"
         await base.Update_Where_OrderBy_Skip_Take_set_constant(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 @__p_1='4'
 @__p_0='2'
 
@@ -848,7 +847,7 @@ WHERE "c"."CustomerID" = "t"."CustomerID"
         await base.Update_Where_OrderBy_Skip_Take_Skip_Take_set_constant(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 @__p_1='6'
 @__p_0='2'
 
@@ -875,7 +874,7 @@ WHERE "c"."CustomerID" = "t0"."CustomerID"
         await base.Update_Where_GroupBy_aggregate_set_constant(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 UPDATE "Customers" AS "c"
 SET "ContactName" = 'Updated'
 WHERE "c"."CustomerID" = (
@@ -892,7 +891,7 @@ WHERE "c"."CustomerID" = (
         await base.Update_Where_GroupBy_First_set_constant(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 UPDATE "Customers" AS "c"
 SET "ContactName" = 'Updated'
 WHERE "c"."CustomerID" = (
@@ -920,19 +919,20 @@ WHERE "c"."CustomerID" = (
         await base.Update_Where_GroupBy_First_set_constant_3(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 UPDATE "Customers" AS "c"
 SET "ContactName" = 'Updated'
-WHERE EXISTS (
-    SELECT 1
-    FROM "Orders" AS "o"
-    GROUP BY "o"."CustomerID"
-    HAVING COUNT(*) > 11 AND (
+WHERE "c"."CustomerID" IN (
+    SELECT (
         SELECT "c0"."CustomerID"
         FROM "Orders" AS "o0"
         LEFT JOIN "Customers" AS "c0" ON "o0"."CustomerID" = "c0"."CustomerID"
         WHERE "o"."CustomerID" = "o0"."CustomerID" OR ("o"."CustomerID" IS NULL AND "o0"."CustomerID" IS NULL)
-        LIMIT 1) = "c"."CustomerID")
+        LIMIT 1)
+    FROM "Orders" AS "o"
+    GROUP BY "o"."CustomerID"
+    HAVING COUNT(*) > 11
+)
 """);
     }
 
@@ -941,10 +941,15 @@ WHERE EXISTS (
         await base.Update_Where_Distinct_set_constant(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 UPDATE "Customers" AS "c"
 SET "ContactName" = 'Updated'
-WHERE "c"."CustomerID" LIKE 'F%'
+FROM (
+    SELECT DISTINCT "c0"."CustomerID", "c0"."Address", "c0"."City", "c0"."CompanyName", "c0"."ContactName", "c0"."ContactTitle", "c0"."Country", "c0"."Fax", "c0"."Phone", "c0"."PostalCode", "c0"."Region"
+    FROM "Customers" AS "c0"
+    WHERE "c0"."CustomerID" LIKE 'F%'
+) AS "t"
+WHERE "c"."CustomerID" = "t"."CustomerID"
 """);
     }
 
@@ -953,7 +958,7 @@ WHERE "c"."CustomerID" LIKE 'F%'
         await base.Update_Where_using_navigation_set_null(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 UPDATE "Orders" AS "o"
 SET "OrderDate" = NULL
 FROM (
@@ -971,7 +976,7 @@ WHERE "o"."OrderID" = "t"."OrderID"
         await base.Update_Where_using_navigation_2_set_constant(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 UPDATE "Order Details" AS "o"
 SET "Quantity" = CAST(1 AS INTEGER)
 FROM "Orders" AS "o0"
@@ -985,7 +990,7 @@ WHERE "o"."OrderID" = "o0"."OrderID" AND "c"."City" = 'Seattle'
         await base.Update_Where_SelectMany_set_null(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 UPDATE "Orders" AS "o"
 SET "OrderDate" = NULL
 FROM "Customers" AS "c"
@@ -998,7 +1003,7 @@ WHERE "c"."CustomerID" = "o"."CustomerID" AND "c"."CustomerID" LIKE 'F%'
         await base.Update_Where_set_property_plus_constant(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 UPDATE "Customers" AS "c"
 SET "ContactName" = COALESCE("c"."ContactName", '') || 'Abc'
 WHERE "c"."CustomerID" LIKE 'F%'
@@ -1010,7 +1015,7 @@ WHERE "c"."CustomerID" LIKE 'F%'
         await base.Update_Where_set_property_plus_parameter(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 @__value_0='Abc' (Size = 3)
 
 UPDATE "Customers" AS "c"
@@ -1024,7 +1029,7 @@ WHERE "c"."CustomerID" LIKE 'F%'
         await base.Update_Where_set_property_plus_property(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 UPDATE "Customers" AS "c"
 SET "ContactName" = COALESCE("c"."ContactName", '') || "c"."CustomerID"
 WHERE "c"."CustomerID" LIKE 'F%'
@@ -1036,7 +1041,7 @@ WHERE "c"."CustomerID" LIKE 'F%'
         await base.Update_Where_set_constant_using_ef_property(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 UPDATE "Customers" AS "c"
 SET "ContactName" = 'Updated'
 WHERE "c"."CustomerID" LIKE 'F%'
@@ -1048,7 +1053,7 @@ WHERE "c"."CustomerID" LIKE 'F%'
         await base.Update_Where_set_null(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 UPDATE "Customers" AS "c"
 SET "ContactName" = NULL
 WHERE "c"."CustomerID" LIKE 'F%'
@@ -1074,7 +1079,7 @@ WHERE "c"."CustomerID" LIKE 'F%'
         await base.Update_Where_multiple_set(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 @__value_0='Abc' (Size = 3)
 
 UPDATE "Customers" AS "c"
@@ -1091,9 +1096,9 @@ WHERE "c"."CustomerID" LIKE 'F%'
         AssertExecuteUpdateSql();
     }
 
-    public override async Task Update_multiple_entity_throws(bool async)
+    public override async Task Update_multiple_tables_throws(bool async)
     {
-        await base.Update_multiple_entity_throws(async);
+        await base.Update_multiple_tables_throws(async);
 
         AssertExecuteUpdateSql();
     }
@@ -1110,7 +1115,7 @@ WHERE "c"."CustomerID" LIKE 'F%'
         await base.Update_Union_set_constant(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 UPDATE "Customers" AS "c"
 SET "ContactName" = 'Updated'
 FROM (
@@ -1131,7 +1136,7 @@ WHERE "c"."CustomerID" = "t"."CustomerID"
         await base.Update_Concat_set_constant(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 UPDATE "Customers" AS "c"
 SET "ContactName" = 'Updated'
 FROM (
@@ -1152,7 +1157,7 @@ WHERE "c"."CustomerID" = "t"."CustomerID"
         await base.Update_Except_set_constant(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 UPDATE "Customers" AS "c"
 SET "ContactName" = 'Updated'
 FROM (
@@ -1173,7 +1178,7 @@ WHERE "c"."CustomerID" = "t"."CustomerID"
         await base.Update_Intersect_set_constant(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 UPDATE "Customers" AS "c"
 SET "ContactName" = 'Updated'
 FROM (
@@ -1194,7 +1199,7 @@ WHERE "c"."CustomerID" = "t"."CustomerID"
         await base.Update_with_join_set_constant(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 UPDATE "Customers" AS "c"
 SET "ContactName" = 'Updated'
 FROM (
@@ -1211,7 +1216,7 @@ WHERE "c"."CustomerID" = "t"."CustomerID" AND "c"."CustomerID" LIKE 'F%'
         await base.Update_with_left_join_set_constant(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 UPDATE "Customers" AS "c"
 SET "ContactName" = 'Updated'
 FROM (
@@ -1233,7 +1238,7 @@ WHERE "c"."CustomerID" = "t0"."CustomerID"
         await base.Update_with_cross_join_set_constant(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 UPDATE "Customers" AS "c"
 SET "ContactName" = 'Updated'
 FROM (
@@ -1261,19 +1266,21 @@ WHERE "c"."CustomerID" LIKE 'F%'
         await base.Update_with_cross_join_left_join_set_constant(async);
 
         AssertExecuteUpdateSql(
-            @"UPDATE ""Customers"" AS ""c""
-SET ""ContactName"" = 'Updated'
+            """
+UPDATE "Customers" AS "c"
+SET "ContactName" = 'Updated'
 FROM (
-    SELECT ""c0"".""CustomerID"", ""c0"".""Address"", ""c0"".""City"", ""c0"".""CompanyName"", ""c0"".""ContactName"", ""c0"".""ContactTitle"", ""c0"".""Country"", ""c0"".""Fax"", ""c0"".""Phone"", ""c0"".""PostalCode"", ""c0"".""Region""
-    FROM ""Customers"" AS ""c0""
-    WHERE ""c0"".""City"" IS NOT NULL AND (""c0"".""City"" LIKE 'S%')
-) AS ""t""
+    SELECT "c0"."CustomerID", "c0"."Address", "c0"."City", "c0"."CompanyName", "c0"."ContactName", "c0"."ContactTitle", "c0"."Country", "c0"."Fax", "c0"."Phone", "c0"."PostalCode", "c0"."Region"
+    FROM "Customers" AS "c0"
+    WHERE "c0"."City" IS NOT NULL AND ("c0"."City" LIKE 'S%')
+) AS "t"
 LEFT JOIN (
-    SELECT ""o"".""OrderID"", ""o"".""CustomerID"", ""o"".""EmployeeID"", ""o"".""OrderDate""
-    FROM ""Orders"" AS ""o""
-    WHERE ""o"".""OrderID"" < 10300
-) AS ""t0"" ON ""c"".""CustomerID"" = ""t0"".""CustomerID""
-WHERE ""c"".""CustomerID"" LIKE 'F%'");
+    SELECT "o"."OrderID", "o"."CustomerID", "o"."EmployeeID", "o"."OrderDate"
+    FROM "Orders" AS "o"
+    WHERE "o"."OrderID" < 10300
+) AS "t0" ON "c"."CustomerID" = "t0"."CustomerID"
+WHERE "c"."CustomerID" LIKE 'F%'
+""");
     }
 
     public override async Task Update_with_cross_join_cross_apply_set_constant(bool async)
@@ -1300,7 +1307,7 @@ WHERE ""c"".""CustomerID"" LIKE 'F%'");
         await base.Update_Where_SelectMany_subquery_set_null(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 UPDATE "Orders" AS "o"
 SET "OrderDate" = NULL
 FROM (
@@ -1322,7 +1329,7 @@ WHERE "o"."OrderID" = "t0"."OrderID"
         await base.Update_Where_Join_set_property_from_joined_single_result_table(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 UPDATE "Customers" AS "c"
 SET "City" = CAST(CAST(strftime('%Y', (
     SELECT "o"."OrderDate"
@@ -1339,7 +1346,7 @@ WHERE "c"."CustomerID" LIKE 'F%'
         await base.Update_Where_Join_set_property_from_joined_table(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 UPDATE "Customers" AS "c"
 SET "City" = "t"."City"
 FROM (
@@ -1356,7 +1363,7 @@ WHERE "c"."CustomerID" LIKE 'F%'
         await base.Update_Where_Join_set_property_from_joined_single_result_scalar(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 UPDATE "Customers" AS "c"
 SET "City" = CAST(CAST(strftime('%Y', (
     SELECT "o"."OrderDate"
@@ -1374,7 +1381,7 @@ WHERE "c"."CustomerID" LIKE 'F%'
         await base.Update_with_two_inner_joins(async);
 
         AssertExecuteUpdateSql(
-"""
+            """
 
 """);
     }

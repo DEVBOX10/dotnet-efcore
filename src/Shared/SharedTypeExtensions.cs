@@ -50,8 +50,11 @@ internal static class SharedTypeExtensions
     public static bool IsValidComplexType(this Type type)
         => !type.IsArray
             && !type.IsInterface
-            && type != typeof(string)
-            && !CommonTypeDictionary.ContainsKey(type);
+            && !IsScalarType(type);
+
+    public static bool IsScalarType(this Type type)
+        => type == typeof(string)
+            || CommonTypeDictionary.ContainsKey(type);
 
     public static bool IsPropertyBagType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces)] this Type type)
     {
@@ -394,7 +397,8 @@ internal static class SharedTypeExtensions
     };
 
     public static object? GetDefaultValue(
-        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] this Type type)
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
+        this Type type)
     {
         if (!type.IsValueType)
         {

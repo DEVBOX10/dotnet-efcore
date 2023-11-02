@@ -69,6 +69,10 @@ public partial class ConventionDispatcher
             IConventionEntityTypeBuilder entityTypeBuilder,
             string name);
 
+        public abstract string? OnDiscriminatorPropertySet(
+            IConventionEntityTypeBuilder entityTypeBuilder,
+            string? name);
+
         public abstract IConventionKey? OnEntityTypePrimaryKeyChanged(
             IConventionEntityTypeBuilder entityTypeBuilder,
             IConventionKey? newPrimaryKey,
@@ -237,8 +241,22 @@ public partial class ConventionDispatcher
             IConventionTypeBaseBuilder typeBaseBuilder,
             IConventionProperty property);
 
+        public abstract IElementType? OnPropertyElementTypeChanged(
+            IConventionPropertyBuilder propertyBuilder,
+            IElementType? newElementType,
+            IElementType? oldElementType);
+
         public abstract IConventionTriggerBuilder? OnTriggerAdded(IConventionTriggerBuilder triggerBuilder);
 
         public abstract IConventionTrigger? OnTriggerRemoved(IConventionEntityTypeBuilder entityTypeBuilder, IConventionTrigger trigger);
+
+        public abstract IConventionAnnotation? OnElementTypeAnnotationChanged(
+            IConventionElementTypeBuilder builder,
+            string name,
+            IConventionAnnotation? annotation,
+            IConventionAnnotation? oldAnnotation);
+
+        public abstract bool? OnElementTypeNullabilityChanged(
+            IConventionElementTypeBuilder builder);
     }
 }

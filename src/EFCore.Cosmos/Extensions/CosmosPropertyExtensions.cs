@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.EntityFrameworkCore.Cosmos.Metadata.Internal;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 // ReSharper disable once CheckNamespace
 namespace Microsoft.EntityFrameworkCore;
@@ -36,6 +35,7 @@ public static class CosmosPropertyExtensions
             var pk = property.FindContainingPrimaryKey();
             if (pk != null
                 && (property.ClrType == typeof(int) || ownership.Properties.Contains(property))
+                && property.IsShadowProperty()
                 && pk.Properties.Count == ownership.Properties.Count + (ownership.IsUnique ? 0 : 1)
                 && ownership.Properties.All(fkProperty => pk.Properties.Contains(fkProperty)))
             {

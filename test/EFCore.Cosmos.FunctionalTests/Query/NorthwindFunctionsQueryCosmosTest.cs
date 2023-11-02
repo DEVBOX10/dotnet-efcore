@@ -27,10 +27,24 @@ public class NorthwindFunctionsQueryCosmosTest : NorthwindFunctionsQueryTestBase
         await base.String_StartsWith_Literal(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
-WHERE ((c["Discriminator"] = "Customer") AND ((c["ContactName"] != null) AND (("M" != null) AND STARTSWITH(c["ContactName"], "M"))))
+WHERE ((c["Discriminator"] = "Customer") AND STARTSWITH(c["ContactName"], "M"))
+""");
+    }
+
+    public override async Task String_StartsWith_Parameter(bool async)
+    {
+        await base.String_StartsWith_Parameter(async);
+
+        AssertSql(
+            """
+@__pattern_0='M'
+
+SELECT c
+FROM root c
+WHERE ((c["Discriminator"] = "Customer") AND STARTSWITH(c["ContactName"], @__pattern_0))
 """);
     }
 
@@ -39,10 +53,10 @@ WHERE ((c["Discriminator"] = "Customer") AND ((c["ContactName"] != null) AND (("
         await base.String_StartsWith_Identity(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
-WHERE ((c["Discriminator"] = "Customer") AND ((c["ContactName"] = "") OR ((c["ContactName"] != null) AND ((c["ContactName"] != null) AND STARTSWITH(c["ContactName"], c["ContactName"])))))
+WHERE ((c["Discriminator"] = "Customer") AND STARTSWITH(c["ContactName"], c["ContactName"]))
 """);
     }
 
@@ -51,10 +65,10 @@ WHERE ((c["Discriminator"] = "Customer") AND ((c["ContactName"] = "") OR ((c["Co
         await base.String_StartsWith_Column(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
-WHERE ((c["Discriminator"] = "Customer") AND ((c["ContactName"] = "") OR ((c["ContactName"] != null) AND ((c["ContactName"] != null) AND STARTSWITH(c["ContactName"], c["ContactName"])))))
+WHERE ((c["Discriminator"] = "Customer") AND STARTSWITH(c["ContactName"], c["ContactName"]))
 """);
     }
 
@@ -63,10 +77,10 @@ WHERE ((c["Discriminator"] = "Customer") AND ((c["ContactName"] = "") OR ((c["Co
         await base.String_StartsWith_MethodCall(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
-WHERE ((c["Discriminator"] = "Customer") AND ((c["ContactName"] != null) AND (("M" != null) AND STARTSWITH(c["ContactName"], "M"))))
+WHERE ((c["Discriminator"] = "Customer") AND STARTSWITH(c["ContactName"], "M"))
 """);
     }
 
@@ -75,10 +89,24 @@ WHERE ((c["Discriminator"] = "Customer") AND ((c["ContactName"] != null) AND (("
         await base.String_EndsWith_Literal(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
-WHERE ((c["Discriminator"] = "Customer") AND ((c["ContactName"] != null) AND (("b" != null) AND ENDSWITH(c["ContactName"], "b"))))
+WHERE ((c["Discriminator"] = "Customer") AND ENDSWITH(c["ContactName"], "b"))
+""");
+    }
+
+    public override async Task String_EndsWith_Parameter(bool async)
+    {
+        await base.String_EndsWith_Parameter(async);
+
+        AssertSql(
+            """
+@__pattern_0='b'
+
+SELECT c
+FROM root c
+WHERE ((c["Discriminator"] = "Customer") AND ENDSWITH(c["ContactName"], @__pattern_0))
 """);
     }
 
@@ -87,10 +115,10 @@ WHERE ((c["Discriminator"] = "Customer") AND ((c["ContactName"] != null) AND (("
         await base.String_EndsWith_Identity(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
-WHERE ((c["Discriminator"] = "Customer") AND ((c["ContactName"] = "") OR ((c["ContactName"] != null) AND ((c["ContactName"] != null) AND ENDSWITH(c["ContactName"], c["ContactName"])))))
+WHERE ((c["Discriminator"] = "Customer") AND ENDSWITH(c["ContactName"], c["ContactName"]))
 """);
     }
 
@@ -99,10 +127,10 @@ WHERE ((c["Discriminator"] = "Customer") AND ((c["ContactName"] = "") OR ((c["Co
         await base.String_EndsWith_Column(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
-WHERE ((c["Discriminator"] = "Customer") AND ((c["ContactName"] = "") OR ((c["ContactName"] != null) AND ((c["ContactName"] != null) AND ENDSWITH(c["ContactName"], c["ContactName"])))))
+WHERE ((c["Discriminator"] = "Customer") AND ENDSWITH(c["ContactName"], c["ContactName"]))
 """);
     }
 
@@ -111,10 +139,10 @@ WHERE ((c["Discriminator"] = "Customer") AND ((c["ContactName"] = "") OR ((c["Co
         await base.String_EndsWith_MethodCall(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
-WHERE ((c["Discriminator"] = "Customer") AND ((c["ContactName"] != null) AND (("m" != null) AND ENDSWITH(c["ContactName"], "m"))))
+WHERE ((c["Discriminator"] = "Customer") AND ENDSWITH(c["ContactName"], "m"))
 """);
     }
 
@@ -123,7 +151,7 @@ WHERE ((c["Discriminator"] = "Customer") AND ((c["ContactName"] != null) AND (("
         await base.String_Contains_Literal(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND CONTAINS(c["ContactName"], "M"))
@@ -134,7 +162,7 @@ WHERE ((c["Discriminator"] = "Customer") AND CONTAINS(c["ContactName"], "M"))
     {
         await base.String_Contains_Identity(async);
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND CONTAINS(c["ContactName"], c["ContactName"]))
@@ -146,7 +174,7 @@ WHERE ((c["Discriminator"] = "Customer") AND CONTAINS(c["ContactName"], c["Conta
         await base.String_Contains_Column(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND CONTAINS(c["ContactName"], c["ContactName"]))
@@ -158,7 +186,7 @@ WHERE ((c["Discriminator"] = "Customer") AND CONTAINS(c["ContactName"], c["Conta
         await base.String_FirstOrDefault_MethodCall(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND (LEFT(c["ContactName"], 1) = "A"))
@@ -170,7 +198,7 @@ WHERE ((c["Discriminator"] = "Customer") AND (LEFT(c["ContactName"], 1) = "A"))
         await base.String_LastOrDefault_MethodCall(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND (RIGHT(c["ContactName"], 1) = "s"))
@@ -182,7 +210,7 @@ WHERE ((c["Discriminator"] = "Customer") AND (RIGHT(c["ContactName"], 1) = "s"))
         await base.String_Contains_MethodCall(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND CONTAINS(c["ContactName"], "M"))
@@ -290,7 +318,7 @@ WHERE ((c["Discriminator"] = "Customer") AND CONTAINS(c["ContactName"], "M"))
         await base.Where_math_abs1(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Product") AND (ABS(c["ProductID"]) > 10))
@@ -302,7 +330,7 @@ WHERE ((c["Discriminator"] = "Product") AND (ABS(c["ProductID"]) > 10))
         await base.Where_math_abs2(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE (((c["Discriminator"] = "OrderDetail") AND (c["UnitPrice"] < 7.0)) AND (ABS(c["Quantity"]) > 10))
@@ -314,7 +342,7 @@ WHERE (((c["Discriminator"] = "OrderDetail") AND (c["UnitPrice"] < 7.0)) AND (AB
         await base.Where_math_abs3(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE (((c["Discriminator"] = "OrderDetail") AND (c["Quantity"] < 5)) AND (ABS(c["UnitPrice"]) > 10.0))
@@ -326,7 +354,7 @@ WHERE (((c["Discriminator"] = "OrderDetail") AND (c["Quantity"] < 5)) AND (ABS(c
         await base.Where_math_abs_uncorrelated(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE (((c["Discriminator"] = "OrderDetail") AND (c["UnitPrice"] < 7.0)) AND (10 < c["ProductID"]))
@@ -346,7 +374,7 @@ WHERE (((c["Discriminator"] = "OrderDetail") AND (c["UnitPrice"] < 7.0)) AND (10
         await base.Where_math_ceiling2(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE (((c["Discriminator"] = "OrderDetail") AND (c["Quantity"] < 5)) AND (CEILING(c["UnitPrice"]) > 10.0))
@@ -358,7 +386,7 @@ WHERE (((c["Discriminator"] = "OrderDetail") AND (c["Quantity"] < 5)) AND (CEILI
         await base.Where_math_floor(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE (((c["Discriminator"] = "OrderDetail") AND (c["Quantity"] < 5)) AND (FLOOR(c["UnitPrice"]) > 10.0))
@@ -386,7 +414,7 @@ WHERE (((c["Discriminator"] = "OrderDetail") AND (c["Quantity"] < 5)) AND (FLOOR
         await base.Where_math_round(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE (((c["Discriminator"] = "OrderDetail") AND (c["Quantity"] < 5)) AND (ROUND(c["UnitPrice"]) > 10.0))
@@ -410,7 +438,7 @@ WHERE (((c["Discriminator"] = "OrderDetail") AND (c["Quantity"] < 5)) AND (ROUND
         await base.Select_math_round_int(async);
 
         AssertSql(
-"""
+            """
 SELECT c["OrderID"]
 FROM root c
 WHERE ((c["Discriminator"] = "Order") AND (c["OrderID"] < 10250))
@@ -422,7 +450,7 @@ WHERE ((c["Discriminator"] = "Order") AND (c["OrderID"] < 10250))
         await base.Select_math_truncate_int(async);
 
         AssertSql(
-"""
+            """
 SELECT c["OrderID"]
 FROM root c
 WHERE ((c["Discriminator"] = "Order") AND (c["OrderID"] < 10250))
@@ -442,7 +470,7 @@ WHERE ((c["Discriminator"] = "Order") AND (c["OrderID"] < 10250))
         await base.Where_math_truncate(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE (((c["Discriminator"] = "OrderDetail") AND (c["Quantity"] < 5)) AND (TRUNC(c["UnitPrice"]) > 10.0))
@@ -550,7 +578,7 @@ WHERE (((c["Discriminator"] = "OrderDetail") AND (c["Quantity"] < 5)) AND (TRUNC
         await base.Where_math_sign(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE (((c["Discriminator"] = "OrderDetail") AND (c["OrderID"] = 11077)) AND (SIGN(c["Discount"]) > 0))
@@ -573,6 +601,22 @@ WHERE (((c["Discriminator"] = "OrderDetail") AND (c["OrderID"] = 11077)) AND (SI
         AssertSql();
     }
 
+    public override async Task Where_math_degrees(bool async)
+    {
+        // Cosmos client evaluation. Issue #17246.
+        await AssertTranslationFailed(() => base.Where_math_degrees(async));
+
+        AssertSql();
+    }
+
+    public override async Task Where_math_radians(bool async)
+    {
+        // Cosmos client evaluation. Issue #17246.
+        await AssertTranslationFailed(() => base.Where_math_radians(async));
+
+        AssertSql();
+    }
+
     public override async Task Where_mathf_abs1(bool async)
     {
         // Cosmos client evaluation. Issue #17246.
@@ -586,7 +630,7 @@ WHERE (((c["Discriminator"] = "OrderDetail") AND (c["OrderID"] = 11077)) AND (SI
         await base.Where_mathf_ceiling1(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE (((c["Discriminator"] = "OrderDetail") AND (c["UnitPrice"] < 7.0)) AND (CEILING(c["Discount"]) > 0.0))
@@ -606,7 +650,7 @@ WHERE (((c["Discriminator"] = "OrderDetail") AND (c["UnitPrice"] < 7.0)) AND (CE
         await base.Where_mathf_power(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "OrderDetail") AND (POWER(c["Discount"], 3.0) > 0.005))
@@ -618,7 +662,7 @@ WHERE ((c["Discriminator"] = "OrderDetail") AND (POWER(c["Discount"], 3.0) > 0.0
         await base.Where_mathf_square(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "OrderDetail") AND (POWER(c["Discount"], 2.0) > 0.05))
@@ -646,7 +690,7 @@ WHERE ((c["Discriminator"] = "OrderDetail") AND (POWER(c["Discount"], 2.0) > 0.0
         await base.Where_mathf_exp(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE (((c["Discriminator"] = "OrderDetail") AND (c["OrderID"] = 11077)) AND (EXP(c["Discount"]) > 1.0))
@@ -658,7 +702,7 @@ WHERE (((c["Discriminator"] = "OrderDetail") AND (c["OrderID"] = 11077)) AND (EX
         await base.Where_mathf_log10(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE (((c["Discriminator"] = "OrderDetail") AND ((c["OrderID"] = 11077) AND (c["Discount"] > 0.0))) AND (LOG10(c["Discount"]) < 0.0))
@@ -670,7 +714,7 @@ WHERE (((c["Discriminator"] = "OrderDetail") AND ((c["OrderID"] = 11077) AND (c[
         await base.Where_mathf_log(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE (((c["Discriminator"] = "OrderDetail") AND ((c["OrderID"] = 11077) AND (c["Discount"] > 0.0))) AND (LOG(c["Discount"]) < 0.0))
@@ -682,7 +726,7 @@ WHERE (((c["Discriminator"] = "OrderDetail") AND ((c["OrderID"] = 11077) AND (c[
         await base.Where_mathf_log_new_base(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE (((c["Discriminator"] = "OrderDetail") AND ((c["OrderID"] = 11077) AND (c["Discount"] > 0.0))) AND (LOG(c["Discount"], 7.0) < 0.0))
@@ -694,7 +738,7 @@ WHERE (((c["Discriminator"] = "OrderDetail") AND ((c["OrderID"] = 11077) AND (c[
         await base.Where_mathf_sqrt(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE (((c["Discriminator"] = "OrderDetail") AND (c["OrderID"] = 11077)) AND (SQRT(c["Discount"]) > 0.0))
@@ -706,7 +750,7 @@ WHERE (((c["Discriminator"] = "OrderDetail") AND (c["OrderID"] = 11077)) AND (SQ
         await base.Where_mathf_acos(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE (((c["Discriminator"] = "OrderDetail") AND (c["OrderID"] = 11077)) AND (ACOS(c["Discount"]) > 1.0))
@@ -718,7 +762,7 @@ WHERE (((c["Discriminator"] = "OrderDetail") AND (c["OrderID"] = 11077)) AND (AC
         await base.Where_mathf_asin(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE (((c["Discriminator"] = "OrderDetail") AND (c["OrderID"] = 11077)) AND (ASIN(c["Discount"]) > 0.0))
@@ -730,7 +774,7 @@ WHERE (((c["Discriminator"] = "OrderDetail") AND (c["OrderID"] = 11077)) AND (AS
         await base.Where_mathf_atan(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE (((c["Discriminator"] = "OrderDetail") AND (c["OrderID"] = 11077)) AND (ATAN(c["Discount"]) > 0.0))
@@ -742,7 +786,7 @@ WHERE (((c["Discriminator"] = "OrderDetail") AND (c["OrderID"] = 11077)) AND (AT
         await base.Where_mathf_atan2(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE (((c["Discriminator"] = "OrderDetail") AND (c["OrderID"] = 11077)) AND (ATN2(c["Discount"], 1.0) > 0.0))
@@ -754,7 +798,7 @@ WHERE (((c["Discriminator"] = "OrderDetail") AND (c["OrderID"] = 11077)) AND (AT
         await base.Where_mathf_cos(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE (((c["Discriminator"] = "OrderDetail") AND (c["OrderID"] = 11077)) AND (COS(c["Discount"]) > 0.0))
@@ -766,7 +810,7 @@ WHERE (((c["Discriminator"] = "OrderDetail") AND (c["OrderID"] = 11077)) AND (CO
         await base.Where_mathf_sin(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE (((c["Discriminator"] = "OrderDetail") AND (c["OrderID"] = 11077)) AND (SIN(c["Discount"]) > 0.0))
@@ -778,7 +822,7 @@ WHERE (((c["Discriminator"] = "OrderDetail") AND (c["OrderID"] = 11077)) AND (SI
         await base.Where_mathf_tan(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE (((c["Discriminator"] = "OrderDetail") AND (c["OrderID"] = 11077)) AND (TAN(c["Discount"]) > 0.0))
@@ -790,10 +834,34 @@ WHERE (((c["Discriminator"] = "OrderDetail") AND (c["OrderID"] = 11077)) AND (TA
         await base.Where_mathf_sign(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE (((c["Discriminator"] = "OrderDetail") AND (c["OrderID"] = 11077)) AND (SIGN(c["Discount"]) > 0))
+""");
+    }
+
+    public override async Task Where_mathf_degrees(bool async)
+    {
+        await base.Where_mathf_degrees(async);
+
+        AssertSql(
+            """
+SELECT c
+FROM root c
+WHERE (((c["Discriminator"] = "OrderDetail") AND (c["OrderID"] = 11077)) AND (DEGREES(c["Discount"]) > 0.0))
+""");
+    }
+
+    public override async Task Where_mathf_radians(bool async)
+    {
+        await base.Where_mathf_radians(async);
+
+        AssertSql(
+            """
+SELECT c
+FROM root c
+WHERE (((c["Discriminator"] = "OrderDetail") AND (c["OrderID"] = 11077)) AND (RADIANS(c["Discount"]) > 0.0))
 """);
     }
 
@@ -810,7 +878,7 @@ WHERE (((c["Discriminator"] = "OrderDetail") AND (c["OrderID"] = 11077)) AND (SI
         await base.Where_string_to_upper(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND (UPPER(c["CustomerID"]) = "ALFKI"))
@@ -822,7 +890,7 @@ WHERE ((c["Discriminator"] = "Customer") AND (UPPER(c["CustomerID"]) = "ALFKI"))
         await base.Where_string_to_lower(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND (LOWER(c["CustomerID"]) = "alfki"))
@@ -906,7 +974,7 @@ WHERE ((c["Discriminator"] = "Customer") AND (LOWER(c["CustomerID"]) = "alfki"))
         await base.Indexof_with_emptystring(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND (INDEX_OF(c["ContactName"], "") = 0))
@@ -918,7 +986,7 @@ WHERE ((c["Discriminator"] = "Customer") AND (INDEX_OF(c["ContactName"], "") = 0
         await base.Indexof_with_one_constant_arg(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND (INDEX_OF(c["ContactName"], "a") = 1))
@@ -930,7 +998,7 @@ WHERE ((c["Discriminator"] = "Customer") AND (INDEX_OF(c["ContactName"], "a") = 
         await base.Indexof_with_one_parameter_arg(async);
 
         AssertSql(
-"""
+            """
 @__pattern_0='a'
 
 SELECT c
@@ -944,7 +1012,7 @@ WHERE ((c["Discriminator"] = "Customer") AND (INDEX_OF(c["ContactName"], @__patt
         await base.Indexof_with_constant_starting_position(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND (INDEX_OF(c["ContactName"], "a", 2) = 4))
@@ -956,7 +1024,7 @@ WHERE ((c["Discriminator"] = "Customer") AND (INDEX_OF(c["ContactName"], "a", 2)
         await base.Indexof_with_parameter_starting_position(async);
 
         AssertSql(
-"""
+            """
 @__start_0='2'
 
 SELECT c
@@ -970,7 +1038,7 @@ WHERE ((c["Discriminator"] = "Customer") AND (INDEX_OF(c["ContactName"], "a", @_
         await base.Replace_with_emptystring(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND (REPLACE(c["ContactName"], "ia", "") = "Mar Anders"))
@@ -982,7 +1050,7 @@ WHERE ((c["Discriminator"] = "Customer") AND (REPLACE(c["ContactName"], "ia", ""
         await base.Replace_using_property_arguments(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND (REPLACE(c["ContactName"], c["ContactName"], c["CustomerID"]) = c["CustomerID"]))
@@ -994,7 +1062,7 @@ WHERE ((c["Discriminator"] = "Customer") AND (REPLACE(c["ContactName"], c["Conta
         await base.Substring_with_one_arg_with_zero_startindex(async);
 
         AssertSql(
-"""
+            """
 SELECT c["ContactName"]
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND (SUBSTRING(c["CustomerID"], 0, LENGTH(c["CustomerID"])) = "ALFKI"))
@@ -1006,7 +1074,7 @@ WHERE ((c["Discriminator"] = "Customer") AND (SUBSTRING(c["CustomerID"], 0, LENG
         await base.Substring_with_one_arg_with_constant(async);
 
         AssertSql(
-"""
+            """
 SELECT c["ContactName"]
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND (SUBSTRING(c["CustomerID"], 1, LENGTH(c["CustomerID"])) = "LFKI"))
@@ -1018,7 +1086,7 @@ WHERE ((c["Discriminator"] = "Customer") AND (SUBSTRING(c["CustomerID"], 1, LENG
         await base.Substring_with_one_arg_with_closure(async);
 
         AssertSql(
-"""
+            """
 @__start_0='2'
 
 SELECT c["ContactName"]
@@ -1032,7 +1100,7 @@ WHERE ((c["Discriminator"] = "Customer") AND (SUBSTRING(c["CustomerID"], @__star
         await base.Substring_with_two_args_with_zero_startindex(async);
 
         AssertSql(
-"""
+            """
 SELECT LEFT(c["ContactName"], 3) AS c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND (c["CustomerID"] = "ALFKI"))
@@ -1044,7 +1112,7 @@ WHERE ((c["Discriminator"] = "Customer") AND (c["CustomerID"] = "ALFKI"))
         await base.Substring_with_two_args_with_zero_length(async);
 
         AssertSql(
-"""
+            """
 SELECT SUBSTRING(c["ContactName"], 2, 0) AS c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND (c["CustomerID"] = "ALFKI"))
@@ -1056,7 +1124,7 @@ WHERE ((c["Discriminator"] = "Customer") AND (c["CustomerID"] = "ALFKI"))
         await base.Substring_with_two_args_with_constant(async);
 
         AssertSql(
-"""
+            """
 SELECT SUBSTRING(c["ContactName"], 1, 3) AS c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND (c["CustomerID"] = "ALFKI"))
@@ -1068,7 +1136,7 @@ WHERE ((c["Discriminator"] = "Customer") AND (c["CustomerID"] = "ALFKI"))
         await base.Substring_with_two_args_with_closure(async);
 
         AssertSql(
-"""
+            """
 @__start_0='2'
 
 SELECT SUBSTRING(c["ContactName"], @__start_0, 3) AS c
@@ -1082,7 +1150,7 @@ WHERE ((c["Discriminator"] = "Customer") AND (c["CustomerID"] = "ALFKI"))
         await base.Substring_with_two_args_with_Index_of(async);
 
         AssertSql(
-"""
+            """
 SELECT SUBSTRING(c["ContactName"], INDEX_OF(c["ContactName"], "a"), 3) AS c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND (c["CustomerID"] = "ALFKI"))
@@ -1118,7 +1186,7 @@ WHERE ((c["Discriminator"] = "Customer") AND (c["CustomerID"] = "ALFKI"))
         await base.IsNullOrEmpty_in_projection(async);
 
         AssertSql(
-"""
+            """
 SELECT c["CustomerID"], c["Region"]
 FROM root c
 WHERE (c["Discriminator"] = "Customer")
@@ -1130,7 +1198,7 @@ WHERE (c["Discriminator"] = "Customer")
         await base.IsNullOrEmpty_negated_in_projection(async);
 
         AssertSql(
-"""
+            """
 SELECT c["CustomerID"], c["Region"]
 FROM root c
 WHERE (c["Discriminator"] = "Customer")
@@ -1150,7 +1218,7 @@ WHERE (c["Discriminator"] = "Customer")
         await base.TrimStart_without_arguments_in_predicate(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND (LTRIM(c["ContactTitle"]) = "Owner"))
@@ -1178,7 +1246,7 @@ WHERE ((c["Discriminator"] = "Customer") AND (LTRIM(c["ContactTitle"]) = "Owner"
         await base.TrimEnd_without_arguments_in_predicate(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND (RTRIM(c["ContactTitle"]) = "Owner"))
@@ -1206,7 +1274,7 @@ WHERE ((c["Discriminator"] = "Customer") AND (RTRIM(c["ContactTitle"]) = "Owner"
         await base.Trim_without_argument_in_predicate(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND (TRIM(c["ContactTitle"]) = "Owner"))
@@ -1235,7 +1303,7 @@ WHERE ((c["Discriminator"] = "Customer") AND (TRIM(c["ContactTitle"]) = "Owner")
         await Assert.ThrowsAsync<CosmosException>(() => base.Order_by_length_twice(async));
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE (c["Discriminator"] = "Customer")
@@ -1256,7 +1324,7 @@ ORDER BY LENGTH(c["CustomerID"]), c["CustomerID"]
         await base.Static_string_equals_in_predicate(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND (c["CustomerID"] = "ANATR"))
@@ -1268,7 +1336,7 @@ WHERE ((c["Discriminator"] = "Customer") AND (c["CustomerID"] = "ANATR"))
         await base.Static_equals_nullable_datetime_compared_to_non_nullable(async);
 
         AssertSql(
-"""
+            """
 @__arg_0='1996-07-04T00:00:00'
 
 SELECT c
@@ -1282,7 +1350,7 @@ WHERE ((c["Discriminator"] = "Order") AND (c["OrderDate"] = @__arg_0))
         await base.Static_equals_int_compared_to_long(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Order") AND false)
@@ -1342,7 +1410,7 @@ WHERE ((c["Discriminator"] = "Order") AND false)
         await base.Regex_IsMatch_MethodCall(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND RegexMatch(c["CustomerID"], "^T"))
@@ -1354,7 +1422,7 @@ WHERE ((c["Discriminator"] = "Customer") AND RegexMatch(c["CustomerID"], "^T"))
         await base.Regex_IsMatch_MethodCall_constant_input(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND RegexMatch("ALFKI", c["CustomerID"]))
@@ -1367,11 +1435,10 @@ WHERE ((c["Discriminator"] = "Customer") AND RegexMatch("ALFKI", c["CustomerID"]
     {
         await AssertQuery(
             async,
-            ss => ss.Set<Customer>().Where(o => Regex.IsMatch(o.CustomerID, "^T", RegexOptions.None)),
-            entryCount: 6);
+            ss => ss.Set<Customer>().Where(o => Regex.IsMatch(o.CustomerID, "^T", RegexOptions.None)));
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND RegexMatch(c["CustomerID"], "^T"))
@@ -1384,11 +1451,10 @@ WHERE ((c["Discriminator"] = "Customer") AND RegexMatch(c["CustomerID"], "^T"))
     {
         await AssertQuery(
             async,
-            ss => ss.Set<Customer>().Where(o => Regex.IsMatch(o.CustomerID, "^T", RegexOptions.IgnoreCase)),
-            entryCount: 6);
+            ss => ss.Set<Customer>().Where(o => Regex.IsMatch(o.CustomerID, "^T", RegexOptions.IgnoreCase)));
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND RegexMatch(c["CustomerID"], "^T", "i"))
@@ -1401,11 +1467,10 @@ WHERE ((c["Discriminator"] = "Customer") AND RegexMatch(c["CustomerID"], "^T", "
     {
         await AssertQuery(
             async,
-            ss => ss.Set<Customer>().Where(o => Regex.IsMatch(o.CustomerID, "^T", RegexOptions.Multiline)),
-            entryCount: 6);
+            ss => ss.Set<Customer>().Where(o => Regex.IsMatch(o.CustomerID, "^T", RegexOptions.Multiline)));
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND RegexMatch(c["CustomerID"], "^T", "m"))
@@ -1418,11 +1483,10 @@ WHERE ((c["Discriminator"] = "Customer") AND RegexMatch(c["CustomerID"], "^T", "
     {
         await AssertQuery(
             async,
-            ss => ss.Set<Customer>().Where(o => Regex.IsMatch(o.CustomerID, "^T", RegexOptions.Singleline)),
-            entryCount: 6);
+            ss => ss.Set<Customer>().Where(o => Regex.IsMatch(o.CustomerID, "^T", RegexOptions.Singleline)));
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND RegexMatch(c["CustomerID"], "^T", "s"))
@@ -1435,11 +1499,10 @@ WHERE ((c["Discriminator"] = "Customer") AND RegexMatch(c["CustomerID"], "^T", "
     {
         await AssertQuery(
             async,
-            ss => ss.Set<Customer>().Where(o => Regex.IsMatch(o.CustomerID, "^T", RegexOptions.IgnorePatternWhitespace)),
-            entryCount: 6);
+            ss => ss.Set<Customer>().Where(o => Regex.IsMatch(o.CustomerID, "^T", RegexOptions.IgnorePatternWhitespace)));
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND RegexMatch(c["CustomerID"], "^T", "x"))
@@ -1453,11 +1516,10 @@ WHERE ((c["Discriminator"] = "Customer") AND RegexMatch(c["CustomerID"], "^T", "
         await AssertQuery(
             async,
             ss => ss.Set<Customer>().Where(
-                o => Regex.IsMatch(o.CustomerID, "^T", RegexOptions.IgnoreCase | RegexOptions.IgnorePatternWhitespace)),
-            entryCount: 6);
+                o => Regex.IsMatch(o.CustomerID, "^T", RegexOptions.IgnoreCase | RegexOptions.IgnorePatternWhitespace)));
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND RegexMatch(c["CustomerID"], "^T", "ix"))
@@ -1487,11 +1549,10 @@ WHERE ((c["Discriminator"] = "Customer") AND RegexMatch(c["CustomerID"], "^T", "
     {
         await AssertQuery(
             async,
-            ss => ss.Set<Customer>().Where(c => c.CustomerID.Equals("alFkI", StringComparison.OrdinalIgnoreCase)),
-            entryCount: 1);
+            ss => ss.Set<Customer>().Where(c => c.CustomerID.Equals("alFkI", StringComparison.OrdinalIgnoreCase)));
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND STRINGEQUALS(c["CustomerID"], "alFkI", true))
@@ -1504,11 +1565,10 @@ WHERE ((c["Discriminator"] = "Customer") AND STRINGEQUALS(c["CustomerID"], "alFk
     {
         await AssertQuery(
             async,
-            ss => ss.Set<Customer>().Where(c => string.Equals(c.CustomerID, "alFkI", StringComparison.OrdinalIgnoreCase)),
-            entryCount: 1);
+            ss => ss.Set<Customer>().Where(c => string.Equals(c.CustomerID, "alFkI", StringComparison.OrdinalIgnoreCase)));
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND STRINGEQUALS(c["CustomerID"], "alFkI", true))
@@ -1521,11 +1581,10 @@ WHERE ((c["Discriminator"] = "Customer") AND STRINGEQUALS(c["CustomerID"], "alFk
     {
         await AssertQuery(
             async,
-            ss => ss.Set<Customer>().Where(c => c.CustomerID.Equals("ALFKI", StringComparison.Ordinal)),
-            entryCount: 1);
+            ss => ss.Set<Customer>().Where(c => c.CustomerID.Equals("ALFKI", StringComparison.Ordinal)));
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND STRINGEQUALS(c["CustomerID"], "ALFKI"))
@@ -1538,11 +1597,10 @@ WHERE ((c["Discriminator"] = "Customer") AND STRINGEQUALS(c["CustomerID"], "ALFK
     {
         await AssertQuery(
             async,
-            ss => ss.Set<Customer>().Where(c => string.Equals(c.CustomerID, "ALFKI", StringComparison.Ordinal)),
-            entryCount: 1);
+            ss => ss.Set<Customer>().Where(c => string.Equals(c.CustomerID, "ALFKI", StringComparison.Ordinal)));
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND STRINGEQUALS(c["CustomerID"], "ALFKI"))
@@ -1562,7 +1620,7 @@ WHERE ((c["Discriminator"] = "Customer") AND STRINGEQUALS(c["CustomerID"], "ALFK
         await base.String_Contains_constant_with_whitespace(async);
 
         AssertSql(
-"""
+            """
 SELECT c
 FROM root c
 WHERE ((c["Discriminator"] = "Customer") AND CONTAINS(c["ContactName"], "     "))
@@ -1574,7 +1632,7 @@ WHERE ((c["Discriminator"] = "Customer") AND CONTAINS(c["ContactName"], "     ")
         await base.String_Contains_parameter_with_whitespace(async);
 
         AssertSql(
-"""
+            """
 @__pattern_0='     '
 
 SELECT c
@@ -1588,7 +1646,7 @@ WHERE ((c["Discriminator"] = "Customer") AND CONTAINS(c["ContactName"], @__patte
         await base.Select_mathf_round(async);
 
         AssertSql(
-"""
+            """
 SELECT c["OrderID"]
 FROM root c
 WHERE ((c["Discriminator"] = "Order") AND (c["OrderID"] < 10250))
@@ -1600,7 +1658,7 @@ WHERE ((c["Discriminator"] = "Order") AND (c["OrderID"] < 10250))
         await base.Select_mathf_round2(async);
 
         AssertSql(
-"""
+            """
 SELECT c["UnitPrice"]
 FROM root c
 WHERE ((c["Discriminator"] = "OrderDetail") AND (c["Quantity"] < 5))
@@ -1612,7 +1670,7 @@ WHERE ((c["Discriminator"] = "OrderDetail") AND (c["Quantity"] < 5))
         await base.Select_mathf_truncate(async);
 
         AssertSql(
-"""
+            """
 SELECT c["UnitPrice"]
 FROM root c
 WHERE ((c["Discriminator"] = "OrderDetail") AND (c["Quantity"] < 5))
@@ -1633,6 +1691,9 @@ WHERE ((c["Discriminator"] = "OrderDetail") AND (c["Quantity"] < 5))
 
     public override Task String_Concat(bool async)
         => AssertTranslationFailed(() => base.String_Concat(async));
+
+    public override Task Where_DateOnly_FromDateTime(bool async)
+        => AssertTranslationFailed(() => base.Where_DateOnly_FromDateTime(async));
 
     private void AssertSql(params string[] expected)
         => Fixture.TestSqlLoggerFactory.AssertBaseline(expected);

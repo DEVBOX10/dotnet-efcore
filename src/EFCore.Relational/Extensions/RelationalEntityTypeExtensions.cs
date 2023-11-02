@@ -61,6 +61,12 @@ public static class RelationalEntityTypeExtensions
             return entityType.GetRootType().GetTableName();
         }
 
+        if (entityType.GetMappingStrategy() == RelationalAnnotationNames.TpcMappingStrategy
+            && !entityType.ClrType.IsInstantiable())
+        {
+            return null;
+        }
+
         var ownership = entityType.FindOwnership();
         if (ownership != null
             && (ownership.IsUnique || entityType.IsMappedToJson()))
@@ -79,12 +85,6 @@ public static class RelationalEntityTypeExtensions
             name = ownerTypeTable != null
                 ? $"{ownerTypeTable}_{ownership.PrincipalToDependent.Name}"
                 : $"{ownership.PrincipalToDependent.Name}_{name}";
-        }
-
-        if (entityType.GetMappingStrategy() == RelationalAnnotationNames.TpcMappingStrategy
-            && !entityType.ClrType.IsInstantiable())
-        {
-            return null;
         }
 
         return truncate
@@ -417,10 +417,14 @@ public static class RelationalEntityTypeExtensions
     /// <param name="entityType">The entity type.</param>
     /// <returns>The SQL string used to provide data for the entity type.</returns>
     public static string? GetSqlQuery(this IReadOnlyEntityType entityType)
-        => (string?)entityType[RelationalAnnotationNames.SqlQuery]
-            ?? (entityType.BaseType != null
+    {
+        var nameAnnotation = entityType.FindAnnotation(RelationalAnnotationNames.SqlQuery);
+        return nameAnnotation != null
+            ? (string?)nameAnnotation.Value
+            : entityType.BaseType != null
                 ? entityType.GetRootType().GetSqlQuery()
-                : null);
+                : null;
+    }
 
     /// <summary>
     ///     Sets the SQL string used to provide data for the entity type.
@@ -467,10 +471,14 @@ public static class RelationalEntityTypeExtensions
     /// <param name="entityType">The entity type to get the function name for.</param>
     /// <returns>The name of the function to which the entity type is mapped.</returns>
     public static string? GetFunctionName(this IReadOnlyEntityType entityType)
-        => (string?)entityType[RelationalAnnotationNames.FunctionName]
-            ?? (entityType.BaseType != null
+    {
+        var nameAnnotation = entityType.FindAnnotation(RelationalAnnotationNames.FunctionName);
+        return nameAnnotation != null
+            ? (string?)nameAnnotation.Value
+            : entityType.BaseType != null
                 ? entityType.GetRootType().GetFunctionName()
-                : null);
+                : null;
+    }
 
     /// <summary>
     ///     Sets the name of the function to which the entity type is mapped.
@@ -1371,13 +1379,16 @@ public static class RelationalEntityTypeExtensions
             return excluded.Value;
         }
 
-        if (entityType.BaseType != null)
+        if (entityType.BaseType != null
+            && entityType.GetMappingStrategy() == RelationalAnnotationNames.TphMappingStrategy)
         {
             return entityType.GetRootType().IsTableExcludedFromMigrations();
         }
 
         var ownership = entityType.FindOwnership();
-        if (ownership is { IsUnique: true })
+        if (ownership is { IsUnique: true }
+            && ownership.DeclaringEntityType.GetTableName() == entityType.GetTableName()
+            && ownership.DeclaringEntityType.GetSchema() == entityType.GetSchema())
         {
             return ownership.PrincipalEntityType.IsTableExcludedFromMigrations();
         }

@@ -25,7 +25,7 @@ public class SqliteApiConsistencyTest : ApiConsistencyTestBase<SqliteApiConsiste
             typeof(SqliteServiceCollectionExtensions),
             typeof(SqliteDbContextOptionsBuilderExtensions),
             typeof(SqliteDbContextOptionsBuilder),
-            typeof(SqlitePropertyBuilderExtensions)
+            typeof(SqlitePropertyBuilderExtensions),
         };
 
         public override
@@ -38,9 +38,7 @@ public class SqliteApiConsistencyTest : ApiConsistencyTestBase<SqliteApiConsiste
             = new()
             {
                 {
-
-                    typeof(IReadOnlyProperty),
-                    (
+                    typeof(IReadOnlyProperty), (
                         typeof(SqlitePropertyExtensions),
                         typeof(SqlitePropertyExtensions),
                         typeof(SqlitePropertyExtensions),
@@ -49,5 +47,12 @@ public class SqliteApiConsistencyTest : ApiConsistencyTestBase<SqliteApiConsiste
                     )
                 }
             };
+
+        protected override void Initialize()
+        {
+            MirrorTypes.Add(typeof(SqlitePropertyBuilderExtensions), typeof(SqliteComplexTypePropertyBuilderExtensions));
+
+            base.Initialize();
+        }
     }
 }

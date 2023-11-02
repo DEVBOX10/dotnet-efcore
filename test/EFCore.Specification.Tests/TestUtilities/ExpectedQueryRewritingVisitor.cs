@@ -11,15 +11,6 @@ public class ExpectedQueryRewritingVisitor : ExpressionVisitor
     private static readonly MethodInfo _maybeMethod
         = typeof(TestExtensions).GetMethod(nameof(TestExtensions.Maybe));
 
-    private static readonly MethodInfo _containsMethodInfo
-        = typeof(string).GetRuntimeMethod(nameof(string.Contains), new[] { typeof(string) });
-
-    private static readonly MethodInfo _startsWithMethodInfo
-        = typeof(string).GetRuntimeMethod(nameof(string.StartsWith), new[] { typeof(string) });
-
-    private static readonly MethodInfo _endsWithMethodInfo
-        = typeof(string).GetRuntimeMethod(nameof(string.EndsWith), new[] { typeof(string) });
-
     private static readonly MethodInfo _getShadowPropertyValueMethodInfo
         = typeof(ExpectedQueryRewritingVisitor).GetMethod(nameof(GetShadowPropertyValue));
 
@@ -93,14 +84,6 @@ public class ExpectedQueryRewritingVisitor : ExpressionVisitor
             var rewritten = TryConvertEFPropertyToMemberAccess(methodCallExpression);
 
             return Visit(rewritten);
-        }
-
-        if (!_negated
-            && (methodCallExpression.Method == _containsMethodInfo
-                || methodCallExpression.Method == _startsWithMethodInfo
-                || methodCallExpression.Method == _endsWithMethodInfo))
-        {
-            return RewriteStartsWithEndsWithContains(methodCallExpression);
         }
 
         if (methodCallExpression.Method.IsGenericMethod
@@ -187,41 +170,6 @@ public class ExpectedQueryRewritingVisitor : ExpressionVisitor
             resultSelector);
     }
 
-    private Expression RewriteStartsWithEndsWithContains(MethodCallExpression methodCallExpression)
-    {
-        // c.FirstName.StartsWith(c.Nickname)
-        // gets converted to:
-        // c.Maybe(x => x.FirstName).MaybeScalar(x => c.Maybe(xx => xx.Nickname).MaybeScalar(xx => x.StartsWith(xx)))
-        var caller = Visit(methodCallExpression.Object);
-        var argument = Visit(methodCallExpression.Arguments[0]);
-        var outerMaybeScalarMethod = _maybeScalarNullableMethod.MakeGenericMethod(typeof(string), typeof(bool));
-        var innerMaybeScalarMethod = _maybeScalarNonNullableMethod.MakeGenericMethod(typeof(string), typeof(bool));
-
-        var outerMaybeScalarLambdaParameter = Expression.Parameter(typeof(string), "x");
-        var innerMaybeScalarLambdaParameter = Expression.Parameter(typeof(string), "xx");
-        var innerMaybeScalarLambda = Expression.Lambda(
-            methodCallExpression.Update(
-                outerMaybeScalarLambdaParameter,
-                new[] { innerMaybeScalarLambdaParameter }),
-            innerMaybeScalarLambdaParameter);
-
-        var innerMaybeScalar = Expression.Call(
-            innerMaybeScalarMethod,
-            argument,
-            innerMaybeScalarLambda);
-
-        var outerMaybeScalarLambda = Expression.Lambda(
-            innerMaybeScalar,
-            outerMaybeScalarLambdaParameter);
-
-        var outerMaybeScalar = Expression.Call(
-            outerMaybeScalarMethod,
-            caller,
-            outerMaybeScalarLambda);
-
-        return Expression.Equal(outerMaybeScalar, Expression.Constant(true, typeof(bool?)));
-    }
-
     public static TResult GetShadowPropertyValue<TEntity, TResult>(TEntity entity, Func<object, object> shadowPropertyAccessor)
         => (TResult)shadowPropertyAccessor(entity);
 
@@ -246,7 +194,7 @@ public class ExpectedQueryRewritingVisitor : ExpressionVisitor
                     var methodInfo = _getShadowPropertyValueMethodInfo.MakeGenericMethod(caller.Type, methodCallExpression.Type);
                     result = Expression.Call(methodInfo, caller, Expression.Constant(shadowPropertyMapping));
                 }
-                else if (caller.Type.GetMembers().SingleOrDefault(m => m.Name == propertyName) is MemberInfo)
+                else if (caller.Type.GetMembers().SingleOrDefault(m => m.Name == propertyName) is not null)
                 {
                     result = Expression.Property(caller, propertyName);
                 }

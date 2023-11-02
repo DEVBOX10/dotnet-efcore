@@ -91,7 +91,7 @@ public class SqlServerAnnotationProvider : RelationalAnnotationProvider
             yield break;
         }
 
-        var entityType = table.EntityTypeMappings.First().EntityType;
+        var entityType = (IEntityType)table.EntityTypeMappings.First().TypeBase;
 
         // Model validation ensures that these facets are the same on all mapped entity types
         if (entityType.IsMemoryOptimized())
@@ -203,6 +203,16 @@ public class SqlServerAnnotationProvider : RelationalAnnotationProvider
         {
             yield return new Annotation(SqlServerAnnotationNames.FillFactor, fillFactor);
         }
+
+        if (modelIndex.GetSortInTempDb(table) is bool sortInTempDb)
+        {
+            yield return new Annotation(SqlServerAnnotationNames.SortInTempDb, sortInTempDb);
+        }
+
+        if (modelIndex.GetDataCompression(table) is DataCompressionType dataCompressionType)
+        {
+            yield return new Annotation(SqlServerAnnotationNames.DataCompression, dataCompressionType);
+        }
     }
 
     /// <summary>
@@ -242,7 +252,7 @@ public class SqlServerAnnotationProvider : RelationalAnnotationProvider
             yield return new Annotation(SqlServerAnnotationNames.Sparse, isSparse);
         }
 
-        var entityType = column.Table.EntityTypeMappings.First().EntityType;
+        var entityType = (IEntityType)column.Table.EntityTypeMappings.First().TypeBase;
         if (entityType.IsTemporal() && designTime)
         {
             var periodStartPropertyName = entityType.GetPeriodStartPropertyName();

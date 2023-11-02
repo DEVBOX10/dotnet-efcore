@@ -3,7 +3,6 @@
 
 using System.Globalization;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using Microsoft.EntityFrameworkCore.SqlServer.Infrastructure.Internal;
 using Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal;
 using Microsoft.EntityFrameworkCore.SqlServer.Update.Internal;
 using Microsoft.EntityFrameworkCore.SqlServer.ValueGeneration.Internal;
@@ -77,8 +76,7 @@ public class SqlServerSequenceValueGeneratorTest
                         new RelationalSqlGenerationHelperDependencies()),
                     new SqlServerTypeMappingSource(
                         TestServiceFactory.Instance.Create<TypeMappingSourceDependencies>(),
-                        TestServiceFactory.Instance.Create<RelationalTypeMappingSourceDependencies>(),
-                        new SqlServerSingletonOptions()))),
+                        TestServiceFactory.Instance.Create<RelationalTypeMappingSourceDependencies>()))),
             state,
             CreateConnection(),
             new FakeRelationalCommandDiagnosticsLogger());
@@ -132,8 +130,7 @@ public class SqlServerSequenceValueGeneratorTest
                     new RelationalSqlGenerationHelperDependencies()),
                 new SqlServerTypeMappingSource(
                     TestServiceFactory.Instance.Create<TypeMappingSourceDependencies>(),
-                    TestServiceFactory.Instance.Create<RelationalTypeMappingSourceDependencies>(),
-                    new SqlServerSingletonOptions())));
+                    TestServiceFactory.Instance.Create<RelationalTypeMappingSourceDependencies>())));
 
         var logger = new FakeRelationalCommandDiagnosticsLogger();
 
@@ -184,8 +181,7 @@ public class SqlServerSequenceValueGeneratorTest
                         new RelationalSqlGenerationHelperDependencies()),
                     new SqlServerTypeMappingSource(
                         TestServiceFactory.Instance.Create<TypeMappingSourceDependencies>(),
-                        TestServiceFactory.Instance.Create<RelationalTypeMappingSourceDependencies>(),
-                        new SqlServerSingletonOptions()))),
+                        TestServiceFactory.Instance.Create<RelationalTypeMappingSourceDependencies>()))),
             state,
             CreateConnection(),
             new FakeRelationalCommandDiagnosticsLogger());

@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.EntityFrameworkCore.Query.Internal;
 
 namespace Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 
@@ -10,8 +11,8 @@ public sealed partial class SelectExpression
     private sealed class EntityShaperNullableMarkingExpressionVisitor : ExpressionVisitor
     {
         protected override Expression VisitExtension(Expression extensionExpression)
-            => extensionExpression is EntityShaperExpression entityShaper
-                ? entityShaper.MakeNullable()
+            => extensionExpression is StructuralTypeShaperExpression shaper
+                ? shaper.MakeNullable()
                 : base.VisitExtension(extensionExpression);
     }
 
@@ -360,9 +361,9 @@ public sealed partial class SelectExpression
         [return: NotNullIfNotNull("expression")]
         public override Expression? Visit(Expression? expression)
         {
-            if (expression is ConcreteColumnExpression columnExpression)
+            if (expression is TableReferenceExpression tableReferenceExpression)
             {
-                columnExpression.UpdateTableReference(_oldSelect, _newSelect);
+                tableReferenceExpression.UpdateTableReference(_oldSelect, _newSelect);
             }
 
             return base.Visit(expression);
@@ -423,153 +424,6 @@ public sealed partial class SelectExpression
         }
     }
 
-    private sealed class TableReferenceExpression : Expression
-    {
-        private SelectExpression _selectExpression;
-
-        public TableReferenceExpression(SelectExpression selectExpression, string alias)
-        {
-            _selectExpression = selectExpression;
-            Alias = alias;
-        }
-
-        public TableExpressionBase Table
-            => _selectExpression.Tables.Single(
-                e => string.Equals((e as JoinExpressionBase)?.Table.Alias ?? e.Alias, Alias, StringComparison.OrdinalIgnoreCase));
-
-        public string Alias { get; internal set; }
-
-        public override Type Type
-            => typeof(object);
-
-        public override ExpressionType NodeType
-            => ExpressionType.Extension;
-
-        public void UpdateTableReference(SelectExpression oldSelect, SelectExpression newSelect)
-        {
-            if (ReferenceEquals(oldSelect, _selectExpression))
-            {
-                _selectExpression = newSelect;
-            }
-        }
-
-        internal void Verify(SelectExpression selectExpression)
-        {
-            if (!ReferenceEquals(selectExpression, _selectExpression))
-            {
-                throw new InvalidOperationException("Dangling TableReferenceExpression.");
-            }
-        }
-
-        /// <inheritdoc />
-        public override bool Equals(object? obj)
-            => obj != null
-                && (ReferenceEquals(this, obj)
-                    || obj is TableReferenceExpression tableReferenceExpression
-                    && Equals(tableReferenceExpression));
-
-        // Since table reference is owned by SelectExpression, the select expression should be the same reference if they are matching.
-        // That means we also don't need to compute the hashcode for it.
-        // This allows us to break the cycle in computation when traversing this graph.
-        private bool Equals(TableReferenceExpression tableReferenceExpression)
-            => string.Equals(Alias, tableReferenceExpression.Alias, StringComparison.OrdinalIgnoreCase)
-                && ReferenceEquals(_selectExpression, tableReferenceExpression._selectExpression);
-
-        /// <inheritdoc />
-        public override int GetHashCode()
-            => 0;
-    }
-
-    private sealed class TpcTablesExpression : TableExpressionBase
-    {
-        public TpcTablesExpression(
-            string? alias,
-            IEntityType entityType,
-            IReadOnlyList<SelectExpression> subSelectExpressions)
-            : base(alias)
-        {
-            EntityType = entityType;
-            SelectExpressions = subSelectExpressions;
-        }
-
-        private TpcTablesExpression(
-            string? alias,
-            IEntityType entityType,
-            IReadOnlyList<SelectExpression> subSelectExpressions,
-            IEnumerable<IAnnotation>? annotations)
-            : base(alias, annotations)
-        {
-            EntityType = entityType;
-            SelectExpressions = subSelectExpressions;
-        }
-
-        [NotNull]
-        public override string? Alias
-        {
-            get => base.Alias!;
-            internal set => base.Alias = value;
-        }
-
-        public IEntityType EntityType { get; }
-
-        public IReadOnlyList<SelectExpression> SelectExpressions { get; }
-
-        public TpcTablesExpression Prune(IReadOnlyList<string> discriminatorValues)
-        {
-            var subSelectExpressions = discriminatorValues.Count == 0
-                ? new List<SelectExpression> { SelectExpressions[0] }
-                : SelectExpressions.Where(
-                    se =>
-                        discriminatorValues.Contains((string)((SqlConstantExpression)se.Projection[^1].Expression).Value!)).ToList();
-
-            Check.DebugAssert(subSelectExpressions.Count > 0, "TPC must have at least 1 table selected.");
-
-            return new TpcTablesExpression(Alias, EntityType, subSelectExpressions, GetAnnotations());
-        }
-
-        // This is implementation detail hence visitors are not supposed to see inside unless they really need to.
-        protected override Expression VisitChildren(ExpressionVisitor visitor)
-            => this;
-
-        protected override TableExpressionBase CreateWithAnnotations(IEnumerable<IAnnotation> annotations)
-            => new TpcTablesExpression(Alias, EntityType, SelectExpressions, annotations);
-
-        protected override void Print(ExpressionPrinter expressionPrinter)
-        {
-            expressionPrinter.AppendLine("(");
-            using (expressionPrinter.Indent())
-            {
-                expressionPrinter.VisitCollection(SelectExpressions, e => e.AppendLine().AppendLine("UNION ALL"));
-            }
-
-            expressionPrinter.AppendLine()
-                .AppendLine(") AS " + Alias);
-            PrintAnnotations(expressionPrinter);
-        }
-
-        /// <inheritdoc />
-        public override bool Equals(object? obj)
-            => obj != null
-                && (ReferenceEquals(this, obj)
-                    || obj is TpcTablesExpression tpcTablesExpression
-                    && Equals(tpcTablesExpression));
-
-        private bool Equals(TpcTablesExpression tpcTablesExpression)
-        {
-            if (!base.Equals(tpcTablesExpression)
-                || EntityType != tpcTablesExpression.EntityType)
-            {
-                return false;
-            }
-
-            return SelectExpressions.SequenceEqual(tpcTablesExpression.SelectExpressions);
-        }
-
-        /// <inheritdoc />
-        public override int GetHashCode()
-            => HashCode.Combine(base.GetHashCode(), EntityType);
-    }
-
     private sealed class ConcreteColumnExpression : ColumnExpression
     {
         private readonly TableReferenceExpression _table;
@@ -625,16 +479,20 @@ public sealed partial class SelectExpression
 
         /// <inheritdoc />
         protected override Expression VisitChildren(ExpressionVisitor visitor)
-            => this;
+        {
+            // We only need to visit the table reference expression since TableReferenceUpdatingExpressionVisitor may need to modify it; it
+            // mutates TableReferenceExpression (a new TableReferenceExpression is never returned).
+            var newTable = (TableReferenceExpression)visitor.Visit(_table);
+            Check.DebugAssert(newTable == _table, $"New {nameof(TableReferenceExpression)} returned during visitation!");
+
+            return this;
+        }
 
         public override ConcreteColumnExpression MakeNullable()
             => IsNullable ? this : new ConcreteColumnExpression(Name, _table, Type, TypeMapping, true);
 
         public override SqlExpression ApplyTypeMapping(RelationalTypeMapping? typeMapping)
             => new ConcreteColumnExpression(Name, _table, Type, typeMapping, IsNullable);
-
-        public void UpdateTableReference(SelectExpression oldSelect, SelectExpression newSelect)
-            => _table.UpdateTableReference(oldSelect, newSelect);
 
         internal void Verify(IReadOnlyList<TableReferenceExpression> tableReferences)
         {
@@ -1004,7 +862,8 @@ public sealed partial class SelectExpression
                 {
                     // Deep clone
                     var subSelectExpressions = tpcTablesExpression.SelectExpressions.Select(Visit).ToList<SelectExpression>();
-                    var newTpcTable = new TpcTablesExpression(tpcTablesExpression.Alias, tpcTablesExpression.EntityType, subSelectExpressions);
+                    var newTpcTable = new TpcTablesExpression(
+                        tpcTablesExpression.Alias, tpcTablesExpression.EntityType, subSelectExpressions);
                     foreach (var annotation in tpcTablesExpression.GetAnnotations())
                     {
                         newTpcTable.AddAnnotation(annotation.Name, annotation.Value);

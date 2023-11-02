@@ -13,7 +13,8 @@ public abstract class NonSharedModelBulkUpdatesTestBase : NonSharedModelTestBase
     public virtual async Task Delete_aggregate_root_when_eager_loaded_owned_collection(bool async)
     {
         var contextFactory = await InitializeAsync<Context28671>(onModelCreating: mb => mb.Entity<Owner>().Ignore(e => e.OwnedReference));
-        await AssertDelete(async, contextFactory.CreateContext,
+        await AssertDelete(
+            async, contextFactory.CreateContext,
             context => context.Set<Owner>(), rowsAffectedCount: 0);
     }
 
@@ -22,7 +23,8 @@ public abstract class NonSharedModelBulkUpdatesTestBase : NonSharedModelTestBase
     public virtual async Task Delete_aggregate_root_when_table_sharing_with_owned(bool async)
     {
         var contextFactory = await InitializeAsync<Context28671>();
-        await AssertDelete(async, contextFactory.CreateContext,
+        await AssertDelete(
+            async, contextFactory.CreateContext,
             context => context.Set<Owner>(), rowsAffectedCount: 0);
     }
 
@@ -37,10 +39,10 @@ public abstract class NonSharedModelBulkUpdatesTestBase : NonSharedModelTestBase
                 mb.Entity<OtherReference>().ToTable(nameof(Owner));
             });
 
-
         await AssertTranslationFailedWithDetails(
-            () => AssertDelete(async, contextFactory.CreateContext,
-            context => context.Set<Owner>(), rowsAffectedCount: 0),
+            () => AssertDelete(
+                async, contextFactory.CreateContext,
+                context => context.Set<Owner>(), rowsAffectedCount: 0),
             RelationalStrings.ExecuteDeleteOnTableSplitting(nameof(Owner)));
     }
 
@@ -52,14 +54,12 @@ public abstract class NonSharedModelBulkUpdatesTestBase : NonSharedModelTestBase
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
-            modelBuilder.Entity<Owner>(
+            => modelBuilder.Entity<Owner>(
                 b =>
                 {
                     b.OwnsOne(e => e.OwnedReference);
                     b.OwnsMany(e => e.OwnedCollections);
                 });
-        }
     }
 
     public class Owner
@@ -125,6 +125,82 @@ public abstract class NonSharedModelBulkUpdatesTestBase : NonSharedModelTestBase
             ss => ss.Set<Owner>(),
             s => s.SetProperty(o => o.Title, o => o.Title + "_Suffix"),
             rowsAffectedCount: 0);
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual async Task Update_owned_and_non_owned_properties_with_table_sharing(bool async)
+    {
+        var contextFactory = await InitializeAsync<Context28671>(
+            onModelCreating: mb =>
+            {
+                mb.Entity<Owner>().OwnsOne(o => o.OwnedReference);
+            });
+
+        await AssertUpdate(
+            async,
+            contextFactory.CreateContext,
+            ss => ss.Set<Owner>(),
+            s => s
+                .SetProperty(o => o.Title, o => o.OwnedReference.Number.ToString())
+                .SetProperty(o => o.OwnedReference.Number, o => o.Title.Length),
+            rowsAffectedCount: 0);
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual async Task Update_main_table_in_entity_with_entity_splitting(bool async)
+    {
+        var contextFactory = await InitializeAsync<DbContext>(
+            onModelCreating: mb => mb.Entity<Blog>()
+                .ToTable("Blogs")
+                .SplitToTable(
+                    "BlogsPart1", tb =>
+                    {
+                        tb.Property(b => b.Title);
+                        tb.Property(b => b.Rating);
+                    }),
+            seed: context =>
+            {
+                context.Set<Blog>().Add(new Blog { Title = "SomeBlog" });
+                context.SaveChanges();
+            });
+
+        await AssertUpdate(
+            async,
+            contextFactory.CreateContext,
+            ss => ss.Set<Blog>(),
+            s => s.SetProperty(b => b.CreationTimestamp, b => new DateTime(2020, 1, 1)),
+            rowsAffectedCount: 1);
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual async Task Update_non_main_table_in_entity_with_entity_splitting(bool async)
+    {
+        var contextFactory = await InitializeAsync<DbContext>(
+            onModelCreating: mb => mb.Entity<Blog>()
+                .ToTable("Blogs")
+                .SplitToTable(
+                    "BlogsPart1", tb =>
+                    {
+                        tb.Property(b => b.Title);
+                        tb.Property(b => b.Rating);
+                    }),
+            seed: context =>
+            {
+                context.Set<Blog>().Add(new Blog { Title = "SomeBlog" });
+                context.SaveChanges();
+            });
+
+        await AssertUpdate(
+            async,
+            contextFactory.CreateContext,
+            ss => ss.Set<Blog>(),
+            s => s
+                .SetProperty(b => b.Title, b => b.Rating.ToString())
+                .SetProperty(b => b.Rating, b => b.Title!.Length),
+            rowsAffectedCount: 1);
     }
 
     [ConditionalTheory]
@@ -206,11 +282,7 @@ public abstract class NonSharedModelBulkUpdatesTestBase : NonSharedModelTestBase
             async,
             contextFactory.CreateContext,
             ss => ss.Orders.Where(o => o.Id == 1)
-                .Select(o => new
-                {
-                    Order = o,
-                    Total = o.OrderProducts.Sum(op => op.Amount)
-                }),
+                .Select(o => new { Order = o, Total = o.OrderProducts.Sum(op => op.Amount) }),
             s => s.SetProperty(x => x.Order.Total, x => x.Total),
             rowsAffectedCount: 1);
     }
@@ -234,13 +306,14 @@ public abstract class NonSharedModelBulkUpdatesTestBase : NonSharedModelTestBase
                     b.HasData(new Order { Id = 1 });
                 });
 
-            modelBuilder.Entity<OrderProduct>(b =>
-            {
-                b.Property(op => op.Id).ValueGeneratedNever();
-                b.HasData(
-                    new OrderProduct { Id = 1, Amount = 8 },
-                    new OrderProduct { Id = 2, Amount = 9 });
-            });
+            modelBuilder.Entity<OrderProduct>(
+                b =>
+                {
+                    b.Property(op => op.Id).ValueGeneratedNever();
+                    b.HasData(
+                        new OrderProduct { Id = 1, Amount = 8 },
+                        new OrderProduct { Id = 2, Amount = 9 });
+                });
         }
     }
 
@@ -261,6 +334,8 @@ public abstract class NonSharedModelBulkUpdatesTestBase : NonSharedModelTestBase
     {
         public int Id { get; set; }
         public string? Title { get; set; }
+        public int Rating { get; set; }
+        public DateTime CreationTimestamp { get; set; }
 
         public virtual ICollection<Post> Posts { get; } = new List<Post>();
     }

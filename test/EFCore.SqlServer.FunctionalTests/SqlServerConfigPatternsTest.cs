@@ -5,6 +5,8 @@
 // ReSharper disable UnusedAutoPropertyAccessor.Local
 
 #pragma warning disable RCS1102 // Make class static.
+using Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal;
+
 namespace Microsoft.EntityFrameworkCore;
 
 public class SqlServerConfigPatternsTest
@@ -452,6 +454,94 @@ public class SqlServerConfigPatternsTest
                 => optionsBuilder
                     .UseInternalServiceProvider(_serviceProvider)
                     .UseSqlServer(SqlServerNorthwindTestStoreFactory.NorthwindConnectionString, b => b.ApplyConfiguration());
+        }
+    }
+
+    public class AzureSqlDatabase
+    {
+        [InlineData(true)]
+        [InlineData(false)]
+        [ConditionalTheory]
+        public void Retry_on_failure_not_enabled_by_default_on_Azure_SQL(bool configured)
+        {
+            using var context = new NorthwindContext(configured);
+
+            Assert.IsType<SqlServerExecutionStrategy>(context.Database.CreateExecutionStrategy());
+        }
+
+        private class NorthwindContext : DbContext
+        {
+            private readonly bool _azureConfigured;
+
+            public NorthwindContext(bool configured)
+            {
+                _azureConfigured = configured;
+            }
+
+            public DbSet<Customer> Customers { get; set; }
+
+            protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+                => optionsBuilder
+                    .EnableServiceProviderCaching(false)
+                    .UseSqlServer(
+                        @"Server=test.database.windows.net:4040;Database=Test;ConnectRetryCount=0",
+                        a =>
+                        {
+                            if (_azureConfigured)
+                            {
+                                a.UseAzureSqlDefaults(false);
+                            }
+                        });
+
+            protected override void OnModelCreating(ModelBuilder modelBuilder)
+                => ConfigureModel(modelBuilder);
+        }
+    }
+
+    public class NonDefaultAzureSqlDatabase
+    {
+        [InlineData(true)]
+        [InlineData(false)]
+        [ConditionalTheory]
+        public void Retry_on_failure_enabled_if_Azure_SQL_configured(bool configured)
+        {
+            using var context = new NorthwindContext(configured);
+            if (configured)
+            {
+                Assert.IsType<SqlServerRetryingExecutionStrategy>(context.Database.CreateExecutionStrategy());
+            }
+            else
+            {
+                Assert.IsType<SqlServerExecutionStrategy>(context.Database.CreateExecutionStrategy());
+            }
+        }
+
+        private class NorthwindContext : DbContext
+        {
+            private readonly bool _isAzure;
+
+            public NorthwindContext(bool azure)
+            {
+                _isAzure = azure;
+            }
+
+            public DbSet<Customer> Customers { get; set; }
+
+            protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+                => optionsBuilder
+                    .EnableServiceProviderCaching(false)
+                    .UseSqlServer(
+                        SqlServerNorthwindTestStoreFactory.NorthwindConnectionString,
+                        a =>
+                        {
+                            if (_isAzure)
+                            {
+                                a.UseAzureSqlDefaults();
+                            }
+                        });
+
+            protected override void OnModelCreating(ModelBuilder modelBuilder)
+                => ConfigureModel(modelBuilder);
         }
     }
 

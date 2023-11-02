@@ -35,7 +35,7 @@ public class ArrayPropertyValues : PropertyValues
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     public override object ToObject()
-        => MaterializerSource.GetMaterializer(EntityType)(
+        => EntityType.GetOrCreateMaterializer(MaterializerSource)(
             new MaterializationContext(
                 new ValueBuffer(_values),
                 InternalEntry.Context));
@@ -56,7 +56,7 @@ public class ArrayPropertyValues : PropertyValues
             {
                 if (!Properties[i].IsShadowProperty())
                 {
-                    SetValue(i, Properties[i].GetGetter().GetClrValue(obj));
+                    SetValue(i, Properties[i].GetGetter().GetClrValueUsingContainingEntity(obj));
                 }
             }
         }

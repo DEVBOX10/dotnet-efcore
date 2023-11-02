@@ -3,6 +3,7 @@
 
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore.Diagnostics.Internal;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Xunit.Sdk;
 
@@ -725,9 +726,7 @@ public partial class RelationalModelValidatorTest : ModelValidatorTest
         modelBuilder.Entity<A>().HasOne<B>().WithOne().HasForeignKey<B>(a => a.Id).HasPrincipalKey<A>(b => b.Id).IsRequired();
         modelBuilder.Entity<B>().ToTable("Table");
 
-        VerifyError(
-            CoreStrings.IdentifyingRelationshipCycle("A -> B"),
-            modelBuilder);
+        VerifyError(CoreStrings.RelationshipCycle("B", "AId", "ValueConverter"), modelBuilder);
     }
 
     [ConditionalFact]
@@ -1393,7 +1392,7 @@ public partial class RelationalModelValidatorTest : ModelValidatorTest
 
         // Should throw. Issue #23144.
         Assert.Contains(
-            "(No exception was thrown)",
+            "No exception was thrown",
             Assert.Throws<ThrowsException>(
                 () => VerifyError(
                     RelationalStrings.DuplicateForeignKeyTableMismatch(
@@ -1919,7 +1918,10 @@ public partial class RelationalModelValidatorTest : ModelValidatorTest
         modelBuilder.Entity<Cat>()
             .Property<byte[]>("Version").IsRowVersion().HasColumnName("Version");
 
-        Validate(modelBuilder);
+        var model = Validate(modelBuilder);
+
+        var animalType = model.FindEntityType(typeof(Animal))!;
+        Assert.Null(animalType.GetDeclaredProperties().SingleOrDefault(p => p.IsConcurrencyToken));
     }
 
     [ConditionalFact]
@@ -1945,7 +1947,10 @@ public partial class RelationalModelValidatorTest : ModelValidatorTest
         modelBuilder.Entity<Cat>()
             .Property<byte[]>("Version").IsRowVersion().HasColumnName("Version");
 
-        Validate(modelBuilder);
+        var model = Validate(modelBuilder);
+
+        var animalType = model.FindEntityType(typeof(Animal))!;
+        Assert.Null(animalType.GetDeclaredProperties().SingleOrDefault(p => p.IsConcurrencyToken));
     }
 
     [ConditionalFact]
@@ -2015,8 +2020,7 @@ public partial class RelationalModelValidatorTest : ModelValidatorTest
         Assert.Null(animalType.GetDeclaredProperties().SingleOrDefault(p => p.IsConcurrencyToken));
 
         var dogType = model.FindEntityType(typeof(Dog))!;
-        var concurrencyProperty = dogType.GetDeclaredProperties().Single(p => p.IsConcurrencyToken);
-        Assert.Equal("Version", concurrencyProperty.GetColumnName());
+        Assert.Null(dogType.GetDeclaredProperties().SingleOrDefault(p => p.IsConcurrencyToken));
     }
 
     [ConditionalFact]
@@ -2029,7 +2033,10 @@ public partial class RelationalModelValidatorTest : ModelValidatorTest
             pb => pb.Property<byte[]>("Version").IsRowVersion());
         modelBuilder.Entity<Dog>().Ignore(d => d.FavoritePerson);
 
-        Validate(modelBuilder);
+        var model = Validate(modelBuilder);
+
+        var dogType = model.FindEntityType(typeof(Dog))!;
+        Assert.Null(dogType.GetDeclaredProperties().SingleOrDefault(p => p.IsConcurrencyToken));
     }
 
     [ConditionalFact]
@@ -2474,6 +2481,42 @@ public partial class RelationalModelValidatorTest : ModelValidatorTest
 
         VerifyError(
             RelationalStrings.TpcTableSharing("Person", "Animal", "Animal"),
+            modelBuilder);
+    }
+
+    [ConditionalFact]
+    public virtual void Detects_owned_table_sharing_on_abstract_class_with_TPC()
+    {
+        var modelBuilder = CreateConventionModelBuilder();
+
+        modelBuilder.Entity<LivingBeing>()
+            .UseTpcMappingStrategy()
+            .OwnsOne(b => b.Details);
+
+        modelBuilder.Entity<Animal>();
+
+        VerifyError(
+            RelationalStrings.UnmappedNonTPHOwner("LivingBeing", "Details", "OwnedEntity", "Table"),
+            modelBuilder);
+    }
+
+    [ConditionalFact]
+    public virtual void Detects_owned_view_sharing_on_abstract_class_with_TPT()
+    {
+        var modelBuilder = CreateConventionModelBuilder();
+
+        modelBuilder.Entity<LivingBeing>()
+            .UseTptMappingStrategy()
+            .OwnsOne(b => b.Details, ob =>
+            {
+                ob.ToTable((string)null);
+            });
+
+        modelBuilder.Entity<Animal>()
+            .ToView("Animal");
+
+        VerifyError(
+            RelationalStrings.UnmappedNonTPHOwner("LivingBeing", "Details", "OwnedEntity", "View"),
             modelBuilder);
     }
 
@@ -3763,11 +3806,8 @@ public partial class RelationalModelValidatorTest : ModelValidatorTest
         modelBuilder.Entity<Animal>();
         modelBuilder.Entity<Cat>().ToTable(tb => tb.HasTrigger("SomeTrigger"));
 
-        VerifyError(
-            RelationalStrings.CannotConfigureTriggerNonRootTphEntity(
-                modelBuilder.Model.FindEntityType(typeof(Cat))!.DisplayName(),
-                modelBuilder.Model.FindEntityType(typeof(Animal))!.DisplayName()),
-            modelBuilder);
+        VerifyWarning(RelationalResources.LogTriggerOnNonRootTphEntity(new TestLogger<TestRelationalLoggingDefinitions>())
+            .GenerateMessage("Cat", "Animal"), modelBuilder);
     }
 
     private class TpcBase

@@ -1,6 +1,9 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
+using Microsoft.EntityFrameworkCore.Storage.Json;
+
 namespace Microsoft.EntityFrameworkCore.Storage;
 
 /// <summary>
@@ -86,12 +89,19 @@ public abstract class TypeMappingSourceBase : ITypeMappingSource
     public abstract CoreTypeMapping? FindMapping(IProperty property);
 
     /// <summary>
+    ///     Finds the type mapping for a given <see cref="IElementType" />.
+    /// </summary>
+    /// <param name="elementType">The collection element.</param>
+    /// <returns>The type mapping, or <see langword="null" /> if none was found.</returns>
+    public abstract CoreTypeMapping? FindMapping(IElementType elementType);
+
+    /// <summary>
     ///     Finds the type mapping for a given <see cref="Type" />.
     /// </summary>
     /// <remarks>
     ///     Note: Only call this method if there is no <see cref="IProperty" />
     ///     or <see cref="IModel" /> available, otherwise call <see cref="FindMapping(IProperty)" />
-    ///     or <see cref="FindMapping(Type, IModel)" />
+    ///     or <see cref="FindMapping(Type, IModel, CoreTypeMapping)" />
     /// </remarks>
     /// <param name="type">The CLR type.</param>
     /// <returns>The type mapping, or <see langword="null" /> if none was found.</returns>
@@ -106,8 +116,9 @@ public abstract class TypeMappingSourceBase : ITypeMappingSource
     /// </remarks>
     /// <param name="type">The CLR type.</param>
     /// <param name="model">The model.</param>
+    /// <param name="elementMapping">The element mapping to use, if known.</param>
     /// <returns>The type mapping, or <see langword="null" /> if none was found.</returns>
-    public abstract CoreTypeMapping? FindMapping(Type type, IModel model);
+    public abstract CoreTypeMapping? FindMapping(Type type, IModel model, CoreTypeMapping? elementMapping = null);
 
     /// <summary>
     ///     Finds the type mapping for a given <see cref="MemberInfo" /> representing
@@ -125,4 +136,94 @@ public abstract class TypeMappingSourceBase : ITypeMappingSource
     /// <param name="member">The field or property.</param>
     /// <returns>The type mapping, or <see langword="null" /> if none was found.</returns>
     public abstract CoreTypeMapping? FindMapping(MemberInfo member);
+
+    /// <summary>
+    ///     Attempts to find a JSON-based type mapping for a collection of primitive types.
+    /// </summary>
+    /// <param name="mappingInfo">The mapping info being used.</param>
+    /// <param name="modelClrType">The model CLR type.</param>
+    /// <param name="providerClrType">The provider CLR type.</param>
+    /// <param name="elementMapping">The type mapping for elements of the collection.</param>
+    /// <param name="elementComparer">The element comparer.</param>
+    /// <param name="collectionReaderWriter">The reader/writer for the collection.</param>
+    /// <returns><see langword="true" /> if a collection mapping was found; <see langword="false" /> otherwise.</returns>
+    protected virtual bool TryFindJsonCollectionMapping(
+        TypeMappingInfo mappingInfo,
+        Type modelClrType,
+        Type? providerClrType,
+        ref CoreTypeMapping? elementMapping,
+        out ValueComparer? elementComparer,
+        out JsonValueReaderWriter? collectionReaderWriter)
+    {
+        if ((providerClrType == null || providerClrType == typeof(string))
+            && modelClrType.TryGetElementType(typeof(IEnumerable<>)) is { } elementType
+            && elementType != modelClrType
+            && !modelClrType.GetGenericTypeImplementations(typeof(IDictionary<,>)).Any())
+        {
+            elementMapping ??= FindMapping(elementType);
+
+            if (elementMapping is { ElementTypeMapping: null, JsonValueReaderWriter: not null })
+            {
+                var elementReader = elementMapping.JsonValueReaderWriter!;
+
+                if (elementReader.ValueType.IsNullableValueType()
+                    || !elementReader.ValueType.IsAssignableFrom(elementType.UnwrapNullableType()))
+                {
+                    elementReader = (JsonValueReaderWriter)Activator.CreateInstance(
+                        typeof(JsonCastValueReaderWriter<>).MakeGenericType(elementType.UnwrapNullableType()), elementReader)!;
+                }
+
+                var typeToInstantiate = FindTypeToInstantiate();
+
+                collectionReaderWriter = mappingInfo.JsonValueReaderWriter
+                    ?? (JsonValueReaderWriter?)Activator.CreateInstance(
+                        (elementType.IsNullableValueType()
+                            ? typeof(JsonNullableStructCollectionReaderWriter<,,>)
+                            : typeof(JsonCollectionReaderWriter<,,>))
+                        .MakeGenericType(modelClrType, typeToInstantiate, elementType.UnwrapNullableType()),
+                        elementReader);
+
+                elementComparer = (ValueComparer?)Activator.CreateInstance(
+                    elementType.IsNullableValueType()
+                        ? typeof(NullableValueTypeListComparer<>).MakeGenericType(elementType.UnwrapNullableType())
+                        : elementMapping.Comparer.Type.IsAssignableFrom(elementType)
+                            ? typeof(ListComparer<>).MakeGenericType(elementType)
+                            : typeof(ObjectListComparer<>).MakeGenericType(elementType),
+                    elementMapping.Comparer.ToNullableComparer(elementType)!);
+
+                return true;
+
+                Type FindTypeToInstantiate()
+                {
+                    if (modelClrType.IsArray)
+                    {
+                        return modelClrType;
+                    }
+
+                    var listOfT = typeof(List<>).MakeGenericType(elementType);
+
+                    if (modelClrType.IsAssignableFrom(listOfT))
+                    {
+                        if (!modelClrType.IsAbstract)
+                        {
+                            var constructor = modelClrType.GetDeclaredConstructor(null);
+                            if (constructor?.IsPublic == true)
+                            {
+                                return modelClrType;
+                            }
+                        }
+
+                        return listOfT;
+                    }
+
+                    return modelClrType;
+                }
+            }
+        }
+
+        elementMapping = null;
+        elementComparer = null;
+        collectionReaderWriter = null;
+        return false;
+    }
 }

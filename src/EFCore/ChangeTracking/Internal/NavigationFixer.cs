@@ -527,6 +527,7 @@ public class NavigationFixer : INavigationFixer
                         {
                             continue;
                         }
+
                         SetForeignKeyProperties(dependentEntry, entry, foreignKey, setModified: true, fromQuery: false);
                     }
 
@@ -1090,16 +1091,18 @@ public class NavigationFixer : INavigationFixer
         else if (!_inAttachGraph)
         {
             var joinEntityType = arguments.SkipNavigation.JoinEntityType;
-            var joinEntity = _entityMaterializerSource.GetEmptyMaterializer(joinEntityType)
+            var joinEntity = joinEntityType.GetOrCreateEmptyMaterializer(_entityMaterializerSource)
                 (new MaterializationContext(ValueBuffer.Empty, arguments.Entry.Context));
 
             joinEntry = arguments.Entry.StateManager.GetOrCreateEntry(joinEntity, joinEntityType);
 
             SetForeignKeyProperties(
                 joinEntry, arguments.Entry, arguments.SkipNavigation.ForeignKey, arguments.SetModified, arguments.FromQuery);
+            SetNavigation(joinEntry, arguments.SkipNavigation.ForeignKey.DependentToPrincipal, arguments.Entry, arguments.FromQuery);
             SetForeignKeyProperties(
                 joinEntry, arguments.OtherEntry, arguments.SkipNavigation.Inverse.ForeignKey, arguments.SetModified,
                 arguments.FromQuery);
+            SetNavigation(joinEntry, arguments.SkipNavigation.Inverse.ForeignKey.DependentToPrincipal, arguments.OtherEntry, arguments.FromQuery);
 
             joinEntry.SetEntityState(
                 arguments.SetModified

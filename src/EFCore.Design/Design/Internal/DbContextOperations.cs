@@ -222,6 +222,7 @@ public class DbContextOperations
             {
                 ex = ex.InnerException!;
             }
+
             throw new OperationException(DesignStrings.CannotCreateContextInstance(contextType, ex.Message), ex);
         }
     }
@@ -322,6 +323,7 @@ public class DbContextOperations
             {
                 ex = ex.InnerException!;
             }
+
             throw new OperationException(DesignStrings.CannotFindDbContextTypes(ex.Message), ex);
         }
 
@@ -437,7 +439,7 @@ public class DbContextOperations
         }
 
         // Allow selecting types in the default namespace
-        candidates = candidates.Where(t => t.Key.Namespace == null).ToDictionary(t => t.Key, t => t.Value);
+        candidates = candidates.Where(t => t.Key.Namespace == null).ToDictionary();
         if (candidates.Count == 0)
         {
             throw new OperationException(DesignStrings.MultipleContextsWithQualifiedName(name));
@@ -460,6 +462,6 @@ public class DbContextOperations
                 t => string.Equals(t.Key.Name, name, comparisonType)
                     || string.Equals(t.Key.FullName, name, comparisonType)
                     || string.Equals(t.Key.AssemblyQualifiedName, name, comparisonType))
-            .ToDictionary(t => t.Key, t => t.Value);
+            .ToDictionary();
     }
 }

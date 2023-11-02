@@ -81,6 +81,11 @@ public class RelationshipDiscoveryConvention :
                 continue;
             }
 
+            if (((Model)entityType.Model).FindIsComplexConfigurationSource(targetClrType) != null)
+            {
+                continue;
+            }
+
             var candidateTargetEntityTypeBuilder = TryGetTargetEntityTypeBuilder(
                 entityTypeBuilder, targetClrType, navigationPropertyInfo, shouldBeOwned);
             if (candidateTargetEntityTypeBuilder == null)
@@ -1102,7 +1107,8 @@ public class RelationshipDiscoveryConvention :
             && IsCandidateNavigationProperty(
                 sourceEntityTypeBuilder.Metadata, navigationName, memberInfo)
             && Dependencies.MemberClassifier.FindCandidateNavigationPropertyType(
-                memberInfo, targetEntityTypeBuilder.Metadata.Model, out _) != null)
+                memberInfo, targetEntityTypeBuilder.Metadata.Model, out _)
+            != null)
         {
             Process(sourceEntityTypeBuilder.Metadata, navigationName, memberInfo, context);
         }

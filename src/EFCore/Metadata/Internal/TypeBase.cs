@@ -16,12 +16,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal;
 public abstract class TypeBase : ConventionAnnotatable, IMutableTypeBase, IConventionTypeBase, ITypeBase
 {
     private readonly SortedDictionary<string, Property> _properties;
-
-    private readonly SortedDictionary<string, ComplexProperty> _complexProperties =
-        new SortedDictionary<string, ComplexProperty>(StringComparer.Ordinal);
-
-    private readonly Dictionary<string, ConfigurationSource> _ignoredMembers
-        = new(StringComparer.Ordinal);
+    private readonly SortedDictionary<string, ComplexProperty> _complexProperties = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, ConfigurationSource> _ignoredMembers = new(StringComparer.Ordinal);
 
     private TypeBase? _baseType;
     private readonly SortedSet<TypeBase> _directlyDerivedTypes = new(TypeBaseNameComparer.Instance);
@@ -142,7 +138,8 @@ public abstract class TypeBase : ConventionAnnotatable, IMutableTypeBase, IConve
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    public virtual InternalTypeBaseBuilder Builder => BaseBuilder;
+    public virtual InternalTypeBaseBuilder Builder
+        => BaseBuilder;
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -170,7 +167,8 @@ public abstract class TypeBase : ConventionAnnotatable, IMutableTypeBase, IConve
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    protected virtual SortedSet<TypeBase> DirectlyDerivedTypes => _directlyDerivedTypes;
+    protected virtual SortedSet<TypeBase> DirectlyDerivedTypes
+        => _directlyDerivedTypes;
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -281,7 +279,7 @@ public abstract class TypeBase : ConventionAnnotatable, IMutableTypeBase, IConve
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    public abstract IEnumerable<IConventionPropertyBase> GetMembers();
+    public abstract IEnumerable<PropertyBase> GetMembers();
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -289,7 +287,7 @@ public abstract class TypeBase : ConventionAnnotatable, IMutableTypeBase, IConve
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    public abstract IEnumerable<IConventionPropertyBase> GetDeclaredMembers();
+    public abstract IEnumerable<PropertyBase> GetDeclaredMembers();
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -297,7 +295,15 @@ public abstract class TypeBase : ConventionAnnotatable, IMutableTypeBase, IConve
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    public abstract IEnumerable<IConventionPropertyBase> FindMembersInHierarchy(string name);
+    public abstract PropertyBase? FindMember(string name);
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    public abstract IEnumerable<PropertyBase> FindMembersInHierarchy(string name);
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -478,6 +484,8 @@ public abstract class TypeBase : ConventionAnnotatable, IMutableTypeBase, IConve
             configurationSource, typeConfigurationSource);
 
         _properties.Add(property.Name, property);
+
+        Model.AddProperty(property);
 
         if (Model.Configuration != null)
         {
@@ -686,7 +694,8 @@ public abstract class TypeBase : ConventionAnnotatable, IMutableTypeBase, IConve
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    protected virtual SortedDictionary<string, Property> Properties => _properties;
+    protected virtual SortedDictionary<string, Property> Properties
+        => _properties;
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -784,6 +793,7 @@ public abstract class TypeBase : ConventionAnnotatable, IMutableTypeBase, IConve
             name,
             propertyType,
             memberInfo: null,
+            complexTypeName: null,
             targetType,
             collection,
             configurationSource);
@@ -804,7 +814,8 @@ public abstract class TypeBase : ConventionAnnotatable, IMutableTypeBase, IConve
             memberInfo.GetSimpleMemberName(),
             memberInfo.GetMemberType(),
             memberInfo,
-            memberInfo.GetMemberType(),
+            complexTypeName: null,
+            collection ? memberInfo.GetMemberType().TryGetSequenceType()! : memberInfo.GetMemberType(),
             collection,
             configurationSource);
 
@@ -847,6 +858,7 @@ public abstract class TypeBase : ConventionAnnotatable, IMutableTypeBase, IConve
         string name,
         [DynamicallyAccessedMembers(IProperty.DynamicallyAccessedMemberTypes)] Type propertyType,
         MemberInfo? memberInfo,
+        string? complexTypeName,
         [DynamicallyAccessedMembers(IProperty.DynamicallyAccessedMemberTypes)] Type targetType,
         bool collection,
         ConfigurationSource configurationSource)
@@ -911,7 +923,7 @@ public abstract class TypeBase : ConventionAnnotatable, IMutableTypeBase, IConve
 
         var property = new ComplexProperty(
             name, propertyType, memberInfo as PropertyInfo, memberInfo as FieldInfo, this,
-            targetType, collection, configurationSource);
+            complexTypeName, targetType, collection, configurationSource);
 
         _complexProperties.Add(property.Name, property);
 
@@ -981,7 +993,7 @@ public abstract class TypeBase : ConventionAnnotatable, IMutableTypeBase, IConve
         return _directlyDerivedTypes.Count == 0
             ? Enumerable.Empty<ComplexProperty>()
             : (IEnumerable<ComplexProperty>)GetDerivedTypes()
-              .Select(et => et.FindDeclaredComplexProperty(propertyName)).Where(p => p != null);
+                .Select(et => et.FindDeclaredComplexProperty(propertyName)).Where(p => p != null);
     }
 
     /// <summary>
@@ -1283,11 +1295,100 @@ public abstract class TypeBase : ConventionAnnotatable, IMutableTypeBase, IConve
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
+    public abstract InstantiationBinding? ConstructorBinding { get; set; }
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
     protected static IEnumerable<T> ToEnumerable<T>(T? element)
         where T : class
         => element == null
             ? Enumerable.Empty<T>()
             : new[] { element };
+
+    /// <summary>
+    ///     Returns all <see cref="IProperty" /> members from this type and all nested complex types, if any.
+    /// </summary>
+    /// <returns>The properties.</returns>
+    public virtual IEnumerable<Property> GetFlattenedProperties()
+    {
+        foreach (var property in GetProperties())
+        {
+            yield return property;
+        }
+
+        foreach (var complexProperty in GetComplexProperties())
+        {
+            foreach (var property in complexProperty.ComplexType.GetFlattenedProperties())
+            {
+                yield return property;
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Returns all <see cref="ComplexProperty" /> members from this type and all nested complex types, if any.
+    /// </summary>
+    /// <returns>The properties.</returns>
+    public virtual IEnumerable<ComplexProperty> GetFlattenedComplexProperties()
+    {
+        foreach (var complexProperty in GetComplexProperties())
+        {
+            yield return complexProperty;
+
+            foreach (var nestedComplexProperty in complexProperty.ComplexType.GetFlattenedComplexProperties())
+            {
+                yield return nestedComplexProperty;
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Returns all <see cref="IProperty" /> members from this type and all nested complex types, if any.
+    /// </summary>
+    /// <returns>The properties.</returns>
+    public virtual IEnumerable<Property> GetFlattenedDeclaredProperties()
+    {
+        foreach (var property in GetDeclaredProperties())
+        {
+            yield return property;
+        }
+
+        foreach (var complexProperty in GetDeclaredComplexProperties())
+        {
+            foreach (var property in complexProperty.ComplexType.GetFlattenedDeclaredProperties())
+            {
+                yield return property;
+            }
+        }
+    }
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    public virtual IEnumerable<PropertyBase> GetSnapshottableMembers()
+    {
+        foreach (var property in GetProperties())
+        {
+            yield return property;
+        }
+
+        foreach (var complexProperty in GetComplexProperties())
+        {
+            yield return complexProperty;
+
+            foreach (var propertyBase in complexProperty.ComplexType.GetSnapshottableMembers())
+            {
+                yield return propertyBase;
+            }
+        }
+    }
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -1708,8 +1809,14 @@ public abstract class TypeBase : ConventionAnnotatable, IMutableTypeBase, IConve
     /// </summary>
     [DebuggerStepThrough]
     IMutableComplexProperty IMutableTypeBase.AddComplexProperty(
-        string name, Type propertyType, Type targetType, bool collection)
-        => AddComplexProperty(name, propertyType, targetType, collection, ConfigurationSource.Explicit)!;
+        string name,
+        Type propertyType,
+        Type targetType,
+        string? complexTypeName,
+        bool collection)
+        => AddComplexProperty(
+            name, propertyType, memberInfo: null, complexTypeName, targetType, collection,
+            ConfigurationSource.Explicit)!;
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -1719,8 +1826,14 @@ public abstract class TypeBase : ConventionAnnotatable, IMutableTypeBase, IConve
     /// </summary>
     [DebuggerStepThrough]
     IConventionComplexProperty? IConventionTypeBase.AddComplexProperty(
-        string name, Type propertyType, Type targetType, bool collection, bool fromDataAnnotation)
-        => AddComplexProperty(name, propertyType, targetType, collection,
+        string name,
+        Type propertyType,
+        Type targetType,
+        string? complexTypeName,
+        bool collection,
+        bool fromDataAnnotation)
+        => AddComplexProperty(
+            name, propertyType, memberInfo: null, complexTypeName, targetType, collection,
             fromDataAnnotation ? ConfigurationSource.DataAnnotation : ConfigurationSource.Convention)!;
 
     /// <summary>
@@ -1731,8 +1844,13 @@ public abstract class TypeBase : ConventionAnnotatable, IMutableTypeBase, IConve
     /// </summary>
     [DebuggerStepThrough]
     IMutableComplexProperty IMutableTypeBase.AddComplexProperty(
-        string name, Type propertyType, MemberInfo memberInfo, Type targetType, bool collection)
-        => AddComplexProperty(name, propertyType, memberInfo, targetType, collection, ConfigurationSource.Explicit)!;
+        string name,
+        Type propertyType,
+        MemberInfo memberInfo,
+        Type targetType,
+        string? complexTypeName,
+        bool collection)
+        => AddComplexProperty(name, propertyType, memberInfo, complexTypeName, targetType, collection, ConfigurationSource.Explicit)!;
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -1742,8 +1860,15 @@ public abstract class TypeBase : ConventionAnnotatable, IMutableTypeBase, IConve
     /// </summary>
     [DebuggerStepThrough]
     IConventionComplexProperty? IConventionTypeBase.AddComplexProperty(
-        string name, Type propertyType, MemberInfo memberInfo, Type targetType, bool collection, bool fromDataAnnotation)
-        => AddComplexProperty(name, propertyType, memberInfo, targetType, collection,
+        string name,
+        Type propertyType,
+        MemberInfo memberInfo,
+        Type targetType,
+        string? complexTypeName,
+        bool collection,
+        bool fromDataAnnotation)
+        => AddComplexProperty(
+            name, propertyType, memberInfo, complexTypeName, targetType, collection,
             fromDataAnnotation ? ConfigurationSource.DataAnnotation : ConfigurationSource.Convention)!;
 
     /// <summary>
@@ -1948,4 +2073,192 @@ public abstract class TypeBase : ConventionAnnotatable, IMutableTypeBase, IConve
         bool fromDataAnnotation)
         => SetChangeTrackingStrategy(
             changeTrackingStrategy, fromDataAnnotation ? ConfigurationSource.DataAnnotation : ConfigurationSource.Convention);
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [DebuggerStepThrough]
+    IEnumerable<IPropertyBase> ITypeBase.GetMembers()
+        => GetMembers();
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [DebuggerStepThrough]
+    IEnumerable<IMutablePropertyBase> IMutableTypeBase.GetMembers()
+        => GetMembers();
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [DebuggerStepThrough]
+    IEnumerable<IConventionPropertyBase> IConventionTypeBase.GetMembers()
+        => GetMembers();
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [DebuggerStepThrough]
+    IEnumerable<IReadOnlyPropertyBase> IReadOnlyTypeBase.GetMembers()
+        => GetMembers();
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [DebuggerStepThrough]
+    IEnumerable<IReadOnlyPropertyBase> IReadOnlyTypeBase.GetDeclaredMembers()
+        => GetDeclaredMembers();
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [DebuggerStepThrough]
+    IEnumerable<IMutablePropertyBase> IMutableTypeBase.GetDeclaredMembers()
+        => GetDeclaredMembers();
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [DebuggerStepThrough]
+    IEnumerable<IConventionPropertyBase> IConventionTypeBase.GetDeclaredMembers()
+        => GetDeclaredMembers();
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [DebuggerStepThrough]
+    IEnumerable<IPropertyBase> ITypeBase.GetDeclaredMembers()
+        => GetDeclaredMembers();
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [DebuggerStepThrough]
+    IReadOnlyPropertyBase? IReadOnlyTypeBase.FindMember(string name)
+        => FindMember(name);
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [DebuggerStepThrough]
+    IMutablePropertyBase? IMutableTypeBase.FindMember(string name)
+        => FindMember(name);
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [DebuggerStepThrough]
+    IConventionPropertyBase? IConventionTypeBase.FindMember(string name)
+        => FindMember(name);
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [DebuggerStepThrough]
+    IPropertyBase? ITypeBase.FindMember(string name)
+        => FindMember(name);
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [DebuggerStepThrough]
+    IEnumerable<IReadOnlyPropertyBase> IReadOnlyTypeBase.FindMembersInHierarchy(string name)
+        => FindMembersInHierarchy(name);
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [DebuggerStepThrough]
+    IEnumerable<IMutablePropertyBase> IMutableTypeBase.FindMembersInHierarchy(string name)
+        => FindMembersInHierarchy(name);
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [DebuggerStepThrough]
+    IEnumerable<IConventionPropertyBase> IConventionTypeBase.FindMembersInHierarchy(string name)
+        => FindMembersInHierarchy(name);
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    [DebuggerStepThrough]
+    IEnumerable<IPropertyBase> ITypeBase.FindMembersInHierarchy(string name)
+        => FindMembersInHierarchy(name);
+
+    /// <summary>
+    ///     Returns all properties that implement <see cref="IProperty" />, including those on complex types.
+    /// </summary>
+    /// <returns>The properties.</returns>
+    IEnumerable<IPropertyBase> ITypeBase.GetSnapshottableMembers()
+        => GetSnapshottableMembers();
+
+    /// <summary>
+    ///     Returns all properties that implement <see cref="IProperty" />, including those on complex types.
+    /// </summary>
+    /// <returns>The properties.</returns>
+    IEnumerable<IProperty> ITypeBase.GetFlattenedProperties()
+        => GetFlattenedProperties();
+
+    /// <summary>
+    ///     Returns all properties that implement <see cref="IComplexProperty" />, including those on complex types.
+    /// </summary>
+    /// <returns>The properties.</returns>
+    IEnumerable<IComplexProperty> ITypeBase.GetFlattenedComplexProperties()
+        => GetFlattenedComplexProperties();
+
+    /// <summary>
+    ///     Returns all properties declared properties that implement <see cref="IProperty" />, including those on complex types.
+    /// </summary>
+    /// <returns>The properties.</returns>
+    IEnumerable<IProperty> ITypeBase.GetFlattenedDeclaredProperties()
+        => GetFlattenedDeclaredProperties();
 }

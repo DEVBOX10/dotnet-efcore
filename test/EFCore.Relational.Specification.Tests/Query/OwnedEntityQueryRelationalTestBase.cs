@@ -286,6 +286,64 @@ public abstract class OwnedEntityQueryRelationalTestBase : OwnedEntityQueryTestB
 
     [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
+    public virtual async Task Owned_entity_with_all_null_properties_in_compared_to_null_in_conditional_projection(bool async)
+    {
+        var contextFactory = await InitializeAsync<MyContext28247>(seed: c => c.Seed());
+
+        using var context = contextFactory.CreateContext();
+        var query = context.RotRutCases
+            .AsNoTracking()
+            .OrderBy(e => e.Id)
+            .Select(e => e.Rot == null ? null : new RotDto { MyApartmentNo = e.Rot.ApartmentNo, MyServiceType = e.Rot.ServiceType });
+
+        var result = async
+            ? await query.ToListAsync()
+            : query.ToList();
+
+        Assert.Collection(
+            result,
+            t =>
+            {
+                Assert.Equal("1", t.MyApartmentNo);
+                Assert.Equal(1, t.MyServiceType);
+            },
+            t =>
+            {
+                Assert.Null(t);
+            });
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
+    public virtual async Task Owned_entity_with_all_null_properties_in_compared_to_non_null_in_conditional_projection(bool async)
+    {
+        var contextFactory = await InitializeAsync<MyContext28247>(seed: c => c.Seed());
+
+        using var context = contextFactory.CreateContext();
+        var query = context.RotRutCases
+            .AsNoTracking()
+            .OrderBy(e => e.Id)
+            .Select(e => e.Rot != null ? new RotDto { MyApartmentNo = e.Rot.ApartmentNo, MyServiceType = e.Rot.ServiceType } : null);
+
+        var result = async
+            ? await query.ToListAsync()
+            : query.ToList();
+
+        Assert.Collection(
+            result,
+            t =>
+            {
+                Assert.Equal("1", t.MyApartmentNo);
+                Assert.Equal(1, t.MyServiceType);
+            },
+            t =>
+            {
+                Assert.Null(t);
+            });
+    }
+
+    [ConditionalTheory]
+    [MemberData(nameof(IsAsyncData))]
     public virtual async Task Owned_entity_with_all_null_properties_property_access_when_not_containing_another_owned_entity(bool async)
     {
         var contextFactory = await InitializeAsync<MyContext28247>(seed: c => c.Seed());
@@ -350,7 +408,7 @@ public abstract class OwnedEntityQueryRelationalTestBase : OwnedEntityQueryTestB
         }
     }
 
-    public class RotRutCase
+    protected class RotRutCase
     {
         public int Id { get; set; }
         public string Buyer { get; set; }
@@ -358,13 +416,19 @@ public abstract class OwnedEntityQueryRelationalTestBase : OwnedEntityQueryTestB
         public Rut Rut { get; set; }
     }
 
-    public class Rot
+    protected class Rot
     {
         public int? ServiceType { get; set; }
         public string ApartmentNo { get; set; }
     }
 
-    public class Rut
+    protected class RotDto
+    {
+        public int? MyServiceType { get; set; }
+        public string MyApartmentNo { get; set; }
+    }
+
+    protected class Rut
     {
         public int? Value { get; set; }
     }
@@ -393,55 +457,55 @@ public abstract class OwnedEntityQueryRelationalTestBase : OwnedEntityQueryTestB
         public DbSet<Magus30358> Magi { get; set; }
 
         public MyContext30358(DbContextOptions options)
-           : base(options)
+            : base(options)
         {
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
-            modelBuilder.Entity<Magus30358>().OwnsOne(x => x.ToolUsed, x => x.ToTable("MagicTools"));
-        }
+            => modelBuilder.Entity<Magus30358>().OwnsOne(x => x.ToolUsed, x => x.ToTable("MagicTools"));
 
         public void Seed()
         {
-            Add(new Monarch30358
-            {
-                Name = "His August Majesty Guslav the Fifth",
-                RulerOf = "The Union",
-            });
+            Add(
+                new Monarch30358
+                {
+                    Name = "His August Majesty Guslav the Fifth", RulerOf = "The Union",
+                });
 
-            Add(new Monarch30358
-            {
-                Name = "Emperor Uthman-ul-Dosht",
-                RulerOf = "The Gurkish Empire",
-            });
+            Add(
+                new Monarch30358
+                {
+                    Name = "Emperor Uthman-ul-Dosht", RulerOf = "The Gurkish Empire",
+                });
 
-            Add(new Magus30358
-            {
-                Name = "Bayaz, the First of the Magi",
-                Affiliation = "The Union",
-                ToolUsed = new MagicTool30358 { Name = "The Divider" }
-            });
+            Add(
+                new Magus30358
+                {
+                    Name = "Bayaz, the First of the Magi",
+                    Affiliation = "The Union",
+                    ToolUsed = new MagicTool30358 { Name = "The Divider" }
+                });
 
-            Add(new Magus30358
-            {
-                Name = "The Prophet Khalul",
-                Affiliation = "The Gurkish Empire",
-                ToolUsed = new MagicTool30358 { Name = "The Hundred Words" }
-            });
+            Add(
+                new Magus30358
+                {
+                    Name = "The Prophet Khalul",
+                    Affiliation = "The Gurkish Empire",
+                    ToolUsed = new MagicTool30358 { Name = "The Hundred Words" }
+                });
 
             SaveChanges();
         }
     }
 
-    public class Monarch30358
+    protected class Monarch30358
     {
         public int Id { get; set; }
         public string Name { get; set; }
         public string RulerOf { get; set; }
     }
 
-    public class Magus30358
+    protected class Magus30358
     {
         public int Id { get; set; }
         public string Name { get; set; }
@@ -449,9 +513,67 @@ public abstract class OwnedEntityQueryRelationalTestBase : OwnedEntityQueryTestB
         public MagicTool30358 ToolUsed { get; set; }
     }
 
-    public class MagicTool30358
+    protected class MagicTool30358
     {
         public string Name { get; set; }
+    }
+
+    protected abstract class BaseEntity31107
+    {
+        public Guid Id { get; set; }
+    }
+
+    protected sealed class ChildData31107
+    {
+        public Guid Id { get; set; }
+    }
+
+    protected sealed class Child1Entity31107 : BaseEntity31107
+    {
+        public ChildData31107 Data { get; set; }
+    }
+
+    protected sealed class Child2Entity31107 : BaseEntity31107
+    {
+    }
+
+    [ConditionalFact]
+    public async Task Can_have_required_owned_type_on_derived_type()
+    {
+        var contextFactory = await InitializeAsync<RequiredNavigationContext>(seed: c => c.Seed());
+        using var context = contextFactory.CreateContext();
+
+        context.Set<BaseEntity31107>().ToList();
+    }
+
+    private class RequiredNavigationContext : DbContext
+    {
+        public RequiredNavigationContext(DbContextOptions options)
+            : base(options)
+        {
+        }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<BaseEntity31107>();
+            modelBuilder.Entity<Child1Entity31107>(b =>
+            {
+                b.OwnsOne(entity => entity.Data, builder =>
+                {
+                    builder.ToTable("Child1EntityData");
+                    builder.WithOwner().HasForeignKey("Child1EntityId");
+                });
+                b.Navigation(e => e.Data).IsRequired();
+            });
+
+            modelBuilder.Entity<Child2Entity31107>();
+        }
+        public void Seed()
+        {
+            Add(new Child2Entity31107 { Id = Guid.NewGuid() });
+
+            SaveChanges();
+        }
     }
 
     protected override DbContextOptionsBuilder AddOptions(DbContextOptionsBuilder builder)

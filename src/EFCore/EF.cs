@@ -19,7 +19,8 @@ public static partial class EF
     internal static readonly MethodInfo PropertyMethod
         = typeof(EF).GetTypeInfo().GetDeclaredMethod(nameof(Property))!;
 
-    [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2060",
+    [UnconditionalSuppressMessage(
+        "ReflectionAnalysis", "IL2060",
         Justification = "EF.Property has no DynamicallyAccessedMembers annotations and is safe to construct.")]
     internal static MethodInfo MakePropertyMethod(Type type)
         => PropertyMethod.MakeGenericMethod(type);
@@ -41,7 +42,7 @@ public static partial class EF
     public static bool IsDesignTime { get; set; }
 
     /// <summary>
-    ///     References a given property or navigation on an entity instance. This is useful for shadow state properties, for
+    ///     References a given property or navigation on an entity or complex type instance. This is useful for shadow state properties, for
     ///     which no CLR property exists. Currently this method can only be used in LINQ queries and can not be used to
     ///     access the value assigned to a property in other scenarios.
     /// </summary>
@@ -54,11 +55,11 @@ public static partial class EF
     ///     </para>
     /// </remarks>
     /// <typeparam name="TProperty">The type of the property being referenced.</typeparam>
-    /// <param name="entity">The entity to access the property on.</param>
+    /// <param name="instance">The entity or complex type to access the property on.</param>
     /// <param name="propertyName">The name of the property.</param>
     /// <returns>The value assigned to the property.</returns>
     public static TProperty Property<TProperty>(
-        object entity,
+        object instance,
         [NotParameterized] string propertyName)
         => throw new InvalidOperationException(CoreStrings.PropertyMethodInvoked);
 

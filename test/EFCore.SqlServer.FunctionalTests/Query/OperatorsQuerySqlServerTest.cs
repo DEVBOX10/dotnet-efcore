@@ -39,7 +39,7 @@ public class OperatorsQuerySqlServerTest : OperatorsQueryTestBase
         await base.Or_on_two_nested_binaries_and_another_simple_comparison();
 
         AssertSql(
-"""
+            """
 SELECT [o].[Id] AS [Id1], [o0].[Id] AS [Id2], [o1].[Id] AS [Id3], [o2].[Id] AS [Id4], [o3].[Id] AS [Id5]
 FROM [OperatorEntityString] AS [o]
 CROSS JOIN [OperatorEntityString] AS [o0]
@@ -62,7 +62,7 @@ ORDER BY [o].[Id], [o0].[Id], [o1].[Id], [o2].[Id], [o3].[Id]
         await base.Projection_with_not_and_negation_on_integer();
 
         AssertSql(
-"""
+            """
 SELECT ~(-(-([o1].[Value] + [o].[Value] + CAST(2 AS bigint)))) % (-([o0].[Value] + [o0].[Value]) - [o].[Value])
 FROM [OperatorEntityLong] AS [o]
 CROSS JOIN [OperatorEntityLong] AS [o0]
@@ -76,7 +76,7 @@ ORDER BY [o].[Id], [o0].[Id], [o1].[Id]
         await base.Negate_on_column(async);
 
         AssertSql(
-"""
+            """
 SELECT [o].[Id]
 FROM [OperatorEntityInt] AS [o]
 WHERE [o].[Id] = -[o].[Value]
@@ -88,7 +88,7 @@ WHERE [o].[Id] = -[o].[Value]
         await base.Double_negate_on_column();
 
         AssertSql(
-"""
+            """
 SELECT [o].[Id]
 FROM [OperatorEntityInt] AS [o]
 WHERE -(-[o].[Value]) = [o].[Value]
@@ -100,7 +100,7 @@ WHERE -(-[o].[Value]) = [o].[Value]
         await base.Negate_on_binary_expression(async);
 
         AssertSql(
-"""
+            """
 SELECT [o].[Id] AS [Id1], [o0].[Id] AS [Id2]
 FROM [OperatorEntityInt] AS [o]
 CROSS JOIN [OperatorEntityInt] AS [o0]
@@ -113,10 +113,10 @@ WHERE -[o].[Value] = -([o].[Id] + [o0].[Value])
         await base.Negate_on_like_expression(async);
 
         AssertSql(
-"""
+            """
 SELECT [o].[Id]
 FROM [OperatorEntityString] AS [o]
-WHERE [o].[Value] IS NOT NULL AND [o].[Value] NOT LIKE N'A%'
+WHERE [o].[Value] NOT LIKE N'A%' OR [o].[Value] IS NULL
 """);
     }
 
@@ -125,7 +125,7 @@ WHERE [o].[Value] IS NOT NULL AND [o].[Value] NOT LIKE N'A%'
         await base.Concat_and_json_scalar(async);
 
         AssertSql(
-"""
+            """
 SELECT TOP(2) [o].[Id], [o].[Owned]
 FROM [Owner] AS [o]
 WHERE N'Foo' + JSON_VALUE([o].[Owned], '$.SomeProperty') = N'FooBar'
@@ -134,6 +134,7 @@ WHERE N'Foo' + JSON_VALUE([o].[Owned], '$.SomeProperty') = N'FooBar'
 
     [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
+    [SqlServerCondition(SqlServerCondition.SupportsSqlClr)]
     public virtual async Task Where_AtTimeZone_datetimeoffset_constant(bool async)
     {
         var contextFactory = await InitializeAsync<OperatorsContext>(seed: Seed);
@@ -154,7 +155,7 @@ WHERE N'Foo' + JSON_VALUE([o].[Owned], '$.SomeProperty') = N'FooBar'
         }
 
         AssertSql(
-"""
+            """
 SELECT [o].[Id]
 FROM [OperatorEntityDateTimeOffset] AS [o]
 WHERE [o].[Value] AT TIME ZONE 'UTC' = '2000-01-01T18:00:00.0000000+00:00'
@@ -163,6 +164,7 @@ WHERE [o].[Value] AT TIME ZONE 'UTC' = '2000-01-01T18:00:00.0000000+00:00'
 
     [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
+    [SqlServerCondition(SqlServerCondition.SupportsSqlClr)]
     public virtual async Task Where_AtTimeZone_datetimeoffset_parameter(bool async)
     {
         var contextFactory = await InitializeAsync<OperatorsContext>(seed: Seed);
@@ -186,7 +188,7 @@ WHERE [o].[Value] AT TIME ZONE 'UTC' = '2000-01-01T18:00:00.0000000+00:00'
         }
 
         AssertSql(
-"""
+            """
 @__timeZone_1='UTC' (Size = 8000) (DbType = AnsiString)
 @__dateTime_2='2000-01-01T18:00:00.0000000+00:00'
 
@@ -198,6 +200,7 @@ WHERE [o].[Value] AT TIME ZONE @__timeZone_1 = @__dateTime_2
 
     [ConditionalTheory]
     [MemberData(nameof(IsAsyncData))]
+    [SqlServerCondition(SqlServerCondition.SupportsSqlClr)]
     public virtual async Task Where_AtTimeZone_datetimeoffset_column(bool async)
     {
         var contextFactory = await InitializeAsync<OperatorsContext>(seed: Seed);
@@ -221,7 +224,7 @@ WHERE [o].[Value] AT TIME ZONE @__timeZone_1 = @__dateTime_2
         }
 
         AssertSql(
-"""
+            """
 SELECT [o].[Id] AS [Id1], [o0].[Id] AS [Id2]
 FROM [OperatorEntityDateTimeOffset] AS [o]
 CROSS JOIN [OperatorEntityDateTimeOffset] AS [o0]

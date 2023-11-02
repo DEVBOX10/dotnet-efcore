@@ -120,33 +120,6 @@ public class TestSqlLoggerFactory : ListLoggerFactory
 
             var contents = testInfo + newBaseLine + FileNewLine + "--------------------" + FileNewLine;
 
-            var indexSimpleMethodEnding = methodCallLine.IndexOf('(');
-            var indexSimpleMethodStarting = methodCallLine.LastIndexOf('.', indexSimpleMethodEnding) + 1;
-            var methodName = methodCallLine.Substring(indexSimpleMethodStarting, indexSimpleMethodEnding - indexSimpleMethodStarting);
-
-            var manipulatedSql = string.IsNullOrEmpty(sql)
-                ? ""
-                : @$"
-{sql}";
-
-            var overrideString = testName.Contains("Boolean async")
-                ? @$"        public override async Task {methodName}(bool async)
-        {{
-            await base.{methodName}(async);
-
-            Assert{(forUpdate ? "ExecuteUpdate" : "")}Sql({manipulatedSql});
-        }}
-
-"
-                : @$"        public override void {methodName}()
-        {{
-            base.{methodName}();
-
-            Assert{(forUpdate ? "ExecuteUpdate" : "")}Sql({manipulatedSql});
-        }}
-
-";
-
             lock (_queryBaselineFileLock)
             {
                 File.AppendAllText(logFile, contents);
@@ -160,7 +133,7 @@ public class TestSqlLoggerFactory : ListLoggerFactory
             var fileInfo = _queryBaselineRewritingFileInfos.GetOrAdd(fileName, _ => new QueryBaselineRewritingFileInfo());
             lock (fileInfo.Lock)
             {
-                // First, adjust our lineNumber to take into account any baseline rewriting that already occured in this file
+                // First, adjust our lineNumber to take into account any baseline rewriting that already occurred in this file
                 var origLineNumber = lineNumber;
                 foreach (var displacement in fileInfo.LineDisplacements)
                 {

@@ -1,13 +1,19 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
 using System.Collections;
 using System.Globalization;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Security;
 using System.Text;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Editing;
+using Microsoft.CodeAnalysis.Simplification;
+using Microsoft.CodeAnalysis.Text;
 using Microsoft.EntityFrameworkCore.Internal;
+using Microsoft.EntityFrameworkCore.Query.Internal;
 
 namespace Microsoft.EntityFrameworkCore.Design.Internal;
 
@@ -20,6 +26,8 @@ namespace Microsoft.EntityFrameworkCore.Design.Internal;
 public class CSharpHelper : ICSharpHelper
 {
     private readonly ITypeMappingSource _typeMappingSource;
+    private readonly Project _project;
+    private readonly LinqToCSharpSyntaxTranslator _translator;
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -30,6 +38,14 @@ public class CSharpHelper : ICSharpHelper
     public CSharpHelper(ITypeMappingSource typeMappingSource)
     {
         _typeMappingSource = typeMappingSource;
+
+        var workspace = new AdhocWorkspace();
+        var projectId = ProjectId.CreateNewId();
+        var versionStamp = VersionStamp.Create();
+        var projectInfo = ProjectInfo.Create(projectId, versionStamp, "Proj", "Proj", LanguageNames.CSharp);
+        _project = workspace.AddProject(projectInfo);
+        var syntaxGenerator = SyntaxGenerator.GetGenerator(workspace, LanguageNames.CSharp);
+        _translator = new LinqToCSharpSyntaxTranslator(syntaxGenerator);
     }
 
     private static readonly IReadOnlyCollection<string> Keywords = new[]
@@ -314,9 +330,17 @@ public class CSharpHelper : ICSharpHelper
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     public virtual string Literal(string? value)
-        // do not use @"" syntax as in Migrations this can get indented at a newline and so add spaces to the literal
+        // do not output @"" syntax as in Migrations this can get indented at a newline and so add spaces to the literal
         => value is not null
-            ? "\"" + value.Replace(@"\", @"\\").Replace("\"", "\\\"").Replace("\n", @"\n").Replace("\r", @"\r") + "\""
+            ? new StringBuilder(value)
+                .Replace("\\", @"\\")
+                .Replace("\0", @"\0")
+                .Replace("\n", @"\n")
+                .Replace("\r", @"\r")
+                .Replace("\"", "\\\"")
+                .Insert(0, "\"")
+                .Append("\"")
+                .ToString()
             : "null";
 
     /// <summary>
@@ -344,7 +368,17 @@ public class CSharpHelper : ICSharpHelper
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
     public virtual string Literal(char value)
-        => "\'" + (value == '\'' ? "\\'" : value.ToString()) + "\'";
+        => "\'"
+            + value switch
+            {
+                '\\' => @"\\",
+                '\0' => @"\0",
+                '\n' => @"\n",
+                '\r' => @"\r",
+                '\'' => @"\'",
+                _ => value.ToString()
+            }
+            + "\'";
 
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -1497,6 +1531,38 @@ public class CSharpHelper : ICSharpHelper
     public virtual IEnumerable<string> GetRequiredUsings(Type type)
         => type.GetNamespaces();
 
+    private string ToSourceCode(SyntaxNode node)
+    {
+        var code = node.NormalizeWhitespace().ToFullString();
+        var document = _project.AddDocument("Code.cs", SourceText.From(code));
+
+        var syntaxRootFoo = document.GetSyntaxRootAsync().Result!;
+        var annotatedDocument = document.WithSyntaxRoot(syntaxRootFoo.WithAdditionalAnnotations(Simplifier.Annotation));
+        document = Simplifier.ReduceAsync(annotatedDocument).Result;
+
+        var simplifiedCode = document.GetTextAsync().Result.ToString();
+
+        return simplifiedCode;
+    }
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    public virtual string Statement(Expression node, ISet<string> collectedNamespaces)
+        => ToSourceCode(_translator.TranslateStatement(node, collectedNamespaces));
+
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    public virtual string Expression(Expression node, ISet<string> collectedNamespaces)
+        => ToSourceCode(_translator.TranslateExpression(node, collectedNamespaces));
+
     private static bool IsIdentifierStartCharacter(char ch)
     {
         if (ch < 'a')
@@ -1517,8 +1583,8 @@ public class CSharpHelper : ICSharpHelper
         if (ch < 'a')
         {
             return (ch < 'A'
-                ? ch is >= '0' and <= '9'
-                : ch <= 'Z')
+                    ? ch is >= '0' and <= '9'
+                    : ch <= 'Z')
                 || ch == '_';
         }
 
